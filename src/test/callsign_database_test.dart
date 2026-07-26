@@ -146,4 +146,92 @@ void main() {
       }
     });
   });
+
+  group('CallsignDatabase Canadian (ISED) round-trip', () {
+    final records = <CallsignRecord>[
+      const CallsignRecord(
+        callsign: 'VA1AA',
+        name: 'Bill McFadden',
+        qualifications: 'ACD',
+        city: 'MIDDLE SACKVILLE',
+        state: 'NS',
+        zip: 'B4E 2X8',
+      ),
+      const CallsignRecord(
+        callsign: 'VE3XYZ',
+        name: 'Jane Smith',
+        qualifications: 'AD',
+        city: 'Toronto',
+        state: 'ON',
+        zip: 'M5V 2T6',
+      ),
+      const CallsignRecord(
+        callsign: 'VA2AAC',
+        name: 'André Charron',
+        qualifications: 'A',
+        city: 'MONT-LAURIER',
+        state: 'QC',
+        zip: 'J9L1X1',
+      ),
+      const CallsignRecord(
+        callsign: 'VE9NOPO',
+        name: 'NO POSTAL CLUB',
+        qualifications: '',
+        city: 'Fredericton',
+        state: 'NB',
+      ),
+    ];
+
+    late CallsignDatabase db;
+
+    setUp(() {
+      final bytes = CallsignDatabase.build(
+        records,
+        sourceDate: 20260725,
+        flags: CallsignDatabase.flagCanada,
+      );
+      db = CallsignDatabase.openBytes(bytes);
+    });
+
+    test('reports the Canadian flag', () {
+      expect(db.flags & CallsignDatabase.flagCanada, isNot(0));
+    });
+
+    test('decodes qualifications and alphanumeric postal code', () async {
+      final r = await db.lookup('VA1AA');
+      expect(r, isNotNull);
+      expect(r!.name, 'Bill McFadden');
+      expect(r.qualifications, 'ACD');
+      expect(r.qualificationsName, 'Basic, 12 wpm, Advanced');
+      expect(r.operatorClass, '');
+      expect(r.status, '');
+      expect(r.state, 'NS');
+      expect(r.zip, 'B4E 2X8');
+      expect(r.location, 'MIDDLE SACKVILLE, NS B4E 2X8');
+    });
+
+    test('normalizes postal codes with or without a space', () async {
+      final r = await db.lookup('VA2AAC');
+      expect(r, isNotNull);
+      expect(r!.zip, 'J9L 1X1');
+      expect(r.name, 'André Charron');
+    });
+
+    test('missing postal code and qualifications decode to empty', () async {
+      final r = await db.lookup('VE9NOPO');
+      expect(r, isNotNull);
+      expect(r!.zip, '');
+      expect(r.qualifications, '');
+      expect(r.qualificationsName, '');
+    });
+
+    test('every inserted callsign is retrievable', () async {
+      for (final rec in records) {
+        final r = await db.lookup(rec.callsign);
+        expect(r, isNotNull, reason: 'expected to find ${rec.callsign}');
+        expect(r!.callsign, rec.callsign);
+      }
+    });
+  });
 }
+

@@ -1457,25 +1457,38 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     // the VFO layout.
     if (!inQso) {
       final l10n = AppLocalizations.of(context);
-      final String centerText = _echoLinkState == 'Connecting'
-          ? l10n.stateConnecting
-          : l10n.stateDisconnected;
+      final bool connecting = _echoLinkState == 'Connecting';
+      final String centerText =
+          connecting ? l10n.stateConnecting : l10n.stateDisconnected;
+      // While connecting, show the target node number bottom-left (mirroring
+      // the "Internet" label bottom-right) so the user can see which channel is
+      // being dialed.
+      final StationData? target = _echoLinkPendingConnect;
+      final int? nodeNumber =
+          (connecting && target != null && target.id > 0) ? target.id : null;
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: _displayBgColor,
           borderRadius: BorderRadius.circular(2),
         ),
-        child: Center(
-          child: Text(
-            centerText,
-            style: const TextStyle(
-              color: Color(0xFFD3D3D3),
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              centerText,
+              style: const TextStyle(
+                color: Color(0xFFD3D3D3),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
+            if (connecting) ...[
+              const SizedBox(height: 10),
+              _buildEchoLinkBottomRow(nodeNumber),
+            ],
+          ],
         ),
       );
     }
@@ -1486,6 +1499,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     final StationData? station = _echoLinkConnected;
     final String aLabel = station?.callsign ?? '';
     final String aSub = station?.description ?? '';
+    final int? nodeNumber =
+        (station != null && station.id > 0) ? station.id : null;
 
     Widget vfoBlock(String label, String sub, Color color) {
       return Column(
@@ -1540,19 +1555,24 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           ),
           Transform.translate(
             offset: const Offset(0, -12),
-            child: Row(
-              children: [
-                const Spacer(),
-                Text(
-                  'Internet',
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
-                  textAlign: TextAlign.right,
-                ),
-              ],
-            ),
+            child: _buildEchoLinkBottomRow(nodeNumber),
           ),
         ],
       ),
+    );
+  }
+
+  /// Bottom row of the EchoLink LCD: the connected/connecting channel's node
+  /// number on the left (gray) and the "Internet" mode label on the right,
+  /// mirroring the physical radio's display.
+  Widget _buildEchoLinkBottomRow(int? nodeNumber) {
+    final style = TextStyle(color: Colors.grey.shade500, fontSize: 10);
+    return Row(
+      children: [
+        if (nodeNumber != null) Text('#$nodeNumber', style: style),
+        const Spacer(),
+        Text('Internet', style: style, textAlign: TextAlign.right),
+      ],
     );
   }
 

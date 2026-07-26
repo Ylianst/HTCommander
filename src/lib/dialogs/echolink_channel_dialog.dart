@@ -174,7 +174,8 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
       final q = _query.toUpperCase();
       list = list.where((s) =>
           s.callsign.toUpperCase().contains(q) ||
-          s.description.toUpperCase().contains(q));
+          s.description.toUpperCase().contains(q) ||
+          (s.id > 0 && s.id.toString().contains(q)));
     }
     return list.toList();
   }
@@ -240,7 +241,7 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
                     child: TextField(
                       controller: _searchController,
                       decoration: _inputDecoration(
-                        hintText: 'Search callsign or location',
+                        hintText: 'Search callsign, location or number',
                       ).copyWith(prefixIcon: const Icon(Icons.search)),
                       onChanged: (v) => setState(() => _query = v.trim()),
                     ),
@@ -371,7 +372,26 @@ class _EchoLinkChannelDialogState extends State<_EchoLinkChannelDialog> {
             message: _kindLabel(kind),
             child: Icon(_kindIcon(kind), size: 20, color: statusColor),
           ),
-          title: Text(station.callsign),
+          title: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  station.callsign,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (station.id > 0) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '#${station.id}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
           subtitle: station.description.isEmpty
               ? null
               : Text(

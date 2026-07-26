@@ -24,7 +24,7 @@ import 'callsign_record.dart';
 /// Header (64 bytes)
 ///   0  u32  magic          = 0x42444348  ("HCDB")
 ///   4  u16  formatVersion  = 2
-///   6  u16  flags          (reserved, 0)
+///   6  u16  flags          (bit 0 = Canadian/ISED encoding; see [flagCanada])
 ///   8  u32  recordCount
 ///   12 u32  keysOffset        (byte offset of the sorted keys block)
 ///   16 u32  lengthsOffset     (byte offset of the record-lengths block)
@@ -45,6 +45,9 @@ import 'callsign_record.dart';
 /// Class/status dictionary: classStatusCount entries, 2 bytes each
 ///   0  u8  operatorClass (ASCII class letter, or 0)
 ///   1  u8  status        (ASCII status letter, or 0)
+/// For Canadian ([flagCanada]) databases the first byte instead holds a
+/// qualification bitmask (Basic=1, 5wpm=2, 12wpm=4, Advanced=8, Honours=16)
+/// and the second byte is 0.
 ///
 /// City dictionary: cityCount entries, each `u8 len + UTF-8 bytes`, referenced
 /// by each record's 24-bit city index.
@@ -61,7 +64,8 @@ import 'callsign_record.dart';
 ///   cityIndex       u24 (index into the city dictionary)
 ///   stateIndex      u8  (index into the state dictionary)
 ///   csIndex         u8  (index into the class/status dictionary)
-///   zip             u32 (packed numeric ZIP; 0xFFFFFFFF = none)
+///   zip             u32 (packed numeric ZIP, or packed Canadian postal code
+///                        when [flagCanada] is set; 0xFFFFFFFF = none)
 ///   expireDate      u16 (days since epochDate; 0 = unknown)
 /// ```
 class CallsignDatabase {
@@ -84,6 +88,14 @@ class CallsignDatabase {
   /// when building a database. Stored in the header so the reader never assumes
   /// a fixed epoch and the window can be slid in a future rebuild.
   static const int defaultEpochDate = 20000101;
+
+  /// Header `flags` bit: records use Canadian (ISED) field encoding. Postal
+  /// codes are packed as alphanumeric Canadian codes (see [_packPostalCa]) and
+  /// each record's class byte holds a qualification bitmask (see
+  /// [_qualMaskToString]) instead of an FCC (class, status) pair. When unset
+  /// (US / FCC data) the reader keeps its original numeric-ZIP / class-status
+  /// behaviour, so existing databases are unaffected.
+  static const int flagCanada = 0x0001;
 
   final RandomAccessFile? _raf;
 
@@ -119,6 +131,9 @@ class CallsignDatabase {
   /// Base date (`YYYYMMDD`) that record expire day-counts are measured from.
   final int epochDate;
 
+  /// Header flag bits (see [flagCanada]). 0 for US (FCC) databases.
+  final int flags;
+
   CallsignDatabase._({
     required this._raf,
     required this._bytes,
@@ -131,6 +146,7 @@ class CallsignDatabase {
     required this.recordCount,
     required this.sourceDate,
     required this.epochDate,
+    required this.flags,
   });
 
 
@@ -177,6 +193,7 @@ class CallsignDatabase {
         recordCount: h.recordCount,
         sourceDate: h.sourceDate,
         epochDate: h.epochDate,
+        flags: h.flags,
       );
     } catch (_) {
       await raf.close();
@@ -234,6 +251,7 @@ class CallsignDatabase {
       recordCount: h.recordCount,
       sourceDate: h.sourceDate,
       epochDate: h.epochDate,
+      flags: h.flags,
     );
   }
 
@@ -262,6 +280,7 @@ class CallsignDatabase {
       classStatusOffset: data.getUint32(40, Endian.little),
       cityCount: data.getUint32(44, Endian.little),
       cityOffset: data.getUint32(48, Endian.little),
+      flags: data.getUint16(6, Endian.little),
     );
   }
 
@@ -357,6 +376,85 @@ class CallsignDatabase {
     return v.toString().padLeft(v < 100000 ? 5 : 9, '0');
   }
 
+  /// Sentinel stored for a missing or malformed Canadian postal code.
+  static const int _postalNone = 0xFFFFFFFF;
+
+  /// Packs a Canadian postal code (`A1A1B1`, letter-digit-letter-digit-letter-
+  /// digit) into a u32 by interleaving base-26 letters and base-10 digits, or
+  /// [_postalNone] when it does not match that fixed pattern. Any spaces are
+  /// ignored, so `A1A 1B1` and `A1A1B1` pack identically.
+  static int _packPostalCa(String postal) {
+    final s = postal.toUpperCase().replaceAll(' ', '');
+    if (s.length != 6) return _postalNone;
+    var v = 0;
+    for (var i = 0; i < 6; i++) {
+      final c = s.codeUnitAt(i);
+      if (i.isEven) {
+        if (c < 0x41 || c > 0x5A) return _postalNone; // expect a letter
+        v = v * 26 + (c - 0x41);
+      } else {
+        if (c < 0x30 || c > 0x39) return _postalNone; // expect a digit
+        v = v * 10 + (c - 0x30);
+      }
+    }
+    return v;
+  }
+
+  /// Reverses [_packPostalCa], formatting as `A1A 1B1`.
+  static String _unpackPostalCa(int v) {
+    if (v == _postalNone) return '';
+    final chars = List<int>.filled(6, 0);
+    for (var i = 5; i >= 0; i--) {
+      if (i.isEven) {
+        chars[i] = 0x41 + (v % 26);
+        v ~/= 26;
+      } else {
+        chars[i] = 0x30 + (v % 10);
+        v ~/= 10;
+      }
+    }
+    return '${String.fromCharCodes(chars, 0, 3)} '
+        '${String.fromCharCodes(chars, 3, 6)}';
+  }
+
+  /// Canadian qualification bits packed into a record's class byte.
+  static const int _qualBasic = 0x01; // A
+  static const int _qual5wpm = 0x02; // B
+  static const int _qual12wpm = 0x04; // C
+  static const int _qualAdvanced = 0x08; // D
+  static const int _qualHonours = 0x10; // E
+
+  /// Expands a qualification [mask] into its ordered letter string (`A`..`E`).
+  static String _qualMaskToString(int mask) {
+    final sb = StringBuffer();
+    if (mask & _qualBasic != 0) sb.write('A');
+    if (mask & _qual5wpm != 0) sb.write('B');
+    if (mask & _qual12wpm != 0) sb.write('C');
+    if (mask & _qualAdvanced != 0) sb.write('D');
+    if (mask & _qualHonours != 0) sb.write('E');
+    return sb.toString();
+  }
+
+  /// Packs a qualification letter string (`A`..`E`) into a bitmask.
+  static int _qualStringToMask(String s) {
+    var mask = 0;
+    for (final c in s.toUpperCase().codeUnits) {
+      switch (c) {
+        case 0x41:
+          mask |= _qualBasic;
+        case 0x42:
+          mask |= _qual5wpm;
+        case 0x43:
+          mask |= _qual12wpm;
+        case 0x44:
+          mask |= _qualAdvanced;
+        case 0x45:
+          mask |= _qualHonours;
+      }
+    }
+    return mask;
+  }
+
   /// Looks up [callsign] (SSID is ignored). Returns the matching
   /// [CallsignRecord], or null when not found.
   Future<CallsignRecord?> lookup(String callsign) async {
@@ -448,20 +546,35 @@ class CallsignDatabase {
     final cityIndex = reader.readUint24();
     final stateIndex = reader.readByte();
     final csIndex = reader.readByte();
-    final zip = _unpackZip(reader.readUint32());
+    final rawZip = reader.readUint32();
     final expireDate = _daysToDate(reader.readUint16(), epochDate);
+    final canada = (flags & flagCanada) != 0;
     return CallsignRecord(
       callsign: _unpackKey(_keyAt(index)),
       name: name,
       city: cityIndex < _cityTable.length ? _cityTable[cityIndex] : '',
       state: stateIndex < _stateTable.length ? _stateTable[stateIndex] : '',
-      zip: zip,
-      operatorClass:
-          csIndex < _classTable.length ? _classTable[csIndex] : '',
-      status: csIndex < _statusTable.length ? _statusTable[csIndex] : '',
+      zip: canada ? _unpackPostalCa(rawZip) : _unpackZip(rawZip),
+      operatorClass: canada
+          ? ''
+          : (csIndex < _classTable.length ? _classTable[csIndex] : ''),
+      status: canada
+          ? ''
+          : (csIndex < _statusTable.length ? _statusTable[csIndex] : ''),
+      qualifications: canada ? _qualMaskToString(_maskAt(csIndex)) : '',
       expireDate: expireDate,
     );
   }
+
+  /// The qualification bitmask stored in the class byte of class/status
+  /// dictionary entry [csIndex] (Canadian databases). Recovered from the
+  /// character code held in [_classTable]; 0 when out of range.
+  int _maskAt(int csIndex) {
+    if (csIndex >= _classTable.length) return 0;
+    final s = _classTable[csIndex];
+    return s.isEmpty ? 0 : s.codeUnitAt(0) & 0xFF;
+  }
+
 
   /// Converts a stored `days since epoch` value back to a `YYYYMMDD` integer.
   /// A value of 0 means "unknown" and maps back to 0.
@@ -521,7 +634,9 @@ class CallsignDatabase {
     List<CallsignRecord> records, {
     int sourceDate = 0,
     int epochDate = defaultEpochDate,
+    int flags = 0,
   }) {
+    final canada = (flags & flagCanada) != 0;
     // Sort by key bytes, dropping records whose callsign yields no key.
     final keyed = <MapEntry<int, CallsignRecord>>[];
     for (final r in records) {
@@ -557,11 +672,15 @@ class CallsignDatabase {
     for (final entry in keyed) {
       final r = entry.value;
       final si = internState(r.state);
+      // For Canadian data the class byte carries a qualification bitmask (status
+      // byte 0); for US data it is the (class, status) letter pair.
       final ci = internCs(
-        (_charByte(r.operatorClass) << 8) | _charByte(r.status),
+        canada
+            ? (_qualStringToMask(r.qualifications) << 8)
+            : (_charByte(r.operatorClass) << 8) | _charByte(r.status),
       );
       final cityI = internCity(r.city);
-      final enc = _encodeRecord(r, epochDate, cityI, si, ci);
+      final enc = _encodeRecord(r, epochDate, cityI, si, ci, canada);
       lengths.add(enc.length);
       recordsBuilder.add(enc);
     }
@@ -595,7 +714,7 @@ class CallsignDatabase {
     // Header.
     data.setUint32(0, magic, Endian.little);
     data.setUint16(4, formatVersion, Endian.little);
-    data.setUint16(6, 0, Endian.little);
+    data.setUint16(6, flags, Endian.little);
     data.setUint32(8, count, Endian.little);
     data.setUint32(12, keysOffset, Endian.little);
     data.setUint32(16, lengthsOffset, Endian.little);
@@ -657,9 +776,10 @@ class CallsignDatabase {
     int cityIndex,
     int stateIndex,
     int csIndex,
+    bool canada,
   ) {
     // The callsign is reconstructed from the key; city, state and class/status
-    // are dictionary indices; the ZIP is packed numerically.
+    // are dictionary indices; the ZIP/postal code is packed into a u32.
     final b = BytesBuilder();
     _writeString16(b, r.name);
     b.addByte(cityIndex & 0xFF);
@@ -667,7 +787,7 @@ class CallsignDatabase {
     b.addByte((cityIndex >> 16) & 0xFF);
     b.addByte(stateIndex & 0xFF);
     b.addByte(csIndex & 0xFF);
-    final zip = _packZip(r.zip);
+    final zip = canada ? _packPostalCa(r.zip) : _packZip(r.zip);
     b.addByte(zip & 0xFF);
     b.addByte((zip >> 8) & 0xFF);
     b.addByte((zip >> 16) & 0xFF);
@@ -709,6 +829,7 @@ class _Header {
   final int classStatusOffset;
   final int cityCount;
   final int cityOffset;
+  final int flags;
   const _Header({
     required this.recordCount,
     required this.keysOffset,
@@ -722,6 +843,7 @@ class _Header {
     required this.classStatusOffset,
     required this.cityCount,
     required this.cityOffset,
+    required this.flags,
   });
 }
 

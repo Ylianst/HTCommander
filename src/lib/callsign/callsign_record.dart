@@ -25,6 +25,12 @@ class CallsignRecord {
   /// Commonly `A` (Active), `E` (Expired), `C` (Cancelled).
   final String status;
 
+  /// Canadian (ISED) amateur qualifications held, as a string of the letters
+  /// `A` (Basic), `B` (5 wpm Morse), `C` (12 wpm Morse), `D` (Advanced) and
+  /// `E` (Basic with Honours), in that order. Empty for US (FCC) records, which
+  /// use [operatorClass]/[status] instead.
+  final String qualifications;
+
   /// Licensee city.
   final String city;
 
@@ -42,6 +48,7 @@ class CallsignRecord {
     this.name = '',
     this.operatorClass = '',
     this.status = '',
+    this.qualifications = '',
     this.city = '',
     this.state = '',
     this.zip = '',
@@ -68,6 +75,27 @@ class CallsignRecord {
         'L' => 'Pending Legal Status',
         _ => '',
       };
+
+  /// Human-readable, comma-separated list of the Canadian [qualifications]
+  /// held, or empty when none (or for US records).
+  String get qualificationsName {
+    final names = <String>[];
+    for (final c in qualifications.toUpperCase().codeUnits) {
+      switch (c) {
+        case 0x41: // A
+          names.add('Basic');
+        case 0x42: // B
+          names.add('5 wpm');
+        case 0x43: // C
+          names.add('12 wpm');
+        case 0x44: // D
+          names.add('Advanced');
+        case 0x45: // E
+          names.add('Basic with Honours');
+      }
+    }
+    return names.join(', ');
+  }
 
   /// The expiration date formatted as `YYYY-MM-DD`, or empty when unknown.
   String get expireDateFormatted {
