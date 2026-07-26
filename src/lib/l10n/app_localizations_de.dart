@@ -1569,6 +1569,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get packetsColChannel => 'Kanal';
 
   @override
+  String get packetsColRadio => 'Funkgerät';
+
+  @override
   String get packetsColData => 'Daten';
 
   @override
@@ -3258,19 +3261,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cslFieldContinent => 'Kontinent';
 
   @override
-  String get cslFieldQualifications => 'Qualifications';
+  String get cslFieldQualifications => 'Qualifikationen';
 
   @override
   String get cslUsDetails => 'US-Lizenzdetails';
 
   @override
-  String get cslCaDetails => 'Canadian License Details';
+  String get cslCaDetails => 'Kanadische Lizenzdetails';
 
   @override
-  String get cslSourceUs => 'United States (FCC)';
+  String get cslSourceUs => 'Vereinigte Staaten (FCC)';
 
   @override
-  String get cslSourceCanada => 'Canada (ISED)';
+  String get cslSourceCanada => 'Kanada (ISED)';
 
   @override
   String get cslSectionTitle => 'Rufzeichen-Datenbank';

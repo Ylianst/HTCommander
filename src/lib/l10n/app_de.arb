@@ -494,6 +494,7 @@
   "packetsEmpty": "Keine Pakete aufgezeichnet",
   "packetsColTime": "Zeit",
   "packetsColChannel": "Kanal",
+  "packetsColRadio": "Funkgerät",
   "packetsColData": "Daten",
 
   "commonAdd": "Hinzufügen",

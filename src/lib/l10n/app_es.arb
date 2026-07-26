@@ -494,6 +494,7 @@
   "packetsEmpty": "No se han capturado paquetes",
   "packetsColTime": "Hora",
   "packetsColChannel": "Canal",
+  "packetsColRadio": "Radio",
   "packetsColData": "Datos",
 
   "commonAdd": "Agregar",

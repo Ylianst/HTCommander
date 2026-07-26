@@ -1563,6 +1563,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get packetsColChannel => 'Canal';
 
   @override
+  String get packetsColRadio => 'Radio';
+
+  @override
   String get packetsColData => 'Données';
 
   @override
@@ -3264,10 +3267,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cslUsDetails => 'Détails de la licence américaine';
 
   @override
-  String get cslCaDetails => 'Canadian License Details';
+  String get cslCaDetails => 'Détails de la licence canadienne';
 
   @override
-  String get cslSourceUs => 'United States (FCC)';
+  String get cslSourceUs => 'États-Unis (FCC)';
 
   @override
   String get cslSourceCanada => 'Canada (ISED)';

@@ -1548,6 +1548,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get packetsColChannel => 'Channel';
 
   @override
+  String get packetsColRadio => 'Radio';
+
+  @override
   String get packetsColData => 'Data';
 
   @override

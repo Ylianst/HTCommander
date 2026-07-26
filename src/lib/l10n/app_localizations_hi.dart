@@ -1555,6 +1555,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get packetsColChannel => 'चैनल';
 
   @override
+  String get packetsColRadio => 'रेडियो';
+
+  @override
   String get packetsColData => 'डेटा';
 
   @override
@@ -3235,19 +3238,19 @@ class AppLocalizationsHi extends AppLocalizations {
   String get cslFieldContinent => 'महाद्वीप';
 
   @override
-  String get cslFieldQualifications => 'Qualifications';
+  String get cslFieldQualifications => 'योग्यताएं';
 
   @override
   String get cslUsDetails => 'यूएस लाइसेंस विवरण';
 
   @override
-  String get cslCaDetails => 'Canadian License Details';
+  String get cslCaDetails => 'कनाडाई लाइसेंस विवरण';
 
   @override
-  String get cslSourceUs => 'United States (FCC)';
+  String get cslSourceUs => 'संयुक्त राज्य अमेरिका (FCC)';
 
   @override
-  String get cslSourceCanada => 'Canada (ISED)';
+  String get cslSourceCanada => 'कनाडा (ISED)';
 
   @override
   String get cslSectionTitle => 'कॉलसाइन डेटाबेस';

@@ -1744,6 +1744,12 @@ class SoftwareModem {
         fragment.channelId == state.lockChannelId) {
       fragment.usage = state.lockUsage;
     }
+    // Record which radio this frame arrived on so the packet capture can show
+    // it. Mirrors Radio._emitDataFrame for the hardware modem path.
+    fragment.radioDeviceId = deviceId;
+    if (state != null && state.macAddress.isNotEmpty) {
+      fragment.radioMac = state.macAddress;
+    }
     _broker.dispatch(deviceId: deviceId, name: 'DataFrame', data: fragment, store: false);
   }
 

@@ -1530,6 +1530,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get packetsColChannel => 'チャンネル';
 
   @override
+  String get packetsColRadio => '無線機';
+
+  @override
   String get packetsColData => 'データ';
 
   @override
@@ -3178,19 +3181,19 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cslFieldContinent => '大陸';
 
   @override
-  String get cslFieldQualifications => 'Qualifications';
+  String get cslFieldQualifications => '資格';
 
   @override
   String get cslUsDetails => '米国ライセンス詳細';
 
   @override
-  String get cslCaDetails => 'Canadian License Details';
+  String get cslCaDetails => 'カナダライセンス詳細';
 
   @override
-  String get cslSourceUs => 'United States (FCC)';
+  String get cslSourceUs => 'アメリカ合衆国 (FCC)';
 
   @override
-  String get cslSourceCanada => 'Canada (ISED)';
+  String get cslSourceCanada => 'カナダ (ISED)';
 
   @override
   String get cslSectionTitle => 'コールサインデータベース';

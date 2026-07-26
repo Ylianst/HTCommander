@@ -494,6 +494,7 @@
   "packetsEmpty": "未捕获数据包",
   "packetsColTime": "时间",
   "packetsColChannel": "信道",
+  "packetsColRadio": "电台",
   "packetsColData": "数据",
 
   "commonAdd": "添加",

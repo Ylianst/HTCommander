@@ -494,6 +494,7 @@
   "packetsEmpty": "कोई पैकेट कैप्चर नहीं किया गया",
   "packetsColTime": "समय",
   "packetsColChannel": "चैनल",
+  "packetsColRadio": "रेडियो",
   "packetsColData": "डेटा",
 
   "commonAdd": "जोड़ें",

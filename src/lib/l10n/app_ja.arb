@@ -494,6 +494,7 @@
   "packetsEmpty": "キャプチャされたパケットはありません",
   "packetsColTime": "時刻",
   "packetsColChannel": "チャンネル",
+  "packetsColRadio": "無線機",
   "packetsColData": "データ",
 
   "commonAdd": "追加",

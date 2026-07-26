@@ -2900,6 +2900,12 @@ abstract class AppLocalizations {
   /// **'Channel'**
   String get packetsColChannel;
 
+  /// No description provided for @packetsColRadio.
+  ///
+  /// In en, this message translates to:
+  /// **'Radio'**
+  String get packetsColRadio;
+
   /// No description provided for @packetsColData.
   ///
   /// In en, this message translates to:

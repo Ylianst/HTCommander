@@ -1518,6 +1518,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get packetsColChannel => '信道';
 
   @override
+  String get packetsColRadio => '电台';
+
+  @override
   String get packetsColData => '数据';
 
   @override
@@ -3154,19 +3157,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cslFieldContinent => '大洲';
 
   @override
-  String get cslFieldQualifications => 'Qualifications';
+  String get cslFieldQualifications => '资格';
 
   @override
   String get cslUsDetails => '美国执照详情';
 
   @override
-  String get cslCaDetails => 'Canadian License Details';
+  String get cslCaDetails => '加拿大执照详情';
 
   @override
-  String get cslSourceUs => 'United States (FCC)';
+  String get cslSourceUs => '美国 (FCC)';
 
   @override
-  String get cslSourceCanada => 'Canada (ISED)';
+  String get cslSourceCanada => '加拿大 (ISED)';
 
   @override
   String get cslSectionTitle => '呼号数据库';

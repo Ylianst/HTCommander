@@ -33,6 +33,10 @@ class CapturedPacket {
       fragment.incoming ? PacketDirection.incoming : PacketDirection.outgoing;
   String get dataHex => RadioUtils.bytesToHex(fragment.data);
 
+  /// MAC address of the radio this packet was sent or received on, or an empty
+  /// string when the originating radio is unknown.
+  String get radioMac => fragment.radioMac ?? '';
+
   /// Whether this packet was sent or received using the software modem
   /// (as opposed to the radio's built-in hardware TNC).
   bool get isSoftwareModem =>
@@ -60,6 +64,10 @@ class _PacketsTabState extends State<PacketsTab>
 
   final List<CapturedPacket> _packets = [];
   final DataBrokerClient _broker = DataBrokerClient();
+
+  /// Maps an upper-cased radio MAC address to its friendly name, so the packet
+  /// list can label each packet with the radio it was sent or received on.
+  final Map<String, String> _radioNames = {};
 
   /// Focus node for the packet list so it can receive keyboard events
   /// (up/down arrows to move between packets).
@@ -105,6 +113,15 @@ class _PacketsTabState extends State<PacketsTab>
       callback: _onPacketStoreReady,
     );
 
+    // Keep a MAC -> friendly-name map so packets can be labelled with the radio
+    // they came from. Refresh it whenever the set of connected radios changes.
+    _broker.subscribe(
+      deviceId: _storeDeviceId,
+      name: 'ConnectedRadios',
+      callback: _onConnectedRadiosChanged,
+    );
+    _refreshRadioNames();
+
     // If the store is already ready (it was created before this tab), request
     // the loaded packet list right away. Otherwise the request is sent when the
     // PacketStoreReady event arrives.
@@ -138,6 +155,60 @@ class _PacketsTabState extends State<PacketsTab>
   void _onPacketStoreReady(int deviceId, String name, Object? data) {
     if (!mounted) return;
     if (data == true) _requestPacketList();
+  }
+
+  void _onConnectedRadiosChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(_refreshRadioNames);
+  }
+
+  /// Rebuilds [_radioNames] from the persisted custom names and the currently
+  /// connected radios. Connected radios win so the freshest name is shown.
+  void _refreshRadioNames() {
+    _radioNames.clear();
+
+    // Persisted custom names survive across disconnects, so use them as the
+    // base for packets loaded from previous sessions.
+    final friendly = DataBroker.getValue<Map<String, dynamic>>(
+      0,
+      'DeviceFriendlyName',
+    );
+    if (friendly != null) {
+      friendly.forEach((mac, value) {
+        if (value is String && value.isNotEmpty) {
+          _radioNames[mac.toUpperCase()] = value;
+        }
+      });
+    }
+
+    // Overlay the live friendly names of currently connected radios.
+    final radios = DataBroker.getValue<List<dynamic>>(
+      _storeDeviceId,
+      'ConnectedRadios',
+    );
+    if (radios != null) {
+      for (final radio in radios) {
+        if (radio is! Map) continue;
+        final mac = (radio['MacAddress'] as String?)?.toUpperCase();
+        final name = radio['FriendlyName'] as String?;
+        if (mac != null && mac.isNotEmpty && name != null && name.isNotEmpty) {
+          _radioNames[mac] = name;
+        }
+      }
+    }
+  }
+
+  /// The label shown in the Radio column for [packet]: the radio's friendly
+  /// name with its MAC in parentheses when the name is known, just the MAC when
+  /// only the address is known, or an empty string when neither is available.
+  String _radioLabel(CapturedPacket packet) {
+    final mac = packet.radioMac;
+    if (mac.isEmpty) return '';
+    final name = _radioNames[mac.toUpperCase()];
+    if (name != null && name.isNotEmpty && name.toUpperCase() != mac.toUpperCase()) {
+      return '$name ($mac)';
+    }
+    return mac;
   }
 
   void _onPacketList(int deviceId, String name, Object? data) {
@@ -235,7 +306,24 @@ class _PacketsTabState extends State<PacketsTab>
       _moveSelection(-1);
       return KeyEventResult.handled;
     }
+    if (event.logicalKey == LogicalKeyboardKey.pageDown) {
+      _moveSelection(_pageRowCount());
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.pageUp) {
+      _moveSelection(-_pageRowCount());
+      return KeyEventResult.handled;
+    }
     return KeyEventResult.ignored;
+  }
+
+  /// Number of rows to move for a Page Up/Down key press, based on how many
+  /// rows currently fit in the visible viewport (at least one).
+  int _pageRowCount() {
+    if (!_listScrollController.hasClients) return 1;
+    final rows = (_listScrollController.position.viewportDimension / _rowHeight)
+        .floor();
+    return rows < 1 ? 1 : rows;
   }
 
   void _showPacketContextMenu(
@@ -796,6 +884,7 @@ class _PacketsTabState extends State<PacketsTab>
     }
 
     final sections = PacketDecoder.decode(_selectedPacket!.fragment);
+    final radioLabel = _radioLabel(_selectedPacket!);
 
     return Container(
       color: scheme.surface,
@@ -819,6 +908,11 @@ class _PacketsTabState extends State<PacketsTab>
           Expanded(
             child: ListView(
               children: [
+                if (radioLabel.isNotEmpty)
+                  _buildDetailRow(
+                    AppLocalizations.of(context).packetsColRadio,
+                    radioLabel,
+                  ),
                 for (final section in sections) ...[
                   _buildSectionHeader(section.title),
                   for (final entry in section.lines)

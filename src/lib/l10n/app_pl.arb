@@ -494,6 +494,7 @@
   "packetsEmpty": "Brak zarejestrowanych pakietów",
   "packetsColTime": "Czas",
   "packetsColChannel": "Kanał",
+  "packetsColRadio": "Radiotelefon",
   "packetsColData": "Dane",
 
   "commonAdd": "Dodaj",

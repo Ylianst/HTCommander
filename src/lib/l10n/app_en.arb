@@ -1105,6 +1105,7 @@
   "packetsEmpty": "No packets captured",
   "packetsColTime": "Time",
   "packetsColChannel": "Channel",
+  "packetsColRadio": "Radio",
   "packetsColData": "Data",
 
   "commonAdd": "Add",
