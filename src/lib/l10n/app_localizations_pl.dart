@@ -2419,7 +2419,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get commsDeemphasisWarning =>
-      'Deemphasis kanału VFO A jest włączony i pogorszy transfery danych.';
+      'Deemfaza kanału VFO A jest włączona i pogorszy transfery danych.';
 
   @override
   String get commsPttTransmitting => 'Trwa transmisja...';

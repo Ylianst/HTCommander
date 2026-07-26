@@ -2427,7 +2427,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get commsDeemphasisWarning =>
-      'El desénfasis del canal VFO A está activado y degradará las transferencias de datos.';
+      'El de-énfasis del canal VFO A está activado y degradará las transferencias de datos.';
 
   @override
   String get commsPttTransmitting => 'Transmitiendo...';

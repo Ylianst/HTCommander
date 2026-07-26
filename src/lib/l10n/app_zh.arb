@@ -746,6 +746,7 @@
   "commsClearHistoryPrompt": "确定要清除语音历史记录吗？",
   "commsAudioMuted": "音频已静音。",
   "commsUnmute": "取消静音",
+  "commsDeemphasisWarning": "VFO A 通道的去加重已开启，会降低数据传输质量。",
   "commsPttTransmitting": "正在发送...",
   "commsPttHold": "PTT - 按住以发送",
   "commsDtmfHint": "输入 DTMF 数字（0-9、*、#）...",

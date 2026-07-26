@@ -2362,7 +2362,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get commsDeemphasisWarning =>
-      'VFO A チャンネルのディエンファシスが有効になっており、データ転送が劣化します。';
+      'VFO A チャンネルのディエンファシスがオンになっており、データ転送を劣化させます。';
 
   @override
   String get commsPttTransmitting => '送信中...';

@@ -746,6 +746,7 @@
   "commsClearHistoryPrompt": "Möchten Sie den Sprachverlauf wirklich löschen?",
   "commsAudioMuted": "Audio ist stummgeschaltet.",
   "commsUnmute": "Stummschaltung aufheben",
+  "commsDeemphasisWarning": "Die De-Emphasis des VFO-A-Kanals ist aktiviert und beeinträchtigt Datenübertragungen.",
   "commsPttTransmitting": "Übertragung läuft...",
   "commsPttHold": "PTT - Zum Senden gedrückt halten",
   "commsDtmfHint": "DTMF-Ziffern eingeben (0-9, *, #)...",

@@ -2409,7 +2409,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get commsDeemphasisWarning =>
-      'VFO A चैनल डीएम्फ़ेसिस चालू है और डेटा स्थानांतरण को खराब करेगा।';
+      'VFO A चैनल डी-एम्फेसिस चालू है और डेटा ट्रांसफर को खराब करेगा।';
 
   @override
   String get commsPttTransmitting => 'ट्रांसमिट हो रहा है...';
