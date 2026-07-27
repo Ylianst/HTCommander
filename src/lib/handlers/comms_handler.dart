@@ -149,6 +149,13 @@ class DecodedTextEntry {
   /// Duration in seconds (for recording entries).
   int duration;
 
+  /// Transmit speed in words-per-minute for Morse entries (null otherwise).
+  int? wpm;
+
+  /// Morse key type ('straight' / 'paddle') for Morse Key entries (null
+  /// otherwise).
+  String? keyType;
+
   DecodedTextEntry({
     this.text,
     this.channel,
@@ -161,6 +168,8 @@ class DecodedTextEntry {
     this.longitude = 0,
     this.filename,
     this.duration = 0,
+    this.wpm,
+    this.keyType,
   }) : time = time ?? DateTime.now();
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -175,6 +184,8 @@ class DecodedTextEntry {
     'longitude': longitude,
     'filename': filename,
     'duration': duration,
+    'wpm': wpm,
+    'keyType': keyType,
   };
 
   factory DecodedTextEntry.fromJson(Map<String, dynamic> json) {
@@ -200,6 +211,8 @@ class DecodedTextEntry {
       longitude: toDouble(json['longitude']),
       filename: json['filename'] as String?,
       duration: json['duration'] as int? ?? 0,
+      wpm: json['wpm'] as int?,
+      keyType: json['keyType'] as String?,
     );
   }
 }
@@ -415,6 +428,15 @@ class CommsHandler {
       deviceId: DataBroker.allDevices,
       name: 'Morse',
       callback: _onMorse,
+    );
+
+    // Decoded text from a Morse key transmission (the MorseKeyHandler decodes
+    // what was keyed and, at the end of a live transmission, asks us to record
+    // it as a sent message so it appears as a send-side chat bubble).
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'MorseKeyDecoded',
+      callback: _onMorseKeyDecoded,
     );
 
     // Outgoing text-to-speech transmissions from the voice panel across all
@@ -2022,6 +2044,8 @@ class CommsHandler {
     String? destination,
     double latitude = 0,
     double longitude = 0,
+    int? wpm,
+    String? keyType,
   }) {
     final entry = DecodedTextEntry(
       text: text,
@@ -2033,6 +2057,8 @@ class CommsHandler {
       destination: destination,
       latitude: latitude,
       longitude: longitude,
+      wpm: wpm,
+      keyType: keyType,
     );
     _decodedTextHistory.add(entry);
     _trimHistory();
@@ -2060,6 +2086,8 @@ class CommsHandler {
         'destination': destination,
         'filename': null,
         'duration': 0,
+        'wpm': wpm,
+        'keyType': keyType,
       },
       store: false,
     );
@@ -2176,6 +2204,40 @@ class CommsHandler {
   // Morse transmit
   // ---------------------------------------------------------------------------
 
+  /// Records a decoded Morse-key transmission as a sent message so it shows up
+  /// as a send-side chat bubble on the Comms tab. Dispatched by the
+  /// MorseKeyHandler on the transmitting radio device (100+) at the end of a
+  /// live transmission. Unlike [_onMorse] this does NOT transmit anything — the
+  /// audio was already sent live as it was keyed.
+  void _onMorseKeyDecoded(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    String text;
+    String? keyType;
+    int? wpm;
+    if (data is String) {
+      text = data.trim();
+    } else if (data is Map) {
+      text = (data['text'] as String?)?.trim() ?? '';
+      keyType = data['keyType'] as String?;
+      wpm = data['wpm'] as int?;
+    } else {
+      return;
+    }
+    if (text.isEmpty) return;
+    // Only radio devices (100+) carry a Morse-key transmission.
+    if (deviceId < 100) return;
+    _addDataPacketEntry(
+      deviceId: deviceId,
+      text: text,
+      channel: _getVfoAChannelName(deviceId),
+      time: DateTime.now(),
+      encoding: VoiceTextEncodingType.morse,
+      isReceived: false,
+      wpm: wpm,
+      keyType: keyType,
+    );
+  }
+
   /// Handles the Morse command to generate and transmit Morse code. Mirrors the
   /// C# `OnMorse`. Dispatched on device 1 (uses the voice-enabled radio) or
   /// directly on a radio device (100+) which is used as-is.
@@ -2210,7 +2272,10 @@ class CommsHandler {
       );
 
       // Generate morse code PCM (8-bit unsigned, 32 kHz).
-      final morsePcm8bit = MorseCodeEngine.generateMorsePcm(textToMorse);
+      final int wpm =
+          (_broker.getValue<int>(0, 'MorseSpeedWpm', 15) ?? 15).clamp(5, 40);
+      final morsePcm8bit =
+          MorseCodeEngine.generateMorsePcm(textToMorse, wpm: wpm);
       if (morsePcm8bit.isEmpty) {
         _broker.logError('[CommsHandler] Failed to generate morse code PCM');
         return;
@@ -2225,6 +2290,7 @@ class CommsHandler {
         time: DateTime.now(),
         encoding: VoiceTextEncodingType.morse,
         isReceived: false,
+        wpm: wpm,
       );
 
       // Convert 8-bit unsigned PCM (center 128) to 16-bit signed PCM (center 0).

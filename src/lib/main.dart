@@ -26,6 +26,7 @@ import 'handlers/aprs_handler.dart';
 import 'handlers/digipeater_handler.dart';
 import 'handlers/airplane_handler.dart';
 import 'handlers/comms_handler.dart';
+import 'handlers/morse_key_handler.dart';
 import 'handlers/bbs_handler.dart';
 import 'handlers/agwpe_handler.dart';
 import 'handlers/web_server_handler.dart';
@@ -193,6 +194,13 @@ void main(List<String> args) async {
   final commsHandler = CommsHandler();
   commsHandler.init();
   DataBroker.addDataHandler('CommsHandler', commsHandler);
+
+  // Register the morse-key handler so a USB morse key (straight or paddle) can
+  // be keyed in real time, rendered to a 700 Hz tone, and sent locally (test)
+  // or over the radio as FM Morse (live) from the Comms tab.
+  final morseKeyHandler = MorseKeyHandler();
+  morseKeyHandler.init();
+  DataBroker.addDataHandler('MorseKeyHandler', morseKeyHandler);
 
   // Register the EchoLink manager so the internet-only EchoLink radio (device
   // 200) can go online, browse the directory, hold a QSO and route its voice

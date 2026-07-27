@@ -125,6 +125,19 @@ Bringing internet-linked voice into the same app that drives the radio.
 
 ---
 
+## Voice & CW
+
+Sending and shaping audio through the radio — from the microphone to Morse.
+
+1. **[Keying by Hand: Morse Key Support in HTCommander](morse-key-support.md)**
+   How a USB morse key — straight or paddle — plugs in and sends real, hand-timed
+   Morse over an ordinary FM handheld: why FM Morse differs from classic CW, how
+   we key an FM transmitter that has no "key up," the keyboard-style key bindings
+   (`[` / `]` or Left / Right Ctrl), the iambic keyer and WPM timing, the
+   low-latency sidetone, and the Off / Test / Live start-and-tail logic.
+
+---
+
 ## Data & Storage
 
 How HTCommander packs large datasets into small, fast, self-contained files.

@@ -29,6 +29,13 @@ class CommsMessageDetails {
   final String? filename;
   final String? imagePath;
 
+  /// Transmit speed in words-per-minute for Morse entries (null otherwise).
+  final int? wpm;
+
+  /// Morse key type ('straight' / 'paddle') for Morse Key entries (null
+  /// otherwise).
+  final String? keyType;
+
   const CommsMessageDetails({
     required this.encoding,
     required this.time,
@@ -42,6 +49,8 @@ class CommsMessageDetails {
     this.text = '',
     this.filename,
     this.imagePath,
+    this.wpm,
+    this.keyType,
   });
 }
 
@@ -101,6 +110,15 @@ class MessageDetailsDialog extends StatelessWidget {
     if (d.duration > 0) {
       items.add(MessageDetailItem(
           l10n.msgdFieldDuration, _formatDuration(d.duration)));
+    }
+    final keyType = d.keyType;
+    if (keyType != null && keyType.isNotEmpty) {
+      items.add(MessageDetailItem(
+          'Key type', keyType == 'paddle' ? 'Paddle key' : 'Straight key'));
+    }
+    final wpm = d.wpm;
+    if (wpm != null && wpm > 0) {
+      items.add(MessageDetailItem('Speed', '$wpm WPM'));
     }
     final lat = d.latitude;
     final lon = d.longitude;

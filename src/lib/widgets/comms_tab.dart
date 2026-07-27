@@ -15,12 +15,15 @@ import 'chat_widget.dart';
 import '../dialogs/edit_ident_settings_dialog.dart';
 import '../dialogs/image_view_dialog.dart';
 import '../dialogs/message_details_dialog.dart';
+import '../dialogs/morse_key_settings_dialog.dart';
+import '../dialogs/morse_speed_dialog.dart';
 import '../dialogs/radio_channel_dialog.dart';
 import '../dialogs/recording_playback_dialog.dart';
 import '../dialogs/sstv_send_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../sstv/encoder.dart';
 import '../radio/dtmf_engine.dart';
+import '../radio/morse_keyer.dart';
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -33,7 +36,7 @@ import '../utils/channel_share.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 
 /// Voice transmit mode
-enum VoiceTransmitMode { chat, speak, morse, dtmf, ptt }
+enum VoiceTransmitMode { chat, speak, morse, dtmf, ptt, morseKey, none }
 
 /// Voice tab - audio communication controls
 class CommsTab extends StatefulWidget {
@@ -48,6 +51,7 @@ class _CommsTabState extends State<CommsTab>
   final List<ChatMessage> _messages = [];
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
+  final FocusNode _rootFocusNode = FocusNode();
   final DataBrokerClient _broker = DataBrokerClient();
 
   /// Sentinel id used for the single in-progress (partial) decoded entry so it
@@ -86,6 +90,13 @@ class _CommsTabState extends State<CommsTab>
   bool _sttModelReady = false;
   bool _recordAudio = false;
   bool _allowTransmit = true;
+
+  /// Morse Key mode sub-state (Off/Test/Live), the configured USB key settings,
+  /// and live feedback published by the MorseKeyHandler.
+  MorseKeyMode _morseKeyMode = MorseKeyMode.off;
+  MorseKeySettings _morseKeySettings = const MorseKeySettings();
+  bool _morseKeyTransmitting = false;
+  bool _morseKeyDown = false;
 
   /// Whether VFO A of the current radio is the channel named "APRS". While it
   /// is, the Comms tab must not transmit anything (chat, image or audio),
@@ -300,6 +311,16 @@ class _CommsTabState extends State<CommsTab>
       name: 'SelectedTabName',
       callback: _onSelectedTabChanged,
     );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MorseKeySettings',
+      callback: _onMorseKeySettingsChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MorseKeyState',
+      callback: _onMorseKeyStateChanged,
+    );
 
     // Initialize from current broker values.
     _currentRadioDeviceId = _resolveCurrentRadioId();
@@ -319,6 +340,13 @@ class _CommsTabState extends State<CommsTab>
     // (which uses the radio's internal modem over the control channel) is
     // available. Force it regardless of any previously stored mode.
     if (!_audioChannelSupported) _currentMode = VoiceTransmitMode.chat;
+    final storedMorse = _broker.getValue<Map<dynamic, dynamic>>(
+      0,
+      'MorseKeySettings',
+    );
+    if (storedMorse != null) {
+      _morseKeySettings = MorseKeySettings.fromJson(storedMorse);
+    }
     _allowTransmit = (_broker.getValue<int>(0, 'AllowTransmit', 1) ?? 1) != 0;
     _speechToTextEnabled =
         _broker.getValue<bool>(0, 'SpeechToTextEnabled', true) ?? true;
@@ -638,9 +666,18 @@ class _CommsTabState extends State<CommsTab>
     _pttDrainTimer = null;
     _micHandle?.cancel();
     _micHandle = null;
+    if (_morseKeyMode != MorseKeyMode.off) {
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'MorseKeyMode',
+        data: <String, Object?>{'mode': 'off', 'radioDeviceId': -1},
+        store: false,
+      );
+    }
     _broker.dispose();
     _messageController.dispose();
     _messageFocusNode.dispose();
+    _rootFocusNode.dispose();
     super.dispose();
   }
 
@@ -1022,6 +1059,8 @@ class _CommsTabState extends State<CommsTab>
       destination: data['destination'] as String?,
       duration: data['duration'] as int? ?? 0,
       filename: data['filename'] as String?,
+      wpm: data['wpm'] as int?,
+      keyType: data['keyType'] as String?,
     );
   }
 
@@ -1039,6 +1078,8 @@ class _CommsTabState extends State<CommsTab>
     String? destination,
     int duration = 0,
     String? filename,
+    int? wpm,
+    String? keyType,
   }) {
     final hasLocation = latitude != 0 || longitude != 0;
     final imagePath = _sstvImagePath(encoding, filename);
@@ -1079,6 +1120,8 @@ class _CommsTabState extends State<CommsTab>
         text: text,
         filename: filename,
         imagePath: imagePath,
+        wpm: wpm,
+        keyType: keyType,
       ),
     );
     setState(() {
@@ -1144,6 +1187,8 @@ class _CommsTabState extends State<CommsTab>
     final time = _parseTime(raw['time']);
     final hasLocation = latitude != 0 || longitude != 0;
     final filename = raw['filename'] as String?;
+    final wpm = raw['wpm'] as int?;
+    final keyType = raw['keyType'] as String?;
     final imagePath = _sstvImagePath(encoding, filename);
     // SSTV pictures show the mode label in the header; the bubble is image-only.
     final isPicture = encoding == 'Picture' && imagePath != null;
@@ -1182,6 +1227,8 @@ class _CommsTabState extends State<CommsTab>
         text: text,
         filename: filename,
         imagePath: imagePath,
+        wpm: wpm,
+        keyType: keyType,
       ),
     );
   }
@@ -1370,6 +1417,12 @@ class _CommsTabState extends State<CommsTab>
       case VoiceTransmitMode.ptt:
         // PTT has no text input; transmission is handled by the hold button.
         break;
+      case VoiceTransmitMode.morseKey:
+        // Morse Key has no text input; keying is handled by key events.
+        break;
+      case VoiceTransmitMode.none:
+        // Listen-only mode; nothing to send.
+        break;
     }
 
     _messageController.clear();
@@ -1419,6 +1472,101 @@ class _CommsTabState extends State<CommsTab>
       data: <String, Object?>{'data': pcm16, 'playLocally': true},
       store: false,
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Morse Key mode
+  // ---------------------------------------------------------------------------
+
+  void _onMorseKeySettingsChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    if (data is Map) {
+      setState(() => _morseKeySettings = MorseKeySettings.fromJson(data));
+    }
+  }
+
+  void _onMorseKeyStateChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    if (data is! Map) return;
+    final transmitting = data['transmitting'] == true;
+    final keyDown = data['keyDown'] == true;
+    if (transmitting == _morseKeyTransmitting && keyDown == _morseKeyDown) {
+      return;
+    }
+    setState(() {
+      _morseKeyTransmitting = transmitting;
+      _morseKeyDown = keyDown;
+    });
+  }
+
+  /// Whether Live morse can be used right now (needs the audio channel, a
+  /// connected radio, and a channel that is free to transmit on).
+  bool get _canMorseLive =>
+      _audioEnabled &&
+      _isCurrentRadioConnected &&
+      !_isRadioLocked &&
+      !_isVfoAAprs;
+
+  /// Switches the Morse Key sub-mode (Off/Test/Live) and notifies the handler.
+  void _setMorseKeyMode(MorseKeyMode mode) {
+    if (mode == MorseKeyMode.live && !_canMorseLive) {
+      _showSendDisabledHint();
+      return;
+    }
+    setState(() {
+      _morseKeyMode = mode;
+      if (mode == MorseKeyMode.off) {
+        _morseKeyTransmitting = false;
+        _morseKeyDown = false;
+      }
+    });
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'MorseKeyMode',
+      data: <String, Object?>{
+        'mode': morseKeyModeToString(mode),
+        'radioDeviceId': _currentRadioDeviceId,
+      },
+      store: false,
+    );
+    // Reclaim keyboard focus so key events reach the morse handler.
+    _rootFocusNode.requestFocus();
+  }
+
+  /// Forwards a morse key up/down to the MorseKeyHandler.
+  void _dispatchMorseInput(String input, bool down) {
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'MorseKeyInput',
+      data: <String, Object?>{'input': input, 'down': down},
+      store: false,
+    );
+  }
+
+  /// Handles keyboard events while in Morse Key mode, translating the configured
+  /// keys into morse key up/down events.
+  KeyEventResult _handleMorseKey(KeyEvent event) {
+    if (_morseKeyMode == MorseKeyMode.off) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    String? input;
+    if (key == morseBindingLogicalKey(_morseKeySettings.primaryBinding)) {
+      input = 'primary';
+    } else if (_morseKeySettings.keyType == MorseKeyType.paddle &&
+        key == morseBindingLogicalKey(_morseKeySettings.secondaryBinding)) {
+      input = 'secondary';
+    }
+    if (input == null) return KeyEventResult.ignored;
+    if (event is KeyDownEvent) {
+      _dispatchMorseInput(input, true);
+      return KeyEventResult.handled;
+    }
+    if (event is KeyUpEvent) {
+      _dispatchMorseInput(input, false);
+      return KeyEventResult.handled;
+    }
+    // Swallow auto-repeat while a key is held.
+    if (event is KeyRepeatEvent) return KeyEventResult.handled;
+    return KeyEventResult.ignored;
   }
 
   /// Whether the input field and Send button should be enabled. In Chat mode
@@ -1626,6 +1774,10 @@ class _CommsTabState extends State<CommsTab>
         return AppLocalizations.of(context).commsModeChat;
       case VoiceTransmitMode.ptt:
         return AppLocalizations.of(context).commonSend;
+      case VoiceTransmitMode.morseKey:
+        return AppLocalizations.of(context).commonSend;
+      case VoiceTransmitMode.none:
+        return AppLocalizations.of(context).commonSend;
     }
   }
 
@@ -1642,6 +1794,10 @@ class _CommsTabState extends State<CommsTab>
         return 'dtmf';
       case VoiceTransmitMode.ptt:
         return 'ptt';
+      case VoiceTransmitMode.morseKey:
+        return 'morsekey';
+      case VoiceTransmitMode.none:
+        return 'none';
     }
   }
 
@@ -1657,6 +1813,10 @@ class _CommsTabState extends State<CommsTab>
         return VoiceTransmitMode.dtmf;
       case 'ptt':
         return VoiceTransmitMode.ptt;
+      case 'morsekey':
+        return VoiceTransmitMode.morseKey;
+      case 'none':
+        return VoiceTransmitMode.none;
       case 'chat':
       default:
         return VoiceTransmitMode.chat;
@@ -1666,6 +1826,12 @@ class _CommsTabState extends State<CommsTab>
   /// Updates the current transmit mode and persists it (device 0) so it is
   /// restored the next time the application loads.
   void _setMode(VoiceTransmitMode mode) {
+    // Leaving Morse Key mode turns the key off so the transmitter can't stay
+    // keyed from a stale sub-mode.
+    if (mode != VoiceTransmitMode.morseKey &&
+        _morseKeyMode != MorseKeyMode.off) {
+      _setMorseKeyMode(MorseKeyMode.off);
+    }
     if (_currentMode != mode) setState(() => _currentMode = mode);
     _broker.dispatch(
       deviceId: 0,
@@ -2073,10 +2239,12 @@ class _CommsTabState extends State<CommsTab>
         globalPosition.dy,
       ),
       items: [
+        modeItem(VoiceTransmitMode.none, 'None'),
         if (!kIsWeb) modeItem(VoiceTransmitMode.ptt, AppLocalizations.of(context).commsModePtt),
         modeItem(VoiceTransmitMode.chat, AppLocalizations.of(context).commsModeChat),
         if (!kIsWeb) modeItem(VoiceTransmitMode.speak, AppLocalizations.of(context).commsModeSpeak),
         if (!kIsWeb) modeItem(VoiceTransmitMode.morse, AppLocalizations.of(context).commsModeMorse),
+        if (!kIsWeb) modeItem(VoiceTransmitMode.morseKey, 'Morse Key'),
         if (!kIsWeb) modeItem(VoiceTransmitMode.dtmf, AppLocalizations.of(context).commsModeDtmf),
       ],
     ).then((mode) {
@@ -2102,6 +2270,24 @@ class _CommsTabState extends State<CommsTab>
         offset.dy,
       ),
       items: [
+        // Listen-only mode: no transmit panel at the bottom of the tab. Handy
+        // for people who just want to listen and decode.
+        PopupMenuItem<String>(
+          value: 'modeNone',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                child: _currentMode == VoiceTransmitMode.none
+                    ? const Text('✓', style: TextStyle(fontSize: 14))
+                    : null,
+              ),
+              const Text('None'),
+            ],
+          ),
+        ),
         // Mode selection (only the data-only Chat mode is offered on web/iOS).
         // Hidden entirely when transmitting is not allowed.
         if (_audioChannelSupported && _allowTransmit)
@@ -2169,6 +2355,23 @@ class _CommsTabState extends State<CommsTab>
                       : null,
                 ),
                 Text(l10n.commsModeMorse),
+              ],
+            ),
+          ),
+        if (_audioChannelSupported && _allowTransmit)
+          PopupMenuItem<String>(
+            value: 'modeMorseKey',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _currentMode == VoiceTransmitMode.morseKey
+                      ? const Text('\u2713', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                const Text('Morse Key'),
               ],
             ),
           ),
@@ -2302,6 +2505,12 @@ class _CommsTabState extends State<CommsTab>
         case 'modePtt':
           _setMode(VoiceTransmitMode.ptt);
           break;
+        case 'modeMorseKey':
+          _setMode(VoiceTransmitMode.morseKey);
+          break;
+        case 'modeNone':
+          _setMode(VoiceTransmitMode.none);
+          break;
         case 'speechToText':
           _broker.dispatch(
             deviceId: 0,
@@ -2345,6 +2554,9 @@ class _CommsTabState extends State<CommsTab>
   /// Maps the space bar to push-to-talk while the PTT mode is selected, so the
   /// space bar behaves the same as holding the on-screen PTT button.
   KeyEventResult _handlePttKey(FocusNode node, KeyEvent event) {
+    if (_currentMode == VoiceTransmitMode.morseKey) {
+      return _handleMorseKey(event);
+    }
     if (_currentMode != VoiceTransmitMode.ptt) return KeyEventResult.ignored;
     if (event.logicalKey != LogicalKeyboardKey.space) {
       return KeyEventResult.ignored;
@@ -2366,6 +2578,7 @@ class _CommsTabState extends State<CommsTab>
   Widget build(BuildContext context) {
     super.build(context);
     return Focus(
+      focusNode: _rootFocusNode,
       autofocus: true,
       onKeyEvent: _handlePttKey,
       child: Column(
@@ -2430,9 +2643,17 @@ class _CommsTabState extends State<CommsTab>
           ),
           if (_allowTransmit && _currentMode == VoiceTransmitMode.ptt)
             _buildPttPanel()
-          else if (_allowTransmit && !_isTransmitting)
+          else if (_allowTransmit &&
+              _currentMode == VoiceTransmitMode.morseKey)
+            _buildMorseKeyPanel()
+          else if (_allowTransmit &&
+              _currentMode != VoiceTransmitMode.none &&
+              !_isTransmitting)
             _buildInputPanel(),
-          if (_isTransmitting) _buildCancelPanel(),
+          if (_isTransmitting &&
+              _currentMode != VoiceTransmitMode.morseKey &&
+              _currentMode != VoiceTransmitMode.none)
+            _buildCancelPanel(),
         ],
       ),
     );
@@ -2714,6 +2935,19 @@ class _CommsTabState extends State<CommsTab>
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Row(
         children: [
+          // Morse mode gets a settings gear to configure the transmit speed.
+          if (_currentMode == VoiceTransmitMode.morse) ...[
+            IconButton(
+              tooltip: 'Morse settings',
+              icon: const Icon(Icons.settings, size: 20),
+              visualDensity: VisualDensity.compact,
+              onPressed: () async {
+                await showMorseSpeedDialog(context);
+                if (mounted) _messageFocusNode.requestFocus();
+              },
+            ),
+            const SizedBox(width: 4),
+          ],
           // Text input
           Expanded(
             child: Container(
@@ -2745,6 +2979,16 @@ class _CommsTabState extends State<CommsTab>
                   // Filter DTMF input
                   if (_currentMode == VoiceTransmitMode.dtmf) {
                     final filtered = value.replaceAll(RegExp(r'[^0-9*#]'), '');
+                    if (filtered != value) {
+                      _messageController.text = filtered;
+                      _messageController.selection = TextSelection.fromPosition(
+                        TextPosition(offset: filtered.length),
+                      );
+                    }
+                  } else if (_currentMode == VoiceTransmitMode.morse) {
+                    // Only letters, digits and spaces can be sent as Morse.
+                    final filtered =
+                        value.replaceAll(RegExp(r'[^A-Za-z0-9 ]'), '');
                     if (filtered != value) {
                       _messageController.text = filtered;
                       _messageController.selection = TextSelection.fromPosition(
@@ -2799,6 +3043,101 @@ class _CommsTabState extends State<CommsTab>
           icon: const Icon(Icons.stop, size: 18),
           label: Text(AppLocalizations.of(context).commonCancel),
         ),
+      ),
+    );
+  }
+
+  /// Bottom panel for the Morse Key mode: a settings gear, the Off/Test/Live
+  /// selector, and a live activity indicator driven by the MorseKeyHandler.
+  Widget _buildMorseKeyPanel() {
+    final scheme = Theme.of(context).colorScheme;
+    final bool active = _morseKeyMode != MorseKeyMode.off;
+    final Color indicatorColor = _morseKeyDown
+        ? Colors.green
+        : (_morseKeyTransmitting ? Colors.orange : scheme.onSurfaceVariant);
+    // While in Test/Live but not yet transmitting, tell the operator how to
+    // start the transmission; once transmitting, show the active state.
+    final String statusText;
+    if (!active) {
+      statusText = 'Off';
+    } else if (_morseKeyTransmitting) {
+      statusText =
+          _morseKeyMode == MorseKeyMode.live ? 'Transmitting' : 'Testing';
+    } else {
+      statusText = _morseKeySettings.keyType == MorseKeyType.paddle
+          ? 'Release both paddles at the same time to start'
+          : 'Two quick taps to start';
+    }
+    // While a transmission is active (test or live), tint the whole panel light
+    // red so it is obvious PCM is being generated.
+    final Color panelColor = _morseKeyTransmitting
+        ? Colors.red.withValues(alpha: 0.18)
+        : scheme.surfaceContainerHigh;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
+      height: 50,
+      color: panelColor,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: 'Morse key settings',
+            icon: const Icon(Icons.settings, size: 20),
+            visualDensity: VisualDensity.compact,
+            onPressed: () async {
+              await showMorseKeySettingsDialog(context);
+              if (mounted) _rootFocusNode.requestFocus();
+            },
+          ),
+          const SizedBox(width: 4),
+          _morseModeButton('Off', MorseKeyMode.off),
+          const SizedBox(width: 4),
+          _morseModeButton('Test', MorseKeyMode.test),
+          const SizedBox(width: 4),
+          _morseModeButton('Live', MorseKeyMode.live, enabled: _canMorseLive),
+          const SizedBox(width: 8),
+          Icon(
+            _morseKeyDown ? Icons.graphic_eq : Icons.circle,
+            size: _morseKeyDown ? 22 : 14,
+            color: indicatorColor,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              statusText,
+              textAlign: TextAlign.right,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+    );
+  }
+
+  Widget _morseModeButton(
+    String label,
+    MorseKeyMode mode, {
+    bool enabled = true,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final bool selected = _morseKeyMode == mode;
+    final Color bg = selected
+        ? (mode == MorseKeyMode.live ? Colors.red : scheme.primary)
+        : scheme.surfaceContainerLow;
+    final Color fg = selected ? Colors.white : scheme.onSurface;
+    return SizedBox(
+      height: 34,
+      child: ElevatedButton(
+        onPressed: enabled ? () => _setMorseKeyMode(mode) : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: bg,
+          foregroundColor: fg,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          minimumSize: const Size(0, 34),
+        ),
+        child: Text(label),
       ),
     );
   }
