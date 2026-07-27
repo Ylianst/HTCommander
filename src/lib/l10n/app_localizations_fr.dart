@@ -445,11 +445,40 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsAprsIsPasscode => 'Code d\'accès';
 
   @override
+  String settingsAprsIsPasscodeFor(String callSign) {
+    return 'Code d\'accès pour $callSign';
+  }
+
+  @override
   String get settingsAprsIsPasscodeHint =>
       'Saisissez votre code d\'accès APRS-IS';
 
   @override
   String get settingsAprsIsServer => 'Serveur';
+
+  @override
+  String get settingsAprsIsServerRegion => 'Région du serveur';
+
+  @override
+  String get settingsAprsIsRegionWorldwide => 'Mondial';
+
+  @override
+  String get settingsAprsIsRegionNorthAmerica => 'Amérique du Nord';
+
+  @override
+  String get settingsAprsIsRegionSouthAmerica => 'Amérique du Sud';
+
+  @override
+  String get settingsAprsIsRegionEurope => 'Europe';
+
+  @override
+  String get settingsAprsIsRegionAsia => 'Asie';
+
+  @override
+  String get settingsAprsIsRegionOceania => 'Océanie';
+
+  @override
+  String get settingsAprsIsRegionCustom => 'Personnalisé';
 
   @override
   String get settingsAprsIsRange => 'Portée';

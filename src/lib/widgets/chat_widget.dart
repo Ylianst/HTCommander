@@ -30,6 +30,12 @@ class ChatMessage {
   /// to show a mapped APRS symbol icon for the message.
   final Widget? bubbleSymbol;
 
+  /// Optional override for the received-bubble background colour. Used to tint
+  /// messages from a distinct source (e.g. gated in from the APRS-IS internet
+  /// service) so they stand apart from RF traffic. Only applied to received
+  /// messages with no auth state; sender/auth colours still take precedence.
+  final Color? bubbleColorOverride;
+
   /// Filename of an associated media file (e.g. an audio recording), if any.
   final String? filename;
 
@@ -50,6 +56,7 @@ class ChatMessage {
     this.icon,
     this.tag,
     this.bubbleSymbol,
+    this.bubbleColorOverride,
     this.filename,
     this.imagePath,
   });
@@ -260,7 +267,7 @@ class _ChatWidgetState extends State<ChatWidget> {
       case ChatAuthState.failed:
         return widget.bubbleFailedColor;
       default:
-        return widget.bubbleColor;
+        return message.bubbleColorOverride ?? widget.bubbleColor;
     }
   }
 

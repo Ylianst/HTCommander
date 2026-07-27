@@ -153,8 +153,22 @@
   "settingsAprsIsNoCallSign": "在许可证选项卡上设置您的呼号以启用 APRS-IS。",
   "settingsAprsIsEnable": "启用 APRS-IS",
   "settingsAprsIsPasscode": "密码",
+  "settingsAprsIsPasscodeFor": "{callSign} 的密码",
+  "@settingsAprsIsPasscodeFor": {
+    "placeholders": {
+      "callSign": { "type": "String" }
+    }
+  },
   "settingsAprsIsPasscodeHint": "输入您的 APRS-IS 密码",
   "settingsAprsIsServer": "服务器",
+  "settingsAprsIsServerRegion": "服务器区域",
+  "settingsAprsIsRegionWorldwide": "全球",
+  "settingsAprsIsRegionNorthAmerica": "北美洲",
+  "settingsAprsIsRegionSouthAmerica": "南美洲",
+  "settingsAprsIsRegionEurope": "欧洲",
+  "settingsAprsIsRegionAsia": "亚洲",
+  "settingsAprsIsRegionOceania": "大洋洲",
+  "settingsAprsIsRegionCustom": "自定义",
   "settingsAprsIsRange": "范围",
   "settingsAprsIsRangeOff": "仅发给我的消息",
   "settingsAprsIsRangeMiles": "{miles} 英里",

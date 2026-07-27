@@ -938,6 +938,12 @@ abstract class AppLocalizations {
   /// **'Passcode'**
   String get settingsAprsIsPasscode;
 
+  /// No description provided for @settingsAprsIsPasscodeFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Passcode for {callSign}'**
+  String settingsAprsIsPasscodeFor(String callSign);
+
   /// No description provided for @settingsAprsIsPasscodeHint.
   ///
   /// In en, this message translates to:
@@ -949,6 +955,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Server'**
   String get settingsAprsIsServer;
+
+  /// No description provided for @settingsAprsIsServerRegion.
+  ///
+  /// In en, this message translates to:
+  /// **'Server region'**
+  String get settingsAprsIsServerRegion;
+
+  /// No description provided for @settingsAprsIsRegionWorldwide.
+  ///
+  /// In en, this message translates to:
+  /// **'Worldwide'**
+  String get settingsAprsIsRegionWorldwide;
+
+  /// No description provided for @settingsAprsIsRegionNorthAmerica.
+  ///
+  /// In en, this message translates to:
+  /// **'North America'**
+  String get settingsAprsIsRegionNorthAmerica;
+
+  /// No description provided for @settingsAprsIsRegionSouthAmerica.
+  ///
+  /// In en, this message translates to:
+  /// **'South America'**
+  String get settingsAprsIsRegionSouthAmerica;
+
+  /// No description provided for @settingsAprsIsRegionEurope.
+  ///
+  /// In en, this message translates to:
+  /// **'Europe'**
+  String get settingsAprsIsRegionEurope;
+
+  /// No description provided for @settingsAprsIsRegionAsia.
+  ///
+  /// In en, this message translates to:
+  /// **'Asia'**
+  String get settingsAprsIsRegionAsia;
+
+  /// No description provided for @settingsAprsIsRegionOceania.
+  ///
+  /// In en, this message translates to:
+  /// **'Oceania'**
+  String get settingsAprsIsRegionOceania;
+
+  /// No description provided for @settingsAprsIsRegionCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get settingsAprsIsRegionCustom;
 
   /// No description provided for @settingsAprsIsRange.
   ///

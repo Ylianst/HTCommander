@@ -153,8 +153,22 @@
   "settingsAprsIsNoCallSign": "APRS-IS सक्षम करने के लिए लाइसेंस टैब पर अपना कॉल साइन सेट करें।",
   "settingsAprsIsEnable": "APRS-IS सक्षम करें",
   "settingsAprsIsPasscode": "पासकोड",
+  "settingsAprsIsPasscodeFor": "{callSign} के लिए पासकोड",
+  "@settingsAprsIsPasscodeFor": {
+    "placeholders": {
+      "callSign": { "type": "String" }
+    }
+  },
   "settingsAprsIsPasscodeHint": "अपना APRS-IS पासकोड दर्ज करें",
   "settingsAprsIsServer": "सर्वर",
+  "settingsAprsIsServerRegion": "सर्वर क्षेत्र",
+  "settingsAprsIsRegionWorldwide": "विश्वव्यापी",
+  "settingsAprsIsRegionNorthAmerica": "उत्तर अमेरिका",
+  "settingsAprsIsRegionSouthAmerica": "दक्षिण अमेरिका",
+  "settingsAprsIsRegionEurope": "यूरोप",
+  "settingsAprsIsRegionAsia": "एशिया",
+  "settingsAprsIsRegionOceania": "ओशिनिया",
+  "settingsAprsIsRegionCustom": "कस्टम",
   "settingsAprsIsRange": "रेंज",
   "settingsAprsIsRangeOff": "केवल मुझे संदेश",
   "settingsAprsIsRangeMiles": "{miles} मील",

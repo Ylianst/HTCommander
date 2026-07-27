@@ -153,8 +153,22 @@
   "settingsAprsIsNoCallSign": "APRS-ISを有効にするには、ライセンスタブでコールサインを設定してください。",
   "settingsAprsIsEnable": "APRS-ISを有効にする",
   "settingsAprsIsPasscode": "パスコード",
+  "settingsAprsIsPasscodeFor": "{callSign} のパスコード",
+  "@settingsAprsIsPasscodeFor": {
+    "placeholders": {
+      "callSign": { "type": "String" }
+    }
+  },
   "settingsAprsIsPasscodeHint": "APRS-ISパスコードを入力してください",
   "settingsAprsIsServer": "サーバー",
+  "settingsAprsIsServerRegion": "サーバー地域",
+  "settingsAprsIsRegionWorldwide": "全世界",
+  "settingsAprsIsRegionNorthAmerica": "北アメリカ",
+  "settingsAprsIsRegionSouthAmerica": "南アメリカ",
+  "settingsAprsIsRegionEurope": "ヨーロッパ",
+  "settingsAprsIsRegionAsia": "アジア",
+  "settingsAprsIsRegionOceania": "オセアニア",
+  "settingsAprsIsRegionCustom": "カスタム",
   "settingsAprsIsRange": "範囲",
   "settingsAprsIsRangeOff": "自分宛てのメッセージのみ",
   "settingsAprsIsRangeMiles": "{miles}マイル",

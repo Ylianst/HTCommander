@@ -153,8 +153,22 @@
   "settingsAprsIsNoCallSign": "Ustaw swój znak wywoławczy na karcie Licencja, aby włączyć APRS-IS.",
   "settingsAprsIsEnable": "Włącz APRS-IS",
   "settingsAprsIsPasscode": "Kod dostępu",
+  "settingsAprsIsPasscodeFor": "Kod dostępu dla {callSign}",
+  "@settingsAprsIsPasscodeFor": {
+    "placeholders": {
+      "callSign": { "type": "String" }
+    }
+  },
   "settingsAprsIsPasscodeHint": "Wprowadź swój kod dostępu APRS-IS",
   "settingsAprsIsServer": "Serwer",
+  "settingsAprsIsServerRegion": "Region serwera",
+  "settingsAprsIsRegionWorldwide": "Ogólnoświatowy",
+  "settingsAprsIsRegionNorthAmerica": "Ameryka Północna",
+  "settingsAprsIsRegionSouthAmerica": "Ameryka Południowa",
+  "settingsAprsIsRegionEurope": "Europa",
+  "settingsAprsIsRegionAsia": "Azja",
+  "settingsAprsIsRegionOceania": "Oceania",
+  "settingsAprsIsRegionCustom": "Niestandardowy",
   "settingsAprsIsRange": "Zasięg",
   "settingsAprsIsRangeOff": "Tylko wiadomości do mnie",
   "settingsAprsIsRangeMiles": "{miles} mil",

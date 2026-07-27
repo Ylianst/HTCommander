@@ -449,8 +449,22 @@
   "settingsAprsIsNoCallSign": "Set your call sign on the License tab to enable APRS-IS.",
   "settingsAprsIsEnable": "Enable APRS-IS",
   "settingsAprsIsPasscode": "Passcode",
+  "settingsAprsIsPasscodeFor": "Passcode for {callSign}",
+  "@settingsAprsIsPasscodeFor": {
+    "placeholders": {
+      "callSign": { "type": "String" }
+    }
+  },
   "settingsAprsIsPasscodeHint": "Enter your APRS-IS passcode",
   "settingsAprsIsServer": "Server",
+  "settingsAprsIsServerRegion": "Server region",
+  "settingsAprsIsRegionWorldwide": "Worldwide",
+  "settingsAprsIsRegionNorthAmerica": "North America",
+  "settingsAprsIsRegionSouthAmerica": "South America",
+  "settingsAprsIsRegionEurope": "Europe",
+  "settingsAprsIsRegionAsia": "Asia",
+  "settingsAprsIsRegionOceania": "Oceania",
+  "settingsAprsIsRegionCustom": "Custom",
   "settingsAprsIsRange": "Range",
   "settingsAprsIsRangeOff": "Messages to me only",
   "settingsAprsIsRangeMiles": "{miles} miles",

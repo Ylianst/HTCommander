@@ -445,10 +445,39 @@ class AppLocalizationsHi extends AppLocalizations {
   String get settingsAprsIsPasscode => 'पासकोड';
 
   @override
+  String settingsAprsIsPasscodeFor(String callSign) {
+    return '$callSign के लिए पासकोड';
+  }
+
+  @override
   String get settingsAprsIsPasscodeHint => 'अपना APRS-IS पासकोड दर्ज करें';
 
   @override
   String get settingsAprsIsServer => 'सर्वर';
+
+  @override
+  String get settingsAprsIsServerRegion => 'सर्वर क्षेत्र';
+
+  @override
+  String get settingsAprsIsRegionWorldwide => 'विश्वव्यापी';
+
+  @override
+  String get settingsAprsIsRegionNorthAmerica => 'उत्तर अमेरिका';
+
+  @override
+  String get settingsAprsIsRegionSouthAmerica => 'दक्षिण अमेरिका';
+
+  @override
+  String get settingsAprsIsRegionEurope => 'यूरोप';
+
+  @override
+  String get settingsAprsIsRegionAsia => 'एशिया';
+
+  @override
+  String get settingsAprsIsRegionOceania => 'ओशिनिया';
+
+  @override
+  String get settingsAprsIsRegionCustom => 'कस्टम';
 
   @override
   String get settingsAprsIsRange => 'रेंज';

@@ -87,6 +87,11 @@ class AprsTab extends StatefulWidget {
 class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   static const int _aprsDeviceId = 1;
 
+  /// Bubble tint for packets gated in from the APRS-IS internet service. A
+  /// softer periwinkle that stays in the blue family (visually related to RF
+  /// traffic) while remaining easy to tell apart from RF messages at a glance.
+  static const Color _internetColor = Color(0xFFAEB6E0);
+
   final DataBrokerClient _broker = DataBrokerClient();
 
   final List<_AprsEntry> _entries = [];
@@ -102,6 +107,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   bool _showAprsIs = true;
   bool _allowTransmit = true;
   bool _historicalLoaded = false;
+  bool _aprsIsHistoricalLoaded = false;
 
   // Local station identity (from device 0).
   String _callsign = '';
@@ -171,6 +177,18 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       deviceId: _aprsDeviceId,
       name: 'AprsStoreReady',
       callback: _onAprsStoreReady,
+    );
+
+    // Persisted internet (APRS-IS) history, served by the APRS-IS manager.
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'AprsIsPacketList',
+      callback: _onAprsIsPacketList,
+    );
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'AprsIsStoreReady',
+      callback: _onAprsIsStoreReady,
     );
 
     // Keep the APRS-IS visibility filter in sync with the Map tab.
@@ -245,6 +263,14 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     _broker.dispatch(
       deviceId: _aprsDeviceId,
       name: 'RequestAprsPackets',
+      data: null,
+      store: false,
+    );
+
+    // Request the persisted internet (APRS-IS) history.
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'RequestAprsIsPackets',
       data: null,
       store: false,
     );
@@ -513,7 +539,39 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         _addAprsPacket(item, !item.packet!.incoming, rebuild: false);
       }
     }
+    _sortEntriesByTime();
     _rebuildMessages();
+  }
+
+  void _onAprsIsStoreReady(int deviceId, String name, Object? data) {
+    if (_aprsIsHistoricalLoaded) return;
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'RequestAprsIsPackets',
+      data: null,
+      store: false,
+    );
+  }
+
+  void _onAprsIsPacketList(int deviceId, String name, Object? data) {
+    if (_aprsIsHistoricalLoaded) return;
+    if (data is! List) return;
+    _aprsIsHistoricalLoaded = true;
+    for (final item in data) {
+      if (item is AprsPacket && item.packet != null) {
+        // Internet packets are always received (never sent by us).
+        _addAprsPacket(item, false, rebuild: false);
+      }
+    }
+    _sortEntriesByTime();
+    _rebuildMessages();
+  }
+
+  /// Keeps the message list chronological after a bulk historical load, so RF
+  /// and internet history (which arrive as separate async batches) interleave
+  /// by time instead of appearing as two blocks.
+  void _sortEntriesByTime() {
+    _entries.sort((a, b) => a.time.compareTo(b.time));
   }
 
   void _onAprsFrame(int deviceId, String name, Object? data) {
@@ -562,6 +620,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       longitude: e.longitude,
       icon: _iconFor(e),
       bubbleSymbol: _bubbleSymbolFor(e),
+      // Tint packets gated in from the APRS-IS internet service so they stand
+      // apart from RF traffic; RF messages keep the default bubble colour.
+      bubbleColorOverride: e.aprsPacket.fromAprsIs ? _internetColor : null,
       tag: e,
     );
   }
@@ -596,10 +657,6 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     const authColor = Color(0xFF6ECD6E);
     const failedColor = Color(0xFFEB96A2);
     const normalColor = Color(0xFF8AC0DB);
-    // Messages gated in from the APRS-IS internet service use a softer
-    // periwinkle tint so they stay visually related to radio traffic (blue
-    // family) while remaining easy to tell apart at a glance.
-    const internetColor = Color(0xFFAEB6E0);
     if (e.sender) return senderColor;
     switch (e.authState) {
       case AuthState.success:
@@ -607,7 +664,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       case AuthState.failed:
         return failedColor;
       default:
-        return e.aprsPacket.fromAprsIs ? internetColor : normalColor;
+        return e.aprsPacket.fromAprsIs ? _internetColor : normalColor;
     }
   }
 
@@ -785,7 +842,44 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     }
 
     _entries.add(entry);
-    if (rebuild) _appendMessage(_entries.length - 1, entry);
+    // Cap the number of internet-gated (APRS-IS) messages kept in memory so a
+    // long-running session doesn't grow without bound. When pruning shifts
+    // entry indices, a full rebuild is required instead of a cheap append.
+    final pruned = _pruneAprsIsHistory();
+    if (rebuild) {
+      if (pruned) {
+        _rebuildMessages();
+      } else {
+        _appendMessage(_entries.length - 1, entry);
+      }
+    }
+  }
+
+  /// Maximum number of APRS-IS (internet-gated) messages retained in memory.
+  /// The app may run for weeks or years, so internet history is bounded; RF
+  /// messages are unaffected.
+  static const int _maxAprsIsEntries = 1000;
+
+  /// Drops the oldest APRS-IS entries beyond [_maxAprsIsEntries]. Returns true
+  /// when any entry was removed, in which case callers must fully rebuild the
+  /// message list because remaining entry indices have shifted.
+  bool _pruneAprsIsHistory() {
+    var count = 0;
+    for (final e in _entries) {
+      if (e.aprsPacket.fromAprsIs) count++;
+    }
+    if (count <= _maxAprsIsEntries) return false;
+    // Entries are appended in arrival order, so removing the first matching
+    // ones drops the oldest internet messages.
+    var toRemove = count - _maxAprsIsEntries;
+    _entries.removeWhere((e) {
+      if (toRemove > 0 && e.aprsPacket.fromAprsIs) {
+        toRemove--;
+        return true;
+      }
+      return false;
+    });
+    return true;
   }
 
   void _updateDeliveryIcon(

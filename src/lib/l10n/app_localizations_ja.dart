@@ -442,10 +442,39 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsAprsIsPasscode => 'パスコード';
 
   @override
+  String settingsAprsIsPasscodeFor(String callSign) {
+    return '$callSign のパスコード';
+  }
+
+  @override
   String get settingsAprsIsPasscodeHint => 'APRS-ISパスコードを入力してください';
 
   @override
   String get settingsAprsIsServer => 'サーバー';
+
+  @override
+  String get settingsAprsIsServerRegion => 'サーバー地域';
+
+  @override
+  String get settingsAprsIsRegionWorldwide => '全世界';
+
+  @override
+  String get settingsAprsIsRegionNorthAmerica => '北アメリカ';
+
+  @override
+  String get settingsAprsIsRegionSouthAmerica => '南アメリカ';
+
+  @override
+  String get settingsAprsIsRegionEurope => 'ヨーロッパ';
+
+  @override
+  String get settingsAprsIsRegionAsia => 'アジア';
+
+  @override
+  String get settingsAprsIsRegionOceania => 'オセアニア';
+
+  @override
+  String get settingsAprsIsRegionCustom => 'カスタム';
 
   @override
   String get settingsAprsIsRange => '範囲';

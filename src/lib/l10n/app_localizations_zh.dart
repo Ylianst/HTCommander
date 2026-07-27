@@ -438,10 +438,39 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAprsIsPasscode => '密码';
 
   @override
+  String settingsAprsIsPasscodeFor(String callSign) {
+    return '$callSign 的密码';
+  }
+
+  @override
   String get settingsAprsIsPasscodeHint => '输入您的 APRS-IS 密码';
 
   @override
   String get settingsAprsIsServer => '服务器';
+
+  @override
+  String get settingsAprsIsServerRegion => '服务器区域';
+
+  @override
+  String get settingsAprsIsRegionWorldwide => '全球';
+
+  @override
+  String get settingsAprsIsRegionNorthAmerica => '北美洲';
+
+  @override
+  String get settingsAprsIsRegionSouthAmerica => '南美洲';
+
+  @override
+  String get settingsAprsIsRegionEurope => '欧洲';
+
+  @override
+  String get settingsAprsIsRegionAsia => '亚洲';
+
+  @override
+  String get settingsAprsIsRegionOceania => '大洋洲';
+
+  @override
+  String get settingsAprsIsRegionCustom => '自定义';
 
   @override
   String get settingsAprsIsRange => '范围';

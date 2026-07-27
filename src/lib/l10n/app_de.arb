@@ -153,8 +153,22 @@
   "settingsAprsIsNoCallSign": "Legen Sie Ihr Rufzeichen auf der Registerkarte „Lizenz“ fest, um APRS-IS zu aktivieren.",
   "settingsAprsIsEnable": "APRS-IS aktivieren",
   "settingsAprsIsPasscode": "Passcode",
+  "settingsAprsIsPasscodeFor": "Passcode für {callSign}",
+  "@settingsAprsIsPasscodeFor": {
+    "placeholders": {
+      "callSign": { "type": "String" }
+    }
+  },
   "settingsAprsIsPasscodeHint": "Geben Sie Ihren APRS-IS-Passcode ein",
   "settingsAprsIsServer": "Server",
+  "settingsAprsIsServerRegion": "Serverregion",
+  "settingsAprsIsRegionWorldwide": "Weltweit",
+  "settingsAprsIsRegionNorthAmerica": "Nordamerika",
+  "settingsAprsIsRegionSouthAmerica": "Südamerika",
+  "settingsAprsIsRegionEurope": "Europa",
+  "settingsAprsIsRegionAsia": "Asien",
+  "settingsAprsIsRegionOceania": "Ozeanien",
+  "settingsAprsIsRegionCustom": "Benutzerdefiniert",
   "settingsAprsIsRange": "Bereich",
   "settingsAprsIsRangeOff": "Nur Nachrichten an mich",
   "settingsAprsIsRangeMiles": "{miles} Meilen",

@@ -526,6 +526,12 @@ class _SettingsDialogState extends State<SettingsDialog>
   late TextEditingController _homeAssistantUsernameController;
   late TextEditingController _homeAssistantPasswordController;
 
+  // True when the user picked "Custom" in the APRS-IS server-region dropdown,
+  // revealing the raw server/port fields. Otherwise a well-known region is
+  // selected and the server/port are managed automatically.
+  bool _aprsIsCustomServer = false;
+
+
   // Dump1090 "Test Connection" state.
   bool _airplaneTesting = false;
   String _airplaneTestResult = '';
@@ -660,6 +666,11 @@ class _SettingsDialogState extends State<SettingsDialog>
     _aprsIsPortController = TextEditingController(
       text: _settings.aprsIsPort.toString(),
     );
+    // A stored server/port that doesn't match a well-known region (on the
+    // default port) starts the section in "Custom" mode so the user's manual
+    // configuration stays visible and editable.
+    _aprsIsCustomServer = !(_settings.aprsIsPort == _aprsIsDefaultPort &&
+        _aprsIsRegionHosts.contains(_settings.aprsIsServer));
     _aprsIsPasscodeController = TextEditingController(
       text: _settings.aprsIsPasscode,
     );
@@ -1645,147 +1656,131 @@ class _SettingsDialogState extends State<SettingsDialog>
             ],
           ),
           const SizedBox(height: 12),
-          Row(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l10n.settingsAccount, style: DialogStyles.labelStyle),
-                    const SizedBox(height: 4),
-                    TextField(
-                      enabled: false,
-                      decoration: _inputDecoration(hintText: account),
-                      controller: TextEditingController(text: account),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l10n.settingsAprsIsPasscode,
-                        style: DialogStyles.labelStyle),
-                    const SizedBox(height: 4),
-                    TextField(
-                      controller: _aprsIsPasscodeController,
-                      enabled: hasCallSign,
-                      keyboardType: TextInputType.number,
-                      decoration: _inputDecoration(
-                        hintText: l10n.settingsAprsIsPasscodeHint,
-                      ).copyWith(
-                        // Highlight the field in light red when a passcode is
-                        // entered but does not match the call sign.
-                        fillColor: (passcodeEntered && !passcodeValid)
-                            ? const Color(0xFFFFCDD2)
-                            : null,
-                      ),
-                    ),
-                  ],
+              Text(l10n.settingsAprsIsPasscodeFor(account),
+                  style: DialogStyles.labelStyle),
+              const SizedBox(height: 4),
+              TextField(
+                controller: _aprsIsPasscodeController,
+                enabled: hasCallSign,
+                keyboardType: TextInputType.number,
+                decoration: _inputDecoration(
+                  hintText: l10n.settingsAprsIsPasscodeHint,
+                ).copyWith(
+                  // Highlight the field in light red when a passcode is
+                  // entered but does not match the call sign.
+                  fillColor: (passcodeEntered && !passcodeValid)
+                      ? const Color(0xFFFFCDD2)
+                      : null,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Row(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                flex: 2,
-                child: Column(
+              Text(l10n.settingsAprsIsServerRegion,
+                  style: DialogStyles.labelStyle),
+              const SizedBox(height: 4),
+              DropdownButtonFormField<String>(
+                initialValue: _aprsIsCustomServer
+                    ? ''
+                    : _aprsIsServerController.text.trim(),
+                decoration: _inputDecoration(),
+                items: _aprsIsRegionItems(l10n),
+                onChanged: hasCallSign
+                    ? (value) => setState(() {
+                          if (value == null || value.isEmpty) {
+                            _aprsIsCustomServer = true;
+                          } else {
+                            _aprsIsCustomServer = false;
+                            _aprsIsServerController.text = value;
+                            _aprsIsPortController.text =
+                                _aprsIsDefaultPort.toString();
+                          }
+                        })
+                    : null,
+              ),
+              if (_aprsIsCustomServer) ...[
+                const SizedBox(height: 16),
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(l10n.settingsAprsIsServer,
-                        style: DialogStyles.labelStyle),
-                    const SizedBox(height: 4),
-                    TextField(
-                      controller: _aprsIsServerController,
-                      enabled: hasCallSign,
-                      decoration: _inputDecoration().copyWith(
-                        suffixIcon: _presetMenu(
-                          enabled: hasCallSign,
-                          presets: _aprsIsServerPresets,
-                          onSelected: (value) => setState(
-                            () => _aprsIsServerController.text = value,
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(l10n.settingsAprsIsServer,
+                              style: DialogStyles.labelStyle),
+                          const SizedBox(height: 4),
+                          TextField(
+                            controller: _aprsIsServerController,
+                            enabled: hasCallSign,
+                            decoration: _inputDecoration().copyWith(
+                              suffixIcon: _presetMenu(
+                                enabled: hasCallSign,
+                                presets: _aprsIsServerPresets,
+                                onSelected: (value) => setState(
+                                  () => _aprsIsServerController.text = value,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(l10n.settingsPort,
+                              style: DialogStyles.labelStyle),
+                          const SizedBox(height: 4),
+                          TextField(
+                            controller: _aprsIsPortController,
+                            enabled: hasCallSign,
+                            keyboardType: TextInputType.number,
+                            decoration: _inputDecoration().copyWith(
+                              suffixIcon: _presetMenu(
+                                enabled: hasCallSign,
+                                presets: _aprsIsPortPresets,
+                                onSelected: (value) => setState(
+                                  () => _aprsIsPortController.text = value,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l10n.settingsPort, style: DialogStyles.labelStyle),
-                    const SizedBox(height: 4),
-                    TextField(
-                      controller: _aprsIsPortController,
-                      enabled: hasCallSign,
-                      keyboardType: TextInputType.number,
-                      decoration: _inputDecoration().copyWith(
-                        suffixIcon: _presetMenu(
-                          enabled: hasCallSign,
-                          presets: _aprsIsPortPresets,
-                          onSelected: (value) => setState(
-                            () => _aprsIsPortController.text = value,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ],
           ),
           const SizedBox(height: 16),
-          Row(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l10n.settingsAprsIsRange,
-                        style: DialogStyles.labelStyle),
-                    const SizedBox(height: 4),
-                    DropdownButtonFormField<int>(
-                      initialValue: _aprsIsRangeItems(l10n)
-                              .any((e) => e.value == _settings.aprsIsRangeKm)
-                          ? _settings.aprsIsRangeKm
-                          : 0,
-                      decoration: _inputDecoration(),
-                      items: _aprsIsRangeItems(l10n),
-                      onChanged: hasCallSign
-                          ? (value) => setState(
-                                () => _settings.aprsIsRangeKm = value ?? 0,
-                              )
-                          : null,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l10n.settingsAprsIsCenter,
-                        style: DialogStyles.labelStyle),
-                    const SizedBox(height: 4),
-                    TextField(
-                      enabled: false,
-                      decoration: _inputDecoration(hintText: _aprsIsCenterText),
-                      controller: TextEditingController(text: _aprsIsCenterText),
-                    ),
-                  ],
-                ),
+              Text(l10n.settingsAprsIsRange, style: DialogStyles.labelStyle),
+              const SizedBox(height: 4),
+              DropdownButtonFormField<int>(
+                initialValue: _aprsIsRangeItems(l10n)
+                        .any((e) => e.value == _settings.aprsIsRangeKm)
+                    ? _settings.aprsIsRangeKm
+                    : 0,
+                decoration: _inputDecoration(),
+                items: _aprsIsRangeItems(l10n),
+                onChanged: hasCallSign
+                    ? (value) => setState(
+                          () => _settings.aprsIsRangeKm = value ?? 0,
+                        )
+                    : null,
               ),
             ],
           ),
@@ -1820,6 +1815,58 @@ class _SettingsDialogState extends State<SettingsDialog>
         ],
       ),
     );
+  }
+
+  /// Default APRS-IS port (filtered feed) used when a well-known server region
+  /// is selected from the simplified dropdown.
+  static const int _aprsIsDefaultPort = 14580;
+
+  /// Well-known APRS-IS server hostnames offered as friendly regions in the
+  /// simplified server dropdown. A stored server matching one of these (on the
+  /// default port) shows the region instead of the raw server/port fields.
+  static const List<String> _aprsIsRegionHosts = [
+    'rotate.aprs2.net',
+    'noam.aprs2.net',
+    'soam.aprs2.net',
+    'euro.aprs2.net',
+    'asia.aprs2.net',
+    'aunz.aprs2.net',
+  ];
+
+  /// Region dropdown items mapping a friendly name to a well-known server
+  /// hostname. The final entry (empty value) is "Custom", which reveals the
+  /// raw server/port fields.
+  List<DropdownMenuItem<String>> _aprsIsRegionItems(AppLocalizations l10n) {
+    return [
+      DropdownMenuItem(
+        value: 'rotate.aprs2.net',
+        child: Text(l10n.settingsAprsIsRegionWorldwide),
+      ),
+      DropdownMenuItem(
+        value: 'noam.aprs2.net',
+        child: Text(l10n.settingsAprsIsRegionNorthAmerica),
+      ),
+      DropdownMenuItem(
+        value: 'soam.aprs2.net',
+        child: Text(l10n.settingsAprsIsRegionSouthAmerica),
+      ),
+      DropdownMenuItem(
+        value: 'euro.aprs2.net',
+        child: Text(l10n.settingsAprsIsRegionEurope),
+      ),
+      DropdownMenuItem(
+        value: 'asia.aprs2.net',
+        child: Text(l10n.settingsAprsIsRegionAsia),
+      ),
+      DropdownMenuItem(
+        value: 'aunz.aprs2.net',
+        child: Text(l10n.settingsAprsIsRegionOceania),
+      ),
+      DropdownMenuItem(
+        value: '',
+        child: Text(l10n.settingsAprsIsRegionCustom),
+      ),
+    ];
   }
 
   /// Common APRS-IS servers offered in the preset dropdown. Users may still
@@ -1897,17 +1944,6 @@ class _SettingsDialogState extends State<SettingsDialog>
       );
     }
     return items;
-  }
-
-  /// Human-readable text for the last confirmed GPS position used to center the
-  /// APRS-IS range filter, or a placeholder when none has been received yet.
-  String get _aprsIsCenterText {
-    final valid =
-        (DataBroker.getValue<int>(0, 'AprsIsPositionValid', 0) ?? 0) == 1;
-    if (!valid) return AppLocalizations.of(context).settingsAprsIsNoPosition;
-    final lat = DataBroker.getValue<double>(0, 'AprsIsLat', 0) ?? 0;
-    final lon = DataBroker.getValue<double>(0, 'AprsIsLon', 0) ?? 0;
-    return '${lat.toStringAsFixed(4)}, ${lon.toStringAsFixed(4)}';
   }
 
   void _addAprsRoute() async {

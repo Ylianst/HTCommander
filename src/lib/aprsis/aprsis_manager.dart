@@ -44,6 +44,7 @@ import '../radio/radio.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import 'aprsis_client.dart';
+import 'aprsis_history_store.dart';
 import 'aprsis_network_io.dart';
 import 'tnc2_codec.dart';
 
@@ -67,14 +68,15 @@ class AprsIsManager {
   /// Reconnect backoff bounds.
   static const Duration _minRetry = Duration(seconds: 5);
   static const Duration _maxRetry = Duration(minutes: 2);
-
+  /// Maximum number of internet packets kept in memory for late-loading tabs,
+  /// mirroring the on-disk history cap.
+  static const int _maxHistoryInMemory = 1000;
   final DataBrokerClient _broker = DataBrokerClient();
 
   AprsIsClient? _client;
   bool _initialized = false;
   bool _opened = false;
   bool _reconciling = false;
-
   /// The connection parameters (callsign, server, port) of the currently open
   /// session. Used to avoid tearing down and re-establishing an identical
   /// connection when settings are re-dispatched without any relevant change.
@@ -94,6 +96,16 @@ class AprsIsManager {
 
   /// Callsigns heard on RF recently, mapped to the last time they were heard.
   final Map<String, DateTime> _heardStations = {};
+
+  /// Append-only on-disk store that lets internet APRS history survive restarts.
+  final AprsIsHistoryStore _history = AprsIsHistoryStore();
+
+  /// Decoded persisted internet packets, loaded once at startup and served to
+  /// the APRS / Map tabs on request. Empty on web (no persistence).
+  final List<AprsPacket> _historyPackets = [];
+
+  /// Whether the persisted history has finished loading.
+  bool _historyReady = false;
 
   /// Subscribes to settings + RF frames and opens the client when enabled.
   void init() {
@@ -148,7 +160,55 @@ class AprsIsManager {
       callback: _onAprsFrame,
     );
 
+    // Serve persisted internet history to the APRS / Map tabs on request.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'RequestAprsIsPackets',
+      callback: _onRequestAprsIsPackets,
+    );
+
+    unawaited(_loadHistory());
     unawaited(_reconcile());
+  }
+
+  /// Loads the persisted internet history from disk, decodes it, and announces
+  /// readiness so the APRS / Map tabs can request the list. No-op on web.
+  Future<void> _loadHistory() async {
+    final records = await _history.init();
+    for (final rec in records) {
+      final aprs = _decodeHistoryRecord(rec);
+      if (aprs != null) _historyPackets.add(aprs);
+    }
+    _historyReady = true;
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'AprsIsStoreReady',
+      data: true,
+      store: true,
+    );
+  }
+
+  /// Decodes a persisted TNC2 record back into an [AprsPacket] tagged as coming
+  /// from APRS-IS, preserving its original receive time. Returns null when the
+  /// stored line no longer parses.
+  AprsPacket? _decodeHistoryRecord(AprsIsHistoryRecord rec) {
+    final ax25 = Tnc2Codec.decode(rec.tnc2Line, time: rec.time);
+    if (ax25 == null) return null;
+    final aprs = AprsPacket.parse(ax25);
+    if (aprs == null) return null;
+    aprs.fromAprsIs = true;
+    return aprs;
+  }
+
+  /// Responds to a request for the persisted internet packet list.
+  void _onRequestAprsIsPackets(int deviceId, String name, Object? data) {
+    if (!_historyReady) return;
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'AprsIsPacketList',
+      data: List<AprsPacket>.from(_historyPackets),
+      store: false,
+    );
   }
 
   bool _readEnabled() =>
@@ -348,6 +408,14 @@ class AprsIsManager {
     final aprs = AprsPacket.parse(ax25);
     if (aprs == null) return;
     aprs.fromAprsIs = true;
+
+    // Persist to the append-only internet history so it survives a restart,
+    // and keep it in the in-memory list served to late-loading tabs.
+    _history.append(ax25.time, tnc2Line);
+    _historyPackets.add(aprs);
+    while (_historyPackets.length > _maxHistoryInMemory) {
+      _historyPackets.removeAt(0);
+    }
 
     // Surface to the APRS + Map tabs. Dispatched on device 1 (where both tabs
     // listen) but NOT as a UniqueDataFrame, so the RF packet store never
