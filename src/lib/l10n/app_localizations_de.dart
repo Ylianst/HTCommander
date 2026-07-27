@@ -3383,8 +3383,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cslNotInstalled => 'Nicht installiert';
 
   @override
-  String cslInstalledInfo(String version, String count) {
-    return 'Version $version • $count Einträge';
+  String cslInstalledInfo(String version) {
+    return '$version';
   }
 
   @override
@@ -3406,6 +3406,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get cslUpToDate => 'Die Rufzeichen-Datenbank ist aktuell.';
+
+  @override
+  String get cslUpToDateButton => 'Aktuell';
 
   @override
   String cslDownloadFailed(String error) {

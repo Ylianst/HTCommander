@@ -43,9 +43,16 @@ concurrency:
 env:
   ISED_URL: https://apc-cap.ic.gc.ca/datafiles/amateur_delim.zip
   MANIFEST: docs/callsign/ised_amateur_manifest.json
-  # The database is hosted as an asset on this (rolling) release tag, separate
-  # from the US/FCC "callsign-db" tag, so the two never touch each other.
+  # The database archives are hosted as assets on this (rolling) release tag,
+  # separate from the US/FCC "callsign-db" tag, so the two never touch each
+  # other. The full baseline is replaced only when it is promoted; the small
+  # weekly overlay is replaced every run.
   RELEASE_TAG: callsign-db-ca
+  BASELINE_ASSET: ised_amateur.cdb.xz
+  OVERLAY_ASSET: ised_amateur_overlay.cdb.xz
+  # Promote a fresh full baseline once the cumulative overlay grows past this
+  # fraction of the baseline download size (same cost-optimal target as US).
+  PROMOTE_THRESHOLD: '0.20'
 
 jobs:
   build-and-deploy:
@@ -78,8 +85,11 @@ jobs:
         id: current
         run: |
           set -euo pipefail
+          # The newest data currently deployed is the overlay's source date (it
+          # always tracks the latest weekly build); fall back to the baseline
+          # date for a legacy v1 manifest that predates overlays.
           if [ -f "$MANIFEST" ]; then
-            cur=$(jq -r '.sourceDate // 0' "$MANIFEST")
+            cur=$(jq -r '.overlay.sourceDate // .sourceDate // 0' "$MANIFEST")
           else
             cur=0
           fi
@@ -113,21 +123,59 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Download current baseline from Release
+        id: baseline
+        if: steps.decide.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # The overlay diff needs the currently published baseline to compare
+          # against. Pull it into a path *separate* from the one the builder
+          # writes to. A missing asset (first run) leaves the path empty, which
+          # makes the builder promote a fresh full baseline.
+          if gh release download "$RELEASE_TAG" --pattern "$BASELINE_ASSET" \
+               --output prev_baseline.cdb.xz 2>/dev/null; then
+            echo "Downloaded baseline asset $BASELINE_ASSET."
+            echo "path=prev_baseline.cdb.xz" >> "$GITHUB_OUTPUT"
+          else
+            echo "No baseline asset on the release yet (first run)."
+            echo "path=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build callsign database
+        id: build
         if: steps.decide.outputs.build == 'true'
         run: |
           set -euo pipefail
           mkdir -p docs/callsign
-          # The manifest URL points at the rolling Release asset (see below),
-          # keeping the large archive out of the git history.
+          # Diff against the previous baseline when we have one; the builder then
+          # either emits a small overlay (baseline carried forward from the
+          # committed manifest) or promotes a fresh baseline past the threshold.
+          baseline_arg=()
+          if [ -n "${{ steps.baseline.outputs.path }}" ]; then
+            baseline_arg=(--baseline "${{ steps.baseline.outputs.path }}" --current-manifest "$MANIFEST")
+          fi
+          # The manifest URLs point at the rolling Release assets (see below),
+          # keeping the large archives out of the git history.
           python src/tools/build_ised_db.py \
             --download \
             --source-date "${{ steps.ised.outputs.ised_date }}" \
             --out docs/callsign/ised_amateur.cdb \
             --compress \
+            --promote-threshold "$PROMOTE_THRESHOLD" \
+            "${baseline_arg[@]}" \
             --base-url "https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/"
-          # The uncompressed database is a build artifact the app never downloads.
-          rm -f docs/callsign/ised_amateur.cdb
+          # A promotion is the only case where the manifest's baseline sourceDate
+          # advances to the new ISED date; otherwise only the overlay moved.
+          new_date=$(jq -r '.sourceDate // 0' "$MANIFEST")
+          if [ "$new_date" = "${{ steps.ised.outputs.ised_date }}" ]; then
+            echo "Promoted a fresh baseline."
+            echo "promoted=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Published an overlay update; baseline unchanged."
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
+          fi
           ls -l docs/callsign
 
       - name: Publish database to Release
@@ -136,15 +184,22 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          # Ensure the rolling release exists, then replace its asset.
+          # Ensure the rolling release exists, then replace its assets.
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" \
               --title "Callsign Database (Canada)" \
-              --notes "Offline Canadian amateur callsign database (ISED). Rolling release; the asset is replaced automatically."
+              --notes "Offline Canadian amateur callsign database (ISED). Rolling release; assets are replaced automatically."
           fi
-          gh release upload "$RELEASE_TAG" docs/callsign/ised_amateur.cdb.xz --clobber
-          # Keep the archive out of the committed docs tree / Pages artifact.
-          rm -f docs/callsign/ised_amateur.cdb.xz
+          # The small weekly overlay is always (re)published.
+          gh release upload "$RELEASE_TAG" "docs/callsign/$OVERLAY_ASSET" --clobber
+          # The full baseline is only re-uploaded when it was promoted.
+          if [ "${{ steps.build.outputs.promoted }}" = "true" ]; then
+            gh release upload "$RELEASE_TAG" "docs/callsign/$BASELINE_ASSET" --clobber
+          fi
+          # Keep every archive out of the committed docs tree / Pages artifact.
+          rm -f docs/callsign/ised_amateur.cdb docs/callsign/ised_amateur.cdb.xz \
+                docs/callsign/ised_amateur_overlay.cdb docs/callsign/ised_amateur_overlay.cdb.xz \
+                prev_baseline.cdb.xz
 
       - name: Commit updated manifest
         if: steps.decide.outputs.build == 'true'

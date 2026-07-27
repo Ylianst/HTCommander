@@ -3381,8 +3381,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get cslNotInstalled => 'No instalada';
 
   @override
-  String cslInstalledInfo(String version, String count) {
-    return 'Versión $version • $count registros';
+  String cslInstalledInfo(String version) {
+    return '$version';
   }
 
   @override
@@ -3404,6 +3404,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get cslUpToDate => 'La base de datos de indicativos está actualizada.';
+
+  @override
+  String get cslUpToDateButton => 'Actualizado';
 
   @override
   String cslDownloadFailed(String error) {

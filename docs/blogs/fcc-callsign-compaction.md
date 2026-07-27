@@ -298,6 +298,113 @@ Two properties make this safe to ship on a schedule:
   freshly downloaded file *before* installing it. An older app simply refuses a
   newer format rather than misreading it — so the format can keep evolving.
 
+## What's next: incremental updates via an overlay database
+
+The full download is ~21 MiB, and the CI republishes it whenever the FCC posts a
+new weekly dump. But week to week the FCC changes only a *sliver* of the 1.6
+million records — new grants, renewals (a fresh expiry or status), the odd
+address change, cancellations. Re-shipping the entire file to move a few tens of
+thousands of records is wasteful on a phone's cellular data. The next iteration
+adds **incremental updates** — and does it without any of the usual patch-format
+machinery.
+
+**The key idea: the diff is itself a `.cdb`.** Instead of a bespoke patch format
+that the app has to parse, merge, and re-encode, we ship a second, tiny database
+— an **overlay** — in the *exact same format* as the baseline. The app then does
+two lookups instead of one: it searches the overlay first, and only falls through
+to the baseline on a miss. A hit in the overlay wins. That's the entire
+mechanism:
+
+```
+lookup("K7VZT")
+  ├─ binary-search the OVERLAY  (tens of thousands of records)  → hit? done.
+  └─ binary-search the BASELINE (1.6 million records)           → fall-through.
+```
+
+Two binary searches instead of one — about 15 comparisons in the overlay plus
+~21 in the baseline, still microseconds. No decode-merge-re-encode step, no
+multi-hundred-megabyte rebuild on the device, and **zero new format**: the
+overlay reuses the reader, the writer, the xz transport, the round-trip test, and
+the download/validate path already in
+[`callsign_database.dart`](../../src/lib/callsign/callsign_database.dart) and
+[`callsign_lookup_service.dart`](../../src/lib/services/callsign_lookup_service.dart).
+
+A few consequences fall out of this design:
+
+- **The overlay is cumulative since the baseline.** Each week it's rebuilt to
+  contain *every* record that changed since the last full baseline, not just the
+  last week's. So a device only ever needs **two files** — the baseline plus the
+  latest overlay — no matter how many weeks it skipped. No patch chains, no
+  "apply these six diffs in order," no fallback gymnastics.
+- **Updates are free; deletes are ignored.** A renewal, status flip, vanity
+  reassignment, or address change is just a newer record that the overlay
+  supersedes — always fresh, because the overlay wins. The one thing an overlay
+  can't express is a *deletion*: a licence fully removed from the FCC set keeps
+  showing its stale baseline record. For an offline lookup tool that's cosmetic,
+  and it buys enormous simplicity, so deletes are deliberately not tracked. (A
+  tombstone list could close the gap later if it ever matters.)
+- **The baseline and overlay cadences decouple.** The full baseline is
+  republished only *occasionally*; the small overlay is refreshed weekly and
+  grows from nothing up to a few MiB as changes accumulate.
+
+**When does the overlay stop being worth it?** As the weeks pass, the cumulative
+overlay grows. At some point re-downloading a bloated overlay is no better than
+just taking a fresh baseline. So the CI job measures the ratio
+
+$$r = \frac{\text{size}(\text{overlay.xz})}{\text{size}(\text{baseline.xz})}$$
+
+after each build. While $r$ stays under a threshold (initially **20%**), it
+publishes only the refreshed overlay and leaves the baseline untouched. Once $r$
+crosses the threshold — or on the very first run, when there's no baseline yet —
+the job **promotes**: the freshly built full database becomes the new baseline
+and the overlay resets to empty. The diff never grows unbounded; it self-heals
+into a new baseline exactly when carrying it stops paying off.
+
+The 20% figure isn't arbitrary. For a weekly updater the long-run average
+download works out to $C(\theta) = \tfrac{\theta B}{2} + \tfrac{g}{\theta}$, where
+$B$ is the baseline size and $g$ the overlay's weekly growth — the first term is
+overlay bloat, the second is amortizing the occasional full baseline. Minimizing
+gives an optimal threshold $\theta^\* = \sqrt{2g/B}$, i.e. roughly $\sqrt{2f}$
+where $f$ is the weekly growth as a fraction of the baseline. With the FCC's
+~2% weekly churn that lands near 20%, promoting a fresh baseline about every ten
+weeks and cutting a weekly updater's traffic from ~21 MiB to under 5 MiB. The
+cost curve is flat between ~15% and ~30%, so the exact number is forgiving; it's
+kept as a workflow input so it can be retuned once real overlay growth is
+measured.
+
+**Generating the overlay stays disk- and memory-thrifty**, in the same spirit as
+the streaming full build. The job downloads the current baseline `.cdb.xz` from
+the rolling release (~21 MiB), decompresses it, and builds the new full database
+to a temporary file — two ~50 MiB files, trivial on a CI runner. It then walks
+the two *sorted* key blocks in lockstep — a streaming **merge-join** — decoding
+each side through the same reader and emitting an overlay record wherever a key is
+new or its decoded fields differ. One record from each side at a time, so peak
+memory stays flat regardless of the 1.6-million-record total.
+
+**The manifest grows a nested section, backward-compatibly.** Its top-level
+fields keep describing the *baseline*, so an older app that never heard of
+overlays simply keeps downloading the full baseline as it does today. A new
+`overlay` object alongside them describes the small file that newer apps also
+fetch:
+
+```jsonc
+{
+  "schemaVersion": 2,
+  "sourceDate": 20260712, "url": ".../fcc_amateur.cdb.xz", "recordCount": 1588146,
+  "md5": "…", "sizeBytes": 22400780,               // ← the baseline (legacy fields)
+  "overlay": {
+    "sourceDate": 20260719, "url": ".../fcc_amateur_overlay.cdb.xz",
+    "recordCount": 20345, "md5": "…", "sizeBytes": 512345
+  }
+}
+```
+
+On the device, the update logic reads simply: if the baseline's `sourceDate`
+changed (a promotion), pull the new baseline *and* a fresh overlay; otherwise, if
+only the overlay's `sourceDate` moved, pull just the overlay. A weekly update
+becomes a sub-megabyte download instead of 21 MiB — the same win the xz switch
+delivered, again, for operators who update often.
+
 ## The honest ledger
 
 A few deliberate trade-offs worth naming:

@@ -1990,14 +1990,11 @@
   "cslSectionTitle": "Callsign Database",
   "cslSectionIntro": "Offline lookup of US amateur radio callsigns using data from the FCC license database.",
   "cslNotInstalled": "Not installed",
-  "cslInstalledInfo": "Version {version} \u2022 {count} records",
+  "cslInstalledInfo": "{version}",
   "@cslInstalledInfo": {
     "description": "Installed callsign database summary",
     "placeholders": {
       "version": {
-        "type": "String"
-      },
-      "count": {
         "type": "String"
       }
     }
@@ -2016,6 +2013,7 @@
   },
   "cslInstalling": "Installing...",
   "cslUpToDate": "The callsign database is up to date.",
+  "cslUpToDateButton": "Up to date",
   "cslDownloadFailed": "Download failed: {error}",
   "@cslDownloadFailed": {
     "description": "Download error message",

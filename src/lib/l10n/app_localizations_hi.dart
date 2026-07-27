@@ -3359,8 +3359,8 @@ class AppLocalizationsHi extends AppLocalizations {
   String get cslNotInstalled => 'स्थापित नहीं';
 
   @override
-  String cslInstalledInfo(String version, String count) {
-    return 'संस्करण $version • $count रिकॉर्ड';
+  String cslInstalledInfo(String version) {
+    return '$version';
   }
 
   @override
@@ -3382,6 +3382,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get cslUpToDate => 'कॉलसाइन डेटाबेस अद्यतित है।';
+
+  @override
+  String get cslUpToDateButton => 'अद्यतित';
 
   @override
   String cslDownloadFailed(String error) {

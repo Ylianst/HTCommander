@@ -191,6 +191,40 @@ The two jobs share only the GitHub Pages concurrency group (so their publishes
 never overlap), and each ships its own manifest and its own rolling release
 asset. A problem north of the border stays north of the border.
 
+## Incremental updates come along for free
+
+The FCC post describes an upcoming
+[**overlay** mechanism](fcc-callsign-compaction.md#whats-next-incremental-updates-via-an-overlay-database)
+for shipping weekly changes without re-downloading the whole database: a small
+second `.cdb` — same format — that the app searches *first*, falling through to
+the baseline on a miss. Because Canada already rides the identical format and
+reader, it inherits the entire scheme with no new format work; the overlay is
+just a `.cdb` with `flagCanada` set, like its baseline.
+
+The mechanics are the same as the US build, restated for Canada:
+
+- **Cumulative overlay, searched first.** The weekly overlay holds every ISED
+  record that changed since the last baseline; a hit there wins, otherwise the
+  baseline answers. A device only ever carries two files.
+- **Updates supersede, deletes are ignored.** A new qualification, a corrected
+  address, or a fresh club record is just a newer record the overlay wins with.
+  A certificate removed from the ISED extract keeps showing its stale baseline
+  record — cosmetic for offline lookup, and it keeps the client dead simple.
+- **A size threshold triggers a fresh baseline.** The Canadian job measures the
+  overlay-to-baseline size ratio after each build and, once the cumulative
+  overlay grows past a set fraction of the baseline (~20%, the same
+  cost-optimal target derived for the FCC build) or on the first run, *promotes*
+  the freshly built full database to a new baseline and resets the overlay to
+  empty.
+- **Still separate, still isolated.** The Canadian overlay is produced and
+  published by the Canadian workflow alone, against the Canadian baseline — the
+  US and Canadian pipelines remain fully independent, overlays included.
+
+Because Canada is one-seventeenth the FCC's size, the *absolute* saving is modest
+(a full Canadian download is already ~1.1 MiB), but the win is the same one that
+motivated sharing the format at all: **one** overlay mechanism, **one** reader,
+**one** lookup path — now covering incremental updates for both countries.
+
 ## The honest ledger
 
 The same caveats as the FCC build apply, plus a couple specific to Canada:

@@ -3375,8 +3375,8 @@ class AppLocalizationsPl extends AppLocalizations {
   String get cslNotInstalled => 'Nie zainstalowano';
 
   @override
-  String cslInstalledInfo(String version, String count) {
-    return 'Wersja $version • $count rekordów';
+  String cslInstalledInfo(String version) {
+    return '$version';
   }
 
   @override
@@ -3398,6 +3398,9 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get cslUpToDate => 'Baza danych znaków wywoławczych jest aktualna.';
+
+  @override
+  String get cslUpToDateButton => 'Aktualne';
 
   @override
   String cslDownloadFailed(String error) {

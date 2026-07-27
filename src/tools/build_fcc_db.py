@@ -277,19 +277,28 @@ def _pack_zip(zip_code):
     return digits
 
 
-def build_streaming(open_dat, out_path, source_date):
-    """Builds the database and writes it directly to ``out_path``.
+def _distill_sorted(open_dat):
+    """Parses the ULS input into the distilled, key-sorted record set that both
+    the full build and the overlay diff consume.
 
-    The only state held in memory is the distilled record set (already packed to
-    bytes); the header, sorted index and record section are streamed to the file
-    without a second full-size copy. Returns the record count.
+    Each item is ``(key, name_blob, city, zip, state, cs_packed, days)`` and the
+    list is sorted ascending by ``key`` (the callsign index key), as the on-disk
+    index requires for binary search.
     """
     by_call = _collect_encoded(open_dat)
-    # Sorting is the one step that needs the whole (distilled) set at once, as
-    # the index must be ordered by callsign key for binary search. Each item is
-    # (key, name_blob, city, zip, state, cs_packed, days).
     items = sorted(by_call.values(), key=lambda it: it[0])
     by_call.clear()
+    return items
+
+
+def _write_cdb(items, out_path, source_date, flags=0):
+    """Writes the distilled, **already key-sorted** ``items`` to ``out_path`` as
+    a ``.cdb`` file and returns the record count.
+
+    The header, sorted index and record section are streamed to the file without
+    a second full-size copy. ``items`` are tuples of
+    ``(key, name_blob, city, zip, state, cs_packed, days)``.
+    """
     count = len(items)
 
     # Build the state, class/status and city dictionaries (sorted for
@@ -319,7 +328,7 @@ def build_streaming(open_dat, out_path, source_date):
         header = bytearray(HEADER_SIZE)
         struct.pack_into("<I", header, 0, MAGIC)
         struct.pack_into("<H", header, 4, FORMAT_VERSION)
-        struct.pack_into("<H", header, 6, 0)
+        struct.pack_into("<H", header, 6, flags & 0xFFFF)
         struct.pack_into("<I", header, 8, count)
         struct.pack_into("<I", header, 12, keys_offset)
         struct.pack_into("<I", header, 16, lengths_offset)
@@ -370,6 +379,146 @@ def build_streaming(open_dat, out_path, source_date):
             f.write(struct.pack("<H", days))
 
     return count
+
+
+def build_streaming(open_dat, out_path, source_date):
+    """Builds the full database from a ULS input and writes it to ``out_path``.
+
+    Returns the record count. Kept as the single-call entry point used by the
+    from-scratch build; the overlay path reuses ``_distill_sorted`` and
+    ``_write_cdb`` directly so it can diff before writing.
+    """
+    items = _distill_sorted(open_dat)
+    return _write_cdb(items, out_path, source_date)
+
+
+# ── .cdb reader (for overlay diffs) ─────────────────────────────────────────
+# A minimal reader that decodes a ``.cdb`` back into canonical logical records,
+# used to diff a previously published baseline against a freshly built database.
+# It must stay in lock-step with ``_write_cdb`` above.
+
+
+def _u16(buf, off):
+    return buf[off] | (buf[off + 1] << 8)
+
+
+def _u32(buf, off):
+    return int.from_bytes(buf[off:off + 4], "little")
+
+
+def read_cdb_header(buf):
+    """Parses and validates a ``.cdb`` header, returning it as a dict."""
+    if len(buf) < HEADER_SIZE:
+        raise ValueError("callsign database is too small")
+    if _u32(buf, 0) != MAGIC:
+        raise ValueError("not a callsign database (bad magic)")
+    version = _u16(buf, 4)
+    if version != FORMAT_VERSION:
+        raise ValueError(f"unsupported callsign database version {version}")
+    return {
+        "flags": _u16(buf, 6),
+        "count": _u32(buf, 8),
+        "keysOffset": _u32(buf, 12),
+        "lengthsOffset": _u32(buf, 16),
+        "recordsOffset": _u32(buf, 20),
+        "sourceDate": _u32(buf, 24),
+        "epochDate": _u32(buf, 28),
+        "stateCount": _u16(buf, 32),
+        "classStatusCount": _u16(buf, 34),
+        "stateOffset": _u32(buf, 36),
+        "classStatusOffset": _u32(buf, 40),
+        "cityCount": _u32(buf, 44),
+        "cityOffset": _u32(buf, 48),
+    }
+
+
+def _read_dicts(buf, hdr):
+    states = []
+    off = hdr["stateOffset"]
+    for i in range(hdr["stateCount"]):
+        states.append(buf[off + i * 2:off + i * 2 + 2].rstrip(b"\x00")
+                      .decode("ascii", "ignore"))
+    cs_values = []
+    off = hdr["classStatusOffset"]
+    for i in range(hdr["classStatusCount"]):
+        o = off + i * 2
+        cs_values.append((buf[o] << 8) | buf[o + 1])
+    cities = []
+    off = hdr["cityOffset"]
+    for _ in range(hdr["cityCount"]):
+        ln = buf[off]
+        off += 1
+        cities.append(buf[off:off + ln].decode("utf-8"))
+        off += ln
+    return states, cs_values, cities
+
+
+def iter_cdb_canonical(buf):
+    """Yields one canonical tuple per record, **in ascending key order** (the
+    order records are stored in). Each tuple is
+    ``(key, name_blob, city, state, cs_packed, zip_u32, days)`` — the same shape
+    the diff compares a freshly built record against.
+    """
+    hdr = read_cdb_header(buf)
+    states, cs_values, cities = _read_dicts(buf, hdr)
+    count = hdr["count"]
+    keys_off = hdr["keysOffset"]
+    lengths_off = hdr["lengthsOffset"]
+    rec_off = hdr["recordsOffset"]
+    for i in range(count):
+        key = int.from_bytes(buf[keys_off + i * 6:keys_off + i * 6 + KEY_BYTES],
+                             "big")
+        length = _u16(buf, lengths_off + i * 2)
+        name_len = _u16(buf, rec_off)
+        name_blob = bytes(buf[rec_off:rec_off + 2 + name_len])
+        p = rec_off + 2 + name_len
+        ci = buf[p] | (buf[p + 1] << 8) | (buf[p + 2] << 16)
+        si = buf[p + 3]
+        csi = buf[p + 4]
+        zip_u32 = _u32(buf, p + 5)
+        days = _u16(buf, p + 9)
+        city = cities[ci] if ci < len(cities) else ""
+        state = states[si] if si < len(states) else ""
+        cs_packed = cs_values[csi] if csi < len(cs_values) else 0
+        yield (key, name_blob, city, state, cs_packed, zip_u32, days)
+        rec_off += length
+
+
+def _canonical_new(item):
+    """The canonical comparison tuple for a freshly distilled ``item``
+    ``(key, name_blob, city, zip, state, cs_packed, days)``. ZIP is compared in
+    its packed form so encoder-equivalent source strings compare equal."""
+    return (item[1], item[2], item[4], item[5], _pack_zip(item[3]), item[6])
+
+
+def build_overlay(baseline_buf, new_items, out_path, source_date):
+    """Writes an overlay ``.cdb`` containing only the records that are new or
+    changed relative to the ``baseline_buf`` (uncompressed baseline bytes).
+
+    ``new_items`` is the distilled, key-sorted record set of the freshly built
+    full database. The baseline is streamed once via ``iter_cdb_canonical`` and
+    merge-joined against ``new_items`` on the sorted key, so peak memory stays
+    bounded by the record set already held for the full build. Deletions
+    (keys present only in the baseline) are intentionally not represented.
+
+    Returns the overlay record count.
+    """
+    baseline = iter_cdb_canonical(baseline_buf)
+    b = next(baseline, None)
+    overlay = []
+    for it in new_items:
+        key = it[0]
+        while b is not None and b[0] < key:
+            b = next(baseline, None)  # baseline-only key => a deletion, ignored
+        if b is not None and b[0] == key:
+            base_canon = (b[1], b[2], b[3], b[4], b[5], b[6])
+            if base_canon != _canonical_new(it):
+                overlay.append(it)
+            b = next(baseline, None)
+        else:
+            overlay.append(it)  # key absent from the baseline => new record
+    # ``overlay`` preserves the ascending-key order of ``new_items``.
+    return _write_cdb(overlay, out_path, source_date)
 
 
 # ── ULS input helpers ───────────────────────────────────────────────────────
@@ -435,6 +584,17 @@ def main():
     ap.add_argument("--source-date", type=int, default=0,
                     help="explicit data date as YYYYMMDD (overrides the FCC Last-Modified date)")
     ap.add_argument("--version", help="explicit version string (defaults to the source date)")
+    ap.add_argument("--baseline",
+                    help="path to the currently published baseline (.cdb or .cdb.xz) to diff "
+                         "against; enables overlay/diff output")
+    ap.add_argument("--overlay-out",
+                    help="overlay database output path (defaults to <out> with an _overlay suffix)")
+    ap.add_argument("--current-manifest",
+                    help="path to the currently deployed manifest.json; its baseline fields are "
+                         "carried forward when the overlay stays below the promote threshold")
+    ap.add_argument("--promote-threshold", type=float, default=0.20,
+                    help="rebuild a fresh baseline once the overlay grows past this fraction of "
+                         "the baseline download size (default 0.20)")
     args = ap.parse_args()
 
     # The data date identifies the FCC weekly release. It drives both the
@@ -472,7 +632,8 @@ def main():
             source_date = int(datetime.date.today().strftime("%Y%m%d"))
 
         print(f"Building database (data date {source_date}) ...")
-        count = build_streaming(opener, args.out, source_date)
+        items = _distill_sorted(opener)
+        count = _write_cdb(items, args.out, source_date)
     finally:
         if zf is not None:
             zf.close()
@@ -483,31 +644,142 @@ def main():
     print(f"Wrote {args.out} ({size:,} bytes, {count:,} records)")
 
     if args.compress:
-        with open(args.out, "rb") as f:
-            db_bytes = f.read()
-        xz_path = args.out + ".xz"
-        # xz/LZMA embeds no timestamps, so identical FCC data always yields a
-        # byte-identical archive.
-        xz_bytes = lzma.compress(db_bytes, preset=9 | lzma.PRESET_EXTREME)
-        with open(xz_path, "wb") as f:
-            f.write(xz_bytes)
-        md5 = hashlib.md5(xz_bytes).hexdigest()
         version = args.version or _version_from_date(source_date)
+        xz_path = args.out + ".xz"
+        overlay_out = args.overlay_out or _overlay_path(args.out)
+        overlay_xz_path = overlay_out + ".xz"
+
+        # Capture the baseline up front, before the fresh full .xz is written —
+        # the workflow may point --baseline at the same path we are about to
+        # overwrite, and the diff must see the *previous* baseline.
+        baseline_buf = None
+        baseline_xz_size = 0
+        if args.baseline and os.path.exists(args.baseline):
+            baseline_buf, baseline_xz_size = _load_baseline(args.baseline)
+
+        full_xz_bytes = _compress_file(args.out, xz_path)
+        full_md5 = hashlib.md5(full_xz_bytes).hexdigest()
+        print(f"Wrote {xz_path} ({len(full_xz_bytes):,} bytes, md5 {full_md5})")
+
+        # Decide whether to publish a small overlay on top of the existing
+        # baseline, or to promote the freshly built database to a new baseline.
+        if baseline_buf is None:
+            # No baseline to diff against (first run): promote immediately.
+            promote = True
+            overlay_count = 0
+            print("No baseline provided; promoting the fresh build to baseline.")
+        else:
+            overlay_count = build_overlay(baseline_buf, items, overlay_out,
+                                          source_date)
+            overlay_xz_bytes = _compress_file(overlay_out, overlay_xz_path)
+            ratio = (len(overlay_xz_bytes) / baseline_xz_size
+                     if baseline_xz_size else 1.0)
+            promote = ratio > args.promote_threshold
+            print(f"Overlay: {overlay_count:,} records, "
+                  f"{len(overlay_xz_bytes):,} bytes "
+                  f"({ratio:.1%} of the {baseline_xz_size:,}-byte baseline; "
+                  f"threshold {args.promote_threshold:.0%}) -> "
+                  f"{'PROMOTE' if promote else 'overlay only'}")
+
+        if promote:
+            # The new baseline is the freshly built full database, so its overlay
+            # is empty by definition. Write and publish that empty overlay so the
+            # hosted overlay asset resets alongside the new baseline.
+            overlay_count = _write_cdb([], overlay_out, source_date)
+            overlay_xz_bytes = _compress_file(overlay_out, overlay_xz_path)
+            baseline_obj = {
+                "version": version,
+                "sourceDate": source_date,
+                "url": args.base_url.rstrip("/") + "/" + os.path.basename(xz_path),
+                "compressed": True,
+                "sizeBytes": len(full_xz_bytes),
+                "md5": full_md5,
+                "recordCount": count,
+            }
+        else:
+            baseline_obj = _baseline_from_manifest(args.current_manifest)
+            if baseline_obj is None:
+                raise SystemExit(
+                    "overlay stayed below the promote threshold but no valid "
+                    "--current-manifest baseline was provided to carry forward")
+
+        overlay_md5 = hashlib.md5(overlay_xz_bytes).hexdigest()
         manifest = {
-            "schemaVersion": 1,
-            "version": version,
-            "sourceDate": source_date,
-            "url": args.base_url.rstrip("/") + "/" + os.path.basename(xz_path),
-            "compressed": True,
-            "sizeBytes": len(xz_bytes),
-            "md5": md5,
-            "recordCount": count,
+            "schemaVersion": 2,
+            **baseline_obj,
+            "overlay": {
+                "version": version,
+                "sourceDate": source_date,
+                "url": args.base_url.rstrip("/") + "/"
+                       + os.path.basename(overlay_xz_path),
+                "compressed": True,
+                "sizeBytes": len(overlay_xz_bytes),
+                "md5": overlay_md5,
+                "recordCount": overlay_count,
+            },
         }
-        manifest_path = os.path.join(os.path.dirname(args.out) or ".", "fcc_amateur_manifest.json")
+        manifest_path = os.path.join(os.path.dirname(args.out) or ".",
+                                     "fcc_amateur_manifest.json")
         with open(manifest_path, "w") as f:
             json.dump(manifest, f, indent=2)
-        print(f"Wrote {xz_path} ({len(xz_bytes):,} bytes, md5 {md5})")
-        print(f"Wrote {manifest_path}")
+        print(f"Wrote {overlay_xz_path} ({len(overlay_xz_bytes):,} bytes, "
+              f"md5 {overlay_md5}, {overlay_count:,} records)")
+        print(f"Wrote {manifest_path} (schemaVersion 2, "
+              f"{'promoted new baseline' if promote else 'overlay update'})")
+
+
+def _compress_file(src_path, xz_path):
+    """xz-compresses ``src_path`` to ``xz_path`` and returns the compressed
+    bytes. xz/LZMA embeds no timestamps, so identical input yields a
+    byte-identical archive."""
+    with open(src_path, "rb") as f:
+        raw = f.read()
+    xz_bytes = lzma.compress(raw, preset=9 | lzma.PRESET_EXTREME)
+    with open(xz_path, "wb") as f:
+        f.write(xz_bytes)
+    return xz_bytes
+
+
+def _overlay_path(out_path):
+    """Derives the overlay output path from the full database path
+    (``fcc_amateur.cdb`` -> ``fcc_amateur_overlay.cdb``)."""
+    root, ext = os.path.splitext(out_path)
+    return f"{root}_overlay{ext}"
+
+
+def _load_baseline(path):
+    """Loads a baseline database, returning ``(uncompressed_bytes, xz_size)``.
+    ``path`` may be a raw ``.cdb`` or an xz-compressed ``.cdb.xz``; the xz size is
+    what the promote-threshold ratio is measured against."""
+    with open(path, "rb") as f:
+        data = f.read()
+    if path.endswith(".xz"):
+        return lzma.decompress(data), len(data)
+    return data, len(lzma.compress(data, preset=9 | lzma.PRESET_EXTREME))
+
+
+def _baseline_from_manifest(manifest_path):
+    """Extracts the baseline fields from an existing manifest so they can be
+    carried forward unchanged when only the overlay is republished. Returns
+    ``None`` when the manifest is missing or malformed."""
+    if not manifest_path or not os.path.exists(manifest_path):
+        return None
+    try:
+        with open(manifest_path, "r") as f:
+            m = json.load(f)
+    except (OSError, ValueError):
+        return None
+    if not m.get("url") or not m.get("sourceDate"):
+        return None
+    return {
+        "version": m.get("version", ""),
+        "sourceDate": m["sourceDate"],
+        "url": m["url"],
+        "compressed": m.get("compressed", True),
+        "sizeBytes": m.get("sizeBytes", 0),
+        "md5": m.get("md5", ""),
+        "recordCount": m.get("recordCount", 0),
+    }
 
 
 if __name__ == "__main__":

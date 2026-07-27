@@ -3301,8 +3301,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cslNotInstalled => '未インストール';
 
   @override
-  String cslInstalledInfo(String version, String count) {
-    return 'バージョン $version • $count 件';
+  String cslInstalledInfo(String version) {
+    return '$version';
   }
 
   @override
@@ -3324,6 +3324,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cslUpToDate => 'コールサインデータベースは最新です。';
+
+  @override
+  String get cslUpToDateButton => '最新です';
 
   @override
   String cslDownloadFailed(String error) {

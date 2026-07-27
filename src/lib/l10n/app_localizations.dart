@@ -6167,8 +6167,8 @@ abstract class AppLocalizations {
   /// Installed callsign database summary
   ///
   /// In en, this message translates to:
-  /// **'Version {version} • {count} records'**
-  String cslInstalledInfo(String version, String count);
+  /// **'{version}'**
+  String cslInstalledInfo(String version);
 
   /// No description provided for @cslDownload.
   ///
@@ -6205,6 +6205,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The callsign database is up to date.'**
   String get cslUpToDate;
+
+  /// No description provided for @cslUpToDateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get cslUpToDateButton;
 
   /// Download error message
   ///

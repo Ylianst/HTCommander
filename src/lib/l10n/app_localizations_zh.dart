@@ -3274,8 +3274,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cslNotInstalled => '未安装';
 
   @override
-  String cslInstalledInfo(String version, String count) {
-    return '版本 $version • $count 条记录';
+  String cslInstalledInfo(String version) {
+    return '$version';
   }
 
   @override
@@ -3297,6 +3297,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cslUpToDate => '呼号数据库已是最新。';
+
+  @override
+  String get cslUpToDateButton => '已是最新';
 
   @override
   String cslDownloadFailed(String error) {

@@ -46,7 +46,65 @@ class CallsignDbManifest {
   /// Number of records in the database (0 when unknown).
   final int recordCount;
 
+  /// Optional incremental overlay published on top of this (baseline) database.
+  /// Present from manifest schema version 2 onward; null for legacy manifests.
+  final CallsignDbOverlay? overlay;
+
   const CallsignDbManifest({
+    required this.version,
+    required this.sourceDate,
+    required this.url,
+    required this.compressed,
+    required this.sizeBytes,
+    required this.md5,
+    required this.recordCount,
+    this.overlay,
+  });
+
+  factory CallsignDbManifest.fromJson(Map<String, dynamic> json) {
+    final overlayJson = json['overlay'];
+    return CallsignDbManifest(
+      version: (json['version'] ?? '').toString(),
+      sourceDate: (json['sourceDate'] as num?)?.toInt() ?? 0,
+      url: (json['url'] ?? '').toString(),
+      compressed: json['compressed'] == true,
+      sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
+      md5: (json['md5'] ?? '').toString().toLowerCase(),
+      recordCount: (json['recordCount'] as num?)?.toInt() ?? 0,
+      overlay: overlayJson is Map<String, dynamic>
+          ? CallsignDbOverlay.fromJson(overlayJson)
+          : null,
+    );
+  }
+}
+
+/// Metadata describing the small incremental overlay database that carries the
+/// changes made since the baseline was published (manifest schema v2+). The
+/// overlay is itself a `.cdb` in the same format, searched before the baseline.
+class CallsignDbOverlay {
+  /// Human-readable overlay version (e.g. a date like `2026.07.19`).
+  final String version;
+
+  /// Data date of the overlay as `YYYYMMDD`, or 0 when unknown.
+  final int sourceDate;
+
+  /// URL of the overlay file to download.
+  final String url;
+
+  /// Whether [url] points to an xz-compressed `.cdb`.
+  final bool compressed;
+
+  /// Size of the overlay download in bytes (0 when unknown).
+  final int sizeBytes;
+
+  /// Lower-case hex MD5 of the overlay download, or empty to skip verification.
+  final String md5;
+
+  /// Number of records the overlay carries. 0 means "no overlay" (e.g. right
+  /// after a fresh baseline was promoted).
+  final int recordCount;
+
+  const CallsignDbOverlay({
     required this.version,
     required this.sourceDate,
     required this.url,
@@ -56,8 +114,8 @@ class CallsignDbManifest {
     required this.recordCount,
   });
 
-  factory CallsignDbManifest.fromJson(Map<String, dynamic> json) {
-    return CallsignDbManifest(
+  factory CallsignDbOverlay.fromJson(Map<String, dynamic> json) {
+    return CallsignDbOverlay(
       version: (json['version'] ?? '').toString(),
       sourceDate: (json['sourceDate'] as num?)?.toInt() ?? 0,
       url: (json['url'] ?? '').toString(),
@@ -77,6 +135,7 @@ enum CallsignDbSource {
     manifestUrl:
         'https://ylianst.github.io/HTCommander/callsign/fcc_amateur_manifest.json',
     fileName: 'fcc_amateur.cdb',
+    overlayFileName: 'fcc_amateur_overlay.cdb',
     keyPrefix: 'CallsignDb',
   ),
 
@@ -86,6 +145,7 @@ enum CallsignDbSource {
     manifestUrl:
         'https://ylianst.github.io/HTCommander/callsign/ised_amateur_manifest.json',
     fileName: 'ised_amateur.cdb',
+    overlayFileName: 'ised_amateur_overlay.cdb',
     keyPrefix: 'CallsignDbCa',
   );
 
@@ -93,6 +153,7 @@ enum CallsignDbSource {
     required this.id,
     required this.manifestUrl,
     required this.fileName,
+    required this.overlayFileName,
     required this.keyPrefix,
   });
 
@@ -102,8 +163,13 @@ enum CallsignDbSource {
   /// URL of this source's hosted manifest JSON.
   final String manifestUrl;
 
-  /// File name the database is stored under in the application support dir.
+  /// File name the baseline database is stored under in the application support
+  /// dir.
   final String fileName;
+
+  /// File name the incremental overlay database is stored under, alongside the
+  /// baseline.
+  final String overlayFileName;
 
   /// DataBroker key prefix for this source's persisted metadata. The US prefix
   /// is kept as `CallsignDb` for backward compatibility with existing installs.
@@ -116,6 +182,19 @@ class CallsignLookupResult {
   final CallsignDbSource source;
   final CallsignRecord record;
   const CallsignLookupResult(this.source, this.record);
+}
+
+/// Outcome of an [CallsignLookupService.update] call.
+enum CallsignUpdateResult {
+  /// Nothing to do; the installed baseline and overlay already match the
+  /// manifest.
+  upToDate,
+
+  /// A fresh full baseline was downloaded (and its overlay reconciled).
+  updatedBaseline,
+
+  /// Only the incremental overlay was downloaded; the baseline was unchanged.
+  updatedOverlay,
 }
 
 /// Manages the offline US and Canadian amateur callsign databases: download,
@@ -139,8 +218,15 @@ class CallsignLookupService {
   /// Loaded databases, keyed by source. Absent entries are not installed.
   final Map<CallsignDbSource, CallsignDatabase> _dbs = {};
 
-  /// Resolved on-disk file path per source.
+  /// Loaded incremental overlays, keyed by source. Searched before the matching
+  /// baseline in [_dbs]. Absent entries mean no overlay is installed.
+  final Map<CallsignDbSource, CallsignDatabase> _overlays = {};
+
+  /// Resolved on-disk baseline file path per source.
   final Map<CallsignDbSource, String> _filePaths = {};
+
+  /// Resolved on-disk overlay file path per source.
+  final Map<CallsignDbSource, String> _overlayFilePaths = {};
 
   bool _initialized = false;
 
@@ -170,7 +256,36 @@ class CallsignLookupService {
 
   /// Size on disk (bytes) of the installed [source] database (0 when none).
   int sizeBytes(CallsignDbSource source) =>
-      DataBroker.getValue<int>(deviceId, '${source.keyPrefix}SizeBytes', 0) ?? 0;
+      DataBroker.getValue<int>(deviceId, '${source.keyPrefix}SizeBytes', 0) ??
+      0;
+
+  /// Data date (`YYYYMMDD`) of the installed incremental overlay for [source],
+  /// or 0 when no overlay is tracked.
+  int overlaySourceDate(CallsignDbSource source) =>
+      DataBroker.getValue<int>(
+        deviceId,
+        '${source.keyPrefix}OverlaySourceDate',
+        0,
+      ) ??
+      0;
+
+  /// Number of records in the installed overlay for [source] (0 when none).
+  int overlayRecordCount(CallsignDbSource source) =>
+      DataBroker.getValue<int>(
+        deviceId,
+        '${source.keyPrefix}OverlayRecordCount',
+        0,
+      ) ??
+      0;
+
+  /// Size on disk (bytes) of the installed overlay for [source] (0 when none).
+  int overlaySizeBytes(CallsignDbSource source) =>
+      DataBroker.getValue<int>(
+        deviceId,
+        '${source.keyPrefix}OverlaySizeBytes',
+        0,
+      ) ??
+      0;
 
   /// Resolves and opens every installed database. Safe to call once at startup;
   /// subsequent calls are no-ops.
@@ -182,11 +297,17 @@ class CallsignLookupService {
     _initialized = true;
     try {
       final dir = await getApplicationSupportDirectory();
+      final sep = Platform.pathSeparator;
       for (final source in CallsignDbSource.values) {
-        final path = '${dir.path}${Platform.pathSeparator}${source.fileName}';
+        final path = '${dir.path}$sep${source.fileName}';
         _filePaths[source] = path;
         if (await File(path).exists()) {
           await _openDatabase(source);
+        }
+        final overlayPath = '${dir.path}$sep${source.overlayFileName}';
+        _overlayFilePaths[source] = overlayPath;
+        if (await File(overlayPath).exists()) {
+          await _openOverlay(source);
         }
       }
     } catch (e) {
@@ -205,20 +326,58 @@ class CallsignLookupService {
     }
   }
 
+  Future<void> _openOverlay(CallsignDbSource source) async {
+    final path = _overlayFilePaths[source];
+    if (path == null) return;
+    await _overlays.remove(source)?.close();
+    try {
+      _overlays[source] = await CallsignDatabase.open(path);
+    } catch (e) {
+      debugPrint(
+        'CallsignLookupService: failed to open ${source.id} overlay: $e',
+      );
+    }
+  }
+
   /// Looks up [callsign] (SSID ignored) across all loaded databases, returning
-  /// the first match with its source. US and Canadian call sign spaces do not
-  /// overlap, so at most one database matches. Returns null when no database is
-  /// loaded or the callsign is not found in any of them.
+  /// the first match with its source. For each source the incremental overlay
+  /// is searched **before** the baseline, so an updated record shadows the
+  /// baseline one. US and Canadian call sign spaces do not overlap, so at most
+  /// one source matches. Returns null when nothing is loaded or no match.
   Future<CallsignLookupResult?> lookup(String callsign) async {
     if (callsign.trim().isEmpty) return null;
-    for (final entry in _dbs.entries) {
+    for (final source in CallsignDbSource.values) {
+      // Overlay first (fresher), then the baseline it sits on top of.
+      final record = await lookupInOrder(
+        [_overlays[source], _dbs[source]],
+        callsign,
+        onError: (e) => debugPrint(
+          'CallsignLookupService: lookup failed (${source.id}): $e',
+        ),
+      );
+      if (record != null) {
+        return CallsignLookupResult(source, record);
+      }
+    }
+    return null;
+  }
+
+  /// Looks up [callsign] across [dbs] in order, returning the first match. Null
+  /// entries are skipped and per-database errors are reported via [onError] and
+  /// otherwise ignored. Exposed for testing the overlay-before-baseline order.
+  @visibleForTesting
+  static Future<CallsignRecord?> lookupInOrder(
+    List<CallsignDatabase?> dbs,
+    String callsign, {
+    void Function(Object error)? onError,
+  }) async {
+    for (final db in dbs) {
+      if (db == null) continue;
       try {
-        final record = await entry.value.lookup(callsign);
-        if (record != null) {
-          return CallsignLookupResult(entry.key, record);
-        }
+        final record = await db.lookup(callsign);
+        if (record != null) return record;
       } catch (e) {
-        debugPrint('CallsignLookupService: lookup failed (${entry.key.id}): $e');
+        onError?.call(e);
       }
     }
     return null;
@@ -237,11 +396,13 @@ class CallsignLookupService {
     return CallsignDbManifest.fromJson(json);
   }
 
-  /// Downloads and installs the [source] database described by [manifest],
-  /// replacing any existing one. Reports progress via [progress].
+  /// Brings the [source] databases in line with [manifest], downloading only
+  /// what changed: a fresh full baseline when the baseline moved (its overlay is
+  /// reconciled afterwards), otherwise just the small incremental overlay.
+  /// Reports progress via [progress]. Returns what, if anything, was updated.
   ///
   /// Throws on network errors, MD5 mismatch, or an invalid database file.
-  Future<void> download(
+  Future<CallsignUpdateResult> update(
     CallsignDbSource source,
     CallsignDbManifest manifest, {
     CallsignDownloadProgress? progress,
@@ -253,32 +414,75 @@ class CallsignLookupService {
       throw const FormatException('Manifest has no download URL');
     }
 
-    final bytes = await _fetch(manifest.url, progress);
-
-    if (manifest.md5.isNotEmpty) {
-      final digest = md5.convert(bytes).toString();
-      if (digest.toLowerCase() != manifest.md5) {
-        throw const FormatException('Downloaded database failed MD5 check');
-      }
+    // A promotion (or a first install) means the baseline itself moved; pull it
+    // and then reconcile the overlay against the new baseline.
+    final needBaseline =
+        !isSourceAvailable(source) || sourceDate(source) != manifest.sourceDate;
+    if (needBaseline) {
+      await _installBaseline(source, manifest, progress);
+      // The overlay is small; skip the progress-bar churn for it here.
+      await _reconcileOverlay(source, manifest, null);
+      _dispatchUpdatedPing();
+      return CallsignUpdateResult.updatedBaseline;
     }
 
-    Uint8List dbBytes = bytes;
-    if (manifest.compressed) {
-      dbBytes = _extractDatabase(bytes);
+    // Baseline is current; the overlay may still have advanced.
+    final wantedOverlayDate =
+        manifest.overlay?.sourceDate ?? manifest.sourceDate;
+    if (overlaySourceDate(source) != wantedOverlayDate) {
+      await _reconcileOverlay(source, manifest, progress);
+      _dispatchUpdatedPing();
+      return CallsignUpdateResult.updatedOverlay;
     }
 
-    // Validate the database parses before committing it to disk.
-    CallsignDatabase.openBytes(dbBytes);
+    return CallsignUpdateResult.upToDate;
+  }
 
+  /// Installs the overlay described by [manifest] when it carries records, or
+  /// removes any installed overlay when the manifest has none (e.g. just after a
+  /// baseline promotion). Records the overlay's data date either way.
+  Future<void> _reconcileOverlay(
+    CallsignDbSource source,
+    CallsignDbManifest manifest,
+    CallsignDownloadProgress? progress,
+  ) async {
+    final overlay = manifest.overlay;
+    if (overlay != null && overlay.recordCount > 0 && overlay.url.isNotEmpty) {
+      await _installOverlay(source, overlay, progress);
+    } else {
+      await _removeOverlayFile(source);
+      final prefix = source.keyPrefix;
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: '${prefix}OverlaySourceDate',
+        data: overlay?.sourceDate ?? manifest.sourceDate,
+      );
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: '${prefix}OverlayRecordCount',
+        data: 0,
+      );
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: '${prefix}OverlaySizeBytes',
+        data: 0,
+      );
+    }
+  }
+
+  Future<void> _installBaseline(
+    CallsignDbSource source,
+    CallsignDbManifest manifest,
+    CallsignDownloadProgress? progress,
+  ) async {
+    final dbBytes = await _downloadVerifyExtract(
+      manifest.url,
+      manifest.md5,
+      manifest.compressed,
+      progress,
+    );
     final path = _filePaths[source] ??= await _resolvePath(source);
-    final file = File(path);
-    final tmp = File('$path.tmp');
-    await tmp.writeAsBytes(dbBytes, flush: true);
-    if (await file.exists()) {
-      await file.delete();
-    }
-    await tmp.rename(path);
-
+    await _writeDbFile(path, dbBytes);
     await _openDatabase(source);
 
     // Persist metadata for the UI and multi-window sync.
@@ -303,6 +507,93 @@ class CallsignLookupService {
       name: '${prefix}SizeBytes',
       data: dbBytes.length,
     );
+  }
+
+  Future<void> _installOverlay(
+    CallsignDbSource source,
+    CallsignDbOverlay overlay,
+    CallsignDownloadProgress? progress,
+  ) async {
+    final dbBytes = await _downloadVerifyExtract(
+      overlay.url,
+      overlay.md5,
+      overlay.compressed,
+      progress,
+    );
+    final path = _overlayFilePaths[source] ??= await _resolveOverlayPath(
+      source,
+    );
+    await _writeDbFile(path, dbBytes);
+    await _openOverlay(source);
+
+    final prefix = source.keyPrefix;
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: '${prefix}OverlayVersion',
+      data: overlay.version,
+    );
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: '${prefix}OverlaySourceDate',
+      data: overlay.sourceDate,
+    );
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: '${prefix}OverlayRecordCount',
+      data: overlay.recordCount,
+    );
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: '${prefix}OverlaySizeBytes',
+      data: dbBytes.length,
+    );
+  }
+
+  /// Downloads [url], verifies [md5hex] (when set), decompresses when
+  /// [compressed], and validates the result parses as a database. Returns the
+  /// raw `.cdb` bytes ready to write.
+  Future<Uint8List> _downloadVerifyExtract(
+    String url,
+    String md5hex,
+    bool compressed,
+    CallsignDownloadProgress? progress,
+  ) async {
+    final bytes = await _fetch(url, progress);
+    if (md5hex.isNotEmpty) {
+      final digest = md5.convert(bytes).toString();
+      if (digest.toLowerCase() != md5hex) {
+        throw const FormatException('Downloaded database failed MD5 check');
+      }
+    }
+    final dbBytes = compressed ? _extractDatabase(bytes) : bytes;
+    // Validate the database parses before committing it to disk.
+    CallsignDatabase.openBytes(dbBytes);
+    return dbBytes;
+  }
+
+  /// Atomically writes [bytes] to [path] via a temp file and rename.
+  Future<void> _writeDbFile(String path, Uint8List bytes) async {
+    final file = File(path);
+    final tmp = File('$path.tmp');
+    await tmp.writeAsBytes(bytes, flush: true);
+    if (await file.exists()) {
+      await file.delete();
+    }
+    await tmp.rename(path);
+  }
+
+  Future<void> _removeOverlayFile(CallsignDbSource source) async {
+    await _overlays.remove(source)?.close();
+    final path = _overlayFilePaths[source];
+    if (path != null) {
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+  }
+
+  void _dispatchUpdatedPing() {
     _broker.dispatch(
       deviceId: deviceId,
       name: 'CallsignDbUpdated',
@@ -311,7 +602,8 @@ class CallsignLookupService {
     );
   }
 
-  /// Deletes the installed [source] database and clears its metadata.
+  /// Deletes the installed [source] database (baseline and overlay) and clears
+  /// its metadata.
   Future<void> delete(CallsignDbSource source) async {
     await _dbs.remove(source)?.close();
     final path = _filePaths[source];
@@ -321,11 +613,16 @@ class CallsignLookupService {
         await file.delete();
       }
     }
+    await _removeOverlayFile(source);
     final prefix = source.keyPrefix;
     DataBroker.removeValue(deviceId, '${prefix}Version');
     DataBroker.removeValue(deviceId, '${prefix}RecordCount');
     DataBroker.removeValue(deviceId, '${prefix}SourceDate');
     DataBroker.removeValue(deviceId, '${prefix}SizeBytes');
+    DataBroker.removeValue(deviceId, '${prefix}OverlayVersion');
+    DataBroker.removeValue(deviceId, '${prefix}OverlaySourceDate');
+    DataBroker.removeValue(deviceId, '${prefix}OverlayRecordCount');
+    DataBroker.removeValue(deviceId, '${prefix}OverlaySizeBytes');
     _broker.dispatch(
       deviceId: deviceId,
       name: 'CallsignDbUpdated',
@@ -337,6 +634,11 @@ class CallsignLookupService {
   Future<String> _resolvePath(CallsignDbSource source) async {
     final dir = await getApplicationSupportDirectory();
     return '${dir.path}${Platform.pathSeparator}${source.fileName}';
+  }
+
+  Future<String> _resolveOverlayPath(CallsignDbSource source) async {
+    final dir = await getApplicationSupportDirectory();
+    return '${dir.path}${Platform.pathSeparator}${source.overlayFileName}';
   }
 
   /// Decompresses the downloaded xz (LZMA) stream into the raw database bytes.

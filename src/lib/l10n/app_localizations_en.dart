@@ -3349,8 +3349,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cslNotInstalled => 'Not installed';
 
   @override
-  String cslInstalledInfo(String version, String count) {
-    return 'Version $version • $count records';
+  String cslInstalledInfo(String version) {
+    return '$version';
   }
 
   @override
@@ -3372,6 +3372,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cslUpToDate => 'The callsign database is up to date.';
+
+  @override
+  String get cslUpToDateButton => 'Up to date';
 
   @override
   String cslDownloadFailed(String error) {
