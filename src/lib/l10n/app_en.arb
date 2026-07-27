@@ -1394,6 +1394,7 @@
   "mapShowMarkers": "Show Markers",
   "mapShowAirplanes": "Show Airplanes",
   "mapLargeMarkers": "Large Markers",
+  "mapShowAprsSymbols": "Show APRS Symbols",
   "mapShowContactsOnly": "Show Contacts Only",
   "mapFilterAll": "All",
   "mapFilterLast30": "Last 30 Minutes",

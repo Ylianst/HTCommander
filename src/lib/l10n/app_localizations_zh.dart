@@ -2101,6 +2101,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mapLargeMarkers => '大标记';
 
   @override
+  String get mapShowAprsSymbols => '显示 APRS 符号';
+
+  @override
   String get mapShowContactsOnly => '仅显示联系人';
 
   @override

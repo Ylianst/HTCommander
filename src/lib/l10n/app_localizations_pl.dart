@@ -2158,6 +2158,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get mapLargeMarkers => 'Duże znaczniki';
 
   @override
+  String get mapShowAprsSymbols => 'Pokaż symbole APRS';
+
+  @override
   String get mapShowContactsOnly => 'Pokaż tylko kontakty';
 
   @override

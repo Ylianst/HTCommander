@@ -3980,6 +3980,12 @@ abstract class AppLocalizations {
   /// **'Large Markers'**
   String get mapLargeMarkers;
 
+  /// No description provided for @mapShowAprsSymbols.
+  ///
+  /// In en, this message translates to:
+  /// **'Show APRS Symbols'**
+  String get mapShowAprsSymbols;
+
   /// No description provided for @mapShowContactsOnly.
   ///
   /// In en, this message translates to:

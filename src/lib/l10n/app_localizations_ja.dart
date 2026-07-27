@@ -2114,6 +2114,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get mapLargeMarkers => '大きなマーカー';
 
   @override
+  String get mapShowAprsSymbols => 'APRSシンボルを表示';
+
+  @override
   String get mapShowContactsOnly => '連絡先のみ表示';
 
   @override

@@ -682,6 +682,7 @@
   "mapShowMarkers": "मार्कर दिखाएँ",
   "mapShowAirplanes": "विमान दिखाएँ",
   "mapLargeMarkers": "बड़े मार्कर",
+  "mapShowAprsSymbols": "APRS प्रतीक दिखाएँ",
   "mapShowContactsOnly": "केवल संपर्क दिखाएँ",
   "mapFilterAll": "सभी",
   "mapFilterLast30": "पिछले 30 मिनट",

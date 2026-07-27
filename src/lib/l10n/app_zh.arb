@@ -682,6 +682,7 @@
   "mapShowMarkers": "显示标记",
   "mapShowAirplanes": "显示飞机",
   "mapLargeMarkers": "大标记",
+  "mapShowAprsSymbols": "显示 APRS 符号",
   "mapShowContactsOnly": "仅显示联系人",
   "mapFilterAll": "全部",
   "mapFilterLast30": "最近 30 分钟",

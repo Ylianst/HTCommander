@@ -682,6 +682,7 @@
   "mapShowMarkers": "Afficher les marqueurs",
   "mapShowAirplanes": "Afficher les avions",
   "mapLargeMarkers": "Grands marqueurs",
+  "mapShowAprsSymbols": "Afficher les symboles APRS",
   "mapShowContactsOnly": "Afficher uniquement les contacts",
   "mapFilterAll": "Tout",
   "mapFilterLast30": "30 dernières minutes",

@@ -1623,6 +1623,7 @@ class _CommsTabState extends State<CommsTab>
       case VoiceTransmitMode.dtmf:
         return AppLocalizations.of(context).commsModeDtmf;
       case VoiceTransmitMode.chat:
+        return AppLocalizations.of(context).commsModeChat;
       case VoiceTransmitMode.ptt:
         return AppLocalizations.of(context).commonSend;
     }

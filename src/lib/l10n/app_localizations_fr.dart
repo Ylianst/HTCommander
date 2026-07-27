@@ -2163,6 +2163,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get mapLargeMarkers => 'Grands marqueurs';
 
   @override
+  String get mapShowAprsSymbols => 'Afficher les symboles APRS';
+
+  @override
   String get mapShowContactsOnly => 'Afficher uniquement les contacts';
 
   @override

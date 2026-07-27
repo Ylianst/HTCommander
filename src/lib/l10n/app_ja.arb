@@ -682,6 +682,7 @@
   "mapShowMarkers": "マーカーを表示",
   "mapShowAirplanes": "航空機を表示",
   "mapLargeMarkers": "大きなマーカー",
+  "mapShowAprsSymbols": "APRSシンボルを表示",
   "mapShowContactsOnly": "連絡先のみ表示",
   "mapFilterAll": "すべて",
   "mapFilterLast30": "過去 30 分",

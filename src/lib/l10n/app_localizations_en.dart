@@ -2140,6 +2140,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mapLargeMarkers => 'Large Markers';
 
   @override
+  String get mapShowAprsSymbols => 'Show APRS Symbols';
+
+  @override
   String get mapShowContactsOnly => 'Show Contacts Only';
 
   @override

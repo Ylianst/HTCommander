@@ -6,6 +6,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'tab_visibility.dart';
@@ -14,6 +15,7 @@ import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
+import '../aprs/aprs_symbols.dart';
 import '../gps/gps_data.dart';
 import '../l10n/app_localizations.dart';
 import '../models/aircraft.dart';
@@ -35,6 +37,8 @@ class _StationMarkerData {
     required this.time,
     required this.isSelf,
     this.fromAprsIs = false,
+    this.symbolTable = '',
+    this.symbolCode = '',
   }) : track = <LatLng>[position];
 
   final String callsign;
@@ -43,6 +47,12 @@ class _StationMarkerData {
   final bool isSelf;
   final List<LatLng> track;
 
+  /// APRS symbol table identifier (`/`, `\` or an overlay digit/letter) and
+  /// symbol code for this station, used to draw the real APRS symbol instead
+  /// of a generic pin. Empty when the station has no symbol information.
+  String symbolTable;
+  String symbolCode;
+
   /// True when the most recent position for this station came from APRS-IS
   /// (the internet) rather than from a radio. Used to filter internet traffic
   /// off the map.
@@ -50,7 +60,8 @@ class _StationMarkerData {
 
   /// Appends a new point to the track when the position actually changed,
   /// matching the C# `AddMapMarker` route behaviour.
-  void update(LatLng newPosition, DateTime newTime, {bool? fromAprsIs}) {
+  void update(LatLng newPosition, DateTime newTime,
+      {bool? fromAprsIs, String? symbolTable, String? symbolCode}) {
     final last = track.isNotEmpty ? track.last : null;
     if (last == null ||
         last.latitude != newPosition.latitude ||
@@ -60,6 +71,12 @@ class _StationMarkerData {
     position = newPosition;
     time = newTime;
     if (fromAprsIs != null) this.fromAprsIs = fromAprsIs;
+    if (symbolTable != null && symbolTable.isNotEmpty) {
+      this.symbolTable = symbolTable;
+    }
+    if (symbolCode != null && symbolCode.isNotEmpty) {
+      this.symbolCode = symbolCode;
+    }
   }
 }
 
@@ -94,6 +111,10 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   bool _showAirplanes = false;
   bool _showContactsOnly = false;
   bool _largeMarkers = true;
+
+  /// When true, stations are drawn using their real APRS symbols instead of
+  /// generic location pins.
+  bool _showAprsSymbols = false;
 
   /// When false, APRS-IS (internet) stations are hidden from the map.
   bool _showAprsIs = true;
@@ -456,7 +477,10 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 
     final existing = _aprsStations[callsign];
     if (existing != null) {
-      existing.update(point, time, fromAprsIs: aprsPacket.fromAprsIs);
+      existing.update(point, time,
+          fromAprsIs: aprsPacket.fromAprsIs,
+          symbolTable: aprsPacket.symbolTable,
+          symbolCode: aprsPacket.symbol);
     } else {
       _aprsStations[callsign] = _StationMarkerData(
         callsign: callsign,
@@ -464,6 +488,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
         time: time,
         isSelf: callsign == 'Self',
         fromAprsIs: aprsPacket.fromAprsIs,
+        symbolTable: aprsPacket.symbolTable,
+        symbolCode: aprsPacket.symbol,
       );
     }
     return true;
@@ -596,6 +622,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     _showTracks = (DataBroker.getValue<int>(0, 'MapShowTracks', 1) ?? 1) == 1;
     _largeMarkers =
         (DataBroker.getValue<int>(0, 'MapLargeMarkers', 1) ?? 1) == 1;
+    _showAprsSymbols =
+        (DataBroker.getValue<int>(0, 'MapShowAprsSymbols', 0) ?? 0) == 1;
     _showAprsIs =
         (DataBroker.getValue<int>(0, 'AprsShowAprsIs', 1) ?? 1) == 1;
     _markerTimeFilter = DataBroker.getValue<int>(0, 'MapTimeFilter', 0) ?? 0;
@@ -794,6 +822,22 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             ],
           ),
         ),
+        PopupMenuItem<String>(
+          value: 'aprsSymbols',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                child: _showAprsSymbols
+                    ? const Text('✓', style: TextStyle(fontSize: 14))
+                    : null,
+              ),
+              Text(AppLocalizations.of(context).mapShowAprsSymbols),
+            ],
+          ),
+        ),
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
@@ -866,6 +910,16 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             deviceId: 0,
             name: 'AprsShowAprsIs',
             data: _showAprsIs ? 1 : 0,
+          );
+          break;
+        case 'aprsSymbols':
+          setState(() {
+            _showAprsSymbols = !_showAprsSymbols;
+          });
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'MapShowAprsSymbols',
+            data: _showAprsSymbols ? 1 : 0,
           );
           break;
         case 'centerGps':
@@ -1050,6 +1104,15 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     final contactCallsigns =
         _showContactsOnly ? _getContactCallsigns() : null;
 
+    // Theme-aware colours for the APRS symbol chips. The symbol itself is drawn
+    // in a neutral high-contrast colour (dark on light themes, light on dark
+    // themes) so it stays legible over the map tiles; the category colour
+    // (blue/red/orange) is carried by the chip border and the spike instead.
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color symbolChipBg = isDark ? const Color(0xFF262626) : Colors.white;
+    final Color symbolFg = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final double spikeHeight = size * 0.55;
+
     void addStation(_StationMarkerData s, Color color) {
       if (!_passesTimeFilter(s.time)) return;
       // When "Show Contacts Only" is active, skip non-self stations that are
@@ -1059,18 +1122,48 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
           !contactCallsigns.contains(s.callsign.toUpperCase())) {
         return;
       }
-      markers.add(
-        Marker(
-          point: s.position,
-          width: size,
-          height: size,
-          alignment: Alignment.topCenter,
-          child: Tooltip(
-            message: '${s.callsign}\n${_formatTime(s.time)}',
-            child: Icon(Icons.location_pin, color: color, size: size),
+      // When the "Show APRS Symbols" option is enabled and this station has a
+      // renderable symbol, draw the real APRS symbol inside a theme-aware chip
+      // sitting on top of a small coloured spike whose tip marks the exact
+      // position. Otherwise fall back to a generic pin whose tip marks it.
+      final aprsSymbol = _showAprsSymbols && s.symbolCode.isNotEmpty
+          ? aprsSymbolFor(s.symbolTable, s.symbolCode)
+          : null;
+      if (aprsSymbol != null && aprsSymbol.hasVisual) {
+        markers.add(
+          Marker(
+            point: s.position,
+            width: size,
+            height: size + spikeHeight,
+            alignment: Alignment.topCenter,
+            child: Tooltip(
+              message: '${s.callsign}\n${_formatTime(s.time)}',
+              child: _buildAprsSymbolMarker(
+                table: s.symbolTable,
+                code: s.symbolCode,
+                size: size,
+                spikeHeight: spikeHeight,
+                spikeColor: color,
+                chipBg: symbolChipBg,
+                symbolColor: symbolFg,
+              ),
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        markers.add(
+          Marker(
+            point: s.position,
+            width: size,
+            height: size,
+            alignment: Alignment.topCenter,
+            child: Tooltip(
+              message: '${s.callsign}\n${_formatTime(s.time)}',
+              child: Icon(Icons.location_pin, color: color, size: size),
+            ),
+          ),
+        );
+      }
     }
 
     // APRS markers: blue for "Self", red otherwise. Internet (APRS-IS) stations
@@ -1130,7 +1223,62 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       );
     });
 
+    // Paint markers north-to-south so that stations further south (lower
+    // latitude) are drawn last and therefore appear on top. flutter_map renders
+    // markers in list order, so the southernmost marker ends up overlapping the
+    // symbols/spikes of the ones to its north.
+    markers.sort((a, b) => b.point.latitude.compareTo(a.point.latitude));
+
     return markers;
+  }
+
+  /// Builds an APRS symbol marker: the station's symbol drawn inside a small
+  /// rounded chip (theme-aware background) sitting on top of a coloured spike
+  /// whose pointed tip marks the exact position. The [spikeColor] carries the
+  /// station category (blue = self, red = others, orange = voice/BSS).
+  Widget _buildAprsSymbolMarker({
+    required String table,
+    required String code,
+    required double size,
+    required double spikeHeight,
+    required Color spikeColor,
+    required Color chipBg,
+    required Color symbolColor,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: chipBg,
+            shape: BoxShape.circle,
+            border: Border.all(color: spikeColor, width: 1.5),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 2,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Center(
+            child: aprsSymbolWidgetFor(
+              table,
+              code,
+              size: size * 0.66,
+              color: symbolColor,
+              haloColor: chipBg,
+            ),
+          ),
+        ),
+        CustomPaint(
+          size: Size(size * 0.5, spikeHeight),
+          painter: _MarkerSpikePainter(spikeColor),
+        ),
+      ],
+    );
   }
 
   /// Builds the track polylines for stations when "Show Tracks" is enabled.
@@ -1568,3 +1716,43 @@ class _RectSelectionPainter extends CustomPainter {
   bool shouldRepaint(_RectSelectionPainter oldDelegate) =>
       start != oldDelegate.start || end != oldDelegate.end;
 }
+
+/// Draws the small downward-pointing spike beneath an APRS symbol chip. The
+/// tip sits at the bottom-center of the paint box, which is aligned to the
+/// station's exact position on the map.
+class _MarkerSpikePainter extends CustomPainter {
+  _MarkerSpikePainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final topHalf = w * 0.30;
+    final path = ui.Path()
+      ..moveTo(w / 2 - topHalf, 0)
+      ..lineTo(w / 2 + topHalf, 0)
+      ..lineTo(w / 2, h)
+      ..close();
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = Color.lerp(color, Colors.black, 0.35)!
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_MarkerSpikePainter oldDelegate) =>
+      color != oldDelegate.color;
+}
+

@@ -2149,6 +2149,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get mapLargeMarkers => 'बड़े मार्कर';
 
   @override
+  String get mapShowAprsSymbols => 'APRS प्रतीक दिखाएँ';
+
+  @override
   String get mapShowContactsOnly => 'केवल संपर्क दिखाएँ';
 
   @override
