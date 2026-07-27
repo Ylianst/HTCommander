@@ -114,7 +114,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 
   /// When true, stations are drawn using their real APRS symbols instead of
   /// generic location pins.
-  bool _showAprsSymbols = false;
+  bool _showAprsSymbols = true;
 
   /// When false, APRS-IS (internet) stations are hidden from the map.
   bool _showAprsIs = true;
@@ -623,7 +623,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     _largeMarkers =
         (DataBroker.getValue<int>(0, 'MapLargeMarkers', 1) ?? 1) == 1;
     _showAprsSymbols =
-        (DataBroker.getValue<int>(0, 'MapShowAprsSymbols', 0) ?? 0) == 1;
+        (DataBroker.getValue<int>(0, 'MapShowAprsSymbols', 1) ?? 1) == 1;
     _showAprsIs =
         (DataBroker.getValue<int>(0, 'AprsShowAprsIs', 1) ?? 1) == 1;
     _markerTimeFilter = DataBroker.getValue<int>(0, 'MapTimeFilter', 0) ?? 0;
