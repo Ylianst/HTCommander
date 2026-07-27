@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 3,
+  "packageId": "com.htcommander.app",
+  "appName": "htcommander",
+  "version": "0.1.22",
+  "buildNumber": 24,
+  "platform": "linux",
+  "channel": "stable",
+  "artifact": {
+    "kind": "zip",
+    "url": "https://github.com/Ylianst/HTCommander/releases/download/v0.1.22/htcommander-0.1.22-linux-x64.zip",
+    "sha256": "700f08ee02b7d6f38f12ccf69d8c2be6d092ee7f3a263bd7fc154abf61e9002d",
+    "length": 26725661
+  },
+  "install": {
+    "strategy": "wholeDirectoryReplace"
+  },
+  "minimumUpdaterVersion": "2.0.0",
+  "generatedAt": "2026-07-27T06:47:22.628805Z"
+}
