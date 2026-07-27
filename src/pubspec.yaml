@@ -90,6 +90,16 @@ dependency_overrides:
   # onto a channel. See third_party/desktop_drop/windows/desktop_drop_plugin.cpp.
   desktop_drop:
     path: third_party/desktop_drop
+  # Pin path_provider_android to the last Pigeon-based release (2.2.23).
+  # Version 2.3.0 switched its internal implementation to package:jni, which
+  # transitively pulls in the `jni` native plugin. `jni` declares Linux platform
+  # support and bundles a jni.h that declares the variadic JNI *V methods with
+  # `void *` instead of `va_list`; on Linux (ARM64 / newer Clang) passing a real
+  # `va_list` to that `void *` parameter is a hard compile error, breaking
+  # `flutter build linux`. path_provider_android is Android-only, so pinning it
+  # below 2.3.0 removes jni/jni_flutter from the dependency graph entirely with
+  # no loss of functionality.
+  path_provider_android: 2.2.23
   sherpa_onnx_android_arm64:
     path: sherpa_stubs/sherpa_onnx_android_arm64
   sherpa_onnx_android_armeabi:
