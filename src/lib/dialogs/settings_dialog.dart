@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
 import '../l10n/app_localizations.dart';
+import '../aprs/aprs_util.dart';
+import '../aprs/weather_data.dart';
 import '../echolink/echolink_credential_test.dart';
 import '../services/serial/serial_port.dart';
 import '../services/data_broker.dart';
@@ -32,6 +34,14 @@ class AppSettings {
 
   // APRS tab
   List<AprsRoute> aprsRoutes;
+
+  // APRS-IS (internet gateway) - APRS tab
+  bool aprsIsEnabled;
+  String aprsIsServer;
+  int aprsIsPort;
+  int aprsIsRangeKm;
+  bool aprsIsGateToRf;
+  String aprsIsPasscode;
 
   // Voice tab
   String voiceLanguage;
@@ -116,6 +126,12 @@ class AppSettings {
     this.language = LocaleController.systemTag,
     this.themeMode = ThemeController.systemTag,
     List<AprsRoute>? aprsRoutes,
+    this.aprsIsEnabled = false,
+    this.aprsIsServer = 'rotate.aprs2.net',
+    this.aprsIsPort = 14580,
+    this.aprsIsRangeKm = 0,
+    this.aprsIsGateToRf = false,
+    this.aprsIsPasscode = '',
     this.voiceLanguage = 'auto',
     this.voiceModel = 'sense-voice',
     this.voice = '',
@@ -150,6 +166,12 @@ class AppSettings {
     String? language,
     String? themeMode,
     List<AprsRoute>? aprsRoutes,
+    bool? aprsIsEnabled,
+    String? aprsIsServer,
+    int? aprsIsPort,
+    int? aprsIsRangeKm,
+    bool? aprsIsGateToRf,
+    String? aprsIsPasscode,
     String? voiceLanguage,
     String? voiceModel,
     String? voice,
@@ -183,6 +205,12 @@ class AppSettings {
       language: language ?? this.language,
       themeMode: themeMode ?? this.themeMode,
       aprsRoutes: aprsRoutes ?? List.from(this.aprsRoutes),
+      aprsIsEnabled: aprsIsEnabled ?? this.aprsIsEnabled,
+      aprsIsServer: aprsIsServer ?? this.aprsIsServer,
+      aprsIsPort: aprsIsPort ?? this.aprsIsPort,
+      aprsIsRangeKm: aprsIsRangeKm ?? this.aprsIsRangeKm,
+      aprsIsGateToRf: aprsIsGateToRf ?? this.aprsIsGateToRf,
+      aprsIsPasscode: aprsIsPasscode ?? this.aprsIsPasscode,
       voiceLanguage: voiceLanguage ?? this.voiceLanguage,
       voiceModel: voiceModel ?? this.voiceModel,
       voice: voice ?? this.voice,
@@ -231,6 +259,18 @@ class AppSettings {
                   ThemeController.systemTag) ??
               ThemeController.systemTag,
       aprsRoutes: aprsRoutes,
+      aprsIsEnabled:
+          (DataBroker.getValue<int>(0, 'AprsIsEnabled', 0) ?? 0) == 1,
+      aprsIsServer:
+          DataBroker.getValue<String>(0, 'AprsIsServer', 'rotate.aprs2.net') ??
+              'rotate.aprs2.net',
+      aprsIsPort: DataBroker.getValue<int>(0, 'AprsIsPort', 14580) ?? 14580,
+      aprsIsRangeKm:
+          DataBroker.getValue<int>(0, 'AprsIsRangeKm', 0) ?? 0,
+      aprsIsGateToRf:
+          (DataBroker.getValue<int>(0, 'AprsIsGateToRf', 0) ?? 0) == 1,
+      aprsIsPasscode:
+          DataBroker.getValue<String>(0, 'AprsIsPasscode', '') ?? '',
       voiceLanguage:
           DataBroker.getValue<String>(0, 'VoiceLanguage', 'auto') ?? 'auto',
       voiceModel:
@@ -291,6 +331,28 @@ class AppSettings {
       deviceId: 0,
       name: 'AprsRoutes',
       data: _serializeAprsRoutes(),
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'AprsIsEnabled',
+      data: aprsIsEnabled ? 1 : 0,
+    );
+    DataBroker.dispatch(deviceId: 0, name: 'AprsIsServer', data: aprsIsServer);
+    DataBroker.dispatch(deviceId: 0, name: 'AprsIsPort', data: aprsIsPort);
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'AprsIsRangeKm',
+      data: aprsIsRangeKm,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'AprsIsGateToRf',
+      data: aprsIsGateToRf ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'AprsIsPasscode',
+      data: aprsIsPasscode,
     );
     DataBroker.dispatch(
       deviceId: 0,
@@ -454,6 +516,9 @@ class _SettingsDialogState extends State<SettingsDialog>
   late TextEditingController _winlinkPasswordController;
   late TextEditingController _echoLinkPasswordController;
   late TextEditingController _echoLinkLocationController;
+  late TextEditingController _aprsIsServerController;
+  late TextEditingController _aprsIsPortController;
+  late TextEditingController _aprsIsPasscodeController;
   late TextEditingController _webPortController;
   late TextEditingController _agwpePortController;
   late TextEditingController _airplaneUrlController;
@@ -589,6 +654,15 @@ class _SettingsDialogState extends State<SettingsDialog>
     _echoLinkLocationController = TextEditingController(
       text: _settings.echoLinkLocation,
     );
+    _aprsIsServerController = TextEditingController(
+      text: _settings.aprsIsServer,
+    );
+    _aprsIsPortController = TextEditingController(
+      text: _settings.aprsIsPort.toString(),
+    );
+    _aprsIsPasscodeController = TextEditingController(
+      text: _settings.aprsIsPasscode,
+    );
     _webPortController = TextEditingController(
       text: _settings.webServerPort.toString(),
     );
@@ -610,6 +684,7 @@ class _SettingsDialogState extends State<SettingsDialog>
 
     _callSignController.addListener(_onCallSignChanged);
     _echoLinkPasswordController.addListener(_onEchoLinkPasswordChanged);
+    _aprsIsPasscodeController.addListener(_onAprsIsPasscodeChanged);
 
     // Load the available TTS voices for the Voice tab.
     _loadVoices();
@@ -663,6 +738,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     _winlinkPasswordController.dispose();
     _echoLinkPasswordController.dispose();
     _echoLinkLocationController.dispose();
+    _aprsIsServerController.dispose();
+    _aprsIsPortController.dispose();
+    _aprsIsPasscodeController.dispose();
     _webPortController.dispose();
     _agwpePortController.dispose();
     _airplaneUrlController.dispose();
@@ -678,12 +756,37 @@ class _SettingsDialogState extends State<SettingsDialog>
       if (_settings.callSign.length < 3) {
         _settings.allowTransmit = false;
       }
+      // The passcode is tied to the call sign; a changed call sign can
+      // invalidate a previously correct passcode, which must disable APRS-IS.
+      if (!_aprsIsPasscodeValid) _settings.aprsIsEnabled = false;
     });
   }
 
   /// Rebuilds so the EchoLink "Test" button enables once a password is entered.
   void _onEchoLinkPasswordChanged() {
     if (mounted) setState(() {});
+  }
+
+  /// The APRS-IS passcode derived from the current call sign. Empty when no
+  /// call sign is set.
+  String get _expectedAprsIsPasscode => _settings.callSign.isEmpty
+      ? ''
+      : AprsUtil.aprsValidationCode(_settings.callSign);
+
+  /// True when the passcode the user typed matches the one expected for their
+  /// call sign. APRS-IS can only be enabled while this is true.
+  bool get _aprsIsPasscodeValid =>
+      _settings.callSign.isNotEmpty &&
+      _aprsIsPasscodeController.text.trim() == _expectedAprsIsPasscode;
+
+  /// Keeps the stored passcode in sync with the field and disables APRS-IS if
+  /// the passcode is no longer correct.
+  void _onAprsIsPasscodeChanged() {
+    if (!mounted) return;
+    setState(() {
+      _settings.aprsIsPasscode = _aprsIsPasscodeController.text.trim();
+      if (!_aprsIsPasscodeValid) _settings.aprsIsEnabled = false;
+    });
   }
 
   /// Validates the EchoLink call sign + password against the directory server.
@@ -912,6 +1015,8 @@ class _SettingsDialogState extends State<SettingsDialog>
     _settings.winlinkPassword = _winlinkPasswordController.text;
     _settings.echoLinkPassword = _echoLinkPasswordController.text;
     _settings.echoLinkLocation = _echoLinkLocationController.text;
+    _settings.aprsIsServer = _aprsIsServerController.text.trim();
+    _settings.aprsIsPort = int.tryParse(_aprsIsPortController.text) ?? 14580;
     _settings.webServerPort = int.tryParse(_webPortController.text) ?? 8080;
     _settings.agwpeServerPort = int.tryParse(_agwpePortController.text) ?? 8000;
     _settings.airplaneServerUrl = _airplaneUrlController.text;
@@ -1480,9 +1585,329 @@ class _SettingsDialogState extends State<SettingsDialog>
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          _buildAprsIsSection(),
         ],
       ),
     );
+  }
+
+  /// APRS-IS (internet gateway) settings section shown on the APRS tab.
+  Widget _buildAprsIsSection() {
+    final l10n = AppLocalizations.of(context);
+    final hasCallSign = _settings.callSign.isNotEmpty;
+    final account = hasCallSign ? _settings.callSign : l10n.settingsNone;
+    final passcodeValid = _aprsIsPasscodeValid;
+    final passcodeEntered = _aprsIsPasscodeController.text.trim().isNotEmpty;
+    // Turning APRS-IS on requires a valid passcode, but it can always be
+    // turned off (e.g. a previously enabled station whose passcode is blank).
+    final canToggle = hasCallSign && (passcodeValid || _settings.aprsIsEnabled);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _sectionDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.settingsAprsIsTitle, style: _sectionTitleStyle()),
+          const SizedBox(height: 8),
+          Text(l10n.settingsAprsIsIntro, style: DialogStyles.bodyStyle),
+          const SizedBox(height: 4),
+          InkWell(
+            onTap: () => _launchUrl('https://www.aprs-is.net'),
+            child: const Text('www.aprs-is.net', style: DialogStyles.linkStyle),
+          ),
+          const SizedBox(height: 16),
+          if (!hasCallSign) ...[
+            Text(l10n.settingsAprsIsNoCallSign, style: _secondaryStyle()),
+            const SizedBox(height: 16),
+          ],
+          Row(
+            children: [
+              Checkbox(
+                value: _settings.aprsIsEnabled,
+                onChanged: canToggle
+                    ? (value) => setState(
+                          () => _settings.aprsIsEnabled = value ?? false,
+                        )
+                    : null,
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: canToggle
+                      ? () => setState(
+                            () => _settings.aprsIsEnabled =
+                                !_settings.aprsIsEnabled,
+                          )
+                      : null,
+                  child: Text(l10n.settingsAprsIsEnable),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.settingsAccount, style: DialogStyles.labelStyle),
+                    const SizedBox(height: 4),
+                    TextField(
+                      enabled: false,
+                      decoration: _inputDecoration(hintText: account),
+                      controller: TextEditingController(text: account),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.settingsAprsIsPasscode,
+                        style: DialogStyles.labelStyle),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: _aprsIsPasscodeController,
+                      enabled: hasCallSign,
+                      keyboardType: TextInputType.number,
+                      decoration: _inputDecoration(
+                        hintText: l10n.settingsAprsIsPasscodeHint,
+                      ).copyWith(
+                        // Highlight the field in light red when a passcode is
+                        // entered but does not match the call sign.
+                        fillColor: (passcodeEntered && !passcodeValid)
+                            ? const Color(0xFFFFCDD2)
+                            : null,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.settingsAprsIsServer,
+                        style: DialogStyles.labelStyle),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: _aprsIsServerController,
+                      enabled: hasCallSign,
+                      decoration: _inputDecoration().copyWith(
+                        suffixIcon: _presetMenu(
+                          enabled: hasCallSign,
+                          presets: _aprsIsServerPresets,
+                          onSelected: (value) => setState(
+                            () => _aprsIsServerController.text = value,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.settingsPort, style: DialogStyles.labelStyle),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: _aprsIsPortController,
+                      enabled: hasCallSign,
+                      keyboardType: TextInputType.number,
+                      decoration: _inputDecoration().copyWith(
+                        suffixIcon: _presetMenu(
+                          enabled: hasCallSign,
+                          presets: _aprsIsPortPresets,
+                          onSelected: (value) => setState(
+                            () => _aprsIsPortController.text = value,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.settingsAprsIsRange,
+                        style: DialogStyles.labelStyle),
+                    const SizedBox(height: 4),
+                    DropdownButtonFormField<int>(
+                      initialValue: _aprsIsRangeItems(l10n)
+                              .any((e) => e.value == _settings.aprsIsRangeKm)
+                          ? _settings.aprsIsRangeKm
+                          : 0,
+                      decoration: _inputDecoration(),
+                      items: _aprsIsRangeItems(l10n),
+                      onChanged: hasCallSign
+                          ? (value) => setState(
+                                () => _settings.aprsIsRangeKm = value ?? 0,
+                              )
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.settingsAprsIsCenter,
+                        style: DialogStyles.labelStyle),
+                    const SizedBox(height: 4),
+                    TextField(
+                      enabled: false,
+                      decoration: _inputDecoration(hintText: _aprsIsCenterText),
+                      controller: TextEditingController(text: _aprsIsCenterText),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(l10n.settingsAprsIsRangeHelp, style: _secondaryStyle()),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Checkbox(
+                value: _settings.aprsIsGateToRf,
+                onChanged: hasCallSign
+                    ? (value) => setState(
+                          () => _settings.aprsIsGateToRf = value ?? false,
+                        )
+                    : null,
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: hasCallSign
+                      ? () => setState(
+                            () => _settings.aprsIsGateToRf =
+                                !_settings.aprsIsGateToRf,
+                          )
+                      : null,
+                  child: Text(l10n.settingsAprsIsGateToRf),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(l10n.settingsAprsIsGateToRfHelp, style: _secondaryStyle()),
+        ],
+      ),
+    );
+  }
+
+  /// Common APRS-IS servers offered in the preset dropdown. Users may still
+  /// type any server they like.
+  static const List<(String, String)> _aprsIsServerPresets = [
+    ('rotate.aprs2.net', 'Worldwide (rotate)'),
+    ('noam.aprs2.net', 'North America'),
+    ('soam.aprs2.net', 'South America'),
+    ('euro.aprs2.net', 'Europe'),
+    ('asia.aprs2.net', 'Asia'),
+    ('aunz.aprs2.net', 'Oceania'),
+  ];
+
+  /// Common APRS-IS ports offered in the preset dropdown. Users may still type
+  /// any port they like.
+  static const List<(String, String)> _aprsIsPortPresets = [
+    ('14580', 'Filtered feed'),
+    ('10152', 'Full feed'),
+    ('23000', 'Full feed (UDP)'),
+  ];
+
+  /// A trailing dropdown button that fills a text field with a chosen preset.
+  /// Each preset is a (value, description) pair; the value is what gets typed
+  /// into the field.
+  Widget _presetMenu({
+    required bool enabled,
+    required List<(String, String)> presets,
+    required ValueChanged<String> onSelected,
+  }) {
+    return PopupMenuButton<String>(
+      enabled: enabled,
+      icon: const Icon(Icons.arrow_drop_down),
+      tooltip: '',
+      position: PopupMenuPosition.under,
+      onSelected: onSelected,
+      itemBuilder: (context) => [
+        for (final (value, label) in presets)
+          PopupMenuItem<String>(
+            value: value,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(value),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: _secondaryStyle(),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// APRS-IS range dropdown items. Distances are stored in kilometres; the
+  /// labels are shown in miles or km depending on the OS regional (metric)
+  /// setting, reusing the same detection as the APRS weather feature.
+  List<DropdownMenuItem<int>> _aprsIsRangeItems(AppLocalizations l10n) {
+    final metric = WeatherData.systemUsesMetric;
+    final items = <DropdownMenuItem<int>>[
+      DropdownMenuItem<int>(value: 0, child: Text(l10n.settingsAprsIsRangeOff)),
+    ];
+    for (final n in const [10, 20, 30]) {
+      final km = metric ? n : (n * 1.60934).round();
+      items.add(
+        DropdownMenuItem<int>(
+          value: km,
+          child: Text(
+            metric
+                ? l10n.settingsAprsIsRangeKm(n)
+                : l10n.settingsAprsIsRangeMiles(n),
+          ),
+        ),
+      );
+    }
+    return items;
+  }
+
+  /// Human-readable text for the last confirmed GPS position used to center the
+  /// APRS-IS range filter, or a placeholder when none has been received yet.
+  String get _aprsIsCenterText {
+    final valid =
+        (DataBroker.getValue<int>(0, 'AprsIsPositionValid', 0) ?? 0) == 1;
+    if (!valid) return AppLocalizations.of(context).settingsAprsIsNoPosition;
+    final lat = DataBroker.getValue<double>(0, 'AprsIsLat', 0) ?? 0;
+    final lon = DataBroker.getValue<double>(0, 'AprsIsLon', 0) ?? 0;
+    return '${lat.toStringAsFixed(4)}, ${lon.toStringAsFixed(4)}';
   }
 
   void _addAprsRoute() async {

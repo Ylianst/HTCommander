@@ -34,6 +34,7 @@ class _StationMarkerData {
     required this.position,
     required this.time,
     required this.isSelf,
+    this.fromAprsIs = false,
   }) : track = <LatLng>[position];
 
   final String callsign;
@@ -42,9 +43,14 @@ class _StationMarkerData {
   final bool isSelf;
   final List<LatLng> track;
 
+  /// True when the most recent position for this station came from APRS-IS
+  /// (the internet) rather than from a radio. Used to filter internet traffic
+  /// off the map.
+  bool fromAprsIs;
+
   /// Appends a new point to the track when the position actually changed,
   /// matching the C# `AddMapMarker` route behaviour.
-  void update(LatLng newPosition, DateTime newTime) {
+  void update(LatLng newPosition, DateTime newTime, {bool? fromAprsIs}) {
     final last = track.isNotEmpty ? track.last : null;
     if (last == null ||
         last.latitude != newPosition.latitude ||
@@ -53,6 +59,7 @@ class _StationMarkerData {
     }
     position = newPosition;
     time = newTime;
+    if (fromAprsIs != null) this.fromAprsIs = fromAprsIs;
   }
 }
 
@@ -87,6 +94,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   bool _showAirplanes = false;
   bool _showContactsOnly = false;
   bool _largeMarkers = true;
+
+  /// When false, APRS-IS (internet) stations are hidden from the map.
+  bool _showAprsIs = true;
 
   /// When true the user is drawing a rectangle on the map to select a cache
   /// area. Interaction with markers/tracks is suppressed.
@@ -188,6 +198,17 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       deviceId: 0,
       name: 'ShowAirplanesOnMap',
       callback: _onShowAirplanesChanged,
+    );
+
+    // Keep the APRS-IS visibility filter in sync with the APRS tab.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'AprsShowAprsIs',
+      callback: (_, _, data) {
+        final show = (data is int ? data : 1) == 1;
+        if (show == _showAprsIs) return;
+        if (mounted) setState(() => _showAprsIs = show);
+      },
     );
 
     // --- APRS markers (mirrors the C# APRS Marker Code region) ---
@@ -435,13 +456,14 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 
     final existing = _aprsStations[callsign];
     if (existing != null) {
-      existing.update(point, time);
+      existing.update(point, time, fromAprsIs: aprsPacket.fromAprsIs);
     } else {
       _aprsStations[callsign] = _StationMarkerData(
         callsign: callsign,
         position: point,
         time: time,
         isSelf: callsign == 'Self',
+        fromAprsIs: aprsPacket.fromAprsIs,
       );
     }
     return true;
@@ -574,6 +596,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     _showTracks = (DataBroker.getValue<int>(0, 'MapShowTracks', 1) ?? 1) == 1;
     _largeMarkers =
         (DataBroker.getValue<int>(0, 'MapLargeMarkers', 1) ?? 1) == 1;
+    _showAprsIs =
+        (DataBroker.getValue<int>(0, 'AprsShowAprsIs', 1) ?? 1) == 1;
     _markerTimeFilter = DataBroker.getValue<int>(0, 'MapTimeFilter', 0) ?? 0;
     _updateFilterRefreshTimer();
     _showAirplanes =
@@ -754,6 +778,22 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             ],
           ),
         ),
+        PopupMenuItem<String>(
+          value: 'showAprsIs',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                child: _showAprsIs
+                    ? const Text('✓', style: TextStyle(fontSize: 14))
+                    : null,
+              ),
+              Text(AppLocalizations.of(context).aprsShowAprsIs),
+            ],
+          ),
+        ),
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
@@ -816,6 +856,16 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             deviceId: 0,
             name: 'MapLargeMarkers',
             data: _largeMarkers ? 1 : 0,
+          );
+          break;
+        case 'showAprsIs':
+          setState(() {
+            _showAprsIs = !_showAprsIs;
+          });
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'AprsShowAprsIs',
+            data: _showAprsIs ? 1 : 0,
           );
           break;
         case 'centerGps':
@@ -1023,8 +1073,10 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       );
     }
 
-    // APRS markers: blue for "Self", red otherwise.
+    // APRS markers: blue for "Self", red otherwise. Internet (APRS-IS) stations
+    // are hidden when the APRS-IS filter is off.
     for (final station in _aprsStations.values) {
+      if (station.fromAprsIs && !_showAprsIs) continue;
       addStation(station, station.isSelf ? Colors.blue : Colors.red);
     }
 
@@ -1105,6 +1157,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     }
 
     for (final station in _aprsStations.values) {
+      if (station.fromAprsIs && !_showAprsIs) continue;
       addTrack(station, station.isSelf ? Colors.blue : Colors.red);
     }
     for (final station in _voiceStations.values) {

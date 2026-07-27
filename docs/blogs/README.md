@@ -116,6 +116,13 @@ Bringing internet-linked voice into the same app that drives the radio.
    numbers mean, a NAT pinhole that quietly eats receive audio, and how to get an
    account and make your first connection.
 
+2. **[Radio and Internet, Two Ways: Planning APRS-IS for HTCommander](aprs-is-integration.md)**
+   A design note written before the first line of code — what APRS-IS is, the
+   single-line passcode login, the TNC2 ⟷ AX.25 codec that lets internet packets
+   reuse the existing APRS pipeline, the full-IGate rules for gating between RF
+   and the internet (q-constructs, NOGATE, the "recently heard" list), and the
+   receive-only-first test plan.
+
 ---
 
 ## Data & Storage

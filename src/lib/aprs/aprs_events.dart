@@ -19,7 +19,11 @@ class AprsFrameEventArgs {
 
   /// Serializes for cross-window transport. The underlying AX.25 frame carries
   /// everything needed to rebuild both the raw and parsed packets.
-  Map<String, dynamic> toJson() => ax25Packet.toJson();
+  Map<String, dynamic> toJson() {
+    final json = ax25Packet.toJson();
+    if (aprsPacket.fromAprsIs) json['fromAprsIs'] = true;
+    return json;
+  }
 
   /// Rebuilds an [AprsFrameEventArgs] from data produced by [toJson] so a
   /// detached window can render live APRS frames. Always returns a non-null

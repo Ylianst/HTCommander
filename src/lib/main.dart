@@ -38,6 +38,10 @@ import 'torrent/torrent_store.dart';
 // the internet-radio glue is never compiled for the browser.
 import 'echolink/echolink_manager_stub.dart'
     if (dart.library.io) 'echolink/echolink_manager.dart';
+// APRS-IS relies on dart:io TCP sockets; use a no-op stub on web so the IGate
+// glue is never compiled for the browser.
+import 'aprsis/aprsis_manager_stub.dart'
+    if (dart.library.io) 'aprsis/aprsis_manager.dart';
 import 'radio/radio_transport.dart';
 // The soft-modem relies on an audio channel, which the web build does not have.
 // Use a no-op stub on web so the hamlib DSP code is never compiled for web.
@@ -197,6 +201,15 @@ void main(List<String> args) async {
   final echoLinkManager = EchoLinkManager();
   echoLinkManager.init();
   DataBroker.addDataHandler('EchoLinkManager', echoLinkManager);
+
+  // Register the APRS-IS manager so the internet-only APRS-IS IGate (device
+  // 201) can connect to an APRS-IS server, gate RF packets to the internet and
+  // internet messages back to RF, and surface received internet packets to the
+  // APRS and Map tabs (flagged so they can be filtered out).
+  // No-op on the web (dart:io sockets are unavailable there).
+  final aprsIsManager = AprsIsManager();
+  aprsIsManager.init();
+  DataBroker.addDataHandler('AprsIsManager', aprsIsManager);
 
   // Register the GPS serial handler so that an external GPS receiver connected
   // to a serial port is read, its NMEA sentences parsed, and a GpsData object

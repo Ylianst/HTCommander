@@ -99,6 +99,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   final FocusNode _messageFocusNode = FocusNode();
   String _selectedDestination = 'APRS';
   bool _showAllMessages = false;
+  bool _showAprsIs = true;
   bool _allowTransmit = true;
   bool _historicalLoaded = false;
 
@@ -140,6 +141,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     _allowTransmit = (_broker.getValue<int>(0, 'AllowTransmit', 1) ?? 1) != 0;
     _showAllMessages =
         (_broker.getValue<int>(0, 'AprsShowTelemetry', 0) ?? 0) != 0;
+    _showAprsIs =
+        (_broker.getValue<int>(0, 'AprsShowAprsIs', 1) ?? 1) != 0;
     _selectedRouteIndex = _broker.getValue<int>(0, 'SelectedAprsRoute', 0) ?? 0;
     _parseAndSetRoutes(_broker.getValue<String>(0, 'AprsRoutes', '') ?? '');
     final savedDest = _broker.getValue<String>(0, 'AprsDestination', '') ?? '';
@@ -168,6 +171,23 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       deviceId: _aprsDeviceId,
       name: 'AprsStoreReady',
       callback: _onAprsStoreReady,
+    );
+
+    // Keep the APRS-IS visibility filter in sync with the Map tab.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'AprsShowAprsIs',
+      callback: (_, _, data) {
+        final show = (data is int ? data : 1) == 1;
+        if (show == _showAprsIs || !mounted) return;
+        setState(() {
+          _showAprsIs = show;
+          for (final e in _entries) {
+            e.visible = _computeVisible(e.messageType, e.aprsPacket.fromAprsIs);
+          }
+        });
+        _rebuildMessages();
+      },
     );
 
     // Subscribe to settings changes from device 0.
@@ -739,7 +759,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       messageType: messageType,
       imageIndex: imageIndex,
       authState: packet.authState,
-      visible: _showAllMessages || messageType == PacketDataType.message,
+      visible: _computeVisible(messageType, aprsPacket.fromAprsIs),
     );
 
     // Drop duplicates within the last 5 minutes. Compare the sender callsign
@@ -1238,13 +1258,36 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     setState(() {
       _showAllMessages = !_showAllMessages;
       for (final e in _entries) {
-        e.visible = _showAllMessages || e.messageType == PacketDataType.message;
+        e.visible = _computeVisible(e.messageType, e.aprsPacket.fromAprsIs);
       }
     });
     _broker.dispatch(
       deviceId: 0,
       name: 'AprsShowTelemetry',
       data: _showAllMessages ? 1 : 0,
+    );
+    _rebuildMessages();
+  }
+
+  /// Computes whether an entry should be shown given the current filters. APRS-IS
+  /// (internet) traffic is hidden entirely when [_showAprsIs] is off; otherwise
+  /// the usual telemetry/message rule applies.
+  bool _computeVisible(PacketDataType type, bool fromAprsIs) {
+    if (fromAprsIs && !_showAprsIs) return false;
+    return _showAllMessages || type == PacketDataType.message;
+  }
+
+  void _toggleShowAprsIs() {
+    setState(() {
+      _showAprsIs = !_showAprsIs;
+      for (final e in _entries) {
+        e.visible = _computeVisible(e.messageType, e.aprsPacket.fromAprsIs);
+      }
+    });
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'AprsShowAprsIs',
+      data: _showAprsIs ? 1 : 0,
     );
     _rebuildMessages();
   }
@@ -1300,6 +1343,22 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
                     : null,
               ),
               Text(l10n.aprsShowAll),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'showAprsIs',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                child: _showAprsIs
+                    ? const Text('✓', style: TextStyle(fontSize: 14))
+                    : null,
+              ),
+              Text(l10n.aprsShowAprsIs),
             ],
           ),
         ),
@@ -1366,6 +1425,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       switch (value) {
         case 'showAll':
           _toggleShowAll();
+          break;
+        case 'showAprsIs':
+          _toggleShowAprsIs();
           break;
         case 'sendSms':
           _sendSmsMessage();

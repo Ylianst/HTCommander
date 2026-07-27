@@ -428,6 +428,62 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsAprsRoutes => 'Routes APRS';
 
   @override
+  String get settingsAprsIsTitle => 'Internet Gateway';
+
+  @override
+  String get settingsAprsIsIntro =>
+      'Connect to the APRS-IS network to send and receive APRS packets over the internet, and gate packets between the internet and RF.';
+
+  @override
+  String get settingsAprsIsNoCallSign =>
+      'Set your call sign on the License tab to enable APRS-IS.';
+
+  @override
+  String get settingsAprsIsEnable => 'Enable APRS-IS';
+
+  @override
+  String get settingsAprsIsPasscode => 'Passcode';
+
+  @override
+  String get settingsAprsIsPasscodeHint => 'Enter your APRS-IS passcode';
+
+  @override
+  String get settingsAprsIsServer => 'Server';
+
+  @override
+  String get settingsAprsIsRange => 'Range';
+
+  @override
+  String get settingsAprsIsRangeOff => 'Messages to me only';
+
+  @override
+  String settingsAprsIsRangeMiles(int miles) {
+    return '$miles miles';
+  }
+
+  @override
+  String settingsAprsIsRangeKm(int km) {
+    return '$km km';
+  }
+
+  @override
+  String get settingsAprsIsCenter => 'Center (last GPS)';
+
+  @override
+  String get settingsAprsIsNoPosition => 'No GPS position yet';
+
+  @override
+  String get settingsAprsIsRangeHelp =>
+      'Receive APRS traffic within this range of your last confirmed GPS position, obtained from a radio or serial GPS.';
+
+  @override
+  String get settingsAprsIsGateToRf => 'Gate internet messages to RF (IGate)';
+
+  @override
+  String get settingsAprsIsGateToRfHelp =>
+      'Transmit messages from the internet on RF for stations heard locally within the last hour. Requires a radio with an APRS channel.';
+
+  @override
   String get settingsEditRoute => 'Modifier la route';
 
   @override
@@ -2180,6 +2236,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get aprsShowAll => 'Afficher la télémétrie';
+
+  @override
+  String get aprsShowAprsIs => 'Show Internet Traffic';
 
   @override
   String get aprsSendSms => 'Envoyer un message SMS...';

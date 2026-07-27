@@ -908,6 +908,102 @@ abstract class AppLocalizations {
   /// **'APRS Routes'**
   String get settingsAprsRoutes;
 
+  /// No description provided for @settingsAprsIsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Internet Gateway'**
+  String get settingsAprsIsTitle;
+
+  /// No description provided for @settingsAprsIsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the APRS-IS network to send and receive APRS packets over the internet, and gate packets between the internet and RF.'**
+  String get settingsAprsIsIntro;
+
+  /// No description provided for @settingsAprsIsNoCallSign.
+  ///
+  /// In en, this message translates to:
+  /// **'Set your call sign on the License tab to enable APRS-IS.'**
+  String get settingsAprsIsNoCallSign;
+
+  /// No description provided for @settingsAprsIsEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable APRS-IS'**
+  String get settingsAprsIsEnable;
+
+  /// No description provided for @settingsAprsIsPasscode.
+  ///
+  /// In en, this message translates to:
+  /// **'Passcode'**
+  String get settingsAprsIsPasscode;
+
+  /// No description provided for @settingsAprsIsPasscodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your APRS-IS passcode'**
+  String get settingsAprsIsPasscodeHint;
+
+  /// No description provided for @settingsAprsIsServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Server'**
+  String get settingsAprsIsServer;
+
+  /// No description provided for @settingsAprsIsRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Range'**
+  String get settingsAprsIsRange;
+
+  /// No description provided for @settingsAprsIsRangeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages to me only'**
+  String get settingsAprsIsRangeOff;
+
+  /// No description provided for @settingsAprsIsRangeMiles.
+  ///
+  /// In en, this message translates to:
+  /// **'{miles} miles'**
+  String settingsAprsIsRangeMiles(int miles);
+
+  /// No description provided for @settingsAprsIsRangeKm.
+  ///
+  /// In en, this message translates to:
+  /// **'{km} km'**
+  String settingsAprsIsRangeKm(int km);
+
+  /// No description provided for @settingsAprsIsCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Center (last GPS)'**
+  String get settingsAprsIsCenter;
+
+  /// No description provided for @settingsAprsIsNoPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'No GPS position yet'**
+  String get settingsAprsIsNoPosition;
+
+  /// No description provided for @settingsAprsIsRangeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive APRS traffic within this range of your last confirmed GPS position, obtained from a radio or serial GPS.'**
+  String get settingsAprsIsRangeHelp;
+
+  /// No description provided for @settingsAprsIsGateToRf.
+  ///
+  /// In en, this message translates to:
+  /// **'Gate internet messages to RF (IGate)'**
+  String get settingsAprsIsGateToRf;
+
+  /// No description provided for @settingsAprsIsGateToRfHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Transmit messages from the internet on RF for stations heard locally within the last hour. Requires a radio with an APRS channel.'**
+  String get settingsAprsIsGateToRfHelp;
+
   /// No description provided for @settingsEditRoute.
   ///
   /// In en, this message translates to:
@@ -4021,6 +4117,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show Telemetry'**
   String get aprsShowAll;
+
+  /// No description provided for @aprsShowAprsIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Internet Traffic'**
+  String get aprsShowAprsIs;
 
   /// No description provided for @aprsSendSms.
   ///

@@ -444,6 +444,32 @@
 
   "settingsAprsIntro": "Configure APRS routing paths for packet transmission.",
   "settingsAprsRoutes": "APRS Routes",
+  "settingsAprsIsTitle": "Internet Gateway",
+  "settingsAprsIsIntro": "Connect to the APRS-IS network to send and receive APRS packets over the internet, and gate packets between the internet and RF.",
+  "settingsAprsIsNoCallSign": "Set your call sign on the License tab to enable APRS-IS.",
+  "settingsAprsIsEnable": "Enable APRS-IS",
+  "settingsAprsIsPasscode": "Passcode",
+  "settingsAprsIsPasscodeHint": "Enter your APRS-IS passcode",
+  "settingsAprsIsServer": "Server",
+  "settingsAprsIsRange": "Range",
+  "settingsAprsIsRangeOff": "Messages to me only",
+  "settingsAprsIsRangeMiles": "{miles} miles",
+  "@settingsAprsIsRangeMiles": {
+    "placeholders": {
+      "miles": { "type": "int" }
+    }
+  },
+  "settingsAprsIsRangeKm": "{km} km",
+  "@settingsAprsIsRangeKm": {
+    "placeholders": {
+      "km": { "type": "int" }
+    }
+  },
+  "settingsAprsIsCenter": "Center (last GPS)",
+  "settingsAprsIsNoPosition": "No GPS position yet",
+  "settingsAprsIsRangeHelp": "Receive APRS traffic within this range of your last confirmed GPS position, obtained from a radio or serial GPS.",
+  "settingsAprsIsGateToRf": "Gate internet messages to RF (IGate)",
+  "settingsAprsIsGateToRfHelp": "Transmit messages from the internet on RF for stations heard locally within the last hour. Requires a radio with an APRS channel.",
   "settingsEditRoute": "Edit route",
   "settingsEditRouteProtected": "Built-in route cannot be edited",
   "settingsDeleteRoute": "Delete route",
@@ -1405,6 +1431,7 @@
   "aprsClearTitle": "Clear APRS Messages",
   "aprsClearPrompt": "Clear all APRS messages? This also removes all APRS markers from the map. This cannot be undone.",
   "aprsShowAll": "Show Telemetry",
+  "aprsShowAprsIs": "Show Internet Traffic",
   "aprsSendSms": "Send SMS Message...",
   "aprsWeatherReport": "Weather Report...",
   "aprsBeaconSettingsMenu": "Beacon Settings...",

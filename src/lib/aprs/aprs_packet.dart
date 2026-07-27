@@ -38,6 +38,12 @@ class AprsPacket {
   WeatherData? weather;
   TelemetryData? telemetry;
 
+  /// True when this packet was received from the APRS-IS internet service
+  /// rather than decoded off the air from one of our own radios. The APRS and
+  /// Map tabs use this to keep internet traffic visually separate and to let
+  /// the user filter it out.
+  bool fromAprsIs = false;
+
   AprsPacket._();
 
   String get dataTypeChar =>
@@ -51,19 +57,28 @@ class AprsPacket {
 
   /// Serializes for cross-window transport by encoding the underlying AX.25
   /// frame. Consumers rebuild the fully parsed packet with [fromJson].
-  Map<String, dynamic>? toJson() => packet?.toJson();
+  Map<String, dynamic>? toJson() {
+    final json = packet?.toJson();
+    if (json != null && fromAprsIs) json['fromAprsIs'] = true;
+    return json;
+  }
 
   /// Rebuilds an [AprsPacket] from data produced by [toJson]. Always returns a
   /// non-null instance so it can be used as a data-broker serializer; if the
   /// frame cannot be parsed as APRS the returned packet has no underlying
   /// [packet] and is ignored by consumers.
   static AprsPacket fromJson(Map<String, dynamic> json) {
+    final fromAprsIs = json['fromAprsIs'] == true;
     final ax25 = AX25Packet.fromJson(json);
     if (ax25 != null) {
       final parsed = AprsPacket.parse(ax25);
-      if (parsed != null) return parsed;
+      if (parsed != null) {
+        parsed.fromAprsIs = fromAprsIs;
+        return parsed;
+      }
       final fallback = AprsPacket._();
       fallback.packet = ax25;
+      fallback.fromAprsIs = fromAprsIs;
       return fallback;
     }
     return AprsPacket._();

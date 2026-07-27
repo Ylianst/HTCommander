@@ -764,6 +764,8 @@ class HomeAssistantHandler {
     if (mqtt == null || !mqtt.isConnected) return;
 
     final aprs = data.aprsPacket;
+    // Do not publish APRS-IS internet traffic to Home Assistant; only radios.
+    if (aprs.fromAprsIs) return;
     if (aprs.dataType != PacketDataType.message) return;
     final text = aprs.messageData.msgText;
     if (text.isEmpty) return;
