@@ -422,60 +422,59 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAprsRoutes => 'APRS 路由';
 
   @override
-  String get settingsAprsIsTitle => 'Internet Gateway';
+  String get settingsAprsIsTitle => '互联网网关';
 
   @override
   String get settingsAprsIsIntro =>
-      'Connect to the APRS-IS network to send and receive APRS packets over the internet, and gate packets between the internet and RF.';
+      '连接到 APRS-IS 网络，通过互联网发送和接收 APRS 数据包，并在互联网与射频之间转发数据包。';
 
   @override
-  String get settingsAprsIsNoCallSign =>
-      'Set your call sign on the License tab to enable APRS-IS.';
+  String get settingsAprsIsNoCallSign => '在许可证选项卡上设置您的呼号以启用 APRS-IS。';
 
   @override
-  String get settingsAprsIsEnable => 'Enable APRS-IS';
+  String get settingsAprsIsEnable => '启用 APRS-IS';
 
   @override
-  String get settingsAprsIsPasscode => 'Passcode';
+  String get settingsAprsIsPasscode => '密码';
 
   @override
-  String get settingsAprsIsPasscodeHint => 'Enter your APRS-IS passcode';
+  String get settingsAprsIsPasscodeHint => '输入您的 APRS-IS 密码';
 
   @override
-  String get settingsAprsIsServer => 'Server';
+  String get settingsAprsIsServer => '服务器';
 
   @override
-  String get settingsAprsIsRange => 'Range';
+  String get settingsAprsIsRange => '范围';
 
   @override
-  String get settingsAprsIsRangeOff => 'Messages to me only';
+  String get settingsAprsIsRangeOff => '仅发给我的消息';
 
   @override
   String settingsAprsIsRangeMiles(int miles) {
-    return '$miles miles';
+    return '$miles 英里';
   }
 
   @override
   String settingsAprsIsRangeKm(int km) {
-    return '$km km';
+    return '$km 公里';
   }
 
   @override
-  String get settingsAprsIsCenter => 'Center (last GPS)';
+  String get settingsAprsIsCenter => '中心（最后的 GPS）';
 
   @override
-  String get settingsAprsIsNoPosition => 'No GPS position yet';
+  String get settingsAprsIsNoPosition => '尚无 GPS 位置';
 
   @override
   String get settingsAprsIsRangeHelp =>
-      'Receive APRS traffic within this range of your last confirmed GPS position, obtained from a radio or serial GPS.';
+      '接收距离您最后确认的 GPS 位置（从无线电或串行 GPS 获取）此范围内的 APRS 流量。';
 
   @override
-  String get settingsAprsIsGateToRf => 'Gate internet messages to RF (IGate)';
+  String get settingsAprsIsGateToRf => '将互联网消息转发到射频 (IGate)';
 
   @override
   String get settingsAprsIsGateToRfHelp =>
-      'Transmit messages from the internet on RF for stations heard locally within the last hour. Requires a radio with an APRS channel.';
+      '为过去一小时内本地收听到的电台，将来自互联网的消息通过射频发送。需要具有 APRS 频道的无线电。';
 
   @override
   String get settingsEditRoute => '编辑路由';
@@ -2175,7 +2174,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aprsShowAll => '显示遥测';
 
   @override
-  String get aprsShowAprsIs => 'Show Internet Traffic';
+  String get aprsShowAprsIs => '显示互联网流量';
 
   @override
   String get aprsSendSms => '发送 SMS 消息...';

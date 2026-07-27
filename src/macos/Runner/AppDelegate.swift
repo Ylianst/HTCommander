@@ -1570,6 +1570,17 @@ class PcmPlayerHandler: NSObject, FlutterPlugin, FlutterStreamHandler {
 
     private func onBufferDone(aq: AudioQueueRef, buffer: AudioQueueBufferRef) {
         lock.lock()
+        // If the device was released (queue == nil) or reconfigured to a
+        // different queue since this buffer was enqueued, this AudioQueueRef is
+        // stale. release() drops the lock before calling AudioQueueStop/Dispose
+        // (to avoid deadlocking this callback), and AudioQueueDispose(_, true)
+        // frees every buffer itself. Freeing the buffer here would then touch a
+        // disposed queue and race that teardown — a use-after-free. Bail out,
+        // mirroring the guards the Windows and Linux players already have.
+        guard let current = queue, current == aq else {
+            lock.unlock()
+            return
+        }
         let frameBytes = max(channels * 2, 2)
         let frames = Int64(Int(buffer.pointee.mAudioDataByteSize) / frameBytes)
         bufferedFrames -= frames

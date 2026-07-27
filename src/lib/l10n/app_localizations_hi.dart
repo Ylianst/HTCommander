@@ -428,60 +428,61 @@ class AppLocalizationsHi extends AppLocalizations {
   String get settingsAprsRoutes => 'APRS रूट';
 
   @override
-  String get settingsAprsIsTitle => 'Internet Gateway';
+  String get settingsAprsIsTitle => 'इंटरनेट गेटवे';
 
   @override
   String get settingsAprsIsIntro =>
-      'Connect to the APRS-IS network to send and receive APRS packets over the internet, and gate packets between the internet and RF.';
+      'इंटरनेट पर APRS पैकेट भेजने और प्राप्त करने और इंटरनेट व RF के बीच पैकेट गेट करने के लिए APRS-IS नेटवर्क से कनेक्ट करें।';
 
   @override
   String get settingsAprsIsNoCallSign =>
-      'Set your call sign on the License tab to enable APRS-IS.';
+      'APRS-IS सक्षम करने के लिए लाइसेंस टैब पर अपना कॉल साइन सेट करें।';
 
   @override
-  String get settingsAprsIsEnable => 'Enable APRS-IS';
+  String get settingsAprsIsEnable => 'APRS-IS सक्षम करें';
 
   @override
-  String get settingsAprsIsPasscode => 'Passcode';
+  String get settingsAprsIsPasscode => 'पासकोड';
 
   @override
-  String get settingsAprsIsPasscodeHint => 'Enter your APRS-IS passcode';
+  String get settingsAprsIsPasscodeHint => 'अपना APRS-IS पासकोड दर्ज करें';
 
   @override
-  String get settingsAprsIsServer => 'Server';
+  String get settingsAprsIsServer => 'सर्वर';
 
   @override
-  String get settingsAprsIsRange => 'Range';
+  String get settingsAprsIsRange => 'रेंज';
 
   @override
-  String get settingsAprsIsRangeOff => 'Messages to me only';
+  String get settingsAprsIsRangeOff => 'केवल मुझे संदेश';
 
   @override
   String settingsAprsIsRangeMiles(int miles) {
-    return '$miles miles';
+    return '$miles मील';
   }
 
   @override
   String settingsAprsIsRangeKm(int km) {
-    return '$km km';
+    return '$km किमी';
   }
 
   @override
-  String get settingsAprsIsCenter => 'Center (last GPS)';
+  String get settingsAprsIsCenter => 'केंद्र (अंतिम GPS)';
 
   @override
-  String get settingsAprsIsNoPosition => 'No GPS position yet';
+  String get settingsAprsIsNoPosition => 'अभी तक कोई GPS स्थिति नहीं';
 
   @override
   String get settingsAprsIsRangeHelp =>
-      'Receive APRS traffic within this range of your last confirmed GPS position, obtained from a radio or serial GPS.';
+      'रेडियो या सीरियल GPS से प्राप्त आपकी अंतिम पुष्टि की गई GPS स्थिति के इस रेंज के भीतर APRS ट्रैफ़िक प्राप्त करें।';
 
   @override
-  String get settingsAprsIsGateToRf => 'Gate internet messages to RF (IGate)';
+  String get settingsAprsIsGateToRf =>
+      'इंटरनेट संदेशों को RF पर गेट करें (IGate)';
 
   @override
   String get settingsAprsIsGateToRfHelp =>
-      'Transmit messages from the internet on RF for stations heard locally within the last hour. Requires a radio with an APRS channel.';
+      'पिछले एक घंटे में स्थानीय रूप से सुने गए स्टेशनों के लिए इंटरनेट से संदेशों को RF पर प्रसारित करें। इसके लिए APRS चैनल वाले रेडियो की आवश्यकता होती है।';
 
   @override
   String get settingsEditRoute => 'रूट संपादित करें';
@@ -2223,7 +2224,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get aprsShowAll => 'टेलीमेट्री दिखाएँ';
 
   @override
-  String get aprsShowAprsIs => 'Show Internet Traffic';
+  String get aprsShowAprsIs => 'इंटरनेट ट्रैफ़िक दिखाएं';
 
   @override
   String get aprsSendSms => 'SMS संदेश भेजें...';

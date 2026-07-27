@@ -596,6 +596,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     const authColor = Color(0xFF6ECD6E);
     const failedColor = Color(0xFFEB96A2);
     const normalColor = Color(0xFF8AC0DB);
+    // Messages gated in from the APRS-IS internet service use a softer
+    // periwinkle tint so they stay visually related to radio traffic (blue
+    // family) while remaining easy to tell apart at a glance.
+    const internetColor = Color(0xFFAEB6E0);
     if (e.sender) return senderColor;
     switch (e.authState) {
       case AuthState.success:
@@ -603,7 +607,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       case AuthState.failed:
         return failedColor;
       default:
-        return normalColor;
+        return e.aprsPacket.fromAprsIs ? internetColor : normalColor;
     }
   }
 
