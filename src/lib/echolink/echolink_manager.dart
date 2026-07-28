@@ -88,6 +88,12 @@ class EchoLinkManager {
   Timer? _rxEndTimer;
   int _rxRunStartMs = 0;
 
+  // Device ID of the radio selected (preferred) in the main form, published on
+  // DataBroker device 1. EchoLink audio still records/transcribes regardless,
+  // but is only fed to the shared output device when EchoLink is the selected
+  // device, so only one source is heard at a time.
+  int _selectedRadioDeviceId = -1;
+
   // --- Transmit (app -> EchoLink) ------------------------------------------
   final LinearResampler _txResampler = LinearResampler.down32kTo8k();
   // Mirrors the radio's transmit indicator: true while we are sending voice.
@@ -165,6 +171,16 @@ class EchoLinkManager {
       name: 'EchoLinkPassword',
       callback: (_, _, _) => unawaited(_reconcile()),
     );
+
+    // Track which device is selected in the main form so EchoLink audio only
+    // reaches the shared output device while EchoLink is the selected device.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'SelectedRadioDeviceId',
+      callback: _onSelectedRadioChanged,
+    );
+    _selectedRadioDeviceId =
+        _broker.getValue<int>(1, 'SelectedRadioDeviceId', -1) ?? -1;
 
     unawaited(_reconcile());
   }
@@ -505,6 +521,18 @@ class EchoLinkManager {
     );
   }
 
+  /// Tracks the main form's preferred-device selection. When it moves away from
+  /// EchoLink, drop any playback backlog so switching sources is clean.
+  void _onSelectedRadioChanged(int deviceId, String name, Object? data) {
+    if (data is! int) return;
+    if (data == _selectedRadioDeviceId) return;
+    _selectedRadioDeviceId = data;
+    if (_selectedRadioDeviceId >= 0 &&
+        _selectedRadioDeviceId != echoLinkDeviceId) {
+      _bufferedFrames = 0;
+    }
+  }
+
   /// Dispatches an EchoLink chat message (sent or received) as an `EchoLinkChat`
   /// event. The CommsHandler records it in the persisted decoded-text history so
   /// it survives restarts, and re-emits a `TextReady` event so the Comms tab
@@ -653,6 +681,13 @@ class EchoLinkManager {
   String _rxChannelName() => _client?.connectedStation?.callsign ?? 'EchoLink';
 
   Future<void> _playPcm(Int16List pcm) async {
+    // Only play when EchoLink is the device selected in the main form. When
+    // nothing is selected yet (-1), audio is allowed. Reception, recording and
+    // transcription continue regardless via the AudioData* dispatches above.
+    if (_selectedRadioDeviceId >= 0 &&
+        _selectedRadioDeviceId != echoLinkDeviceId) {
+      return;
+    }
     if (!_playerReady) {
       await _initPlayer();
       if (!_playerReady) return;

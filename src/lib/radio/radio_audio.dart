@@ -61,6 +61,13 @@ class RadioAudio {
   bool _pcmSoundReady = false;
   int _bufferedFrames = 0;
 
+  // The device ID of the radio currently selected (preferred) in the main form,
+  // published on DataBroker device 1 as 'SelectedRadioDeviceId'. When connected
+  // to multiple radios every radio still decodes/records/decodes-data, but only
+  // the selected radio's audio is fed to the shared output device so a single
+  // radio is heard at a time.
+  int _selectedRadioDeviceId = -1;
+
   // --- Audio engine isolate ---
   ReceivePort? _hostReceivePort;
   SendPort? _enginePort;
@@ -127,6 +134,15 @@ class RadioAudio {
       name: 'HtStatus',
       callback: _onHtStatus,
     );
+    // Track which radio is selected in the main form so only its audio reaches
+    // the shared output device (device 1 is the main-form control channel).
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'SelectedRadioDeviceId',
+      callback: _onSelectedRadioChanged,
+    );
+    _selectedRadioDeviceId =
+        _broker.getValue<int>(1, 'SelectedRadioDeviceId', -1) ?? -1;
 
     // Initialize output volume / mute from stored values. The output volume is
     // persisted globally (device 0) by the Audio tab so it survives restarts.
@@ -280,6 +296,22 @@ class RadioAudio {
 
   void _onHtStatus(int deviceId, String name, Object? data) {
     if (_enginePortReady) _pushRadioState();
+  }
+
+  /// True when this radio is the one selected in the main form and is therefore
+  /// allowed to play through the shared output device. When nothing is selected
+  /// yet (-1), audio is allowed so the first/only radio is never silent.
+  bool get _isAudibleRadio =>
+      _selectedRadioDeviceId < 0 || _selectedRadioDeviceId == deviceId;
+
+  /// Tracks the main form's preferred-radio selection. When the selection moves
+  /// away from this radio, drop any playback backlog so the newly selected radio
+  /// starts cleanly and no stale audio lingers.
+  void _onSelectedRadioChanged(int deviceId, String name, Object? data) {
+    if (data is! int) return;
+    if (data == _selectedRadioDeviceId) return;
+    _selectedRadioDeviceId = data;
+    if (!_isAudibleRadio) _bufferedFrames = 0;
   }
 
   // ---------------------------------------------------------------------------
@@ -641,6 +673,9 @@ class RadioAudio {
 
   Future<void> _playPcm(Int16List pcm) async {
     if (!_pcmSoundReady) return;
+    // Only the radio selected in the main form is audible. Non-selected radios
+    // still decode, record and process data; they just don't feed the speaker.
+    if (!_isAudibleRadio) return;
     // If we are too far behind real time, drop this chunk to catch up.
     if (_bufferedFrames > _maxBufferedFrames) return;
 
