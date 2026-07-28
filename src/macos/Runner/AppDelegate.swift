@@ -1407,9 +1407,15 @@ class TextToSpeechHandler: NSObject, FlutterPlugin {
 ///   event   com.htcommander/pcm_player_feed
 ///     emits the number of PCM frames still buffered after each buffer drains
 ///
-/// A fresh `AudioQueueBuffer` is allocated per `feed` chunk and freed in the
-/// output callback (mirroring the Windows waveOut-per-chunk model), which keeps
-/// the buffering logic simple and correct for the radio's variable-size chunks.
+/// Playback uses a small ring of fixed-size `AudioQueueBuffer`s that are kept
+/// PERPETUALLY enqueued. The output callback refills each drained buffer from an
+/// internal PCM FIFO — with real audio when available, otherwise silence — and
+/// immediately re-enqueues it, so the queue never fully drains. This mirrors the
+/// always-running stream model of the Linux (PulseAudio) and Windows (waveOut)
+/// players. The earlier design allocated one buffer per `feed` and let the queue
+/// drain to empty between radio transmissions; on macOS a fully-drained
+/// AudioQueue stops its hardware IO and does NOT resume when new buffers are
+/// enqueued, so only the first burst was audible until the app was restarted.
 class PcmPlayerHandler: NSObject, FlutterPlugin, FlutterStreamHandler {
 
     private var methodChannel: FlutterMethodChannel?
@@ -1419,11 +1425,21 @@ class PcmPlayerHandler: NSObject, FlutterPlugin, FlutterStreamHandler {
     private var queue: AudioQueueRef?
     private var sampleRate: Int = 32000
     private var channels: Int = 1
-    private var bufferedFrames: Int64 = 0
     private var feedThreshold: Int = 0
 
-    // Serializes access to queue/bufferedFrames between the platform thread and
-    // the AudioQueue callback thread.
+    // Continuous-playback ring. A few small buffers stay enqueued at all times
+    // and are refilled by the output callback from `fifo` (real audio when
+    // present, silence otherwise), so the queue never drains to a stop — the
+    // macOS AudioQueue failure mode that silenced every burst after the first.
+    private let numBuffers = 3
+    private var bufferCapacityBytes = 0
+    // Pending PCM bytes waiting to be handed to the ring, with a read cursor so
+    // consuming from the front is cheap (the prefix is compacted periodically).
+    private var fifo: [UInt8] = []
+    private var fifoHead = 0
+
+    // Serializes access to queue/fifo between the platform thread and the
+    // AudioQueue callback thread.
     private let lock = NSLock()
 
     static func register(with registrar: FlutterPluginRegistrar) {
@@ -1537,34 +1553,45 @@ class PcmPlayerHandler: NSObject, FlutterPlugin, FlutterStreamHandler {
         }
 
         queue = q
-        bufferedFrames = 0
+        fifo.removeAll(keepingCapacity: true)
+        fifoHead = 0
+
+        // ~25 ms per buffer; a small ring keeps the queue continuously running.
+        let frameBytes = max(channels * 2, 2)
+        bufferCapacityBytes = max(1, sampleRate / 40) * frameBytes
+
+        // Prime the ring with silence and start. The output callback keeps every
+        // buffer refilled and re-enqueued from here on, so the queue plays
+        // continuously (silence between transmissions) and never drains to the
+        // stopped state that macOS will not resume from.
+        for _ in 0..<numBuffers {
+            var bufRef: AudioQueueBufferRef?
+            if AudioQueueAllocateBuffer(q, UInt32(bufferCapacityBytes), &bufRef) == noErr,
+               let buf = bufRef {
+                memset(buf.pointee.mAudioData, 0, bufferCapacityBytes)
+                buf.pointee.mAudioDataByteSize = UInt32(bufferCapacityBytes)
+                AudioQueueEnqueueBuffer(q, buf, 0, nil)
+            }
+        }
         AudioQueueStart(q, nil)
         return true
     }
 
     private func feed(_ data: Data) -> Bool {
         lock.lock(); defer { lock.unlock() }
-        guard let q = queue, !data.isEmpty else { return false }
+        guard queue != nil, !data.isEmpty else { return false }
 
-        let byteSize = UInt32(data.count)
-        var bufferRef: AudioQueueBufferRef?
-        guard AudioQueueAllocateBuffer(q, byteSize, &bufferRef) == noErr,
-              let buffer = bufferRef else {
-            return false
-        }
-        data.withUnsafeBytes { raw in
-            if let base = raw.baseAddress {
-                memcpy(buffer.pointee.mAudioData, base, data.count)
-            }
-        }
-        buffer.pointee.mAudioDataByteSize = byteSize
-        if AudioQueueEnqueueBuffer(q, buffer, 0, nil) != noErr {
-            AudioQueueFreeBuffer(q, buffer)
-            return false
-        }
-
+        // Append to the FIFO; the output callback drains it into the ring at the
+        // real-time sample rate. Bound the backlog (~2 s) so a stalled consumer
+        // cannot grow memory without limit; drop the oldest audio to catch up.
         let frameBytes = max(channels * 2, 2)
-        bufferedFrames += Int64(data.count / frameBytes)
+        let maxBacklogBytes = sampleRate * frameBytes * 2
+        if (fifo.count - fifoHead) > maxBacklogBytes {
+            fifoHead += (fifo.count - fifoHead) - maxBacklogBytes
+        }
+        data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+            fifo.append(contentsOf: raw.bindMemory(to: UInt8.self))
+        }
         return true
     }
 
@@ -1572,21 +1599,46 @@ class PcmPlayerHandler: NSObject, FlutterPlugin, FlutterStreamHandler {
         lock.lock()
         // If the device was released (queue == nil) or reconfigured to a
         // different queue since this buffer was enqueued, this AudioQueueRef is
-        // stale. release() drops the lock before calling AudioQueueStop/Dispose
-        // (to avoid deadlocking this callback), and AudioQueueDispose(_, true)
-        // frees every buffer itself. Freeing the buffer here would then touch a
-        // disposed queue and race that teardown — a use-after-free. Bail out,
-        // mirroring the guards the Windows and Linux players already have.
+        // stale. release() disposes the queue (freeing every buffer itself), so
+        // re-enqueuing this buffer would touch a disposed queue and race that
+        // teardown. Bail out without re-enqueuing, mirroring the guards the
+        // Windows and Linux players already have.
         guard let current = queue, current == aq else {
             lock.unlock()
             return
         }
+
+        let cap = bufferCapacityBytes
+        // Refill this buffer from the FIFO, zero-padding any shortfall with
+        // silence so the buffer is always full and the queue keeps running.
+        let available = fifo.count - fifoHead
+        let copyBytes = min(cap, max(0, available))
+        if copyBytes > 0 {
+            fifo.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+                if let base = raw.baseAddress {
+                    memcpy(buffer.pointee.mAudioData,
+                           base.advanced(by: fifoHead), copyBytes)
+                }
+            }
+            fifoHead += copyBytes
+        }
+        if copyBytes < cap {
+            memset(buffer.pointee.mAudioData.advanced(by: copyBytes), 0, cap - copyBytes)
+        }
+        buffer.pointee.mAudioDataByteSize = UInt32(cap)
+
+        // Compact the FIFO once its consumed prefix grows large (or is fully
+        // drained) so the backing array does not grow unbounded.
+        if fifoHead > 0 && (fifoHead >= fifo.count || fifoHead > (1 << 16)) {
+            fifo.removeFirst(fifoHead)
+            fifoHead = 0
+        }
+
         let frameBytes = max(channels * 2, 2)
-        let frames = Int64(Int(buffer.pointee.mAudioDataByteSize) / frameBytes)
-        bufferedFrames -= frames
-        if bufferedFrames < 0 { bufferedFrames = 0 }
-        let remaining = bufferedFrames
-        AudioQueueFreeBuffer(aq, buffer)
+        let remaining = Int64((fifo.count - fifoHead) / frameBytes)
+        // Re-enqueue under the lock so release() cannot dispose the queue between
+        // our staleness check and this call.
+        AudioQueueEnqueueBuffer(aq, buffer, 0, nil)
         lock.unlock()
 
         DispatchQueue.main.async { [weak self] in
@@ -1598,7 +1650,8 @@ class PcmPlayerHandler: NSObject, FlutterPlugin, FlutterStreamHandler {
         lock.lock()
         let q = queue
         queue = nil
-        bufferedFrames = 0
+        fifo.removeAll(keepingCapacity: false)
+        fifoHead = 0
         lock.unlock()
 
         if let q = q {

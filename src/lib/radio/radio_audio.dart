@@ -638,9 +638,30 @@ class RadioAudio {
   }
 
   Future<void> _playPcm(Int16List pcm) async {
-    if (!_pcmSoundReady) return;
+    if (!_pcmSoundReady) {
+      // Playback path is closed; surface it once per gap so a "no audio"
+      // report can be diagnosed from the debug tab.
+      if (!_loggedNotReady) {
+        _loggedNotReady = true;
+        _debug('PCM chunk arrived but playback device is not ready (dropped).');
+      }
+      return;
+    }
+    _loggedNotReady = false;
+
     // If we are too far behind real time, drop this chunk to catch up.
-    if (_bufferedFrames > _maxBufferedFrames) return;
+    if (_bufferedFrames > _maxBufferedFrames) {
+      // Rate-limit: log the first drop of a run and then only occasionally, so
+      // a stuck backlog (which would silence audio) is visible without flooding.
+      if ((_dropLogCounter++ % 100) == 0) {
+        _debug(
+          'Dropping PCM to catch up '
+          '(buffered=$_bufferedFrames > max=$_maxBufferedFrames).',
+        );
+      }
+      return;
+    }
+    _dropLogCounter = 0;
 
     _bufferedFrames += pcm.length;
     try {
@@ -649,6 +670,12 @@ class RadioAudio {
       _debug('PCM feed error: $e');
     }
   }
+
+  // Diagnostics for the playback path (shown in the debug tab). `_loggedNotReady`
+  // prevents repeating the "device not ready" line for every dropped chunk;
+  // `_dropLogCounter` rate-limits back-pressure drop logging.
+  bool _loggedNotReady = false;
+  int _dropLogCounter = 0;
 
   /// Convert little-endian 16-bit PCM bytes to an [Int16List].
   static Int16List _int16FromBytes(Uint8List bytes) {
