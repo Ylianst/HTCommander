@@ -1163,6 +1163,8 @@
   "cslSourceUs": "États-Unis (FCC)",
   "cslSourceCanada": "Canada (ISED)",
   "cslSectionTitle": "Base de données d'indicatifs",
+  "cslButtonDatabases": "Bases de données",
+  "cslButtonLookup": "Recherche",
   "cslSectionIntro": "Recherche hors ligne des indicatifs radioamateurs américains à partir des données de la base de licences de la FCC.",
   "cslNotInstalled": "Non installée",
   "cslInstalledInfo": "{version}",

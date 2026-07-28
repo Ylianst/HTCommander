@@ -208,6 +208,19 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
                     ),
                     const SizedBox(width: 8),
                   ],
+                  if (canManageDatabase) ...[
+                    TextButton(
+                      onPressed: () =>
+                          setState(() => _showDatabase = !showDatabase),
+                      style: DialogStyles.secondaryButtonStyle(context),
+                      child: Text(
+                        showDatabase
+                            ? l10n.cslButtonLookup
+                            : l10n.cslButtonDatabases,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.secondaryButtonStyle(context),

@@ -3355,6 +3355,12 @@ class AppLocalizationsHi extends AppLocalizations {
   String get cslSectionTitle => 'कॉलसाइन डेटाबेस';
 
   @override
+  String get cslButtonDatabases => 'डेटाबेस';
+
+  @override
+  String get cslButtonLookup => 'खोज';
+
+  @override
   String get cslSectionIntro =>
       'FCC लाइसेंस डेटाबेस के डेटा का उपयोग करके अमेरिकी एमेच्योर रेडियो कॉलसाइन की ऑफ़लाइन खोज।';
 

@@ -1163,6 +1163,8 @@
   "cslSourceUs": "Stany Zjednoczone (FCC)",
   "cslSourceCanada": "Kanada (ISED)",
   "cslSectionTitle": "Baza danych znaków wywoławczych",
+  "cslButtonDatabases": "Bazy danych",
+  "cslButtonLookup": "Wyszukiwanie",
   "cslSectionIntro": "Wyszukiwanie offline amerykańskich znaków wywoławczych krótkofalarskich na podstawie danych z bazy licencji FCC.",
   "cslNotInstalled": "Nie zainstalowano",
   "cslInstalledInfo": "{version}",

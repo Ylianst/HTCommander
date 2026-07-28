@@ -3297,6 +3297,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cslSectionTitle => 'コールサインデータベース';
 
   @override
+  String get cslButtonDatabases => 'データベース';
+
+  @override
+  String get cslButtonLookup => '検索';
+
+  @override
   String get cslSectionIntro =>
       'FCC 免許データベースのデータを使用した、米国アマチュア無線コールサインのオフライン検索。';
 

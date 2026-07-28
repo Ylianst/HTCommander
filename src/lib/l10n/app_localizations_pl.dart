@@ -3371,6 +3371,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get cslSectionTitle => 'Baza danych znaków wywoławczych';
 
   @override
+  String get cslButtonDatabases => 'Bazy danych';
+
+  @override
+  String get cslButtonLookup => 'Wyszukiwanie';
+
+  @override
   String get cslSectionIntro =>
       'Wyszukiwanie offline amerykańskich znaków wywoławczych krótkofalarskich na podstawie danych z bazy licencji FCC.';
 

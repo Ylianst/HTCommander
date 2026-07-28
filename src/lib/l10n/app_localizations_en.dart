@@ -3345,6 +3345,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cslSectionTitle => 'Callsign Database';
 
   @override
+  String get cslButtonDatabases => 'Databases';
+
+  @override
+  String get cslButtonLookup => 'Lookup';
+
+  @override
   String get cslSectionIntro =>
       'Offline lookup of US amateur radio callsigns using data from the FCC license database.';
 

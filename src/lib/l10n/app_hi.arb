@@ -1163,6 +1163,8 @@
   "cslSourceUs": "संयुक्त राज्य अमेरिका (FCC)",
   "cslSourceCanada": "कनाडा (ISED)",
   "cslSectionTitle": "कॉलसाइन डेटाबेस",
+  "cslButtonDatabases": "डेटाबेस",
+  "cslButtonLookup": "खोज",
   "cslSectionIntro": "FCC लाइसेंस डेटाबेस के डेटा का उपयोग करके अमेरिकी एमेच्योर रेडियो कॉलसाइन की ऑफ़लाइन खोज।",
   "cslNotInstalled": "स्थापित नहीं",
   "cslInstalledInfo": "{version}",

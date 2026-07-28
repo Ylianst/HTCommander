@@ -3379,6 +3379,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cslSectionTitle => 'Rufzeichen-Datenbank';
 
   @override
+  String get cslButtonDatabases => 'Datenbanken';
+
+  @override
+  String get cslButtonLookup => 'Suche';
+
+  @override
   String get cslSectionIntro =>
       'Offline-Suche von US-Amateurfunk-Rufzeichen anhand von Daten der FCC-Lizenzdatenbank.';
 

@@ -3271,6 +3271,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cslSectionTitle => '呼号数据库';
 
   @override
+  String get cslButtonDatabases => '数据库';
+
+  @override
+  String get cslButtonLookup => '查询';
+
+  @override
   String get cslSectionIntro => '使用 FCC 执照数据库的数据离线查询美国业余无线电呼号。';
 
   @override

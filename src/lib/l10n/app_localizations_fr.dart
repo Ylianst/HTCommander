@@ -3379,6 +3379,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cslSectionTitle => 'Base de données d\'indicatifs';
 
   @override
+  String get cslButtonDatabases => 'Bases de données';
+
+  @override
+  String get cslButtonLookup => 'Recherche';
+
+  @override
   String get cslSectionIntro =>
       'Recherche hors ligne des indicatifs radioamateurs américains à partir des données de la base de licences de la FCC.';
 

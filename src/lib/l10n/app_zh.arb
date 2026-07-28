@@ -1163,6 +1163,8 @@
   "cslSourceUs": "美国 (FCC)",
   "cslSourceCanada": "加拿大 (ISED)",
   "cslSectionTitle": "呼号数据库",
+  "cslButtonDatabases": "数据库",
+  "cslButtonLookup": "查询",
   "cslSectionIntro": "使用 FCC 执照数据库的数据离线查询美国业余无线电呼号。",
   "cslNotInstalled": "未安装",
   "cslInstalledInfo": "{version}",

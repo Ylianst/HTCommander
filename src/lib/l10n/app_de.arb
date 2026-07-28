@@ -1163,6 +1163,8 @@
   "cslSourceUs": "Vereinigte Staaten (FCC)",
   "cslSourceCanada": "Kanada (ISED)",
   "cslSectionTitle": "Rufzeichen-Datenbank",
+  "cslButtonDatabases": "Datenbanken",
+  "cslButtonLookup": "Suche",
   "cslSectionIntro": "Offline-Suche von US-Amateurfunk-Rufzeichen anhand von Daten der FCC-Lizenzdatenbank.",
   "cslNotInstalled": "Nicht installiert",
   "cslInstalledInfo": "{version}",

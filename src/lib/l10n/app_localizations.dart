@@ -6158,6 +6158,18 @@ abstract class AppLocalizations {
   /// **'Callsign Database'**
   String get cslSectionTitle;
 
+  /// Footer button on the callsign lookup view that switches to the database management view
+  ///
+  /// In en, this message translates to:
+  /// **'Databases'**
+  String get cslButtonDatabases;
+
+  /// Footer button on the callsign database view that switches back to the callsign lookup view
+  ///
+  /// In en, this message translates to:
+  /// **'Lookup'**
+  String get cslButtonLookup;
+
   /// No description provided for @cslSectionIntro.
   ///
   /// In en, this message translates to:

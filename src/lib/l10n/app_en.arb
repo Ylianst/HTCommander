@@ -1992,6 +1992,14 @@
   "cslSourceUs": "United States (FCC)",
   "cslSourceCanada": "Canada (ISED)",
   "cslSectionTitle": "Callsign Database",
+  "cslButtonDatabases": "Databases",
+  "@cslButtonDatabases": {
+    "description": "Footer button on the callsign lookup view that switches to the database management view"
+  },
+  "cslButtonLookup": "Lookup",
+  "@cslButtonLookup": {
+    "description": "Footer button on the callsign database view that switches back to the callsign lookup view"
+  },
   "cslSectionIntro": "Offline lookup of US amateur radio callsigns using data from the FCC license database.",
   "cslNotInstalled": "Not installed",
   "cslInstalledInfo": "{version}",

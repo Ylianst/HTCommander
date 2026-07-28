@@ -1163,6 +1163,8 @@
   "cslSourceUs": "アメリカ合衆国 (FCC)",
   "cslSourceCanada": "カナダ (ISED)",
   "cslSectionTitle": "コールサインデータベース",
+  "cslButtonDatabases": "データベース",
+  "cslButtonLookup": "検索",
   "cslSectionIntro": "FCC 免許データベースのデータを使用した、米国アマチュア無線コールサインのオフライン検索。",
   "cslNotInstalled": "未インストール",
   "cslInstalledInfo": "{version}",
