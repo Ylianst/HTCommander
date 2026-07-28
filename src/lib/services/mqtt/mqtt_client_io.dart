@@ -154,7 +154,13 @@ class MqttClientFacade {
     builder.addString(payload);
     final data = builder.payload;
     if (data == null) return;
-    client.publishMessage(topic, MqttQos.atLeastOnce, data, retain: retain);
+    // The connection can be torn down between the state check above and the
+    // underlying socket write, which throws synchronously (e.g. errno 10054).
+    try {
+      client.publishMessage(topic, MqttQos.atLeastOnce, data, retain: retain);
+    } catch (_) {
+      // Broker/connection went away; drop this publish silently.
+    }
   }
 
   /// Subscribes to [topic] (command topics from Home Assistant).
@@ -164,7 +170,11 @@ class MqttClientFacade {
         client.connectionStatus?.state != MqttConnectionState.connected) {
       return;
     }
-    client.subscribe(topic, MqttQos.atLeastOnce);
+    try {
+      client.subscribe(topic, MqttQos.atLeastOnce);
+    } catch (_) {
+      // Connection dropped underneath us; ignore.
+    }
   }
 
   /// Disconnects from the broker without disposing the wrapper.

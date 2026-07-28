@@ -89,6 +89,7 @@ class _CommsTabState extends State<CommsTab>
   bool _isTransmitting = false;  bool _speechToTextEnabled = true;
   bool _sttModelReady = false;
   bool _recordAudio = false;
+  bool _decodeMorse = false;
   bool _allowTransmit = true;
 
   /// Morse Key mode sub-state (Off/Test/Live), the configured USB key settings,
@@ -298,6 +299,11 @@ class _CommsTabState extends State<CommsTab>
     );
     _broker.subscribe(
       deviceId: 0,
+      name: 'MorseDecodeEnabled',
+      callback: _onMorseDecodeEnabledChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
       name: 'MicrophoneGain',
       callback: _onMicGainChanged,
     );
@@ -352,6 +358,8 @@ class _CommsTabState extends State<CommsTab>
         _broker.getValue<bool>(0, 'SpeechToTextEnabled', true) ?? true;
     _initSttModelStatus();
     _recordAudio = _broker.getValue<bool>(0, 'RecordingState', false) ?? false;
+    _decodeMorse =
+        _broker.getValue<bool>(0, 'MorseDecodeEnabled', false) ?? false;
     _micGain = (_broker.getValue<double>(0, 'MicrophoneGain', 1.0) ?? 1.0)
         .clamp(1.0, 8.0);
     _inputDeviceId = _broker.getValue<String>(0, 'InputAudioDevice', '') ?? '';
@@ -991,6 +999,10 @@ class _CommsTabState extends State<CommsTab>
 
   void _onRecordingStateChanged(int deviceId, String name, Object? data) {
     if (data is bool) setState(() => _recordAudio = data);
+  }
+
+  void _onMorseDecodeEnabledChanged(int deviceId, String name, Object? data) {
+    if (data is bool) setState(() => _decodeMorse = data);
   }
 
   void _onMicGainChanged(int deviceId, String name, Object? data) {
@@ -2437,6 +2449,22 @@ class _CommsTabState extends State<CommsTab>
               ],
             ),
           ),
+          PopupMenuItem<String>(
+            value: 'decodeMorse',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _decodeMorse
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                const Text('Decode Morse'),
+              ],
+            ),
+          ),
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
             value: 'sendImage',
@@ -2525,6 +2553,14 @@ class _CommsTabState extends State<CommsTab>
             name: _recordAudio ? 'RecordingDisable' : 'RecordingEnable',
             data: null,
             store: false,
+          );
+          break;
+        case 'decodeMorse':
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'MorseDecodeEnabled',
+            data: !_decodeMorse,
+            store: true,
           );
           break;
         case 'sendImage':

@@ -48,6 +48,7 @@ import '../aprs/aprs_packet.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../radio/ax25_packet.dart';
 import '../radio/bss_packet.dart';
+import '../radio/cw_monitor.dart';
 import '../radio/morse_code_engine.dart';
 import '../radio/radio.dart';
 import '../radio/tnc_data_fragment.dart';
@@ -290,6 +291,14 @@ class CommsHandler {
   StreamSubscription<SstvDecodingComplete>? _sstvCompleteSub;
   bool _sstvDecodingActive = false;
 
+  // CW (Morse) receive-decode state. The monitor only exists while the Comms
+  // tab is in Morse or Morse Key mode, so nothing is decoded otherwise.
+  static const int _cwSampleRate = 32000;
+  CwMonitor? _cwMonitor;
+  StreamSubscription<CwDecoded>? _cwDecodedSub;
+  int _cwDeviceId = -1; // radio locked for the current receive burst
+  int _cwEmitDeviceId = -1; // radio a decoded transmission is attributed to
+
   /// Whether an SSTV image is currently being received/decoded. Setting this
   /// publishes an `SstvReceiving` flag on the SSTV device so the software modem
   /// can ignore the audio (the SSTV tones are not packet data).
@@ -476,6 +485,17 @@ class CommsHandler {
 
     // Start the always-on SSTV monitor that auto-detects incoming images.
     _initializeSstvMonitor();
+
+    // CW (Morse) receive-decode is opt-in via the Comms tab "Decode Morse"
+    // setting; start its monitor only while that setting is enabled.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MorseDecodeEnabled',
+      callback: _onMorseDecodeEnabledChanged,
+    );
+    if (_broker.getValue<bool>(0, 'MorseDecodeEnabled', false) ?? false) {
+      _initializeCwMonitor();
+    }
 
     // Initialize the speech-to-text engine if speech-to-text is enabled.
     // Speech-to-text is not available on Android (reduces APK size) or web.
@@ -920,6 +940,14 @@ class CommsHandler {
       _finalizeSstvOnAudioEnd();
     }
 
+    // Flush CW decoding at the end of a receive burst so the last characters
+    // are emitted, then release the burst lock so another radio can be picked.
+    if (_cwMonitor != null && deviceId == _cwDeviceId) {
+      _cwEmitDeviceId = deviceId;
+      _cwMonitor!.flush();
+      _cwDeviceId = -1;
+    }
+
     // Speech-to-text flush (deferred) for the enabled target radio.
     if (deviceId == _targetDeviceId && _enabled) {
       // TODO(stt): flush the current speech segment.
@@ -1081,6 +1109,32 @@ class CommsHandler {
                 _readInt(data['length'] ?? data['Length']) ??
                 (bytes.length - offset);
             monitor.processPcm16(bytes, offset, length);
+          }
+        }
+      }
+    }
+
+    // CW (Morse) auto-decode: only active while the Comms tab is in Morse or
+    // Morse Key mode (the monitor is null otherwise). Feed received (non-
+    // transmit) audio, locking onto one radio for the burst.
+    final cw = _cwMonitor;
+    if (cw != null && deviceId > 0) {
+      final usage = data['usage'] ?? data['Usage'];
+      final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
+      final channelName =
+          (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+      if (usage == null && !transmit && channelName != 'APRS') {
+        if (_cwDeviceId <= 0) _cwDeviceId = deviceId;
+        if (deviceId == _cwDeviceId) {
+          _cwEmitDeviceId = deviceId;
+          if (channelName.isNotEmpty) _currentChannelName = channelName;
+          final bytes = data['data'] ?? data['Data'];
+          if (bytes is Uint8List) {
+            final offset = _readInt(data['offset'] ?? data['Offset']) ?? 0;
+            final length =
+                _readInt(data['length'] ?? data['Length']) ??
+                (bytes.length - offset);
+            cw.processPcm16(bytes, offset, length);
           }
         }
       }
@@ -1391,6 +1445,55 @@ class CommsHandler {
     );
     _sstvMonitor = monitor;
     _broker.logInfo('[CommsHandler] SSTV monitor initialized');
+  }
+
+  /// Starts or stops the CW monitor as the "Decode Morse" setting changes.
+  void _onMorseDecodeEnabledChanged(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    final enable = data is bool ? data : false;
+    if (enable == (_cwMonitor != null)) return;
+    if (enable) {
+      _initializeCwMonitor();
+    } else {
+      _cleanupCwMonitor();
+    }
+  }
+
+  void _initializeCwMonitor() {
+    _cleanupCwMonitor();
+    final monitor = CwMonitor(sampleRate: _cwSampleRate);
+    _cwDecodedSub = monitor.onDecoded.listen(_onCwDecoded);
+    _cwMonitor = monitor;
+    _cwDeviceId = -1;
+    _cwEmitDeviceId = -1;
+    _broker.logInfo('[CommsHandler] CW (Morse) monitor initialized');
+  }
+
+  void _cleanupCwMonitor() {
+    _cwDecodedSub?.cancel();
+    _cwDecodedSub = null;
+    _cwMonitor?.dispose();
+    _cwMonitor = null;
+    _cwDeviceId = -1;
+    _cwEmitDeviceId = -1;
+  }
+
+  /// Records a decoded received CW transmission as an incoming Morse message.
+  void _onCwDecoded(CwDecoded e) {
+    if (_disposed) return;
+    final text = e.text.trim();
+    if (text.isEmpty) return;
+    final deviceId = _cwEmitDeviceId > 0 ? _cwEmitDeviceId : _targetDeviceId;
+    if (deviceId <= 0) return;
+    _addDataPacketEntry(
+      deviceId: deviceId,
+      text: text,
+      channel: _getVfoAChannelName(deviceId),
+      time: DateTime.now(),
+      encoding: VoiceTextEncodingType.morse,
+      isReceived: true,
+      wpm: e.wpm,
+    );
   }
 
   /// Cancels the SSTV monitor subscriptions and disposes the monitor.
@@ -2620,6 +2723,7 @@ class CommsHandler {
     _txRecordTimer?.cancel();
     if (_recorder != null) _finalizeRecording();
     _cleanupSstvMonitor();
+    _cleanupCwMonitor();
     unawaited(_cleanupSpeechEngine());
     if (_enabled) disable();
     _broker.logInfo('[CommsHandler] Voice Handler disposing');
