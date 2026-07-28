@@ -239,20 +239,16 @@ class CommsHandler {
   static const int _recordingSampleRate = 32000;
   Directory? _recordingsDir;
 
-  // Active recording context (set while an audio run is being captured).
-  _WavClipRecorder? _recorder;
-  int _recordingDeviceId = -1;
-  DateTime _recordingStartTime = DateTime.now();
-  String _recordingChannel = '';
-  String _recordingFilename = '';
-  bool _recordingIsTransmit = false;
+  // Active recording contexts, keyed by device id. Each streaming source (a
+  // connected radio, EchoLink, ...) records into its own context, so several
+  // audio streams can be captured to separate WAV files at the same time.
+  final Map<int, _RecordingContext> _recordings = <int, _RecordingContext>{};
 
   // Outgoing (transmit) audio recording. Outgoing voice is captured directly
   // from the TransmitVoicePCM stream (PTT / spoken text / Morse / DTMF) so it
   // works uniformly for radios and EchoLink, independent of any radio transmit
   // "echo". A one-shot blob (spoken text / Morse / DTMF) has no explicit end, so
-  // the run is finalized after a short period of silence.
-  Timer? _txRecordTimer;
+  // the run is finalized after a short period of silence (per-context timer).
   static const int _txRecordEndMs = 800;
 
   // Current audio-run context (updated from AudioDataStart events).
@@ -786,8 +782,8 @@ class CommsHandler {
 
   void _onRecordingDisable(int deviceId, String name, Object? data) {
     if (!_recordingEnabled) return;
-    // Finalize any in-progress recording before turning recording off.
-    if (_recorder != null) _finalizeRecording();
+    // Finalize any in-progress recordings before turning recording off.
+    _finalizeAllRecordings();
     _recordingEnabled = false;
     _dispatchRecordingState();
     _broker.logInfo('[CommsHandler] Recording disabled');
@@ -909,10 +905,9 @@ class CommsHandler {
     // Finalize the active received recording when its audio run ends. A
     // transmit recording is driven by the TransmitVoicePCM stream and finalized
     // separately, so don't let a received audio-run end cut it short.
-    if (_recorder != null &&
-        deviceId == _recordingDeviceId &&
-        !_recordingIsTransmit) {
-      _finalizeRecording();
+    final recEndCtx = _recordings[deviceId];
+    if (recEndCtx != null && !recEndCtx.isTransmit) {
+      _finalizeRecording(deviceId);
     }
 
     // Finalize any in-progress SSTV decoding when the audio stream ends.
@@ -1015,11 +1010,9 @@ class CommsHandler {
   void _onAudioDataAvailable(int deviceId, String name, Object? data) {
     if (data is! Map) return;
 
-    // Recording: append PCM frames to the active recording.
-    final recorder = _recorder;
-    if (recorder != null &&
-        deviceId == _recordingDeviceId &&
-        !_recordingIsTransmit) {
+    // Recording: append PCM frames to this device's active recording.
+    final recCtx = _recordings[deviceId];
+    if (recCtx != null && !recCtx.isTransmit) {
       final usage = data['usage'] ?? data['Usage'];
       final muted = (data['muted'] ?? data['Muted']) as bool? ?? false;
       final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
@@ -1033,7 +1026,7 @@ class CommsHandler {
             (data['channelName'] ?? data['ChannelName']) as String? ?? '';
         if (frameChannel.isNotEmpty && frameChannel != 'APRS') {
           _currentChannelName = frameChannel;
-          if (_recordingChannel.isEmpty) _recordingChannel = frameChannel;
+          if (recCtx.channel.isEmpty) recCtx.channel = frameChannel;
         }
         final bytes = data['data'] ?? data['Data'];
         if (bytes is Uint8List) {
@@ -1041,7 +1034,7 @@ class CommsHandler {
           final length =
               _readInt(data['length'] ?? data['Length']) ??
               (bytes.length - offset);
-          recorder.write(bytes, offset, length);
+          recCtx.recorder.write(bytes, offset, length);
         }
       }
     }
@@ -1150,49 +1143,56 @@ class CommsHandler {
 
     if (bytes is! Uint8List) {
       // End-of-transmission marker (e.g. PTT released): finalize the run.
-      if (!hold) _finalizeTransmitRecording();
+      if (!hold) _finalizeTransmitRecording(deviceId);
       return;
     }
 
-    // Start a fresh transmit recording if none is active, or the active one is
-    // a received recording / for a different device (half-duplex, so it has
-    // effectively ended).
-    if (_recorder == null ||
-        !_recordingIsTransmit ||
-        _recordingDeviceId != deviceId) {
+    // Start a fresh transmit recording if none is active for this device, or the
+    // active one is a received recording (half-duplex, so it has effectively
+    // ended).
+    final existing = _recordings[deviceId];
+    if (existing == null || !existing.isTransmit) {
       var channel = _getVfoAChannelName(deviceId);
       if (channel.isEmpty) channel = _currentChannelName;
       _startNewRecording(deviceId, DateTime.now(), channel, true);
     }
 
-    final recorder = _recorder;
-    if (recorder == null || !_recordingIsTransmit) return;
+    final ctx = _recordings[deviceId];
+    if (ctx == null || !ctx.isTransmit) return;
 
     final offset = _readInt(data['offset'] ?? data['Offset']) ?? 0;
     final length =
         _readInt(data['length'] ?? data['Length']) ?? (bytes.length - offset);
-    if (length > 0) recorder.write(bytes, offset, length);
+    if (length > 0) ctx.recorder.write(bytes, offset, length);
 
     // A one-shot blob (spoken text / Morse / DTMF) has no explicit end, so
     // finalize after a short silence. A held PTT keeps streaming and sends
     // hold:false on release, which finalizes immediately.
-    _txRecordTimer?.cancel();
+    ctx.txTimer?.cancel();
     if (!hold) {
-      _finalizeTransmitRecording();
+      _finalizeTransmitRecording(deviceId);
     } else {
-      _txRecordTimer = Timer(
+      ctx.txTimer = Timer(
         const Duration(milliseconds: _txRecordEndMs),
-        _finalizeTransmitRecording,
+        () => _finalizeTransmitRecording(deviceId),
       );
     }
   }
 
-  /// Finalizes the active transmit recording (if any).
-  void _finalizeTransmitRecording() {
-    _txRecordTimer?.cancel();
-    _txRecordTimer = null;
-    if (_recorder != null && _recordingIsTransmit) {
-      _finalizeRecording();
+  /// Finalizes the active transmit recording for [deviceId] (if any).
+  void _finalizeTransmitRecording(int deviceId) {
+    final ctx = _recordings[deviceId];
+    if (ctx == null) return;
+    ctx.txTimer?.cancel();
+    ctx.txTimer = null;
+    if (ctx.isTransmit) _finalizeRecording(deviceId);
+  }
+
+  /// Finalizes every active recording (used when recording is turned off or the
+  /// handler is disposed).
+  void _finalizeAllRecordings() {
+    for (final int id in _recordings.keys.toList(growable: false)) {
+      _finalizeRecording(id);
     }
   }
 
@@ -1202,8 +1202,9 @@ class CommsHandler {
     String channel,
     bool transmit,
   ) {
-    // Finalize any previous recording first.
-    if (_recorder != null) _finalizeRecording();
+    // Finalize any previous recording for this device first (a device records
+    // one stream at a time; different devices record concurrently).
+    if (_recordings.containsKey(deviceId)) _finalizeRecording(deviceId);
 
     final dir = _recordingsDir;
     if (dir == null) {
@@ -1221,33 +1222,30 @@ class CommsHandler {
       return;
     }
 
-    _recorder = recorder;
-    _recordingDeviceId = deviceId;
-    _recordingStartTime = startTime;
-    _recordingChannel = channel;
-    _recordingFilename = filename;
-    _recordingIsTransmit = transmit;
+    _recordings[deviceId] = _RecordingContext(
+      recorder: recorder,
+      deviceId: deviceId,
+      startTime: startTime,
+      channel: channel,
+      filename: filename,
+      isTransmit: transmit,
+    );
   }
 
-  void _finalizeRecording() {
-    final recorder = _recorder;
-    if (recorder == null) return;
-    _txRecordTimer?.cancel();
-    _txRecordTimer = null;
-    _recorder = null;
+  void _finalizeRecording(int deviceId) {
+    final ctx = _recordings.remove(deviceId);
+    if (ctx == null) return;
+    ctx.txTimer?.cancel();
+    ctx.txTimer = null;
+    final recorder = ctx.recorder;
     final dataBytes = recorder.dataBytes;
     recorder.close();
 
-    var filename = _recordingFilename;
-    final channel = _recordingChannel;
-    final startTime = _recordingStartTime;
-    final isReceived = !_recordingIsTransmit;
-    final deviceId = _recordingDeviceId;
+    var filename = ctx.filename;
+    final channel = ctx.channel;
+    final startTime = ctx.startTime;
+    final isReceived = !ctx.isTransmit;
     final dir = _recordingsDir;
-
-    _recordingDeviceId = -1;
-    _recordingFilename = '';
-    _recordingChannel = '';
 
     // 32000 Hz * 2 bytes/sample (16-bit mono) = 64000 bytes per second.
     final durationSeconds = dataBytes / 64000.0;
@@ -2617,14 +2615,37 @@ class CommsHandler {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _txRecordTimer?.cancel();
-    if (_recorder != null) _finalizeRecording();
+    _finalizeAllRecordings();
     _cleanupSstvMonitor();
     unawaited(_cleanupSpeechEngine());
     if (_enabled) disable();
     _broker.logInfo('[CommsHandler] Voice Handler disposing');
     _broker.dispose();
   }
+}
+
+/// One in-progress recording, owned by [CommsHandler] and keyed by device id so
+/// multiple audio streams (e.g. two radios, or a radio and EchoLink) can be
+/// captured to separate files at the same time.
+class _RecordingContext {
+  _RecordingContext({
+    required this.recorder,
+    required this.deviceId,
+    required this.startTime,
+    required this.channel,
+    required this.filename,
+    required this.isTransmit,
+  });
+
+  final _WavClipRecorder recorder;
+  final int deviceId;
+  DateTime startTime;
+  String channel;
+  String filename;
+  bool isTransmit;
+  // For transmit recordings (which have no explicit end), a timer that finalizes
+  // the clip after a short silence.
+  Timer? txTimer;
 }
 
 /// Minimal incremental WAV (PCM 16-bit mono) writer for recorded audio clips.

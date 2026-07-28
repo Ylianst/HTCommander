@@ -1556,9 +1556,10 @@ class PcmPlayerHandler: NSObject, FlutterPlugin, FlutterStreamHandler {
         fifo.removeAll(keepingCapacity: true)
         fifoHead = 0
 
-        // ~25 ms per buffer; a small ring keeps the queue continuously running.
+        // ~15 ms per buffer; a small ring keeps the queue continuously running
+        // while keeping added latency low.
         let frameBytes = max(channels * 2, 2)
-        bufferCapacityBytes = max(1, sampleRate / 40) * frameBytes
+        bufferCapacityBytes = max(1, sampleRate * 15 / 1000) * frameBytes
 
         // Prime the ring with silence and start. The output callback keeps every
         // buffer refilled and re-enqueued from here on, so the queue plays
