@@ -699,7 +699,7 @@ class CommsHandler {
 
     if (!result.isFinal) {
       // In-progress text: update or create the current STT entry.
-      if (text.isEmpty) return;
+      if (text.isEmpty || !_sttHasContent(text)) return;
       final entry = _sttCurrentEntry ?? DecodedTextEntry();
       entry.text = text;
       entry.channel = channel;
@@ -714,7 +714,7 @@ class CommsHandler {
       // Final text: commit a non-empty result to history.
       _sttCurrentEntry = null;
       _currentEntry = null;
-      if (text.isNotEmpty) {
+      if (text.isNotEmpty && _sttHasContent(text)) {
         final entry = DecodedTextEntry(
           text: text,
           channel: channel,
@@ -731,6 +731,11 @@ class CommsHandler {
       _dispatchCurrentEntry();
     }
   }
+
+  /// Whether a speech-to-text result carries any real content. Whisper emits
+  /// punctuation-only fragments (e.g. "." or "?") for silence or noise; a
+  /// result with no letter or digit is dropped rather than shown as a bubble.
+  bool _sttHasContent(String text) => RegExp(r'[A-Za-z0-9]').hasMatch(text);
 
   /// Handles the engine's processing (listening/recognizing) indicator.
   void _onSpeechProcessing(bool active) {
