@@ -421,8 +421,12 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
+    // Sort radios by name, but always keep the EchoLink pseudo-radio last.
     final sortedDevices = List<CompatibleDevice>.from(widget.devices)
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      ..sort((a, b) {
+        if (a.isEchoLink != b.isEchoLink) return a.isEchoLink ? 1 : -1;
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
 
     return HTDialog(
       title: l10n.radioConnectionTitle,
@@ -506,6 +510,13 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                if (!device.isEchoLink)
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    tooltip: l10n.commonRename,
+                                    icon: const Icon(Icons.edit),
+                                    onPressed: () => _onRename(device.mac),
+                                  ),
                                 IconButton(
                                   visualDensity: VisualDensity.compact,
                                   tooltip: connected
@@ -521,13 +532,6 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                                       ? () => _toggleDevice(device)
                                       : null,
                                 ),
-                                if (!device.isEchoLink)
-                                  IconButton(
-                                    visualDensity: VisualDensity.compact,
-                                    tooltip: l10n.commonRename,
-                                    icon: const Icon(Icons.edit),
-                                    onPressed: () => _onRename(device.mac),
-                                  ),
                               ],
                             ),
                           );
