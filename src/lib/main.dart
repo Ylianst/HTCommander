@@ -649,8 +649,8 @@ class _MainFormState extends State<MainForm>
   bool _tabsVisible = true;
   bool _showAllChannels = false;
   // Whether channel tiles show the frequency under the name. Toggled from the
-  // View menu to declutter the channel grid.
-  bool _showChannelFrequency = true;
+  // View menu to declutter the channel grid. Disabled by default.
+  bool _showChannelFrequency = false;
   // Whether the app checks for updates in the background (on start and when the
   // menu item is toggled on). Enabled by default.
   bool _checkForUpdatesEnabled = true;
@@ -1013,7 +1013,7 @@ class _MainFormState extends State<MainForm>
     _showAllChannels =
         (DataBroker.getValue<int>(0, 'ShowAllChannels', 0) ?? 0) == 1;
     _showChannelFrequency =
-        (DataBroker.getValue<int>(0, 'ShowChannelFrequency', 1) ?? 1) == 1;
+        (DataBroker.getValue<int>(0, 'ShowChannelFrequency', 0) ?? 0) == 1;
     _checkForUpdatesEnabled =
         (DataBroker.getValue<int>(0, 'CheckForUpdates', 1) ?? 1) == 1;
     _showAllTabs = (DataBroker.getValue<int>(0, 'ShowAllTabs', 0) ?? 0) == 1;

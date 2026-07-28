@@ -200,6 +200,14 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (!showDatabase && _hasResults) ...[
+                    TextButton(
+                      onPressed: _copyAll,
+                      style: DialogStyles.secondaryButtonStyle(context),
+                      child: Text(l10n.apdCopyAll),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.secondaryButtonStyle(context),
@@ -575,7 +583,18 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
     CallsignDbSource source,
     CallsignRecord r,
   ) {
-    final rows = <_Row>[
+    return [
+      for (final row in _recordPairs(l10n, source, r)) _buildRow(scheme, row),
+    ];
+  }
+
+  /// The license detail key/value pairs for [r], in display order.
+  List<_Row> _recordPairs(
+    AppLocalizations l10n,
+    CallsignDbSource source,
+    CallsignRecord r,
+  ) {
+    return <_Row>[
       if (r.name.isNotEmpty) _Row(l10n.cslFieldName, r.name),
       // US records carry an operator class + license status; Canadian records
       // carry a set of qualifications and never expire.
@@ -591,7 +610,42 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
       if (source == CallsignDbSource.us && r.expireDateFormatted.isNotEmpty)
         _Row(l10n.cslFieldExpires, r.expireDateFormatted),
     ];
-    return [for (final row in rows) _buildRow(scheme, row)];
+  }
+
+  /// All currently displayed key/value pairs (callsign, country, and any
+  /// license details), used for the "Copy All" action.
+  List<_Row> _resultPairs(AppLocalizations l10n) {
+    final country = _country;
+    final result = _result;
+    final pairs = <_Row>[_Row(l10n.cslFieldCallsign, _searchedCallsign)];
+    if (country != null) {
+      pairs.add(_Row(l10n.cslFieldCountry, country.country));
+      if (country.continentName.isNotEmpty) {
+        pairs.add(_Row(l10n.cslFieldContinent, country.continentName));
+      }
+    }
+    if (result != null) {
+      pairs.addAll(_recordPairs(l10n, result.source, result.record));
+    }
+    return pairs;
+  }
+
+  /// Whether the query view is currently showing result key/value pairs.
+  bool get _hasResults =>
+      _searched && !_loading && (_country != null || _result != null);
+
+  /// Copies every displayed key/value pair as tab-separated lines, matching the
+  /// Comms details dialog's "Copy All".
+  void _copyAll() {
+    final l10n = AppLocalizations.of(context);
+    final sb = StringBuffer();
+    for (final row in _resultPairs(l10n)) {
+      sb.write(row.name);
+      sb.write('\t');
+      sb.write(row.value);
+      sb.write('\r\n');
+    }
+    Clipboard.setData(ClipboardData(text: sb.toString()));
   }
 
   Widget _buildRow(ColorScheme scheme, _Row row) {

@@ -151,6 +151,12 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// mirroring the C# `_historicalPacketsLoaded` flag.
   bool _historicalPacketsLoaded = false;
 
+  /// Guards against loading the persisted APRS-IS (internet) history more than
+  /// once. Separate from [_historicalPacketsLoaded] because the RF history and
+  /// the internet history are served by different handlers as two async
+  /// batches.
+  bool _historicalAprsIsLoaded = false;
+
   /// Latest fixed position from an external serial GPS receiver (device 1,
   /// `GpsData`). Null when there is no GPS or no valid fix. Mirrors the C#
   /// `MapTabUserControl` serial GPS marker (reserved key 0).
@@ -254,10 +260,32 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       callback: _onAprsPacketsCleared,
     );
 
+    // Persisted internet (APRS-IS) history, served by the APRS-IS manager.
+    // Loaded so internet stations from previous sessions appear on the map and
+    // are tagged `fromAprsIs` so the "Show Internet Traffic" filter hides them.
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'AprsIsStoreReady',
+      callback: _onAprsIsStoreReady,
+    );
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'AprsIsPacketList',
+      callback: _onAprsIsPacketList,
+    );
+
     // Request the current packet list from the AprsHandler on-demand.
     _broker.dispatch(
       deviceId: _aprsDeviceId,
       name: 'RequestAprsPackets',
+      data: null,
+      store: false,
+    );
+
+    // Request the persisted internet (APRS-IS) history on-demand.
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'RequestAprsIsPackets',
       data: null,
       store: false,
     );
@@ -435,6 +463,35 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     if (changed && mounted) setState(() {});
   }
 
+  /// The APRS-IS (internet) history store is ready - request the persisted
+  /// internet packet list (once).
+  void _onAprsIsStoreReady(int deviceId, String name, Object? data) {
+    if (_historicalAprsIsLoaded) return;
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'RequestAprsIsPackets',
+      data: null,
+      store: false,
+    );
+  }
+
+  /// Loads persisted APRS-IS (internet) packets from the on-demand request,
+  /// once. These packets are already tagged `fromAprsIs` by the APRS-IS
+  /// manager, so the "Show Internet Traffic" filter can hide them.
+  void _onAprsIsPacketList(int deviceId, String name, Object? data) {
+    if (_historicalAprsIsLoaded) return;
+    if (data is! List) return;
+    _historicalAprsIsLoaded = true;
+
+    var changed = false;
+    for (final item in data) {
+      if (item is AprsPacket) {
+        changed = _processAprsPacket(item) || changed;
+      }
+    }
+    if (changed && mounted) setState(() {});
+  }
+
   /// Handles a single incoming APRS frame from the broker.
   void _onAprsFrame(int deviceId, String name, Object? data) {
     if (data is! AprsFrameEventArgs) return;
@@ -448,10 +505,12 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   void _onAprsPacketsCleared(int deviceId, String name, Object? data) {
     if (_aprsStations.isEmpty) {
       _historicalPacketsLoaded = false;
+      _historicalAprsIsLoaded = false;
       return;
     }
     _aprsStations.clear();
     _historicalPacketsLoaded = false;
+    _historicalAprsIsLoaded = false;
     if (mounted) setState(() {});
   }
 

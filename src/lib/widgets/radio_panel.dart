@@ -89,7 +89,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   // UI state
   bool _showAllChannels = false;
   // Whether channel tiles display the frequency under the name (View menu).
-  bool _showChannelFrequency = true;
+  // Disabled by default.
+  bool _showChannelFrequency = false;
   int _vfo2LastChannelId = -1;
 
   // In compact mode (limited height), false shows the radio display while true
@@ -127,7 +128,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     _showAllChannels =
         (_broker.getValue<int>(0, 'ShowAllChannels', 0) ?? 0) == 1;
     _showChannelFrequency =
-        (_broker.getValue<int>(0, 'ShowChannelFrequency', 1) ?? 1) == 1;
+        (_broker.getValue<int>(0, 'ShowChannelFrequency', 0) ?? 0) == 1;
     _broker.subscribe(
       deviceId: 0,
       name: 'ShowAllChannels',
