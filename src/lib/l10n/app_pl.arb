@@ -316,6 +316,7 @@
 
   "radioConnectionTitle": "Połączenie radiotelefonu",
   "radioConnectionEmpty": "Nie znaleziono zgodnych radiotelefonów.\nUpewnij się, że radiotelefon jest włączony, a Bluetooth aktywny.",
+  "radioConnectionInternet": "Internet",
   "radioRenameTitle": "Zmień nazwę radiotelefonu",
   "radioRenamePrompt": "Wprowadź niestandardową nazwę tego radiotelefonu:",
   "radioRenameHint": "Pozostaw puste, aby użyć nazwy domyślnej",

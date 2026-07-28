@@ -1862,6 +1862,12 @@ abstract class AppLocalizations {
   /// **'No compatible radios found.\nMake sure your radio is powered on and Bluetooth is enabled.'**
   String get radioConnectionEmpty;
 
+  /// Subtitle shown for the EchoLink internet radio in the connection dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Internet'**
+  String get radioConnectionInternet;
+
   /// No description provided for @radioRenameTitle.
   ///
   /// In en, this message translates to:

@@ -992,6 +992,9 @@ class AppLocalizationsDe extends AppLocalizations {
       'Keine kompatiblen Funkgeräte gefunden.\nStellen Sie sicher, dass Ihr Funkgerät eingeschaltet und Bluetooth aktiviert ist.';
 
   @override
+  String get radioConnectionInternet => 'Internet';
+
+  @override
   String get radioRenameTitle => 'Funkgerät umbenennen';
 
   @override

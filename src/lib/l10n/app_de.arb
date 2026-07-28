@@ -316,6 +316,7 @@
 
   "radioConnectionTitle": "Funkgerät-Verbindung",
   "radioConnectionEmpty": "Keine kompatiblen Funkgeräte gefunden.\nStellen Sie sicher, dass Ihr Funkgerät eingeschaltet und Bluetooth aktiviert ist.",
+  "radioConnectionInternet": "Internet",
   "radioRenameTitle": "Funkgerät umbenennen",
   "radioRenamePrompt": "Geben Sie einen benutzerdefinierten Namen für dieses Funkgerät ein:",
   "radioRenameHint": "Leer lassen, um den Standardnamen zu verwenden",

@@ -7,6 +7,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'package:flutter/material.dart';
 import 'dialog_utils.dart';
 import '../l10n/app_localizations.dart';
+import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../services/bluetooth_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -21,10 +22,15 @@ class CompatibleDevice {
   /// default name placeholder when renaming.
   final String bluetoothName;
 
+  /// True for the internet-only EchoLink pseudo-radio (device 200). It connects
+  /// by going online with the EchoLink directory rather than over Bluetooth.
+  final bool isEchoLink;
+
   CompatibleDevice({
     required this.name,
     required this.mac,
     this.bluetoothName = '',
+    this.isEchoLink = false,
   });
 }
 
@@ -71,12 +77,19 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
   // Track deviceId -> MAC address mapping for state updates
   final Map<int, String> _deviceIdToMac = {};
 
+  // Current device-200 (EchoLink) state, used when an EchoLink row is shown.
+  String _echoLinkState = 'Disconnected';
+
   @override
   void initState() {
     super.initState();
 
     // Load initial connected radios state
     _loadConnectedRadiosState();
+
+    // Load initial EchoLink state (device 200).
+    _echoLinkState =
+        _broker.getValue<String>(echoLinkDeviceId, 'State') ?? 'Disconnected';
 
     // Subscribe to connected radios updates
     _broker.subscribe(
@@ -133,6 +146,12 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
 
   void _onRadioStateChanged(int deviceId, String name, Object? data) {
     if (data is String) {
+      if (deviceId == echoLinkDeviceId) {
+        setState(() {
+          _echoLinkState = data;
+        });
+        return;
+      }
       final macAddress = _deviceIdToMac[deviceId];
       if (macAddress != null) {
         setState(() {
@@ -142,8 +161,27 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
     }
   }
 
+  /// Maps the EchoLink device-200 `State` onto the connection-dialog status
+  /// vocabulary. EchoLink connects by "going online" with the directory, so any
+  /// online/QSO state is shown as connected.
+  String _echoLinkStatus() {
+    switch (_echoLinkState) {
+      case 'Online':
+      case 'Connecting':
+      case 'Connected':
+        return 'Connected';
+      default:
+        return 'Disconnected';
+    }
+  }
+
   String _getRadioStatus(String macAddress) {
     return _connectedRadioStates[macAddress.toUpperCase()] ?? 'Disconnected';
+  }
+
+  /// Status for any dialog row, handling the EchoLink pseudo-radio specially.
+  String _statusForDevice(CompatibleDevice device) {
+    return device.isEchoLink ? _echoLinkStatus() : _getRadioStatus(device.mac);
   }
 
   bool _isConnectable(String status) {
@@ -175,12 +213,40 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
     await bluetoothService.disconnectRadioByMac(mac);
   }
 
-  void _toggleMac(String mac) {
-    final status = _getRadioStatus(mac);
+  /// Connect EchoLink by going online with the directory server (device 200).
+  void _connectEchoLink() {
+    _broker.dispatch(
+      deviceId: echoLinkDeviceId,
+      name: 'EchoLinkGoOnline',
+      data: null,
+      store: false,
+    );
+  }
+
+  /// Disconnect EchoLink by going offline (device 200).
+  void _disconnectEchoLink() {
+    _broker.dispatch(
+      deviceId: echoLinkDeviceId,
+      name: 'EchoLinkGoOffline',
+      data: null,
+      store: false,
+    );
+  }
+
+  void _toggleDevice(CompatibleDevice device) {
+    final status = _statusForDevice(device);
+    if (device.isEchoLink) {
+      if (_isConnectedOrConnecting(status)) {
+        _disconnectEchoLink();
+      } else if (_isConnectable(status)) {
+        _connectEchoLink();
+      }
+      return;
+    }
     if (_isConnectedOrConnecting(status)) {
-      _disconnectMac(mac);
+      _disconnectMac(device.mac);
     } else if (_isConnectable(status)) {
-      _connectMac(mac);
+      _connectMac(device.mac);
     }
   }
 
@@ -383,7 +449,7 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                         itemCount: sortedDevices.length,
                         itemBuilder: (context, index) {
                           final device = sortedDevices[index];
-                          final status = _getRadioStatus(device.mac);
+                          final status = _statusForDevice(device);
                           final connectable = _isConnectable(status);
                           final connected = _isConnectedOrConnecting(status);
 
@@ -400,13 +466,17 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                                   ? l10n.commonDisconnect
                                   : l10n.commonConnect,
                               icon: Icon(
-                                connected
-                                    ? Icons.bluetooth_connected
-                                    : Icons.bluetooth_disabled,
+                                device.isEchoLink
+                                    ? (connected
+                                        ? Icons.public
+                                        : Icons.public_off)
+                                    : (connected
+                                        ? Icons.bluetooth_connected
+                                        : Icons.bluetooth_disabled),
                                 color: _getStatusColor(status),
                               ),
                               onPressed: (connected || connectable)
-                                  ? () => _toggleMac(device.mac)
+                                  ? () => _toggleDevice(device)
                                   : null,
                             ),
                             title: Text(
@@ -414,16 +484,25 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                               style: DialogStyles.bodyStyle,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            subtitle: device.name.isEmpty
-                                ? null
-                                : Text(
-                                    device.mac,
+                            subtitle: device.isEchoLink
+                                ? Text(
+                                    l10n.radioConnectionInternet,
                                     style: DialogStyles.bodyStyle.copyWith(
                                       fontSize: 11,
                                       color: scheme.onSurfaceVariant,
                                     ),
                                     overflow: TextOverflow.ellipsis,
-                                  ),
+                                  )
+                                : device.name.isEmpty
+                                    ? null
+                                    : Text(
+                                        device.mac,
+                                        style: DialogStyles.bodyStyle.copyWith(
+                                          fontSize: 11,
+                                          color: scheme.onSurfaceVariant,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -438,18 +517,17 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                                         ? Colors.red
                                         : Colors.green,
                                   ),
-                                  onPressed: connected
-                                      ? () => _disconnectMac(device.mac)
-                                      : (connectable
-                                            ? () => _connectMac(device.mac)
-                                            : null),
+                                  onPressed: (connected || connectable)
+                                      ? () => _toggleDevice(device)
+                                      : null,
                                 ),
-                                IconButton(
-                                  visualDensity: VisualDensity.compact,
-                                  tooltip: l10n.commonRename,
-                                  icon: const Icon(Icons.edit),
-                                  onPressed: () => _onRename(device.mac),
-                                ),
+                                if (!device.isEchoLink)
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    tooltip: l10n.commonRename,
+                                    icon: const Icon(Icons.edit),
+                                    onPressed: () => _onRename(device.mac),
+                                  ),
                               ],
                             ),
                           );

@@ -948,6 +948,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get radioConnectionEmpty => '未找到兼容的电台。\n请确保您的电台已开机且蓝牙已启用。';
 
   @override
+  String get radioConnectionInternet => '互联网';
+
+  @override
   String get radioRenameTitle => '重命名电台';
 
   @override

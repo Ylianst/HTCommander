@@ -316,6 +316,7 @@
 
   "radioConnectionTitle": "Conexión de radio",
   "radioConnectionEmpty": "No se encontraron radios compatibles.\nAsegúrese de que su radio esté encendida y que el Bluetooth esté activado.",
+  "radioConnectionInternet": "Internet",
   "radioRenameTitle": "Cambiar el nombre de la radio",
   "radioRenamePrompt": "Introduzca un nombre personalizado para esta radio:",
   "radioRenameHint": "Deje vacío para usar el nombre predeterminado",

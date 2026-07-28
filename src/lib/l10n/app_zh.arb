@@ -316,6 +316,7 @@
 
   "radioConnectionTitle": "电台连接",
   "radioConnectionEmpty": "未找到兼容的电台。\n请确保您的电台已开机且蓝牙已启用。",
+  "radioConnectionInternet": "互联网",
   "radioRenameTitle": "重命名电台",
   "radioRenamePrompt": "为此电台输入自定义名称：",
   "radioRenameHint": "留空以使用默认名称",

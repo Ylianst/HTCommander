@@ -69,7 +69,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   RadioLockState? _lockState;
 
   // EchoLink (device 200) state, used when this panel displays EchoLink.
-  bool _echoLinkAvailable = false;
+  // Whether EchoLink is currently online (connected as a radio). Tracked with an
+  // always-on device-200 `State` subscription (regardless of which radio this
+  // panel shows) so the radio switcher can list EchoLink only while connected,
+  // like a Bluetooth radio.
+  bool _echoLinkRadioConnected = false;
   String? _echoLinkState;
   List<StationData> _echoLinkStations = const [];
   StationData? _echoLinkConnected;
@@ -158,13 +162,15 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       name: 'ConnectedRadios',
       callback: _onConnectedRadiosChanged,
     );
-    // Track EchoLink availability so it can be offered in the radio switcher.
-    _echoLinkAvailable =
-        _broker.getValue<bool>(1, 'EchoLinkAvailable', false) ?? false;
+    // Track EchoLink's online state (device 200) regardless of which radio this
+    // panel shows, so the switcher lists EchoLink only while it is connected.
+    _echoLinkRadioConnected = _isEchoLinkOnlineState(
+      _broker.getValue<String>(echoLinkDeviceId, 'State'),
+    );
     _broker.subscribe(
-      deviceId: 1,
-      name: 'EchoLinkAvailable',
-      callback: _onEchoLinkAvailableChanged,
+      deviceId: echoLinkDeviceId,
+      name: 'State',
+      callback: _onEchoLinkSwitcherStateChanged,
     );
     _subscribeToDevice();
   }
@@ -201,9 +207,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         callback: _onConnectedRadiosChanged,
       );
       _broker.subscribe(
-        deviceId: 1,
-        name: 'EchoLinkAvailable',
-        callback: _onEchoLinkAvailableChanged,
+        deviceId: echoLinkDeviceId,
+        name: 'State',
+        callback: _onEchoLinkSwitcherStateChanged,
       );
       _clearCachedState();
       _subscribeToDevice();
@@ -250,10 +256,20 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     setState(() {});
   }
 
-  /// Tracks EchoLink availability for the radio switcher.
-  void _onEchoLinkAvailableChanged(int deviceId, String name, Object? data) {
+  /// Returns true when the EchoLink device-200 `State` means it is online, i.e.
+  /// connected as a radio (logged into the directory, possibly in a QSO).
+  bool _isEchoLinkOnlineState(String? state) {
+    return state == 'Online' || state == 'Connecting' || state == 'Connected';
+  }
+
+  /// Tracks EchoLink's online state for the radio switcher (always subscribed,
+  /// regardless of which radio this panel currently shows).
+  void _onEchoLinkSwitcherStateChanged(
+      int deviceId, String name, Object? data) {
     if (!mounted) return;
-    setState(() => _echoLinkAvailable = data == true);
+    final bool online = _isEchoLinkOnlineState(data is String ? data : null);
+    if (online == _echoLinkRadioConnected) return;
+    setState(() => _echoLinkRadioConnected = online);
   }
 
   /// Handles EchoLink status events (device 200) when this panel displays
@@ -612,8 +628,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       if (seen.add(r.deviceId)) unique.add(r);
     }
     // EchoLink is not part of `ConnectedRadios`, but is offered in the switcher
-    // as a selectable radio when available.
-    if (_echoLinkAvailable && seen.add(echoLinkDeviceId)) {
+    // as a connected radio while it is online (connected as a radio).
+    if (_echoLinkRadioConnected && seen.add(echoLinkDeviceId)) {
       unique.add(ConnectedRadioInfo(
         deviceId: echoLinkDeviceId,
         friendlyName: 'EchoLink',
@@ -1383,36 +1399,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
                     )
                   : _buildEchoLinkOnlinePanel(),
             ),
-            // Refresh / go-offline controls (top-right) while online.
-            if (_echoLinkOnline)
-              Positioned(top: 4, right: 4, child: _buildEchoLinkOnlineControls()),
           ],
         );
       },
-    );
-  }
-
-  /// Small top-right control shown while EchoLink is online: go offline. The
-  /// directory refresh lives in the "Add EchoLink Channel" dialog.
-  Widget _buildEchoLinkOnlineControls() {
-    return Material(
-      color: Colors.black54,
-      shape: const CircleBorder(),
-      child: Tooltip(
-        message: 'Go offline',
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: _echoLinkBusy ? null : _toggleEchoLinkOnline,
-          child: const Padding(
-            padding: EdgeInsets.all(6),
-            child: Icon(
-              Icons.power_settings_new,
-              size: 18,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -1455,18 +1444,13 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
     // When not connected to a station, mirror the physical radio's LCD which
     // shows a centered "Disconnected" (or "Connecting...") message instead of
-    // the VFO layout.
+    // the VFO layout. The node number and "Internet" label are only shown once
+    // connected, so nothing but the status text appears here.
     if (!inQso) {
       final l10n = AppLocalizations.of(context);
       final bool connecting = _echoLinkState == 'Connecting';
       final String centerText =
           connecting ? l10n.stateConnecting : l10n.stateDisconnected;
-      // While connecting, show the target node number bottom-left (mirroring
-      // the "Internet" label bottom-right) so the user can see which channel is
-      // being dialed.
-      final StationData? target = _echoLinkPendingConnect;
-      final int? nodeNumber =
-          (connecting && target != null && target.id > 0) ? target.id : null;
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -1485,10 +1469,6 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
               ),
               textAlign: TextAlign.center,
             ),
-            if (connecting) ...[
-              const SizedBox(height: 10),
-              _buildEchoLinkBottomRow(nodeNumber),
-            ],
           ],
         ),
       );

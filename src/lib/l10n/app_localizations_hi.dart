@@ -981,6 +981,9 @@ class AppLocalizationsHi extends AppLocalizations {
       'कोई संगत रेडियो नहीं मिला।\nसुनिश्चित करें कि आपका रेडियो चालू है और ब्लूटूथ सक्षम है।';
 
   @override
+  String get radioConnectionInternet => 'इंटरनेट';
+
+  @override
   String get radioRenameTitle => 'रेडियो का नाम बदलें';
 
   @override

@@ -961,6 +961,9 @@ class AppLocalizationsJa extends AppLocalizations {
       '対応する無線機が見つかりません。\n無線機の電源が入っていて、Bluetooth が有効になっていることを確認してください。';
 
   @override
+  String get radioConnectionInternet => 'インターネット';
+
+  @override
   String get radioRenameTitle => '無線機の名前を変更';
 
   @override

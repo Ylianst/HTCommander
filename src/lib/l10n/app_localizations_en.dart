@@ -976,6 +976,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'No compatible radios found.\nMake sure your radio is powered on and Bluetooth is enabled.';
 
   @override
+  String get radioConnectionInternet => 'Internet';
+
+  @override
   String get radioRenameTitle => 'Rename Radio';
 
   @override

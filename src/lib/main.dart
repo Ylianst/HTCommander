@@ -701,6 +701,13 @@ class _MainFormState extends State<MainForm>
   // it, but it can still be selected as the displayed radio.
   bool _echoLinkAvailable = false;
 
+  // Whether EchoLink is currently online (connected as a radio: logged into the
+  // directory server). Unlike `_echoLinkAvailable` (which only means EchoLink is
+  // configured and offered in the connection dialog), this drives whether
+  // EchoLink appears in the radio switcher and can be disconnected, mirroring a
+  // Bluetooth radio's connected state.
+  bool _echoLinkOnline = false;
+
   // True when EchoLink is currently shown only because it was auto-selected as
   // a fallback (no physical radio). Lets a real radio take over when it later
   // connects, while an explicit user choice of EchoLink is preserved.
@@ -840,9 +847,23 @@ class _MainFormState extends State<MainForm>
     );
     // Seed the current EchoLink availability: the manager may have published it
     // (retained) during startup before this subscription was registered.
+    // Availability only controls whether EchoLink is offered in the connection
+    // dialog; the switcher/selection follow the online state seeded below.
     _echoLinkAvailable =
         _broker.getValue<bool>(1, 'EchoLinkAvailable', false) ?? false;
-    if (_echoLinkAvailable) {
+
+    // Subscribe to EchoLink's own connection state (device 200). Going online
+    // makes EchoLink behave like a connected radio: it appears in the switcher
+    // and can be disconnected from the menu.
+    _broker.subscribe(
+      deviceId: echoLinkDeviceId,
+      name: 'State',
+      callback: _onEchoLinkStateChanged,
+    );
+    _echoLinkOnline = _isEchoLinkOnlineState(
+      _broker.getValue<String>(echoLinkDeviceId, 'State'),
+    );
+    if (_echoLinkOnline) {
       _maybeAutoSelectEchoLink();
     }
 
@@ -1158,7 +1179,7 @@ class _MainFormState extends State<MainForm>
             !ids.contains(_currentRadioDeviceId)) {
           _currentRadioDeviceId = ids.isNotEmpty
               ? ids.first
-              : (_echoLinkAvailable ? echoLinkDeviceId : -1);
+              : (_echoLinkOnline ? echoLinkDeviceId : -1);
           if (_currentRadioDeviceId == echoLinkDeviceId) {
             _echoLinkAutoSelected = true;
           }
@@ -1188,7 +1209,7 @@ class _MainFormState extends State<MainForm>
     if (radioId != echoLinkDeviceId && !_connectedRadioIds.contains(radioId)) {
       return;
     }
-    if (radioId == echoLinkDeviceId && !_echoLinkAvailable) return;
+    if (radioId == echoLinkDeviceId && !_echoLinkOnline) return;
     setState(() {
       _currentRadioDeviceId = radioId;
       // An explicit choice is never treated as an auto-selection fallback.
@@ -1212,17 +1233,17 @@ class _MainFormState extends State<MainForm>
     }
   }
 
-  /// Handle EchoLink availability changes (device 1). When EchoLink becomes
-  /// available and no physical radio is selected, display it so a user without
-  /// a radio still gets a working panel.
+  /// Handle EchoLink availability changes (device 1). Availability only means
+  /// EchoLink is configured (callsign + password) and can be offered in the
+  /// connection dialog; whether it is shown in the switcher follows its online
+  /// state (device-200 `State`). If EchoLink becomes unavailable while it is the
+  /// displayed radio, fall back to another radio.
   void _onEchoLinkAvailableChanged(int deviceId, String name, Object? data) {
     final available = data == true;
     if (available == _echoLinkAvailable) return;
     setState(() {
       _echoLinkAvailable = available;
-      if (available) {
-        _maybeAutoSelectEchoLink();
-      } else if (_currentRadioDeviceId == echoLinkDeviceId) {
+      if (!available && _currentRadioDeviceId == echoLinkDeviceId) {
         _echoLinkAutoSelected = false;
         _currentRadioDeviceId =
             _connectedRadioIds.isNotEmpty ? _connectedRadioIds.first : -1;
@@ -1235,12 +1256,45 @@ class _MainFormState extends State<MainForm>
     });
   }
 
-  /// Selects EchoLink as the displayed radio when it is available and nothing
-  /// else is connected/selected, so the panel is never stuck on "Disconnected"
-  /// with no way to reach EchoLink. Marks the selection as automatic so a real
-  /// radio can take over when it connects. Must be called inside setState.
+  /// Returns true when the EchoLink device-200 `State` means it is online, i.e.
+  /// connected as a radio (logged into the directory, possibly in a QSO).
+  bool _isEchoLinkOnlineState(String? state) {
+    return state == 'Online' || state == 'Connecting' || state == 'Connected';
+  }
+
+  /// Handle EchoLink connection-state changes (device 200). Going online makes
+  /// EchoLink behave like a radio that just connected: it appears in the
+  /// switcher and is auto-selected when nothing else is shown. Going offline
+  /// removes it from the switcher and, if it was the displayed radio, falls back
+  /// to another connected radio.
+  void _onEchoLinkStateChanged(int deviceId, String name, Object? data) {
+    final bool online = _isEchoLinkOnlineState(data is String ? data : null);
+    if (online == _echoLinkOnline) return;
+    setState(() {
+      _echoLinkOnline = online;
+      if (online) {
+        _maybeAutoSelectEchoLink();
+      } else if (_currentRadioDeviceId == echoLinkDeviceId) {
+        _echoLinkAutoSelected = false;
+        _currentRadioDeviceId =
+            _connectedRadioIds.isNotEmpty ? _connectedRadioIds.first : -1;
+        _loadBatteryForCurrentRadio();
+        _loadSettingsForCurrentRadio();
+        _broker.dispatch(
+          deviceId: 1,
+          name: 'SelectedRadioDeviceId',
+          data: _currentRadioDeviceId,
+        );
+      }
+    });
+  }
+
+  /// Selects EchoLink as the displayed radio when it is online and nothing else
+  /// is connected/selected, so the panel shows it as a connected radio. Marks
+  /// the selection as automatic so a real radio can take over when it connects.
+  /// Must be called inside setState.
   void _maybeAutoSelectEchoLink() {
-    if (!_echoLinkAvailable) return;
+    if (!_echoLinkOnline) return;
     if (_connectedRadioIds.isNotEmpty) return;
     if (_currentRadioDeviceId >= 0 &&
         _currentRadioDeviceId != echoLinkDeviceId) {
@@ -2000,6 +2054,13 @@ class _MainFormState extends State<MainForm>
   /// Whether we have at least one connected radio.
   bool get _hasConnectedRadio => _connectedRadioIds.isNotEmpty;
 
+  /// Whether the Disconnect menu action is available. True when a physical radio
+  /// is connected, or when EchoLink is the displayed radio and online. Kept
+  /// separate from [_hasConnectedRadio] so radio-only menu items stay gated on
+  /// physical radios only.
+  bool get _canDisconnect =>
+      _hasConnectedRadio || (_isEchoLink && _echoLinkOnline);
+
   /// Whether the currently displayed radio is the internet-only EchoLink
   /// radio, which does not support physical-radio features (dual-watch, scan,
   /// GPS, trusted devices, buttons, channel import/export, audio modems).
@@ -2037,7 +2098,7 @@ class _MainFormState extends State<MainForm>
   /// is appended last so physical radios keep their natural order.
   List<int> _selectableRadioIds() {
     final ids = <int>[..._connectedRadioIds];
-    if (_echoLinkAvailable && !ids.contains(echoLinkDeviceId)) {
+    if (_echoLinkOnline && !ids.contains(echoLinkDeviceId)) {
       ids.add(echoLinkDeviceId);
     }
     return ids;
@@ -2101,7 +2162,7 @@ class _MainFormState extends State<MainForm>
           ),
           AppMenuAction(
             label: l10n.menuDisconnect,
-            onPressed: _hasConnectedRadio ? _onDisconnect : null,
+            onPressed: _canDisconnect ? _onDisconnect : null,
           ),
           // When more than one radio is selectable (physical radios plus
           // EchoLink when available), show a "Radios" submenu that lists each
@@ -3166,6 +3227,11 @@ class _MainFormState extends State<MainForm>
   void _onConnect() async {
     _broker.logInfo('Connect requested - checking Bluetooth...');
 
+    // EchoLink can be connected over the internet even when Bluetooth is
+    // unavailable or no radios are found, so it is always offered in the dialog
+    // when configured (callsign + password set).
+    final bool echoLinkAvailable = _echoLinkAvailable;
+
     setState(() {
       _statusText = AppLocalizations.of(context).statusCheckingBluetooth;
     });
@@ -3175,6 +3241,12 @@ class _MainFormState extends State<MainForm>
     if (!bluetoothAvailable) {
       if (!mounted) return;
       _broker.logError('Bluetooth not available');
+      if (echoLinkAvailable) {
+        // Offer EchoLink even though Bluetooth radios cannot be reached.
+        setState(() => _statusText = '');
+        await RadioConnectionDialog.show(context, [_echoLinkCompatibleDevice()]);
+        return;
+      }
       setState(() {
         _statusText = AppLocalizations.of(context).statusBluetoothNotAvailable;
       });
@@ -3198,6 +3270,11 @@ class _MainFormState extends State<MainForm>
     } catch (e) {
       if (!mounted) return;
       _broker.logError('Error scanning for radios: $e');
+      if (echoLinkAvailable) {
+        setState(() => _statusText = '');
+        await RadioConnectionDialog.show(context, [_echoLinkCompatibleDevice()]);
+        return;
+      }
       setState(() {
         _statusText = AppLocalizations.of(context).statusErrorScanning;
       });
@@ -3213,6 +3290,11 @@ class _MainFormState extends State<MainForm>
     // No compatible devices found
     if (allDevices.isEmpty) {
       _broker.logInfo('No compatible radios found');
+      if (echoLinkAvailable) {
+        setState(() => _statusText = '');
+        await RadioConnectionDialog.show(context, [_echoLinkCompatibleDevice()]);
+        return;
+      }
       setState(() {
         _statusText = AppLocalizations.of(context).statusNoCompatibleRadios;
       });
@@ -3244,61 +3326,77 @@ class _MainFormState extends State<MainForm>
       return !connectedMacs.contains(device.mac.toUpperCase());
     }).toList();
 
-    if (availableDevices.isEmpty) {
-      _broker.logInfo('All radios already connected');
-      setState(() {
-        _statusText = AppLocalizations.of(context).statusAllRadiosConnected;
-      });
-      _showInfoDialog(
-        AppLocalizations.of(context).connectAllConnectedTitle,
-        AppLocalizations.of(context).connectAllConnectedBody,
-      );
-      return;
-    }
-
-    // If only 1 available radio and it's the only one found, connect directly
-    if (availableDevices.length == 1 && allDevices.length == 1) {
-      final device = availableDevices.first;
-      _broker.logInfo('Connecting to ${device.name}...');
-      setState(() {
-        _statusText = AppLocalizations.of(
-          context,
-        ).statusConnectingTo(device.name);
-      });
-
-      final deviceId = await bluetoothService.connectToRadio(
-        device.mac,
-        device.name,
-      );
-
-      if (!mounted) return;
-
-      if (deviceId != null) {
-        _broker.logInfo('Connected to ${device.name} (deviceId: $deviceId)');
+    // When EchoLink is available it is always shown in the dialog, so skip the
+    // "all radios already connected" shortcut and the single-radio auto-connect.
+    if (!echoLinkAvailable) {
+      if (availableDevices.isEmpty) {
+        _broker.logInfo('All radios already connected');
         setState(() {
-          _statusText = AppLocalizations.of(
-            context,
-          ).statusConnectedTo(device.name);
+          _statusText = AppLocalizations.of(context).statusAllRadiosConnected;
         });
-      } else {
-        _broker.logError('Failed to connect to ${device.name}');
-        setState(() {
-          _statusText = AppLocalizations.of(
-            context,
-          ).statusFailedToConnect(device.name);
-        });
+        _showInfoDialog(
+          AppLocalizations.of(context).connectAllConnectedTitle,
+          AppLocalizations.of(context).connectAllConnectedBody,
+        );
+        return;
       }
-      return;
+
+      // If only 1 available radio and it's the only one found, connect directly
+      if (availableDevices.length == 1 && allDevices.length == 1) {
+        final device = availableDevices.first;
+        _broker.logInfo('Connecting to ${device.name}...');
+        setState(() {
+          _statusText = AppLocalizations.of(
+            context,
+          ).statusConnectingTo(device.name);
+        });
+
+        final deviceId = await bluetoothService.connectToRadio(
+          device.mac,
+          device.name,
+        );
+
+        if (!mounted) return;
+
+        if (deviceId != null) {
+          _broker.logInfo('Connected to ${device.name} (deviceId: $deviceId)');
+          setState(() {
+            _statusText = AppLocalizations.of(
+              context,
+            ).statusConnectedTo(device.name);
+          });
+        } else {
+          _broker.logError('Failed to connect to ${device.name}');
+          setState(() {
+            _statusText = AppLocalizations.of(
+              context,
+            ).statusFailedToConnect(device.name);
+          });
+        }
+        return;
+      }
     }
 
-    // Show the radio connection dialog for multiple radios
+    // Show the radio connection dialog. EchoLink is appended last so physical
+    // radios keep their natural order.
     _broker.logInfo('Showing radio selection dialog...');
     setState(() {
       _statusText = '';
     });
 
-    await RadioConnectionDialog.show(context, compatibleDevices);
+    final dialogDevices = <CompatibleDevice>[
+      ...compatibleDevices,
+      if (echoLinkAvailable) _echoLinkCompatibleDevice(),
+    ];
+    await RadioConnectionDialog.show(context, dialogDevices);
   }
+
+  /// Builds the EchoLink entry shown in the connection dialog. EchoLink connects
+  /// by going online with the directory server rather than over Bluetooth.
+  CompatibleDevice _echoLinkCompatibleDevice() {
+    return CompatibleDevice(name: 'EchoLink', mac: '', isEchoLink: true);
+  }
+
 
   /// Apply stored friendly names to discovered devices
   List<CompatibleDevice> _applyStoredFriendlyNames(
@@ -3393,6 +3491,22 @@ class _MainFormState extends State<MainForm>
   }
 
   void _onDisconnect() async {
+    // Disconnect the radio currently being viewed. EchoLink (device 200) is not
+    // part of `ConnectedRadios`; going offline is its disconnect.
+    if (_isEchoLink && _echoLinkOnline) {
+      _broker.logInfo('Disconnecting EchoLink...');
+      setState(() {
+        _statusText = AppLocalizations.of(context).statusDisconnecting;
+      });
+      _broker.dispatch(
+        deviceId: echoLinkDeviceId,
+        name: 'EchoLinkGoOffline',
+        data: null,
+        store: false,
+      );
+      return;
+    }
+
     if (_connectedRadioIds.isEmpty) return;
 
     final bluetoothService = BluetoothService();

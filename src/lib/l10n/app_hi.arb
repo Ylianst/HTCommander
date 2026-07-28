@@ -316,6 +316,7 @@
 
   "radioConnectionTitle": "रेडियो कनेक्शन",
   "radioConnectionEmpty": "कोई संगत रेडियो नहीं मिला।\nसुनिश्चित करें कि आपका रेडियो चालू है और ब्लूटूथ सक्षम है।",
+  "radioConnectionInternet": "इंटरनेट",
   "radioRenameTitle": "रेडियो का नाम बदलें",
   "radioRenamePrompt": "इस रेडियो के लिए एक कस्टम नाम दर्ज करें:",
   "radioRenameHint": "डिफ़ॉल्ट नाम उपयोग करने के लिए खाली छोड़ें",

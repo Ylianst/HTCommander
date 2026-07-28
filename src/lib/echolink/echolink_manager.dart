@@ -54,6 +54,12 @@ class EchoLinkManager {
   /// user was connected to, so it can be auto-reconnected on the next launch.
   static const String lastEchoLinkStationKey = 'LastEchoLinkStation';
 
+  /// DataBroker key (device 0, persisted) recording whether the user had
+  /// EchoLink online (connected as a radio) when the app last closed. Mirrors
+  /// the Bluetooth radios' auto-reconnect behaviour: EchoLink goes online again
+  /// on the next launch only when it was online before.
+  static const String echoLinkWasOnlineKey = 'EchoLinkWasOnline';
+
   /// App audio sample rate (matches the radio audio engine / CommsHandler).
   static const int _appSampleRate = 32000;
 
@@ -234,8 +240,8 @@ class EchoLinkManager {
         _opened = true;
         _publishAvailable(true);
         _broker.logInfo('[EchoLink] Client opened for $callsign');
-        // If the user was in a QSO when the app last closed, reconnect to the
-        // same channel now that the client is up.
+        // Restore the previous session: go online (and reconnect the QSO
+        // channel) if EchoLink was online when the app last closed.
         unawaited(_maybeAutoReconnectStation());
       } catch (e) {
         _client = null;
@@ -303,25 +309,36 @@ class EchoLinkManager {
     );
   }
 
-  /// Reconnects to the EchoLink channel the user was connected to when the app
-  /// last closed (if any). Registers with the directory (central) server, then
-  /// looks the stored station up in the fresh directory listing (its address may
-  /// have changed) and reconnects to it. A no-op when nothing was stored or the
-  /// station is no longer in the directory.
+  /// Restores EchoLink's connection state from the previous session. When the
+  /// user had EchoLink online (connected as a radio) at last close, it registers
+  /// with the directory (central) server again. If a QSO channel was also stored
+  /// it looks that station up in the fresh directory listing (its address may
+  /// have changed) and reconnects to it. A no-op when EchoLink was offline and
+  /// nothing was stored.
   Future<void> _maybeAutoReconnectStation() async {
     final EchoLinkClient? client = _client;
     if (client == null) return;
 
+    final bool wasOnline =
+        _broker.getValue<bool>(0, echoLinkWasOnlineKey, false) ?? false;
+
     final Object? stored =
         _broker.getValueDynamic(0, lastEchoLinkStationKey, null);
-    if (stored is! Map) return;
-    final StationData target = _stationFromMap(stored);
-    if (target.callsign.isEmpty && target.id == 0) return;
+    final StationData? target =
+        stored is Map ? _stationFromMap(stored) : null;
+    final bool hasStation =
+        target != null && (target.callsign.isNotEmpty || target.id != 0);
+
+    // Nothing to restore: EchoLink was offline and no channel was stored.
+    if (!wasOnline && !hasStation) return;
 
     try {
       // Connect to the central (directory) server first.
       await client.goOnline();
       final DirectoryListing listing = await client.refreshStations();
+
+      // If no QSO channel was stored, going online is all that is needed.
+      if (!hasStation) return;
 
       // Resolve the current address from the fresh directory: EchoLink node
       // addresses change, so the stored IP may be stale.
@@ -369,6 +386,14 @@ class EchoLinkManager {
   void _onGoOnline(int deviceId, String name, Object? data) {
     final EchoLinkClient? client = _client;
     if (client == null) return;
+    // Remember that EchoLink is online so it is auto-reconnected on next launch
+    // (mirrors the Bluetooth radios' previously-connected list).
+    _broker.dispatch(
+      deviceId: 0,
+      name: echoLinkWasOnlineKey,
+      data: true,
+      store: true,
+    );
     unawaited(() async {
       try {
         await client.goOnline();
@@ -383,11 +408,18 @@ class EchoLinkManager {
     final EchoLinkClient? client = _client;
     if (client == null) return;
     // Going offline is an explicit user disconnect from the EchoLink server:
-    // forget the channel so it is not auto-reconnected on the next launch.
+    // forget the channel so it is not auto-reconnected on the next launch, and
+    // record that EchoLink is no longer online.
     _broker.dispatch(
       deviceId: 0,
       name: lastEchoLinkStationKey,
       data: null,
+      store: true,
+    );
+    _broker.dispatch(
+      deviceId: 0,
+      name: echoLinkWasOnlineKey,
+      data: false,
       store: true,
     );
     unawaited(() async {

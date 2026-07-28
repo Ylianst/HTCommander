@@ -988,6 +988,9 @@ class AppLocalizationsPl extends AppLocalizations {
       'Nie znaleziono zgodnych radiotelefonów.\nUpewnij się, że radiotelefon jest włączony, a Bluetooth aktywny.';
 
   @override
+  String get radioConnectionInternet => 'Internet';
+
+  @override
   String get radioRenameTitle => 'Zmień nazwę radiotelefonu';
 
   @override

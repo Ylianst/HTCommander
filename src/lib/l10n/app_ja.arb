@@ -316,6 +316,7 @@
 
   "radioConnectionTitle": "無線機の接続",
   "radioConnectionEmpty": "対応する無線機が見つかりません。\n無線機の電源が入っていて、Bluetooth が有効になっていることを確認してください。",
+  "radioConnectionInternet": "インターネット",
   "radioRenameTitle": "無線機の名前を変更",
   "radioRenamePrompt": "この無線機のカスタム名を入力してください:",
   "radioRenameHint": "空欄のままにするとデフォルト名を使用します",
