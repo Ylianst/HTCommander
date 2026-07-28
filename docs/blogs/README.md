@@ -169,4 +169,16 @@ decisions that keep the radio responsive.
 
 ---
 
+## Building & Contributing
+
+Getting a full HTCommander development environment running on your own machine.
+
+1. **[Build It Yourself: Compiling HTCommander on Every Platform](building-from-source.md)**
+   A start-to-finish guide to installing Flutter and building HTCommander from
+   source on Windows, macOS, Linux, Android, iOS, and the web — including the
+   exact system packages each desktop target needs (and the GStreamer, BlueZ, and
+   PulseAudio libraries Linux trips over first).
+
+---
+
 *More topics coming as the project grows.*
