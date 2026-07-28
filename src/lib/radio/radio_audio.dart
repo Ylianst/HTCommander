@@ -73,7 +73,8 @@ class RadioAudio {
     required this.macAddress,
   }) {
     // Restore the persisted output-device selection (device 0 = global).
-    _outputDeviceId = _broker.getValue<String>(0, 'OutputAudioDevice', '') ?? '';
+    _outputDeviceId =
+        _broker.getValue<String>(0, 'OutputAudioDevice', '') ?? '';
 
     // Enable/disable the audio path. Audio is disabled by default and is only
     // started when 'SetAudio' true is dispatched through the DataBroker.
@@ -174,11 +175,11 @@ class RadioAudio {
     // engine then falls back to relaying transmit bytes via a `send` event.
     final RootIsolateToken? rootToken = RootIsolateToken.instance;
 
-    await Isolate.spawn(
-      audioEngineIsolateEntry,
-      <Object?>[receivePort.sendPort, rootToken, macAddress],
-      debugName: 'radio-audio-engine-$deviceId',
-    );
+    await Isolate.spawn(audioEngineIsolateEntry, <Object?>[
+      receivePort.sendPort,
+      rootToken,
+      macAddress,
+    ], debugName: 'radio-audio-engine-$deviceId');
 
     await ready.future;
     _engineSpawning = false;
@@ -348,9 +349,10 @@ class RadioAudio {
   void _onStartRecording(int deviceId, String name, Object? data) {
     if (data is String && data.isNotEmpty) {
       _recording = true;
-      _sendToEngine(
-        <String, Object?>{'cmd': 'startRecording', 'filename': data},
-      );
+      _sendToEngine(<String, Object?>{
+        'cmd': 'startRecording',
+        'filename': data,
+      });
       _broker.dispatch(
         deviceId: deviceId,
         name: 'Recording',
@@ -638,30 +640,9 @@ class RadioAudio {
   }
 
   Future<void> _playPcm(Int16List pcm) async {
-    if (!_pcmSoundReady) {
-      // Playback path is closed; surface it once per gap so a "no audio"
-      // report can be diagnosed from the debug tab.
-      if (!_loggedNotReady) {
-        _loggedNotReady = true;
-        _debug('PCM chunk arrived but playback device is not ready (dropped).');
-      }
-      return;
-    }
-    _loggedNotReady = false;
-
+    if (!_pcmSoundReady) return;
     // If we are too far behind real time, drop this chunk to catch up.
-    if (_bufferedFrames > _maxBufferedFrames) {
-      // Rate-limit: log the first drop of a run and then only occasionally, so
-      // a stuck backlog (which would silence audio) is visible without flooding.
-      if ((_dropLogCounter++ % 100) == 0) {
-        _debug(
-          'Dropping PCM to catch up '
-          '(buffered=$_bufferedFrames > max=$_maxBufferedFrames).',
-        );
-      }
-      return;
-    }
-    _dropLogCounter = 0;
+    if (_bufferedFrames > _maxBufferedFrames) return;
 
     _bufferedFrames += pcm.length;
     try {
@@ -670,12 +651,6 @@ class RadioAudio {
       _debug('PCM feed error: $e');
     }
   }
-
-  // Diagnostics for the playback path (shown in the debug tab). `_loggedNotReady`
-  // prevents repeating the "device not ready" line for every dropped chunk;
-  // `_dropLogCounter` rate-limits back-pressure drop logging.
-  bool _loggedNotReady = false;
-  int _dropLogCounter = 0;
 
   /// Convert little-endian 16-bit PCM bytes to an [Int16List].
   static Int16List _int16FromBytes(Uint8List bytes) {
