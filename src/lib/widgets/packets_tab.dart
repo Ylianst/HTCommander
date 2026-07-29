@@ -80,6 +80,11 @@ class _PacketsTabState extends State<PacketsTab>
   static const double _rowHeight = 29.0;
 
   int? _selectedPacketIndex;
+
+  /// Anchor index for range (shift-click / shift-arrow) selection. The selected
+  /// range spans from this anchor to [_selectedPacketIndex] inclusive.
+  int? _selectionAnchorIndex;
+
   bool _showDecode = true;
   int _sortColumnIndex = 0;
   bool _sortAscending = false; // Descending by default for time
@@ -224,6 +229,7 @@ class _PacketsTabState extends State<PacketsTab>
         ..clear()
         ..addAll(fragments.map(CapturedPacket.new));
       _selectedPacketIndex = null;
+      _selectionAnchorIndex = null;
       _applySort(null);
     });
   }
@@ -250,16 +256,38 @@ class _PacketsTabState extends State<PacketsTab>
     return _packets[_selectedPacketIndex!];
   }
 
-  void _onPacketSelected(int index) {
+  /// Lowest and highest indices (inclusive) of the current selection, or null
+  /// when nothing is selected.
+  (int, int)? get _selectionBounds {
+    final sel = _selectedPacketIndex;
+    if (sel == null || sel >= _packets.length) return null;
+    final anchor = (_selectionAnchorIndex ?? sel).clamp(0, _packets.length - 1);
+    return anchor <= sel ? (anchor, sel) : (sel, anchor);
+  }
+
+  bool _isIndexSelected(int index) {
+    final bounds = _selectionBounds;
+    if (bounds == null) return false;
+    return index >= bounds.$1 && index <= bounds.$2;
+  }
+
+  void _onPacketSelected(int index, {bool extend = false}) {
     _listFocusNode.requestFocus();
     setState(() {
-      _selectedPacketIndex = index;
+      if (extend && _selectedPacketIndex != null) {
+        _selectionAnchorIndex ??= _selectedPacketIndex;
+        _selectedPacketIndex = index;
+      } else {
+        _selectionAnchorIndex = index;
+        _selectedPacketIndex = index;
+      }
     });
   }
 
   /// Moves the selection by [delta] rows (e.g. -1 for up, +1 for down),
-  /// clamping to the list bounds and keeping the selected row visible.
-  void _moveSelection(int delta) {
+  /// clamping to the list bounds and keeping the selected row visible. When
+  /// [extend] is true the anchor is preserved so the selection grows/shrinks.
+  void _moveSelection(int delta, {bool extend = false}) {
     if (_packets.isEmpty) return;
     final current = _selectedPacketIndex;
     final int next;
@@ -270,6 +298,11 @@ class _PacketsTabState extends State<PacketsTab>
     }
     if (next == current) return;
     setState(() {
+      if (extend) {
+        _selectionAnchorIndex ??= current;
+      } else {
+        _selectionAnchorIndex = next;
+      }
       _selectedPacketIndex = next;
     });
     _ensureIndexVisible(next);
@@ -298,20 +331,27 @@ class _PacketsTabState extends State<PacketsTab>
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    final bool extend = HardwareKeyboard.instance.isShiftPressed;
+    final bool control = HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed;
+    if (control && event.logicalKey == LogicalKeyboardKey.keyC) {
+      _copySelectedPackets();
+      return KeyEventResult.handled;
+    }
     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-      _moveSelection(1);
+      _moveSelection(1, extend: extend);
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      _moveSelection(-1);
+      _moveSelection(-1, extend: extend);
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.pageDown) {
-      _moveSelection(_pageRowCount());
+      _moveSelection(_pageRowCount(), extend: extend);
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.pageUp) {
-      _moveSelection(-_pageRowCount());
+      _moveSelection(-_pageRowCount(), extend: extend);
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -331,7 +371,11 @@ class _PacketsTabState extends State<PacketsTab>
     int index,
     Offset globalPosition,
   ) {
-    _onPacketSelected(index);
+    // Keep an existing multi-packet selection if the right-click lands inside
+    // it; otherwise select just the clicked row.
+    if (!_isIndexSelected(index)) {
+      _onPacketSelected(index);
+    }
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
 
     showMenu<String>(
@@ -344,6 +388,10 @@ class _PacketsTabState extends State<PacketsTab>
       ),
       items: [
         PopupMenuItem<String>(
+          value: 'copyPackets',
+          child: Text(AppLocalizations.of(context).packetsCopyPackets),
+        ),
+        PopupMenuItem<String>(
           value: 'copyHex',
           child: Text(AppLocalizations.of(context).packetsCopyHex),
         ),
@@ -351,6 +399,8 @@ class _PacketsTabState extends State<PacketsTab>
     ).then((value) {
       if (value == 'copyHex') {
         _copyPacketHex(index);
+      } else if (value == 'copyPackets') {
+        _copySelectedPackets();
       }
     });
   }
@@ -362,6 +412,45 @@ class _PacketsTabState extends State<PacketsTab>
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context).packetsHexCopied)),
+      );
+    }
+  }
+
+  /// Formats the exact packet time as `YYYY-MM-DD HH:MM:SS.mmm`.
+  String _formatExactTime(DateTime time) {
+    String p2(int n) => n.toString().padLeft(2, '0');
+    final ms = time.millisecond.toString().padLeft(3, '0');
+    return '${time.year}-${p2(time.month)}-${p2(time.day)} '
+        '${p2(time.hour)}:${p2(time.minute)}:${p2(time.second)}.$ms';
+  }
+
+  /// Builds a single clipboard line for a packet: exact time, direction, modem
+  /// info, channel, decoded summary, then the raw HEX.
+  String _packetToClipboardLine(CapturedPacket packet) {
+    final fragment = packet.fragment;
+    final time = _formatExactTime(fragment.time);
+    final dir = fragment.incoming ? 'RX' : 'TX';
+    var modem = PacketDecoder.encodingLabel(fragment);
+    if (modem.isEmpty) modem = 'Unknown modem';
+    final channel = fragment.channelName.isEmpty ? '-' : fragment.channelName;
+    return '$time | $dir | $modem | ch=$channel | ${packet.summary} '
+        '| HEX=${packet.dataHex}';
+  }
+
+  /// Copies the currently selected packet range to the clipboard, one line per
+  /// packet in chronological (list) order.
+  void _copySelectedPackets() {
+    final bounds = _selectionBounds;
+    if (bounds == null) return;
+    final buffer = StringBuffer();
+    for (int i = bounds.$1; i <= bounds.$2; i++) {
+      buffer.writeln(_packetToClipboardLine(_packets[i]));
+    }
+    final count = bounds.$2 - bounds.$1 + 1;
+    Clipboard.setData(ClipboardData(text: buffer.toString().trimRight()));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).packetsCopied(count))),
       );
     }
   }
@@ -378,6 +467,7 @@ class _PacketsTabState extends State<PacketsTab>
     setState(() {
       _packets.clear();
       _selectedPacketIndex = null;
+      _selectionAnchorIndex = null;
     });
   }
 
@@ -571,10 +661,13 @@ class _PacketsTabState extends State<PacketsTab>
       }
       return _sortAscending ? result : -result;
     });
-    // Keep the selection pointing at the same packet after sorting.
+    // Keep the selection pointing at the same packet after sorting. Range
+    // selections collapse to the single kept packet since sorting can reorder
+    // rows non-contiguously.
     if (keepSelected != null) {
       final newIndex = _packets.indexOf(keepSelected);
       _selectedPacketIndex = newIndex >= 0 ? newIndex : null;
+      _selectionAnchorIndex = _selectedPacketIndex;
     }
   }
 
@@ -709,9 +802,12 @@ class _PacketsTabState extends State<PacketsTab>
                       itemCount: _packets.length,
                       itemBuilder: (context, index) {
                       final packet = _packets[index];
-                      final isSelected = _selectedPacketIndex == index;
+                      final isSelected = _isIndexSelected(index);
                       return InkWell(
-                        onTap: () => _onPacketSelected(index),
+                        onTap: () => _onPacketSelected(
+                          index,
+                          extend: HardwareKeyboard.instance.isShiftPressed,
+                        ),
                         onSecondaryTapDown: (details) => _showPacketContextMenu(
                           context,
                           index,

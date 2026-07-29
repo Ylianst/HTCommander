@@ -235,6 +235,11 @@ class PacketDecoder {
     }
   }
 
+  /// Public, human-readable modem/encoding label for a fragment
+  /// (e.g. "Software DART Level 2, AX.25, No Corrections").
+  static String encodingLabel(TncDataFragment fragment) =>
+      _encodingString(fragment);
+
   static String _encodingString(TncDataFragment fragment) {
     String encoding = '';
     switch (fragment.encoding) {

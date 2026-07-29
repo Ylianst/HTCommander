@@ -3014,6 +3014,18 @@ abstract class AppLocalizations {
   /// **'HEX packet copied to clipboard'**
   String get packetsHexCopied;
 
+  /// No description provided for @packetsCopyPackets.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Packets'**
+  String get packetsCopyPackets;
+
+  /// No description provided for @packetsCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 packet copied to clipboard} other{{count} packets copied to clipboard}}'**
+  String packetsCopied(int count);
+
   /// No description provided for @packetsSaveTitle.
   ///
   /// In en, this message translates to:

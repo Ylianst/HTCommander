@@ -1137,6 +1137,13 @@
 
   "packetsCopyHex": "Copy HEX packet",
   "packetsHexCopied": "HEX packet copied to clipboard",
+  "packetsCopyPackets": "Copy Packets",
+  "packetsCopied": "{count, plural, one{1 packet copied to clipboard} other{{count} packets copied to clipboard}}",
+  "@packetsCopied": {
+    "placeholders": {
+      "count": { "type": "int", "example": "5" }
+    }
+  },
   "packetsSaveTitle": "Save Packet Capture",
   "packetsSaved": "Packet capture saved",
   "packetsSavedTo": "Packet capture saved to {path}",

@@ -1621,6 +1621,20 @@ class AppLocalizationsHi extends AppLocalizations {
   String get packetsHexCopied => 'HEX पैकेट क्लिपबोर्ड में कॉपी किया गया';
 
   @override
+  String get packetsCopyPackets => 'Copy Packets';
+
+  @override
+  String packetsCopied(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count packets copied to clipboard',
+      one: '1 packet copied to clipboard',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get packetsSaveTitle => 'पैकेट कैप्चर सहेजें';
 
   @override
