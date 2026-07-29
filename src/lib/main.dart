@@ -2211,75 +2211,65 @@ class _MainFormState extends State<MainForm>
             ),
           const AppMenuDivider(),
           // These items control physical-radio features and are shown only for
-          // real radios, not the internet-only EchoLink radio. The set of items
-          // here is specific to the radio currently displayed.
-          if (!_isEchoLink) ...[
+          // real radios, not the internet-only EchoLink radio, and only while a
+          // radio is actually connected. The set of items here is specific to
+          // the radio currently displayed.
+          if (!_isEchoLink && _hasConnectedRadio) ...[
             AppMenuAction(
               label: l10n.menuDualWatch,
-              onPressed: _hasConnectedRadio ? _onToggleDualWatch : null,
+              onPressed: _onToggleDualWatch,
               checked: _dualWatchEnabled,
             ),
             AppMenuAction(
               label: l10n.menuScan,
-              onPressed: _hasConnectedRadio ? _onToggleScan : null,
+              onPressed: _onToggleScan,
               checked: _scanEnabled,
             ),
             AppMenuAction(
               label: 'GPS',
-              onPressed: _hasConnectedRadio ? _onToggleGps : null,
+              onPressed: _onToggleGps,
               checked: _gpsEnabled,
             ),
-          ],
-          // Show the Regions submenu only when a radio is connected and
-          // reports regions; otherwise show a disabled (grayed) entry with no
-          // sub-menu. Hidden entirely for EchoLink (no radio regions).
-          if (!_isEchoLink)
-            if (_hasConnectedRadio && _regionCount > 0)
+            // Show the Regions submenu when the radio reports regions;
+            // otherwise show a disabled (grayed) entry with no sub-menu.
+            if (_regionCount > 0)
               AppSubmenu(
                 label: l10n.menuRegions,
                 children: _buildRegionMenuItems(),
               )
             else
               AppMenuAction(label: l10n.menuRegions, onPressed: null),
-          if (!_isEchoLink)
             AppMenuAction(
               label: l10n.menuTrustedDevices,
-              onPressed: _hasConnectedRadio
-                  ? () => showTrustedDevicesDialog(
-                      context,
-                      deviceId: _currentRadioDeviceId,
-                    )
-                  : null,
+              onPressed: () => showTrustedDevicesDialog(
+                context,
+                deviceId: _currentRadioDeviceId,
+              ),
             ),
-          if (!_isEchoLink)
             AppMenuAction(
               label: l10n.menuFmRadio,
-              onPressed: _hasConnectedRadio && _supportRadio
+              onPressed: _supportRadio
                   ? () => showFmRadioDialog(
                       context,
                       deviceId: _currentRadioDeviceId,
                     )
                   : null,
             ),
-          if (!_isEchoLink)
             AppMenuAction(
               label: l10n.menuButtons,
-              onPressed: _hasConnectedRadio
-                  ? () => showConfigureButtonsDialog(
-                      context,
-                      initialDeviceId: _currentRadioDeviceId,
-                    )
-                  : null,
+              onPressed: () => showConfigureButtonsDialog(
+                context,
+                initialDeviceId: _currentRadioDeviceId,
+              ),
             ),
-          if (!_isEchoLink) ...[
             const AppMenuDivider(),
             AppMenuAction(
               label: l10n.menuExportChannels,
-              onPressed: _hasConnectedRadio ? _onExportChannels : null,
+              onPressed: _onExportChannels,
             ),
             AppMenuAction(
               label: l10n.menuImportChannels,
-              onPressed: _hasConnectedRadio ? _onImportChannels : null,
+              onPressed: _onImportChannels,
             ),
           ],
           const AppMenuDivider(hideOnMacOS: true),
