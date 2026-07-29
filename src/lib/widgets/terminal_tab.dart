@@ -322,18 +322,12 @@ class _TerminalTabState extends State<TerminalTab>
         return;
       }
 
-      // Otherwise (connectionless protocols) just unlock the radio.
+      // Otherwise (connectionless protocols) just unlock the radio. The modem
+      // override is released together with the lock.
       _broker.dispatch(
         deviceId: activeRadioId,
         name: 'SetUnlock',
         data: SetUnlockData(usage: 'Terminal'),
-        store: false,
-      );
-      // Restore the user's regular software modem mode.
-      _broker.dispatch(
-        deviceId: 0,
-        name: 'ClearSessionModem',
-        data: null,
         store: false,
       );
       _broker.logInfo('[TerminalTab] Disconnecting from radio $activeRadioId');
@@ -422,20 +416,18 @@ class _TerminalTabState extends State<TerminalTab>
       }
     }
 
+    // Lock the radio to Terminal usage, carrying the contact's modem so the
+    // radio uses it for the duration of the lock without touching the global
+    // software modem setting. 'Hardware' maps to the radio's built-in TNC.
     _broker.dispatch(
       deviceId: radioId,
       name: 'SetLock',
-      data: SetLockData(usage: 'Terminal', regionId: -1, channelId: channelId),
-      store: false,
-    );
-
-    // Override the software modem with the contact's configured modem for the
-    // duration of the session. Restored on disconnect. 'Hardware' maps to the
-    // radio's built-in TNC (software modem off).
-    _broker.dispatch(
-      deviceId: 0,
-      name: 'SetSessionModem',
-      data: station.modem,
+      data: SetLockData(
+        usage: 'Terminal',
+        regionId: -1,
+        channelId: channelId,
+        modem: station.modem,
+      ),
       store: false,
     );
 
@@ -619,13 +611,6 @@ class _TerminalTabState extends State<TerminalTab>
             deviceId: radioId,
             name: 'SetUnlock',
             data: SetUnlockData(usage: 'Terminal'),
-            store: false,
-          );
-          // Restore the user's regular software modem mode.
-          _broker.dispatch(
-            deviceId: 0,
-            name: 'ClearSessionModem',
-            data: null,
             store: false,
           );
         }

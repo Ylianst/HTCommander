@@ -912,11 +912,17 @@ class RadioLockState {
   int regionId;
   int channelId;
 
+  /// Modem override applied for the duration of the lock (e.g. 'Hardware',
+  /// 'AFSK1200', 'PSK2400', 'DART'). `null` means no override: the global
+  /// software modem setting is used.
+  String? modem;
+
   RadioLockState({
     this.isLocked = false,
     this.usage,
     this.regionId = -1,
     this.channelId = -1,
+    this.modem,
   });
 
   Map<String, dynamic> toJson() => {
@@ -924,6 +930,7 @@ class RadioLockState {
     'usage': usage,
     'regionId': regionId,
     'channelId': channelId,
+    'modem': modem,
   };
 
   factory RadioLockState.fromJson(Map<String, dynamic> json) {
@@ -932,6 +939,7 @@ class RadioLockState {
       usage: json['usage'] as String? ?? json['Usage'] as String?,
       regionId: json['regionId'] as int? ?? json['RegionId'] as int? ?? -1,
       channelId: json['channelId'] as int? ?? json['ChannelId'] as int? ?? -1,
+      modem: json['modem'] as String? ?? json['Modem'] as String?,
     );
   }
 }

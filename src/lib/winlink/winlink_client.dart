@@ -212,26 +212,19 @@ class WinlinkClient {
     // Store the radio for later unlock
     _lockedRadioId = radioId;
 
-    // Lock the radio to Winlink usage
+    // Lock the radio to Winlink usage, carrying the contact's modem so the
+    // radio uses it for the duration of the lock without touching the global
+    // software modem setting. 'Hardware' maps to the radio's built-in TNC.
     final lockData = SetLockData(
       usage: 'Winlink',
       regionId: regionId,
       channelId: channelId,
+      modem: station.modem,
     );
     _broker.dispatch(
       deviceId: radioId,
       name: 'SetLock',
       data: lockData,
-      store: false,
-    );
-
-    // Override the software modem with the contact's configured modem for the
-    // duration of the session. Restored in _unlockRadio(). 'Hardware' maps to
-    // the radio's built-in TNC (software modem off).
-    _broker.dispatch(
-      deviceId: 0,
-      name: 'SetSessionModem',
-      data: station.modem,
       store: false,
     );
 
@@ -404,13 +397,6 @@ class WinlinkClient {
         deviceId: _lockedRadioId,
         name: 'SetUnlock',
         data: unlockData,
-        store: false,
-      );
-      // Restore the user's regular software modem mode.
-      _broker.dispatch(
-        deviceId: 0,
-        name: 'ClearSessionModem',
-        data: null,
         store: false,
       );
       _lockedRadioId = -1;

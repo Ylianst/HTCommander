@@ -1215,6 +1215,11 @@ class AX25Session {
         _resetLinkVariables();
         _initT1vSrt();
       } else {
+        // Only command frames warrant a response: reply to DISC with UA and to
+        // other commands with DM. Never answer a response frame (DM/UA/FRMR) --
+        // replying to a DM with a DM makes two disconnected stations bounce DM
+        // frames back and forth forever.
+        if (!cmd) return false;
         // Respond with DM (or UA to a DISC) using swapped addresses.
         final peer = AX25Address.parse(packet.addresses[1].toString());
         final us = AX25Address.getAddress(sessionCallsign, sessionStationId);

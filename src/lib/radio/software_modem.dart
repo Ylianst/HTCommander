@@ -88,6 +88,12 @@ class _RadioModemState {
   String? lockUsage;
   int lockChannelId = -1;
 
+  /// Modem override carried by the current lock, or `null` when the lock does
+  /// not override the modem. [SoftwareModemMode.none] means the lock forces the
+  /// radio's hardware TNC (software modem off for this radio); any other value
+  /// forces that software mode regardless of the global setting.
+  SoftwareModemMode? lockModemOverride;
+
   /// The user's general software modem (null when the general modem is off).
   _ModemInstance? generalModem;
 
@@ -439,12 +445,6 @@ class SoftwareModem {
   /// default so nothing extra is computed unless the user enables the panel.
   bool _dartAnalysisEnabled = false;
 
-  // Per-session modem override (Terminal / Winlink contacts). While a session
-  // is active the mode is switched to the contact's modem and the user's
-  // regular setting is restored when the session ends.
-  SoftwareModemMode? _sessionOverrideSavedMode;
-  bool _sessionOverrideActive = false;
-
   /// Gets the current modem mode.
   SoftwareModemMode get currentMode => _currentMode;
 
@@ -504,18 +504,6 @@ class SoftwareModem {
       deviceId: 0,
       name: 'SetDartAnalysisEnabled',
       callback: _onSetDartAnalysisEnabledRequested,
-    );
-
-    // Subscribe to per-session modem overrides (Terminal / Winlink contacts).
-    _broker.subscribe(
-      deviceId: 0,
-      name: 'SetSessionModem',
-      callback: _onSetSessionModem,
-    );
-    _broker.subscribe(
-      deviceId: 0,
-      name: 'ClearSessionModem',
-      callback: _onClearSessionModem,
     );
 
     // Subscribe to the independent APRS modem mode / FEC changes on device 0.
@@ -631,6 +619,38 @@ class SoftwareModem {
     }
   }
 
+  /// Parses a lock's modem override string into a mode, or `null` when the lock
+  /// carries no override. 'Hardware' maps to [SoftwareModemMode.none] (force the
+  /// hardware TNC). Software modes are unavailable on web / iOS, where they fall
+  /// back to the hardware TNC.
+  static SoftwareModemMode? _parseLockModem(String? modem) {
+    if (modem == null) return null;
+    final String m = modem.trim();
+    if (m.isEmpty || m.toLowerCase() == 'hardware') {
+      return SoftwareModemMode.none;
+    }
+    final bool audioSupported = !kIsWeb && !Platform.isIOS;
+    return audioSupported ? _parseMode(m) : SoftwareModemMode.none;
+  }
+
+  /// The general modem mode in effect for [state]: the lock's modem override
+  /// when present, otherwise the global user setting.
+  SoftwareModemMode _effectiveGeneralMode(_RadioModemState state) =>
+      state.lockModemOverride ?? _currentMode;
+
+  /// Rebuilds [state]'s general modem instance so it matches the effective
+  /// general mode (lock override or global). No-op when already correct.
+  void _rebuildGeneralModem(_RadioModemState state) {
+    final SoftwareModemMode mode = _effectiveGeneralMode(state);
+    final SoftwareModemMode current =
+        state.generalModem?.mode ?? SoftwareModemMode.none;
+    if (current == mode) return;
+    state.generalModem?.dispose();
+    state.generalModem = mode == SoftwareModemMode.none
+        ? null
+        : _buildInstance(state, mode, _fecEnabled);
+  }
+
   /// Sets the software modem mode. When [persist] is false the change is
   /// applied live but the stored user preference (device 0 'SoftwareModemMode')
   /// is left untouched - used for temporary per-session overrides.
@@ -688,10 +708,6 @@ class SoftwareModem {
 
     final String modeStr = (data is String) ? data : (data?.toString() ?? '');
     final SoftwareModemMode newMode = _parseMode(modeStr);
-    // A manual mode change ends any active session override so a later
-    // ClearSessionModem does not revert the user's new choice.
-    _sessionOverrideActive = false;
-    _sessionOverrideSavedMode = null;
     setMode(newMode);
   }
 
@@ -865,52 +881,41 @@ class SoftwareModem {
     );
     _debug('APRS modem FX.25 FEC ${_aprsFecEnabled ? "enabled" : "disabled"}');
   }
-  /// [data] is the contact's modem value: 'Hardware' (radio TNC -> software
-  /// modem off), 'AFSK1200' or 'PSK2400'.
-  void _onSetSessionModem(int deviceId, String name, Object? data) {
-    if (_disposed) return;
-
-    final String modemStr = (data is String) ? data : (data?.toString() ?? '');
-    // Software modem modes require the audio channel, which is unavailable on
-    // web and iOS - fall back to the radio's hardware TNC there.
-    final bool audioSupported = !kIsWeb && !Platform.isIOS;
-    final SoftwareModemMode target =
-        audioSupported ? _parseMode(modemStr) : SoftwareModemMode.none;
-
-    // Remember the user's regular mode the first time we override.
-    if (!_sessionOverrideActive) {
-      _sessionOverrideSavedMode = _currentMode;
-      _sessionOverrideActive = true;
-    }
-
-    _debug('Session modem override -> ${target.name} (was ${_sessionOverrideSavedMode?.name})');
-    setMode(target, persist: false);
-  }
-
-  /// Restore the user's regular modem mode after a session ends.
-  void _onClearSessionModem(int deviceId, String name, Object? data) {
-    if (_disposed) return;
-    if (!_sessionOverrideActive) return;
-
-    final SoftwareModemMode restore =
-        _sessionOverrideSavedMode ?? SoftwareModemMode.none;
-    _sessionOverrideActive = false;
-    _sessionOverrideSavedMode = null;
-
-    _debug('Session modem override cleared, restoring ${restore.name}');
-    setMode(restore, persist: false);
-  }
 
   // ---------------------------------------------------------------------------
   // Audio data processing
   // ---------------------------------------------------------------------------
 
+  /// Whether any software-modem processing applies to [deviceId]: the global
+  /// general or APRS modem is on, or the radio's lock forces a software mode.
+  bool _softwareActiveForDevice(int deviceId) {
+    if (_currentMode != SoftwareModemMode.none ||
+        _aprsMode != SoftwareModemMode.none) {
+      return true;
+    }
+    final state = _radioModems[deviceId];
+    if (state != null) {
+      final override = state.lockModemOverride;
+      return override != null && override != SoftwareModemMode.none;
+    }
+    // No pipeline yet (e.g. cleared by a global mode change): consult the
+    // broker's stored lock state so a lock-forced software modem is honoured.
+    final lock = _broker.getValue<Object>(deviceId, 'LockState', null);
+    if (lock is Map) {
+      final bool isLocked =
+          (lock['isLocked'] ?? lock['IsLocked']) as bool? ?? false;
+      if (isLocked) {
+        final override =
+            _parseLockModem((lock['modem'] ?? lock['Modem']) as String?);
+        return override != null && override != SoftwareModemMode.none;
+      }
+    }
+    return false;
+  }
+
   void _onAudioDataAvailable(int deviceId, String name, Object? data) {
     if (_disposed || deviceId <= 0) return;
-    if (_currentMode == SoftwareModemMode.none &&
-        _aprsMode == SoftwareModemMode.none) {
-      return;
-    }
+    if (!_softwareActiveForDevice(deviceId)) return;
     if (data is! Map) return;
 
     // Don't process transmitted audio
@@ -943,10 +948,7 @@ class SoftwareModem {
     int length,
     String channelName,
   ) {
-    if (_currentMode == SoftwareModemMode.none &&
-        _aprsMode == SoftwareModemMode.none) {
-      return;
-    }
+    if (!_softwareActiveForDevice(deviceId)) return;
 
     // Get or create modem state for this radio
     _RadioModemState? state = _radioModems[deviceId];
@@ -1030,6 +1032,9 @@ class SoftwareModem {
         state.lockUsage = usage;
         state.lockChannelId =
             _readInt(lockState['channelId'] ?? lockState['ChannelId']) ?? -1;
+        state.lockModemOverride = _parseLockModem(
+          (lockState['modem'] ?? lockState['Modem']) as String?,
+        );
       }
     }
 
@@ -1040,8 +1045,9 @@ class SoftwareModem {
     Fx25.init(0);
 
     // Build the two modem pipelines that are enabled.
-    if (_currentMode != SoftwareModemMode.none) {
-      state.generalModem = _buildInstance(state, _currentMode, _fecEnabled);
+    final SoftwareModemMode generalMode = _effectiveGeneralMode(state);
+    if (generalMode != SoftwareModemMode.none) {
+      state.generalModem = _buildInstance(state, generalMode, _fecEnabled);
     }
     if (_aprsMode != SoftwareModemMode.none) {
       state.aprsModem = _buildInstance(state, _aprsMode, _aprsFecEnabled);
@@ -1373,30 +1379,46 @@ class SoftwareModem {
   void _onLockStateChanged(int deviceId, String name, Object? data) {
     if (_disposed || deviceId <= 0) return;
 
-    final state = _radioModems[deviceId];
-    if (state == null) return;
-
+    // Parse the new lock state (including any modem override).
+    bool isLocked = false;
+    String? usage;
+    int channelId = -1;
+    SoftwareModemMode? modemOverride;
     if (data is Map) {
-      final bool isLocked =
-          (data['isLocked'] ?? data['IsLocked']) as bool? ?? false;
-      final String? usage = (data['usage'] ?? data['Usage']) as String?;
-      final int channelId =
-          _readInt(data['channelId'] ?? data['ChannelId']) ?? -1;
+      isLocked = (data['isLocked'] ?? data['IsLocked']) as bool? ?? false;
+      usage = (data['usage'] ?? data['Usage']) as String?;
+      channelId = _readInt(data['channelId'] ?? data['ChannelId']) ?? -1;
       if (isLocked && usage != null && usage.isNotEmpty) {
-        state.lockIsLocked = true;
-        state.lockUsage = usage;
-        state.lockChannelId = channelId;
+        modemOverride =
+            _parseLockModem((data['modem'] ?? data['Modem']) as String?);
       } else {
-        state.lockIsLocked = false;
-        state.lockUsage = null;
-        state.lockChannelId = -1;
+        isLocked = false;
+        usage = null;
+        channelId = -1;
       }
-    } else {
-      // A null LockState means the radio was unlocked.
-      state.lockIsLocked = false;
-      state.lockUsage = null;
-      state.lockChannelId = -1;
     }
+
+    _RadioModemState? state = _radioModems[deviceId];
+    if (state == null) {
+      // No pipeline exists yet. Only create one when the lock forces a software
+      // modem that the global setting would otherwise leave off; otherwise
+      // there is nothing to track until audio/transmit lazily creates it.
+      final bool needsSoftware = modemOverride != null &&
+          modemOverride != SoftwareModemMode.none;
+      if (!needsSoftware) return;
+      state = _createRadioModemState(deviceId);
+      if (state == null) return;
+      _radioModems[deviceId] = state;
+    }
+
+    state.lockIsLocked = isLocked;
+    state.lockUsage = usage;
+    state.lockChannelId = channelId;
+    state.lockModemOverride = modemOverride;
+
+    // The override may switch this radio's general modem on, off, or to a
+    // different mode independent of the global setting.
+    _rebuildGeneralModem(state);
   }
 
   // ---------------------------------------------------------------------------
@@ -1405,10 +1427,7 @@ class SoftwareModem {
 
   void _onTransmitPacketRequested(int deviceId, String name, Object? data) {
     if (_disposed || deviceId <= 0) return;
-    if (_currentMode == SoftwareModemMode.none &&
-        _aprsMode == SoftwareModemMode.none) {
-      return;
-    }
+    if (!_softwareActiveForDevice(deviceId)) return;
     if (data is! TncDataFragment) return;
 
     transmitPacket(deviceId, data);
@@ -1421,10 +1440,7 @@ class SoftwareModem {
       return;
     }
 
-    if (_currentMode == SoftwareModemMode.none &&
-        _aprsMode == SoftwareModemMode.none) {
-      return;
-    }
+    if (!_softwareActiveForDevice(deviceId)) return;
 
     // Get or create modem state for this radio
     _RadioModemState? state = _radioModems[deviceId];

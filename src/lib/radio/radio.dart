@@ -95,7 +95,17 @@ class SetLockData {
   final int regionId;
   final int channelId;
 
-  SetLockData({required this.usage, this.regionId = -1, this.channelId = -1});
+  /// Optional modem override for the duration of the lock (e.g. 'Hardware',
+  /// 'AFSK1200', 'PSK2400', 'DART'). `null` keeps the global software modem
+  /// setting.
+  final String? modem;
+
+  SetLockData({
+    required this.usage,
+    this.regionId = -1,
+    this.channelId = -1,
+    this.modem,
+  });
 }
 
 /// Data for unlocking the radio
@@ -225,6 +235,12 @@ class Radio {
   String? aprsPath;
   bool hardwareModemEnabled = true;
 
+  /// Live general software-modem mode (enum name, e.g. 'afsk1200' / 'none'),
+  /// tracked via subscription so it reflects session overrides that are
+  /// broadcast without being persisted (`store: false`). Null until the first
+  /// change is observed, in which case the stored value is used as a fallback.
+  String? _liveSoftwareModemMode;
+
   String get friendlyName => _friendlyName;
   RadioState get state => _state;
   int get transmitQueueLength => _tncFragmentQueue.length;
@@ -307,6 +323,15 @@ class Radio {
       deviceId: deviceId,
       name: 'TransmitDataFrame',
       callback: _onTransmitDataFrameEvent,
+    );
+
+    // Track the live general software-modem mode. This fires even for session
+    // overrides that are broadcast without being persisted (store: false), so
+    // transmit routing stays in sync with the modem's actual state.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SoftwareModemMode',
+      callback: _onSoftwareModemModeChanged,
     );
 
     // Subscribe to raw command send events (used by the web server WebSocket
@@ -608,10 +633,13 @@ class Radio {
     }
   }
 
+  void _onSoftwareModemModeChanged(int devId, String name, dynamic data) {
+    if (data is String) _liveSoftwareModemMode = data;
+  }
+
   void _onTransmitDataFrameEvent(int devId, String name, dynamic data) {
     if (devId != deviceId) return;
     if (data is! TransmitDataFrameData) return;
-
     final txData = data;
     if (txData.packet != null) {
       final packet = txData.packet!;
@@ -686,11 +714,13 @@ class Radio {
       usage: lockData.usage,
       regionId: targetRegionId,
       channelId: targetChannelId,
+      modem: lockData.modem,
     );
 
     _dispatch('LockState', _lockState!.toJson());
     _debug(
-      "Radio locked for usage '${lockData.usage}' - Region: $targetRegionId, Channel: $targetChannelId",
+      "Radio locked for usage '${lockData.usage}' - Region: $targetRegionId, "
+      "Channel: $targetChannelId, Modem: ${lockData.modem ?? 'global'}",
     );
 
     // Apply lock settings
@@ -1838,6 +1868,19 @@ class Radio {
   /// the wrong frequency, so we fall back to the hardware TNC, which targets the
   /// correct channel.
   String _activeSoftwareModemModeFor(TncDataFragment fragment) {
+    // A per-usage lock (Terminal / Winlink) may carry a modem override that
+    // applies for the duration of the lock without changing the user's global
+    // setting. 'Hardware' forces the radio's built-in TNC (software modem off);
+    // the software modes still require the audio channel.
+    final lock = _lockState;
+    if (lock != null && lock.isLocked && lock.modem != null) {
+      final String m = lock.modem!.trim();
+      if (m.isEmpty || m.toLowerCase() == 'hardware') return '';
+      final bool audioOn =
+          _broker.getValue<bool>(deviceId, 'AudioState', false) ?? false;
+      return audioOn ? m : '';
+    }
+
     final bool audioOn =
         _broker.getValue<bool>(deviceId, 'AudioState', false) ?? false;
     if (!audioOn) return '';
@@ -1860,7 +1903,9 @@ class Radio {
     }
 
     final String mode =
-        _broker.getValue<String>(0, 'SoftwareModemMode', 'None') ?? 'None';
+        _liveSoftwareModemMode ??
+        _broker.getValue<String>(0, 'SoftwareModemMode', 'None') ??
+        'None';
     if (mode.isEmpty || mode.toLowerCase() == 'none') return '';
     return mode;
   }
