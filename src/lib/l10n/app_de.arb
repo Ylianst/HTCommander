@@ -518,6 +518,8 @@
 
   "packetsCopyHex": "HEX-Paket kopieren",
   "packetsHexCopied": "HEX-Paket in die Zwischenablage kopiert",
+  "packetsCopyPackets": "Pakete kopieren",
+  "packetsCopied": "{count, plural, one{1 Paket in die Zwischenablage kopiert} other{{count} Pakete in die Zwischenablage kopiert}}",
   "packetsSaveTitle": "Paketaufzeichnung speichern",
   "packetsSaved": "Paketaufzeichnung gespeichert",
   "packetsSavedTo": "Paketaufzeichnung gespeichert in {path}",

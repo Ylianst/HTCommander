@@ -163,6 +163,13 @@ class AX25Session {
   /// dynamically from the measured round-trip time.
   int frackSeconds = 3;
 
+  /// Response-delay timer (T2). When an acknowledgement becomes pending, the
+  /// bare RR ack is held for this long so a slightly-delayed application reply
+  /// can piggyback the ack onto an outgoing I-frame instead of costing a
+  /// separate frame. Kept well below T1. Set to [Duration.zero] to send acks
+  /// immediately (legacy behaviour).
+  Duration t2 = const Duration(milliseconds: 250);
+
   /// Number of SABME attempts before falling back to SABM (v2.0). Set to 0 to
   /// never attempt v2.2 even when [modulo128] is `true`.
   int maxV22 = 3;
@@ -216,6 +223,7 @@ class AX25Session {
   double _t1PausedAt = 0;
   double _t1RemainingWhenLastStopped = -999; // negative => invalid
   bool _t1HadExpired = false;
+  double _t2Exp = 0;
   double _t3Exp = 0;
   double _tm201Exp = 0;
   double _tm201PausedAt = 0;
@@ -448,6 +456,7 @@ class AX25Session {
   void _maybeStopTicker() {
     if (_state == _DlState.disconnected &&
         _t1Exp == 0 &&
+        _t2Exp == 0 &&
         _t3Exp == 0 &&
         _tm201Exp == 0) {
       _ticker?.cancel();
@@ -463,6 +472,10 @@ class AX25Session {
       _t1PausedAt = 0;
       _t1HadExpired = true;
       _t1Expiry();
+    }
+    if (_t2Exp != 0 && _t2Exp <= now) {
+      _t2Exp = 0;
+      _t2Expiry();
     }
     if (_t3Exp != 0 && _t3Exp <= now) {
       _t3Exp = 0;
@@ -501,6 +514,15 @@ class AX25Session {
     final pausedFor = _now() - _t1PausedAt;
     _t1Exp += pausedFor;
     _t1PausedAt = 0;
+  }
+
+  void _startT2() {
+    _t2Exp = _now() + t2.inMicroseconds / 1e6;
+    _ensureTicker();
+  }
+
+  void _stopT2() {
+    _t2Exp = 0;
   }
 
   void _startT3() {
@@ -799,8 +821,15 @@ class AX25Session {
       case _DlState.timerRecovery:
         _iFramePopOffQueue();
         if (_acknowledgePending) {
-          _acknowledgePending = false;
-          _enquiryResponse(FrameType.iFrame, false);
+          if (t2 > Duration.zero) {
+            // Hold the bare ack briefly (T2) so a delayed reply can piggyback.
+            if (_t2Exp == 0) _startT2();
+          } else {
+            _acknowledgePending = false;
+            _enquiryResponse(FrameType.iFrame, false);
+          }
+        } else {
+          _stopT2();
         }
         break;
       default:
@@ -1072,6 +1101,7 @@ class AX25Session {
     _rejectException = false;
     _ownReceiverBusy = false;
     _acknowledgePending = false;
+    _stopT2();
     _mdlState = 0;
     _mdlRc = 0;
     _iFrameQueue.clear();
@@ -1090,6 +1120,7 @@ class AX25Session {
     }
     _raData = null;
     _stopT1();
+    _stopT2();
     _stopT3();
     _stopTm201();
     _maybeStopTicker();
@@ -1173,6 +1204,16 @@ class AX25Session {
       _rc = 1;
       _transmitEnquiry();
       _enterNewState(_DlState.timerRecovery);
+    }
+  }
+
+  void _t2Expiry() {
+    // Response-delay window elapsed with no outgoing I-frame to carry the
+    // pending ack, so send the bare RR ack now.
+    if ((_state == _DlState.connected || _state == _DlState.timerRecovery) &&
+        _acknowledgePending) {
+      _acknowledgePending = false;
+      _enquiryResponse(FrameType.iFrame, false);
     }
   }
 

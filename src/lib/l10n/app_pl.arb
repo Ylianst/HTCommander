@@ -518,6 +518,8 @@
 
   "packetsCopyHex": "Kopiuj pakiet HEX",
   "packetsHexCopied": "Pakiet HEX skopiowany do schowka",
+  "packetsCopyPackets": "Kopiuj pakiety",
+  "packetsCopied": "{count, plural, one{Skopiowano 1 pakiet do schowka} few{Skopiowano {count} pakiety do schowka} many{Skopiowano {count} pakietów do schowka} other{Skopiowano {count} pakietu do schowka}}",
   "packetsSaveTitle": "Zapisz zapis pakietów",
   "packetsSaved": "Zapis pakietów zapisany",
   "packetsSavedTo": "Zapis pakietów zapisany w {path}",

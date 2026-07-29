@@ -1582,15 +1582,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get packetsHexCopied => 'HEX 数据包已复制到剪贴板';
 
   @override
-  String get packetsCopyPackets => 'Copy Packets';
+  String get packetsCopyPackets => '复制数据包';
 
   @override
   String packetsCopied(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count packets copied to clipboard',
-      one: '1 packet copied to clipboard',
+      other: '已将 $count 个数据包复制到剪贴板',
+      one: '已将 1 个数据包复制到剪贴板',
     );
     return '$_temp0';
   }

@@ -518,6 +518,8 @@
 
   "packetsCopyHex": "HEX パケットをコピー",
   "packetsHexCopied": "HEX パケットをクリップボードにコピーしました",
+  "packetsCopyPackets": "パケットをコピー",
+  "packetsCopied": "{count, plural, one{1 パケットをクリップボードにコピーしました} other{{count} パケットをクリップボードにコピーしました}}",
   "packetsSaveTitle": "パケットキャプチャを保存",
   "packetsSaved": "パケットキャプチャを保存しました",
   "packetsSavedTo": "パケットキャプチャを {path} に保存しました",

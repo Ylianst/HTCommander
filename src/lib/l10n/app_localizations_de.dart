@@ -1636,15 +1636,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get packetsHexCopied => 'HEX-Paket in die Zwischenablage kopiert';
 
   @override
-  String get packetsCopyPackets => 'Copy Packets';
+  String get packetsCopyPackets => 'Pakete kopieren';
 
   @override
   String packetsCopied(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count packets copied to clipboard',
-      one: '1 packet copied to clipboard',
+      other: '$count Pakete in die Zwischenablage kopiert',
+      one: '1 Paket in die Zwischenablage kopiert',
     );
     return '$_temp0';
   }

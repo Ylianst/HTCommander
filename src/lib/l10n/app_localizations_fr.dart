@@ -1630,15 +1630,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get packetsHexCopied => 'Paquet HEX copié dans le presse-papiers';
 
   @override
-  String get packetsCopyPackets => 'Copy Packets';
+  String get packetsCopyPackets => 'Copier les paquets';
 
   @override
   String packetsCopied(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count packets copied to clipboard',
-      one: '1 packet copied to clipboard',
+      other: '$count paquets copiés dans le presse-papiers',
+      one: '1 paquet copié dans le presse-papiers',
     );
     return '$_temp0';
   }

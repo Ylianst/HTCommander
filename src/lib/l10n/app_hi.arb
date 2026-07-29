@@ -518,6 +518,8 @@
 
   "packetsCopyHex": "HEX पैकेट कॉपी करें",
   "packetsHexCopied": "HEX पैकेट क्लिपबोर्ड में कॉपी किया गया",
+  "packetsCopyPackets": "पैकेट कॉपी करें",
+  "packetsCopied": "{count, plural, one{1 पैकेट क्लिपबोर्ड में कॉपी किया गया} other{{count} पैकेट क्लिपबोर्ड में कॉपी किए गए}}",
   "packetsSaveTitle": "पैकेट कैप्चर सहेजें",
   "packetsSaved": "पैकेट कैप्चर सहेजा गया",
   "packetsSavedTo": "पैकेट कैप्चर {path} में सहेजा गया",

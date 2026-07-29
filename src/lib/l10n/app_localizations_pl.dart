@@ -1629,15 +1629,17 @@ class AppLocalizationsPl extends AppLocalizations {
   String get packetsHexCopied => 'Pakiet HEX skopiowany do schowka';
 
   @override
-  String get packetsCopyPackets => 'Copy Packets';
+  String get packetsCopyPackets => 'Kopiuj pakiety';
 
   @override
   String packetsCopied(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count packets copied to clipboard',
-      one: '1 packet copied to clipboard',
+      other: 'Skopiowano $count pakietu do schowka',
+      many: 'Skopiowano $count pakietów do schowka',
+      few: 'Skopiowano $count pakiety do schowka',
+      one: 'Skopiowano 1 pakiet do schowka',
     );
     return '$_temp0';
   }

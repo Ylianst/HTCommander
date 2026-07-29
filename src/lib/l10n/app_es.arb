@@ -518,6 +518,8 @@
 
   "packetsCopyHex": "Copiar el paquete HEX",
   "packetsHexCopied": "Paquete HEX copiado al portapapeles",
+  "packetsCopyPackets": "Copiar paquetes",
+  "packetsCopied": "{count, plural, one{1 paquete copiado al portapapeles} other{{count} paquetes copiados al portapapeles}}",
   "packetsSaveTitle": "Guardar la captura de paquetes",
   "packetsSaved": "Captura de paquetes guardada",
   "packetsSavedTo": "Captura de paquetes guardada en {path}",
