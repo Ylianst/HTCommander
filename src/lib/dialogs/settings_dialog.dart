@@ -76,6 +76,9 @@ class AppSettings {
   bool shareSerialGpsLocation;
   String airplaneServerUrl;
 
+  // Application tab
+  bool satelliteSupport;
+
   // Limits tab (0 = unlimited)
   int maxAprsMessages;
   int maxPackets;
@@ -153,6 +156,7 @@ class AppSettings {
     this.gpsBaudRate = 4800,
     this.shareSerialGpsLocation = false,
     this.airplaneServerUrl = '',
+    this.satelliteSupport = false,
     this.maxAprsMessages = 0,
     this.maxPackets = 0,
     this.maxSstvImages = 0,
@@ -193,6 +197,7 @@ class AppSettings {
     int? gpsBaudRate,
     bool? shareSerialGpsLocation,
     String? airplaneServerUrl,
+    bool? satelliteSupport,
     int? maxAprsMessages,
     int? maxPackets,
     int? maxSstvImages,
@@ -233,6 +238,7 @@ class AppSettings {
       shareSerialGpsLocation:
           shareSerialGpsLocation ?? this.shareSerialGpsLocation,
       airplaneServerUrl: airplaneServerUrl ?? this.airplaneServerUrl,
+      satelliteSupport: satelliteSupport ?? this.satelliteSupport,
       maxAprsMessages: maxAprsMessages ?? this.maxAprsMessages,
       maxPackets: maxPackets ?? this.maxPackets,
       maxSstvImages: maxSstvImages ?? this.maxSstvImages,
@@ -310,6 +316,8 @@ class AppSettings {
           (DataBroker.getValue<int>(0, 'ShareSerialGpsLocation', 0) ?? 0) == 1,
       airplaneServerUrl:
           DataBroker.getValue<String>(0, 'AirplaneServer', '') ?? '',
+      satelliteSupport:
+          (DataBroker.getValue<int>(0, 'SatelliteSupport', 0) ?? 0) == 1,
       maxAprsMessages:
           DataBroker.getValue<int>(0, 'MaxAprsMessages', 0) ?? 0,
       maxPackets: DataBroker.getValue<int>(0, 'MaxPackets', 0) ?? 0,
@@ -442,6 +450,11 @@ class AppSettings {
       deviceId: 0,
       name: 'AirplaneServer',
       data: airplaneServerUrl,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'SatelliteSupport',
+      data: satelliteSupport ? 1 : 0,
     );
     DataBroker.dispatch(
       deviceId: 0,
@@ -1353,6 +1366,40 @@ class _SettingsDialogState extends State<SettingsDialog>
                 Text(
                   l10n.settingsThemeModeHint,
                   style: _hintStyle(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Optional features
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: _sectionDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Features', style: _sectionTitleStyle()),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _settings.satelliteSupport,
+                      onChanged: (value) {
+                        setState(
+                          () => _settings.satelliteSupport = value ?? false,
+                        );
+                      },
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(
+                          () => _settings.satelliteSupport =
+                              !_settings.satelliteSupport,
+                        ),
+                        child: const Text('Satellite Support'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -2936,9 +2983,11 @@ class _SettingsDialogState extends State<SettingsDialog>
   /// available ports, and the currently-configured value even if it is no
   /// longer present (so the saved selection stays visible).
   List<DropdownMenuItem<String>> _gpsPortItems() {
-    final values = <String>['None', ..._availablePorts];
-    if (_settings.gpsSerialPort.isNotEmpty &&
-        !values.contains(_settings.gpsSerialPort)) {
+    // Use a set: libserialport can enumerate the same port twice on Windows,
+    // which would otherwise create duplicate dropdown items and trip
+    // DropdownButton's "exactly one matching value" assertion.
+    final values = <String>{'None', ..._availablePorts};
+    if (_settings.gpsSerialPort.isNotEmpty) {
       values.add(_settings.gpsSerialPort);
     }
     return values

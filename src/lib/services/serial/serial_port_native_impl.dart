@@ -68,11 +68,11 @@ class SerialPort {
 
   /// Enumerates available serial ports on the current platform.
   static List<String> get availablePorts {
-    if (Platform.isWindows) {
-      return _Win32.enumeratePorts();
-    } else {
-      return _Posix.enumeratePorts();
-    }
+    final ports =
+        Platform.isWindows ? _Win32.enumeratePorts() : _Posix.enumeratePorts();
+    // Deduplicate: enumeration can report the same port twice on Windows,
+    // which breaks callers that build a dropdown keyed on the port name.
+    return ports.toSet().toList();
   }
 
   /// Opens the port for both reading and writing.

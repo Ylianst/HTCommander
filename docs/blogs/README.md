@@ -138,6 +138,20 @@ Sending and shaping audio through the radio — from the microphone to Morse.
 
 ---
 
+## Satellites
+
+Working amateur radio satellites with a handheld — tracking, passes, and Doppler.
+
+1. **[Working the Birds: Amateur Satellite Support in HTCommander](satellite-tracking.md)**
+   How HTCommander tracks the FM "easy sats" — SGP4 orbit propagation via the
+   `satellite_observer` package, orbital elements from CelesTrak and transponder
+   frequencies from SatNOGS (with a bundled offline seed), the tab and map ground
+   track/footprint overlay, Doppler-corrected up/downlink from range-rate — and
+   the honest ledger of what's left: driving the radio's own native
+   `SET_SATELLITE_INFO` command, whose payload isn't decoded yet.
+
+---
+
 ## Data & Storage
 
 How HTCommander packs large datasets into small, fast, self-contained files.

@@ -1,0 +1,65 @@
+{
+  "_comment": "Seed amateur-satellite FM transponder catalog. Frequencies in Hz. Refreshed online from the SatNOGS DB (https://db.satnogs.org/api/transmitters/). uplink = ground->satellite (radio TX), downlink = satellite->ground (radio RX). ctcssHz is the sub-audible tone required on the uplink, or null.",
+  "transponders": [
+    {
+      "noradId": 25544,
+      "name": "ISS Cross-band FM Repeater",
+      "uplinkHz": 145990000,
+      "downlinkHz": 437800000,
+      "mode": "FM",
+      "ctcssHz": 67.0,
+      "inverting": false,
+      "status": "active"
+    },
+    {
+      "noradId": 27607,
+      "name": "SO-50 FM Repeater",
+      "uplinkHz": 145850000,
+      "downlinkHz": 436795000,
+      "mode": "FM",
+      "ctcssHz": 67.0,
+      "inverting": false,
+      "status": "active"
+    },
+    {
+      "noradId": 43678,
+      "name": "PO-101 (Diwata-2) FM Repeater",
+      "uplinkHz": 437500000,
+      "downlinkHz": 145900000,
+      "mode": "FM",
+      "ctcssHz": 141.3,
+      "inverting": false,
+      "status": "active"
+    },
+    {
+      "noradId": 43017,
+      "name": "AO-91 (RadFxSat) FM Repeater",
+      "uplinkHz": 435250000,
+      "downlinkHz": 145960000,
+      "mode": "FM",
+      "ctcssHz": 67.0,
+      "inverting": false,
+      "status": "active"
+    },
+    {
+      "noradId": 40908,
+      "name": "LilacSat-2 FM Repeater",
+      "uplinkHz": 144350000,
+      "downlinkHz": 437200000,
+      "mode": "FM",
+      "ctcssHz": null,
+      "inverting": false,
+      "status": "active"
+    },
+    {
+      "noradId": 63218,
+      "name": "TEVEL2-3 FM Repeater",
+      "uplinkHz": 145970000,
+      "downlinkHz": 436400000,
+      "mode": "FM",
+      "ctcssHz": 67.0,
+      "inverting": false,
+      "status": "active"
+    }
+  ]
+}

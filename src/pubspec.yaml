@@ -65,6 +65,7 @@ dependencies:
   package_info_plus: ^8.0.0
   grpc: ^4.0.1
   mqtt_client: ^10.9.0
+  satellite_observer: ^1.0.1
 
 dev_dependencies:
   flutter_test:
@@ -156,6 +157,10 @@ flutter:
     # Offline callsign -> country/DXCC-entity table (AD1C country-files.com),
     # gzip-compressed JSON loaded into memory at startup. See tools/build_cty.py.
     - assets/callsign/
+    # Seed amateur-satellite data (Celestrak TLEs + SatNOGS transponder catalog)
+    # so the satellite feature works offline on first run before an online
+    # refresh. See lib/satellite/tle_repository.dart.
+    - assets/satellites/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

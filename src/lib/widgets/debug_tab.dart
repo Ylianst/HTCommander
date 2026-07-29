@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'tab_visibility.dart';
 import '../dialogs/aprs_symbols_dialog.dart';
-import '../dialogs/firmware_update_dialog.dart';
 import '../dialogs/radio_settings_dialog.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../l10n/app_localizations.dart';
@@ -169,23 +168,6 @@ class _DebugTabState extends State<DebugTab>
     }
     if (id <= 0 || bt.radioInstance(id) == null) return -1;
     return id;
-  }
-
-  /// Opens the firmware update dialog for the currently connected radio.
-  /// (Experimental — lives in the Debug tab while the online update check is
-  /// still being worked out.)
-  void _onFirmwareUpdate() {
-    final id = _resolveConnectedRadioId();
-    if (id < 0) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context).commonNoRadioConnected),
-        ),
-      );
-      return;
-    }
-    showFirmwareUpdateDialog(context, id);
   }
 
   /// Opens the raw command test dialog for the currently connected radio.
@@ -438,21 +420,6 @@ class _DebugTabState extends State<DebugTab>
           padding: menuItemPadding,
           child: Row(children: [const SizedBox(width: 20), Text(l10n.tabClear)]),
         ),
-        // Firmware update is only supported over Bluetooth Classic transports.
-        if (!kIsWeb &&
-            (Platform.isWindows ||
-                Platform.isMacOS ||
-                Platform.isAndroid)) ...[
-          const PopupMenuDivider(height: 8),
-          PopupMenuItem<String>(
-            value: 'firmwareUpdate',
-            height: menuItemHeight,
-            padding: menuItemPadding,
-            child: Row(
-              children: [const SizedBox(width: 20), Text(l10n.debugFirmwareUpdate)],
-            ),
-          ),
-        ],
         // macOS-only option to show built-in menus (skip on web)
         if (!kIsWeb && Platform.isMacOS) ...[
           const PopupMenuDivider(height: 8),
@@ -523,9 +490,6 @@ class _DebugTabState extends State<DebugTab>
           break;
         case 'clear':
           _clearLogs();
-          break;
-        case 'firmwareUpdate':
-          _onFirmwareUpdate();
           break;
         case 'showBuiltInMenus':
           widget.onShowBuiltInMenusChanged?.call(!widget.showBuiltInMenus);

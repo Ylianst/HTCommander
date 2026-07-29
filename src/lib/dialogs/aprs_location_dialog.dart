@@ -4,6 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -21,6 +22,9 @@ Future<void> showAprsLocationDialog(
   required double latitude,
   required double longitude,
   String? title,
+  String zoomStorageKey = 'AprsLocationZoom',
+  double defaultZoom = 14.0,
+  ValueListenable<LatLng>? livePosition,
 }) {
   return showDialog<void>(
     context: context,
@@ -28,6 +32,9 @@ Future<void> showAprsLocationDialog(
       latitude: latitude,
       longitude: longitude,
       title: title,
+      zoomStorageKey: zoomStorageKey,
+      defaultZoom: defaultZoom,
+      livePosition: livePosition,
     ),
   );
 }
@@ -41,11 +48,25 @@ class AprsLocationDialog extends StatefulWidget {
     required this.latitude,
     required this.longitude,
     this.title,
+    this.zoomStorageKey = 'AprsLocationZoom',
+    this.defaultZoom = 14.0,
+    this.livePosition,
   });
 
   final double latitude;
   final double longitude;
   final String? title;
+
+  /// DataBroker key (device 0) under which this dialog's zoom is persisted, so
+  /// different callers (e.g. APRS vs. satellites) keep independent zoom levels.
+  final String zoomStorageKey;
+
+  /// Zoom used the first time this dialog is opened with no saved value.
+  final double defaultZoom;
+
+  /// When set, the marker and map follow this live position as it changes
+  /// (e.g. a moving satellite) instead of staying on the fixed coordinates.
+  final ValueListenable<LatLng>? livePosition;
 
   @override
   State<AprsLocationDialog> createState() => _AprsLocationDialogState();
@@ -56,21 +77,40 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
   final DataBrokerClient _broker = DataBrokerClient();
   late final TileProvider _tileProvider = mapTileProvider(offline: false);
 
-  static const double _defaultZoom = 14.0;
-
   /// Zoom level restored from persistent storage (device 0), so the dialog
   /// reopens at the same zoom the user last left it.
   late final double _initialZoom =
-      (DataBroker.getValue<int>(0, 'AprsLocationZoom', _defaultZoom.toInt()) ??
-              _defaultZoom.toInt())
+      (DataBroker.getValue<int>(
+                0,
+                widget.zoomStorageKey,
+                widget.defaultZoom.toInt(),
+              ) ??
+              widget.defaultZoom.toInt())
           .toDouble()
           .clamp(3, 18)
           .toDouble();
 
-  LatLng get _center => LatLng(widget.latitude, widget.longitude);
+  late LatLng _center =
+      widget.livePosition?.value ?? LatLng(widget.latitude, widget.longitude);
+
+  @override
+  void initState() {
+    super.initState();
+    widget.livePosition?.addListener(_onLivePositionChanged);
+  }
+
+  /// Follows a live position: recenters the map and moves the marker as the
+  /// tracked object (e.g. a satellite) moves.
+  void _onLivePositionChanged() {
+    final next = widget.livePosition?.value;
+    if (next == null || !mounted) return;
+    setState(() => _center = next);
+    _mapController.move(_center, _mapController.camera.zoom);
+  }
 
   @override
   void dispose() {
+    widget.livePosition?.removeListener(_onLivePositionChanged);
     _tileProvider.dispose();
     super.dispose();
   }
@@ -79,7 +119,7 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
   void _saveZoom(double zoom) {
     _broker.dispatch(
       deviceId: 0,
-      name: 'AprsLocationZoom',
+      name: widget.zoomStorageKey,
       data: zoom.round(),
     );
   }
@@ -109,8 +149,8 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
     if (!hasGesture) return;
     _saveZoom(camera.zoom);
     final center = camera.center;
-    if (center.latitude != widget.latitude ||
-        center.longitude != widget.longitude) {
+    if (center.latitude != _center.latitude ||
+        center.longitude != _center.longitude) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _mapController.move(_center, camera.zoom);
       });

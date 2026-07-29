@@ -9,6 +9,7 @@ import '../aprs/aprs_packet.dart';
 import '../handlers/bbs_handler.dart';
 import '../models/aircraft.dart';
 import '../radio/tnc_data_fragment.dart';
+import '../satellite/satellite_models.dart';
 import '../winlink/winlink_client.dart';
 import '../winlink/winlink_mail.dart';
 import 'data_broker.dart';
@@ -88,5 +89,26 @@ void registerBrokerSerializers() {
     'tncFragment',
     (value) => value.toJson(),
     (json) => TncDataFragment.fromJson(json),
+  );
+
+  // The satellite tab (and its detached window) reads the catalog, live
+  // positions and predicted passes as lists of typed objects rebuilt with
+  // `whereType<...>()`, so each concrete type must survive the cross-window
+  // trip. The ground track is a `List<List<double>>` of primitives and needs
+  // no serializer.
+  DataBroker.registerSerializer<SatelliteInfo>(
+    'satelliteInfo',
+    (value) => value.toJson(),
+    (json) => SatelliteInfo.fromJson(json),
+  );
+  DataBroker.registerSerializer<SatellitePosition>(
+    'satellitePosition',
+    (value) => value.toJson(),
+    (json) => SatellitePosition.fromJson(json),
+  );
+  DataBroker.registerSerializer<SatellitePass>(
+    'satellitePass',
+    (value) => value.toJson(),
+    (json) => SatellitePass.fromJson(json),
   );
 }

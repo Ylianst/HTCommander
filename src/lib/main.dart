@@ -13,6 +13,7 @@ import 'package:window_manager/window_manager.dart';
 import 'dialogs/about_dialog.dart';
 import 'dialogs/callsign_lookup_dialog.dart';
 import 'dialogs/configure_buttons_dialog.dart';
+import 'dialogs/firmware_update_dialog.dart';
 import 'dialogs/fm_radio_dialog.dart';
 import 'dialogs/gps_serial_info_dialog.dart';import 'dialogs/import_channels_dialog.dart';
 import 'dialogs/radio_connection_dialog.dart';
@@ -25,6 +26,7 @@ import 'handlers/packet_store.dart';
 import 'handlers/aprs_handler.dart';
 import 'handlers/digipeater_handler.dart';
 import 'handlers/airplane_handler.dart';
+import 'handlers/satellite_handler.dart';
 import 'handlers/comms_handler.dart';
 import 'handlers/morse_key_handler.dart';
 import 'handlers/bbs_handler.dart';
@@ -73,6 +75,7 @@ import 'widgets/audio_tab.dart';
 import 'widgets/aprs_tab.dart';
 import 'widgets/tab_visibility.dart';
 import 'widgets/map_tab.dart';
+import 'widgets/satellite_tab.dart';
 import 'widgets/mail_tab.dart';
 import 'widgets/terminal_tab.dart';
 import 'widgets/contacts_tab.dart';
@@ -181,6 +184,15 @@ void main(List<String> args) async {
   final airplaneHandler = AirplaneHandler();
   airplaneHandler.init();
   DataBroker.addDataHandler('AirplaneHandler', airplaneHandler);
+
+  // Register the satellite handler so that amateur satellites are tracked from
+  // cached/seed TLEs, their live positions and upcoming passes published for
+  // the satellite tab and map overlay, and their FM up/downlink offered for the
+  // radio. Refreshes TLEs (CelesTrak) and transponders (SatNOGS) in the
+  // background, self-gated to respect upstream rate limits.
+  final satelliteHandler = SatelliteHandler();
+  await satelliteHandler.init();
+  DataBroker.addDataHandler('SatelliteHandler', satelliteHandler);
 
   // Register the software modem handler so that incoming radio audio is decoded
   // into TNC data frames using AFSK 1200, PSK 2400/4800 or G3RUH 9600
@@ -419,6 +431,9 @@ class _SubWindowAppState extends State<SubWindowApp> with WindowListener {
       case 'map':
         tabTitle = 'Map';
         tabContent = const MapTab();
+      case 'satellite':
+        tabTitle = 'Satellite';
+        tabContent = const SatelliteTab();
       case 'mail':
         tabTitle = 'Mail';
         tabContent = const MailTab();
@@ -658,6 +673,8 @@ class _MainFormState extends State<MainForm>
   Set<String> _hiddenTabs = {};
   // When true, all tabs are shown regardless of _hiddenTabs.
   bool _showAllTabs = false;
+  // When false, the Satellite tab is hidden and satellite tracking is off.
+  bool _satelliteSupport = false;
   bool _isCompactMode = false;
   // A saved tab label that wasn't available at startup (e.g. "Radio", which
   // only exists in compact mode). Selected once the tab set is rebuilt.
@@ -746,6 +763,7 @@ class _MainFormState extends State<MainForm>
     _TabInfo('Audio', 'assets/images/tabs/audio.png', Icons.volume_up),
     _TabInfo('APRS', 'assets/images/tabs/aprs.png', Icons.people),
     _TabInfo('Map', 'assets/images/tabs/map.png', Icons.public),
+    _TabInfo('Satellite', 'assets/images/tabs/satellite.png', Icons.satellite_alt),
     _TabInfo('Mail', 'assets/images/tabs/email.png', Icons.mail),
     _TabInfo('Terminal', 'assets/images/tabs/terminal.png', Icons.terminal),
     _TabInfo('Contacts', 'assets/images/tabs/contacts.png', Icons.contacts),
@@ -776,6 +794,7 @@ class _MainFormState extends State<MainForm>
     bool isCompact,
     bool allowTransmit,
     bool winlinkPasswordSet,
+    bool satelliteSupport,
   ) {
     // The web build talks to the radio over the BLE control channel only; there
     // is no audio channel. The Audio tab is still shown (restricted to the
@@ -790,6 +809,8 @@ class _MainFormState extends State<MainForm>
       if (!allowTransmit && _transmitOnlyTabs.contains(t.label)) return false;
       // The Winlink (Mail) tab additionally requires a Winlink password.
       if (!winlinkPasswordSet && t.label == 'Mail') return false;
+      // The Satellite tab is opt-in via the Application settings.
+      if (!satelliteSupport && t.label == 'Satellite') return false;
       return true;
     }).toList();
     return isCompact ? [_radioTab, ...base] : base;
@@ -802,6 +823,7 @@ class _MainFormState extends State<MainForm>
       _isCompactMode,
       _allowTransmit,
       _winlinkPasswordSet,
+      _satelliteSupport,
     );
     if (_showAllTabs || _hiddenTabs.isEmpty) return all;
     final visible = all.where((t) => !_hiddenTabs.contains(t.label)).toList();
@@ -827,6 +849,7 @@ class _MainFormState extends State<MainForm>
         'CheckForUpdates',
         'ShowAllChannels',
         'ShowChannelFrequency',
+        'SatelliteSupport',
       ],
       callback: _onSettingsChanged,
     );
@@ -1030,6 +1053,8 @@ class _MainFormState extends State<MainForm>
     _winlinkPasswordSet =
         (DataBroker.getValue<String>(0, 'WinlinkPassword', '') ?? '')
             .isNotEmpty;
+    _satelliteSupport =
+        (DataBroker.getValue<int>(0, 'SatelliteSupport', 0) ?? 0) == 1;
     _showTabNames = (DataBroker.getValue<int>(0, 'ShowTabNames', 1) ?? 1) == 1;
     _showAllChannels =
         (DataBroker.getValue<int>(0, 'ShowAllChannels', 0) ?? 0) == 1;
@@ -1127,6 +1152,10 @@ class _MainFormState extends State<MainForm>
           break;
         case 'CheckForUpdates':
           _checkForUpdatesEnabled = (data as int?) == 1;
+          break;
+        case 'SatelliteSupport':
+          _satelliteSupport = (data as int?) == 1;
+          _rebuildTabsForTransmit();
           break;
       }
     });
@@ -2485,6 +2514,15 @@ class _MainFormState extends State<MainForm>
                   )
                 : null,
           ),
+          // Firmware update is only supported over Bluetooth Classic transports.
+          if (!kIsWeb &&
+              (Platform.isWindows || Platform.isMacOS || Platform.isAndroid))
+            AppMenuAction(
+              label: l10n.debugFirmwareUpdate,
+              onPressed: _hasConnectedRadio && !_isEchoLink
+                  ? _onFirmwareUpdate
+                  : null,
+            ),
           if (_hasGpsConfigured)
             AppMenuAction(
               label: l10n.menuGpsInformation,
@@ -3169,6 +3207,8 @@ class _MainFormState extends State<MainForm>
         return const AprsTab();
       case 'Map':
         return const MapTab();
+      case 'Satellite':
+        return const SatelliteTab();
       case 'Mail':
         return const MailTab();
       case 'Terminal':
@@ -3628,6 +3668,19 @@ class _MainFormState extends State<MainForm>
   void _onAbout() {
     _broker.logInfo('Opening About dialog');
     showDialog(context: context, builder: (context) => const HTAboutDialog());
+  }
+
+  void _onFirmwareUpdate() {
+    final id = _currentRadioDeviceId;
+    if (id <= 0 || id == echoLinkDeviceId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context).commonNoRadioConnected),
+        ),
+      );
+      return;
+    }
+    showFirmwareUpdateDialog(context, id);
   }
 }
 

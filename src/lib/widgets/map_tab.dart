@@ -20,6 +20,7 @@ import '../gps/gps_data.dart';
 import '../l10n/app_localizations.dart';
 import '../models/aircraft.dart';
 import '../models/radio_models.dart';
+import '../satellite/satellite_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
@@ -111,6 +112,15 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   bool _showAirplanes = false;
   bool _showContactsOnly = false;
   bool _largeMarkers = true;
+
+  /// When true, tracked amateur satellites are drawn on the map.
+  bool _showSatellites = false;
+  /// Mirrors the app-level 'Satellite support' setting; when false the whole
+  /// satellite overlay (and its menu item) is hidden.
+  bool _satelliteSupport = false;
+  List<SatellitePosition> _satellites = const [];
+  List<List<double>> _satGroundTrack = const [];
+  int? _selectedSatId;
 
   /// When true, stations are drawn using their real APRS symbols instead of
   /// generic location pins.
@@ -225,6 +235,40 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       deviceId: 0,
       name: 'ShowAirplanesOnMap',
       callback: _onShowAirplanesChanged,
+    );
+
+    // Receive satellite tracking updates from the SatelliteHandler.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SatellitePositions',
+      callback: _onSatellitePositions,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SatelliteGroundTrack',
+      callback: _onSatelliteGroundTrack,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SelectedSatelliteId',
+      callback: _onSelectedSatelliteChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'ShowSatellitesOnMap',
+      callback: _onShowSatellitesChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SatelliteSupport',
+      callback: _onSatelliteSupportChanged,
+    );
+    // Ask the handler to re-emit its current snapshot (broadcast-only events).
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SatelliteResync',
+      data: null,
+      store: false,
     );
 
     // Keep the APRS-IS visibility filter in sync with the APRS tab.
@@ -430,6 +474,55 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     setState(() {
       _showAirplanes = (data as int?) == 1;
       if (!_showAirplanes) _airplanes = const [];
+    });
+  }
+
+  void _onSatellitePositions(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final list = data is List
+        ? data.whereType<SatellitePosition>().toList()
+        : const <SatellitePosition>[];
+    setState(() => _satellites = list);
+  }
+
+  void _onSatelliteGroundTrack(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final track = <List<double>>[];
+    if (data is List) {
+      for (final e in data) {
+        if (e is List && e.length >= 2 && e[0] is num && e[1] is num) {
+          track.add([(e[0] as num).toDouble(), (e[1] as num).toDouble()]);
+        }
+      }
+    }
+    setState(() => _satGroundTrack = track);
+  }
+
+  void _onSelectedSatelliteChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final id = data is int ? data : (data is num ? data.toInt() : null);
+    setState(() => _selectedSatId = id);
+  }
+
+  void _onShowSatellitesChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(() {
+      _showSatellites = (data as int?) == 1;
+      if (!_showSatellites) {
+        _satellites = const [];
+        _satGroundTrack = const [];
+      }
+    });
+  }
+
+  void _onSatelliteSupportChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(() {
+      _satelliteSupport = (data as int?) == 1;
+      if (!_satelliteSupport) {
+        _satellites = const [];
+        _satGroundTrack = const [];
+      }
     });
   }
 
@@ -691,6 +784,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
         (DataBroker.getValue<int>(0, 'ShowAirplanesOnMap', 0) ?? 0) == 1;
     _showContactsOnly =
         (DataBroker.getValue<int>(0, 'MapShowContactsOnly', 0) ?? 0) == 1;
+    _showSatellites =
+        (DataBroker.getValue<int>(0, 'ShowSatellitesOnMap', 0) ?? 0) == 1;
+    _satelliteSupport =
+        (DataBroker.getValue<int>(0, 'SatelliteSupport', 0) ?? 0) == 1;
+    _selectedSatId = DataBroker.getValue<int>(0, 'SelectedSatelliteId', null);
   }
 
   /// Called when the map position changes.
@@ -849,6 +947,23 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
               ],
             ),
           ),
+        if (_satelliteSupport)
+          PopupMenuItem<String>(
+            value: 'satellites',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _showSatellites
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                const Text('Show Satellites'),
+              ],
+            ),
+          ),
         PopupMenuItem<String>(
           value: 'largeMarkers',
           height: menuItemHeight,
@@ -949,6 +1064,16 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             deviceId: 0,
             name: 'ShowAirplanesOnMap',
             data: _showAirplanes ? 1 : 0,
+          );
+          break;
+        case 'satellites':
+          setState(() {
+            _showSatellites = !_showSatellites;
+          });
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'ShowSatellitesOnMap',
+            data: _showSatellites ? 1 : 0,
           );
           break;
         case 'largeMarkers':
@@ -1136,6 +1261,102 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       ),
     );
   }
+
+  /// Mean Earth radius in kilometres, used for the satellite footprint circle.
+  static const double _earthRadiusKm = 6371.0;
+
+  /// Builds a marker at each tracked satellite's sub-point. The selected bird
+  /// is amber, others green when above the horizon and grey when below.
+  List<Marker> _buildSatelliteMarkers() {
+    final markers = <Marker>[];
+    for (final sat in _satellites) {
+      final selected = sat.noradId == _selectedSatId;
+      final color = selected
+          ? Colors.amber
+          : (sat.isVisible ? Colors.green : Colors.grey);
+      markers.add(
+        Marker(
+          point: LatLng(sat.latitudeDeg, sat.longitudeDeg),
+          width: 120,
+          height: 44,
+          child: Tooltip(
+            message:
+                '${sat.name}\n'
+                'az ${sat.azimuthDeg.round()}\u00b0 el ${sat.elevationDeg.round()}\u00b0\n'
+                'alt ${sat.altitudeKm.round()} km',
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.satellite_alt, color: color, size: 24),
+                Text(
+                  sat.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: color,
+                    fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return markers;
+  }
+
+  /// Builds the radio-horizon footprint circle for each tracked satellite.
+  List<CircleMarker> _buildSatelliteFootprints() {
+    final circles = <CircleMarker>[];
+    for (final sat in _satellites) {
+      final selected = sat.noradId == _selectedSatId;
+      // Ground radius of the visibility circle for a satellite at altitude h:
+      // R * acos(R / (R + h)).
+      final radiusKm =
+          _earthRadiusKm * math.acos(_earthRadiusKm / (_earthRadiusKm + sat.altitudeKm));
+      final color = selected ? Colors.amber : Colors.green;
+      circles.add(
+        CircleMarker(
+          point: LatLng(sat.latitudeDeg, sat.longitudeDeg),
+          radius: radiusKm * 1000,
+          useRadiusInMeter: true,
+          color: color.withValues(alpha: 0.08),
+          borderColor: color.withValues(alpha: 0.5),
+          borderStrokeWidth: selected ? 2 : 1,
+        ),
+      );
+    }
+    return circles;
+  }
+
+  /// Builds the selected satellite's ground track, split into separate
+  /// polylines wherever the path crosses the \u00b1180\u00b0 antimeridian.
+  List<Polyline> _buildSatelliteTrack() {
+    final polylines = <Polyline>[];
+    var segment = <LatLng>[];
+    LatLng? prev;
+    for (final p in _satGroundTrack) {
+      final point = LatLng(p[0], p[1]);
+      if (prev != null && (point.longitude - prev.longitude).abs() > 180) {
+        if (segment.length > 1) {
+          polylines.add(_trackPolyline(segment));
+        }
+        segment = <LatLng>[];
+      }
+      segment.add(point);
+      prev = point;
+    }
+    if (segment.length > 1) polylines.add(_trackPolyline(segment));
+    return polylines;
+  }
+
+  Polyline _trackPolyline(List<LatLng> points) => Polyline(
+    points: points,
+    color: Colors.amber.withValues(alpha: 0.7),
+    strokeWidth: 2,
+  );
 
   /// Returns the set of contact callsigns (upper-cased) from the Stations list.
   Set<String> _getContactCallsigns() {
@@ -1550,6 +1771,14 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                     MarkerLayer(markers: stationMarkers),
                   if (_showAirplanes && _airplanes.isNotEmpty)
                     MarkerLayer(markers: _buildAirplaneMarkers()),
+                  if (_showSatellites && _satelliteSupport) ...[
+                    if (_satellites.isNotEmpty)
+                      CircleLayer(circles: _buildSatelliteFootprints()),
+                    if (_satGroundTrack.length > 1)
+                      PolylineLayer(polylines: _buildSatelliteTrack()),
+                    if (_satellites.isNotEmpty)
+                      MarkerLayer(markers: _buildSatelliteMarkers()),
+                  ],
                 ],
               ),
               // Zoom buttons overlay (top-left, below header)
