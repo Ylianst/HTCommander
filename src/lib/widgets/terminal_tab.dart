@@ -475,6 +475,9 @@ class _TerminalTabState extends State<TerminalTab>
     final session = AX25Session(radioId);
     session.callSignOverride = myCallsign;
     session.stationIdOverride = myStationId;
+    // Outgoing client: fall silent once the link is torn down so we don't keep
+    // answering the peer's retransmitted DISC after the radio is unlocked.
+    session.acceptIncoming = false;
     session.onStateChanged = _onSessionStateChanged;
     session.onDataReceived = _onSessionDataReceived;
     session.onError = _onSessionError;

@@ -279,6 +279,9 @@ class WinlinkClient {
     final session = AX25Session(radioId);
     session.callSignOverride = myCallsign;
     session.stationIdOverride = myStationId;
+    // Outgoing client: fall silent once the link is torn down so we don't keep
+    // answering the peer's retransmitted DISC after the radio is unlocked.
+    session.acceptIncoming = false;
 
     // Subscribe to session events
     session.onStateChanged = _onAX25SessionStateChanged;

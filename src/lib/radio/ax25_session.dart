@@ -137,6 +137,13 @@ class AX25Session {
   /// value.
   int stationIdOverride = -1;
 
+  /// Whether this session may act on frames that arrive while it has no active
+  /// link: accept an incoming SABM/SABME (server / "wait for connection") and
+  /// send polite DM/UA responses to stray commands. Outgoing-only client
+  /// sessions (Terminal connect, Winlink) set this to `false` so they fall
+  /// silent once their link is torn down.
+  bool acceptIncoming = true;
+
   // ---- tunable protocol parameters ------------------------------------------
 
   /// Window size (k) for basic modulo-8 (v2.0) operation.
@@ -1206,6 +1213,13 @@ class AX25Session {
 
     // No active link yet.
     if (addrs == null) {
+      // Outgoing-only client sessions stop mattering once their link is torn
+      // down. Auto-answering stray frames here is both futile and harmful: the
+      // radio has been unlocked (releasing any per-session modem override), so
+      // a reply would go out on the wrong modem and never reach the peer, while
+      // still trading frames endlessly with a peer that keeps retransmitting.
+      if (!acceptIncoming) return false;
+
       if (type == FrameType.uFrameSabm || type == FrameType.uFrameSabme) {
         // Accept an incoming connection: bind to the calling station.
         final peer = AX25Address.parse(packet.addresses[1].toString());
