@@ -944,27 +944,47 @@ class WinlinkClient {
         store: false,
       );
 
-      // Server-side notices/errors are prefixed with "***" (e.g. a failed
-      // secure login because of a bad Winlink password). Surface them so the
-      // user knows what went wrong before the server disconnects.
+      // Lines prefixed with "***" are informational status notices. When
+      // connecting through a radio RMS gateway these are normal relay chatter
+      // (e.g. "*** <call> Connected to CMS") and must NOT tear the session
+      // down. Only notices that clearly indicate a failure (such as a bad
+      // Winlink password on a CMS secure login) are treated as terminal errors.
       final trimmed = str.trimLeft();
       if (trimmed.startsWith('***')) {
         var serverMsg = trimmed
             .replaceFirst(RegExp(r'^\*+\s*'), '')
             .replaceFirst(RegExp(r'^\[\d+\]\s*'), '')
             .trim();
-        _broker.logError('[WinlinkClient] Server notice: $str');
-        if (serverMsg.isNotEmpty) _errorMessage(serverMsg);
-        // This is a terminal error from the server. Tear the connection down
-        // immediately rather than waiting for the server (or the user) to close
-        // it. The error was dispatched via WinlinkError above, so the UI keeps
-        // showing it (with its OK button) independently of the disconnect.
-        if (_transportType == WinlinkTransportType.tcp) {
-          disconnectTcp();
-        } else if (_transportType == WinlinkTransportType.x25) {
-          _disconnectX25();
+        final lower = serverMsg.toLowerCase();
+        final isError =
+            lower.contains('error') ||
+            lower.contains('fail') ||
+            lower.contains('bad ') ||
+            lower.contains('invalid') ||
+            lower.contains('denied') ||
+            lower.contains('reject') ||
+            lower.contains('unauthorized') ||
+            lower.contains('not authorized');
+        if (isError) {
+          _broker.logError('[WinlinkClient] Server error notice: $str');
+          if (serverMsg.isNotEmpty) _errorMessage(serverMsg);
+          // Terminal error from the server. Tear the connection down
+          // immediately rather than waiting for the server (or the user) to
+          // close it. The error was dispatched via WinlinkError above, so the
+          // UI keeps showing it (with its OK button) independently of the
+          // disconnect.
+          if (_transportType == WinlinkTransportType.tcp) {
+            disconnectTcp();
+          } else if (_transportType == WinlinkTransportType.x25) {
+            _disconnectX25();
+          }
+          return;
         }
-        return;
+        // Benign informational status; surface it to the user but keep the
+        // session alive so the B2F handshake can proceed.
+        _broker.logInfo('[WinlinkClient] Server notice: $str');
+        if (serverMsg.isNotEmpty) _stateMessage(serverMsg);
+        continue;
       }
 
       // Handle TCP callsign prompt
