@@ -106,6 +106,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   bool _showAllMessages = false;
   bool _showAprsIs = true;
   bool _allowTransmit = true;
+  bool _aprsIsEnabled = false;
   bool _historicalLoaded = false;
   bool _aprsIsHistoricalLoaded = false;
 
@@ -145,6 +146,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     final stationIdInt = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
     _stationId = stationIdInt > 0 ? stationIdInt.toString() : '';
     _allowTransmit = (_broker.getValue<int>(0, 'AllowTransmit', 1) ?? 1) != 0;
+    _aprsIsEnabled = (_broker.getValue<int>(0, 'AprsIsEnabled', 0) ?? 0) != 0;
     _showAllMessages =
         (_broker.getValue<int>(0, 'AprsShowTelemetry', 0) ?? 0) != 0;
     _showAprsIs =
@@ -216,6 +218,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         'StationId',
         'AprsRoutes',
         'AllowTransmit',
+        'AprsIsEnabled',
         'Stations',
       ],
       callback: _onSettingsChanged,
@@ -340,6 +343,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         case 'AllowTransmit':
           final v = data is int ? data : int.tryParse('$data') ?? 0;
           _allowTransmit = v != 0;
+          break;
+        case 'AprsIsEnabled':
+          final v = data is int ? data : int.tryParse('$data') ?? 0;
+          _aprsIsEnabled = v != 0;
           break;
         case 'Stations':
           _loadStationDestinations();
@@ -501,11 +508,17 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     return -1;
   }
 
-  /// True when a message can be transmitted: an APRS channel is available and
-  /// both the destination and message fields are non-empty (matches the C#
-  /// `UpdateSendButtonState`).
+  /// True when messages can be sent to the APRS-IS internet service even
+  /// without a radio: APRS-IS is enabled, transmit is allowed, and a callsign
+  /// is set (which yields a verified passcode).
+  bool get _aprsIsTransmitAvailable =>
+      _aprsIsEnabled && _allowTransmit && _callsign.trim().isNotEmpty;
+
+  /// True when a message can be transmitted: either an APRS channel is
+  /// available on a connected radio or APRS-IS can carry the message, and both
+  /// the destination and message fields are non-empty.
   bool get _canSend =>
-      _hasAprsChannel &&
+      (_hasAprsChannel || _aprsIsTransmitAvailable) &&
       !_isRadioLockedForOtherUsage &&
       _destinationController.text.trim().isNotEmpty &&
       _messageController.text.trim().isNotEmpty;
@@ -970,7 +983,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     if (destination.isEmpty || text.trim().isEmpty) return;
 
     final radioDeviceId = _getPreferredAprsRadioDeviceId();
-    if (radioDeviceId == -1) {
+    if (radioDeviceId == -1 && !_aprsIsTransmitAvailable) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context).aprsNoChannel),
@@ -1004,7 +1017,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     if (result == null || !mounted) return;
 
     final radioDeviceId = _getPreferredAprsRadioDeviceId();
-    if (radioDeviceId == -1) {
+    if (radioDeviceId == -1 && !_aprsIsTransmitAvailable) {
       messenger.showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context).aprsNoChannel),
@@ -1035,7 +1048,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     if (weatherMessage == null || !mounted) return;
 
     final radioDeviceId = _getPreferredAprsRadioDeviceId();
-    if (radioDeviceId == -1) {
+    if (radioDeviceId == -1 && !_aprsIsTransmitAvailable) {
       messenger.showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context).aprsNoChannel),
@@ -1465,7 +1478,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           value: 'sendSms',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _allowTransmit && _hasAprsChannel && !_isRadioLockedForOtherUsage,
+          enabled: _allowTransmit && (_hasAprsChannel || _aprsIsTransmitAvailable) && !_isRadioLockedForOtherUsage,
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.aprsSendSms)],
           ),
@@ -1474,7 +1487,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           value: 'weatherReport',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _allowTransmit && _hasAprsChannel && !_isRadioLockedForOtherUsage,
+          enabled: _allowTransmit && (_hasAprsChannel || _aprsIsTransmitAvailable) && !_isRadioLockedForOtherUsage,
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.aprsWeatherReport)],
           ),

@@ -250,13 +250,20 @@ class AprsHandler {
       }
     }
 
-    final aprsChannelId = _getAprsChannelId(messageData.radioDeviceId);
-    if (aprsChannelId < 0) {
-      _broker.logError(
-        'Cannot send APRS message: No APRS channel found on radio '
-        '${messageData.radioDeviceId}',
-      );
-      return;
+    // A negative radio device id means the message is bound only for the
+    // APRS-IS internet service (no radio connected): skip the RF channel lookup
+    // and transmit, but still echo the packet so the APRS-IS manager up-gates it.
+    final bool aprsIsOnly = messageData.radioDeviceId < 0;
+    int aprsChannelId = -1;
+    if (!aprsIsOnly) {
+      aprsChannelId = _getAprsChannelId(messageData.radioDeviceId);
+      if (aprsChannelId < 0) {
+        _broker.logError(
+          'Cannot send APRS message: No APRS channel found on radio '
+          '${messageData.radioDeviceId}',
+        );
+        return;
+      }
     }
 
     final ax25Packet = AX25Packet(
@@ -275,16 +282,18 @@ class AprsHandler {
     ax25Packet.channelId = aprsChannelId;
     ax25Packet.channelName = 'APRS';
 
-    _broker.dispatch(
-      deviceId: messageData.radioDeviceId,
-      name: 'TransmitDataFrame',
-      data: TransmitDataFrameData(
-        packet: ax25Packet,
-        channelId: aprsChannelId,
-        regionId: -1,
-      ),
-      store: false,
-    );
+    if (!aprsIsOnly) {
+      _broker.dispatch(
+        deviceId: messageData.radioDeviceId,
+        name: 'TransmitDataFrame',
+        data: TransmitDataFrameData(
+          packet: ax25Packet,
+          channelId: aprsChannelId,
+          regionId: -1,
+        ),
+        store: false,
+      );
+    }
 
     // Echo the outgoing packet to the UI as a sent message.
     final aprsPacket = AprsPacket.parse(ax25Packet);
