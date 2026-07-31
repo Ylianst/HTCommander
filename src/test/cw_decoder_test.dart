@@ -158,6 +158,34 @@ void main() {
       }
     });
 
+    test('decodes a low-pitched tone near the bottom of the band', () {
+      // The default band reaches down to ~300 Hz so machine-generated CW with a
+      // low sidetone (e.g. 300 Hz) still decodes rather than being ignored.
+      for (final hz in [300.0, 400.0, 500.0]) {
+        final s = _renderCw('SOS', _tone(hz, 0.5));
+        expect(_decode(s), 'SOS', reason: 'failed at ${hz.toInt()} Hz');
+      }
+    });
+
+    test('decodes a steady moderate-volume tone', () {
+      // A continuous, only moderately loud tone must not drive the adaptive
+      // noise floor up to its own level and lock itself out.
+      final s = _renderCw('PARIS', _tone(700, 0.1));
+      expect(_decode(s), 'PARIS');
+    });
+
+    test('recovers after a loud noisy lead-in instead of going deaf', () {
+      // Mirrors the recording that motivated this: a loud, spectrally messy
+      // lead-in precedes the keying. If those non-tone frames feed the noise
+      // floor it stays elevated into the message and swallows the opening
+      // characters. Because frames above the detection threshold no longer shape
+      // the floor, the moderate tone that follows still decodes in full.
+      final pre = _silence(1500);
+      _addNoise(pre, 1.5, 3); // loud broadband, rejected as non-tonal
+      final msg = _renderCw('CQ CQ DE TEST', _tone(700, 0.3));
+      expect(_decode(_concat([pre, msg])), 'CQ CQ DE TEST');
+    });
+
     test('decodes at different sending speeds', () {
       for (final wpm in [10, 15, 20, 25]) {
         final s = _renderCw('TEST', _tone(700, 0.5), wpm: wpm);

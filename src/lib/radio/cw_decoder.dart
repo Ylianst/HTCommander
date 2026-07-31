@@ -4,12 +4,13 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 
 Pure-Dart receive-side CW (Morse) decoder for FM audio. It listens for a keyed
-tone in a narrow band (default 600-800 Hz), converts the tone on/off envelope
-into mark/space durations, and feeds them to the shared [MorseDecoder] for
-text. To avoid false positives on voice, each analysis frame is scored for
-spectral purity (how much of the frame's energy sits in the single CW peak): a
-frame is only treated as a tone when its energy is concentrated, so broadband
-speech is rejected. Kept free of Flutter/dart:io so it can be unit-tested.
+tone in a band covering typical CW pitches (default ~250-900 Hz), converts the
+tone on/off envelope into mark/space durations, and feeds them to the shared
+[MorseDecoder] for text. To avoid false positives on voice, each analysis frame
+is scored for spectral purity (how much of the frame's energy sits in the single
+CW peak): a frame is only treated as a tone when its energy is concentrated, so
+broadband speech is rejected. Kept free of Flutter/dart:io so it can be
+unit-tested.
 */
 
 import 'dart:math' as math;
@@ -30,8 +31,8 @@ typedef CwDecodedCallback = void Function(String text, int wpm);
 class CwDecoder {
   CwDecoder({
     this.sampleRate = 32000,
-    this.bandLowHz = 600,
-    this.bandHighHz = 800,
+    this.bandLowHz = 250,
+    this.bandHighHz = 900,
     this.probeStepHz = 25,
     this.windowSize = 512,
     this.hopSize = 128,
@@ -187,9 +188,17 @@ class CwDecoder {
     if (toneOn) {
       _lastToneHz = peakFreq;
     } else {
-      // Track the background level from non-tone frames.
-      _noiseFloor += (toneLevel - _noiseFloor) * 0.01;
-      if (_noiseFloor < 0.0) _noiseFloor = 0.0;
+      // Update the background estimate only from frames that are themselves
+      // below the current detection threshold. A keyed tone, and any louder
+      // non-tonal burst (a click, a noisy lead-in), sits above the threshold, so
+      // this stops such energy from being folded into the noise floor. Without
+      // the guard a steady, moderate-volume tone — or a loud noisy preamble —
+      // drives the floor, and thus the threshold, up until real tones can no
+      // longer clear it and the decoder goes deaf.
+      if (toneLevel < threshold) {
+        _noiseFloor += (toneLevel - _noiseFloor) * 0.01;
+        if (_noiseFloor < 0.0) _noiseFloor = 0.0;
+      }
     }
 
     final frameMs = (_absBase + start + n / 2.0) / sampleRate * 1000.0;
