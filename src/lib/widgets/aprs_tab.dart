@@ -1885,6 +1885,11 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
                           _selectedDestination = value;
                           _destinationController.text = value;
                         });
+                        _broker.dispatch(
+                          deviceId: 0,
+                          name: 'AprsDestination',
+                          data: value,
+                        );
                       },
                       itemBuilder: (context) => _destinations.map((dest) {
                         return PopupMenuItem<String>(
