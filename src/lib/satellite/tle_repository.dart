@@ -56,6 +56,10 @@ class TleRepository {
 
     text ??= await _readSeed();
     _parseInto(text);
+
+    // Ensure curated seed birds (e.g. added in an app update) are present even
+    // when the online cache predates them; online TLEs win for freshness.
+    _mergeSeedTles(await _readSeed());
   }
 
   /// Fetches fresh TLEs from CelesTrak when the cache is stale, replacing the
@@ -157,5 +161,14 @@ class TleRepository {
     _tles
       ..clear()
       ..addAll(parsed);
+  }
+
+  /// Adds seed TLEs for any NORAD id not already loaded, filling gaps left by
+  /// an online cache that predates a curated bird.
+  void _mergeSeedTles(String seedText) {
+    final have = _tles.map((t) => t.noradId).toSet();
+    for (final t in SatelliteTle.parseThreeLine(seedText)) {
+      if (have.add(t.noradId)) _tles.add(t);
+    }
   }
 }

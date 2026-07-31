@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'tab_visibility.dart';
 import '../dialogs/mail_compose_dialog.dart';
 import '../dialogs/mail_viewer_dialog.dart';
@@ -79,6 +79,12 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
   // Mailboxes (populated from the real MailStore).
   late final Map<String, Mailbox> _mailboxes;
 
+  // Keyboard navigation for the mailbox tree and mail list.
+  final FocusNode _mailboxFocusNode = FocusNode();
+  final FocusNode _mailListFocusNode = FocusNode();
+  final ScrollController _mailScrollController = ScrollController();
+  static const double _mailRowHeight = 34;
+
   // Raw Winlink mail keyed by MID, used for read-flag updates and lookups.
   final Map<String, WinLinkMail> _rawMails = {};
 
@@ -132,6 +138,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
   @override
   void dispose() {
     _broker.dispose();
+    _mailboxFocusNode.dispose();
+    _mailListFocusNode.dispose();
+    _mailScrollController.dispose();
     super.dispose();
   }
 
@@ -283,6 +292,97 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
     setState(() {
       _selectedMailIndex = index;
     });
+  }
+
+  /// Handles arrow up/down and page up/down while the mailbox tree has focus,
+  /// moving the selection between mailboxes.
+  KeyEventResult _handleMailboxKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final keys = _mailboxes.keys.toList();
+    final current = keys.indexOf(_selectedMailbox);
+    if (current < 0) return KeyEventResult.ignored;
+    int next;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowDown) {
+      next = current + 1;
+    } else if (key == LogicalKeyboardKey.arrowUp) {
+      next = current - 1;
+    } else if (key == LogicalKeyboardKey.pageDown ||
+        key == LogicalKeyboardKey.end) {
+      next = keys.length - 1;
+    } else if (key == LogicalKeyboardKey.pageUp ||
+        key == LogicalKeyboardKey.home) {
+      next = 0;
+    } else {
+      return KeyEventResult.ignored;
+    }
+    next = next.clamp(0, keys.length - 1);
+    if (next != current) _onMailboxSelected(keys[next]);
+    return KeyEventResult.handled;
+  }
+
+  /// Handles arrow up/down and page up/down while the mail list has focus,
+  /// moving the selection between messages and scrolling to keep it visible.
+  KeyEventResult _handleMailListKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final count = _currentMessages.length;
+    if (count == 0) return KeyEventResult.ignored;
+
+    int page = 10;
+    if (_mailScrollController.hasClients) {
+      final viewport = _mailScrollController.position.viewportDimension;
+      page = (viewport / _mailRowHeight).floor().clamp(1, count);
+    }
+
+    final current = _selectedMailIndex ?? -1;
+    int next;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowDown) {
+      next = current + 1;
+    } else if (key == LogicalKeyboardKey.arrowUp) {
+      next = current < 0 ? count - 1 : current - 1;
+    } else if (key == LogicalKeyboardKey.pageDown) {
+      next = current + page;
+    } else if (key == LogicalKeyboardKey.pageUp) {
+      next = (current < 0 ? count - 1 : current) - page;
+    } else if (key == LogicalKeyboardKey.home) {
+      next = 0;
+    } else if (key == LogicalKeyboardKey.end) {
+      next = count - 1;
+    } else {
+      return KeyEventResult.ignored;
+    }
+    next = next.clamp(0, count - 1);
+    if (next != current) {
+      _onMailSelected(next);
+      _scrollMailIntoView(next);
+    }
+    return KeyEventResult.handled;
+  }
+
+  /// Scrolls the mail list so the message at [index] is fully visible.
+  void _scrollMailIntoView(int index) {
+    if (!_mailScrollController.hasClients) return;
+    final position = _mailScrollController.position;
+    final itemTop = index * _mailRowHeight;
+    final itemBottom = itemTop + _mailRowHeight;
+    final viewTop = position.pixels;
+    final viewBottom = viewTop + position.viewportDimension;
+    double? target;
+    if (itemTop < viewTop) {
+      target = itemTop;
+    } else if (itemBottom > viewBottom) {
+      target = itemBottom - position.viewportDimension;
+    }
+    if (target != null) {
+      _mailScrollController.jumpTo(
+        target.clamp(position.minScrollExtent, position.maxScrollExtent),
+      );
+    }
   }
 
   void _onNewMail() async {
@@ -1334,140 +1434,157 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
 
   Widget _buildMailboxTree() {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      color: scheme.surface,
-      child: ListView(
-        children: _mailboxes.entries.map((entry) {
-          final mailbox = entry.value;
-          final isSelected = _selectedMailbox == entry.key;
-          final count = mailbox.messages.length;
-          return InkWell(
-            onTap: () => _onMailboxSelected(entry.key),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              color: isSelected ? scheme.primaryContainer : null,
-              child: Row(
-                children: [
-                  Icon(mailbox.icon, size: 20, color: scheme.onSurfaceVariant),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      count > 0
-                          ? '${_mailboxDisplayName(entry.key)} ($count)'
-                          : _mailboxDisplayName(entry.key),
-                      style: TextStyle(
-                        fontWeight: mailbox.unreadCount > 0
-                            ? FontWeight.bold
-                            : null,
+    return Focus(
+      focusNode: _mailboxFocusNode,
+      onKeyEvent: _handleMailboxKey,
+      child: Container(
+        color: scheme.surface,
+        child: ListView(
+          children: _mailboxes.entries.map((entry) {
+            final mailbox = entry.value;
+            final isSelected = _selectedMailbox == entry.key;
+            final count = mailbox.messages.length;
+            return InkWell(
+              onTap: () {
+                _mailboxFocusNode.requestFocus();
+                _onMailboxSelected(entry.key);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                color: isSelected ? scheme.primaryContainer : null,
+                child: Row(
+                  children: [
+                    Icon(mailbox.icon, size: 20, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        count > 0
+                            ? '${_mailboxDisplayName(entry.key)} ($count)'
+                            : _mailboxDisplayName(entry.key),
+                        style: TextStyle(
+                          fontWeight: mailbox.unreadCount > 0
+                              ? FontWeight.bold
+                              : null,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
 
   Widget _buildMailList() {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      color: scheme.surface,
-      child: Column(
-        children: [
-          // Column headers
-          _buildMailListHeaders(),
-          // Mail items
-          Expanded(
-            child: ListView.builder(
-              itemCount: _currentMessages.length,
-              itemBuilder: (context, index) {
-                final mail = _currentMessages[index];
-                final isSelected = _selectedMailIndex == index;
-                return InkWell(
-                  onTap: () => _onMailSelected(index),
-                  onDoubleTap: () {
-                    _onMailSelected(index);
-                    _onOpenMail(mail);
-                  },
-                  onSecondaryTapDown: (details) {
-                    _onMailSelected(index);
-                    _showMailContextMenu(context, details.globalPosition);
-                  },
-                  child: Container(
-                    clipBehavior: Clip.hardEdge,
-                    decoration: BoxDecoration(
-                      color: isSelected ? scheme.primaryContainer : null,
-                      border: Border(
-                        bottom: BorderSide(color: scheme.outlineVariant),
+    return Focus(
+      focusNode: _mailListFocusNode,
+      onKeyEvent: _handleMailListKey,
+      child: Container(
+        color: scheme.surface,
+        child: Column(
+          children: [
+            // Column headers
+            _buildMailListHeaders(),
+            // Mail items
+            Expanded(
+              child: ListView.builder(
+                controller: _mailScrollController,
+                itemExtent: _mailRowHeight,
+                itemCount: _currentMessages.length,
+                itemBuilder: (context, index) {
+                  final mail = _currentMessages[index];
+                  final isSelected = _selectedMailIndex == index;
+                  return InkWell(
+                    onTap: () {
+                      _mailListFocusNode.requestFocus();
+                      _onMailSelected(index);
+                    },
+                    onDoubleTap: () {
+                      _onMailSelected(index);
+                      _onOpenMail(mail);
+                    },
+                    onSecondaryTapDown: (details) {
+                      _mailListFocusNode.requestFocus();
+                      _onMailSelected(index);
+                      _showMailContextMenu(context, details.globalPosition);
+                    },
+                    child: Container(
+                      clipBehavior: Clip.hardEdge,
+                      decoration: BoxDecoration(
+                        color: isSelected ? scheme.primaryContainer : null,
+                        border: Border(
+                          bottom: BorderSide(color: scheme.outlineVariant),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
+                              child: Text(
+                                _formatTime(mail.time),
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: mail.isRead
+                                      ? null
+                                      : FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
+                              child: Text(
+                                _showRecipientColumn ? mail.to : mail.from,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: mail.isRead
+                                      ? null
+                                      : FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 3,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
+                              child: Text(
+                                mail.subject,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: mail.isRead
+                                      ? null
+                                      : FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 6,
-                            ),
-                            child: Text(
-                              _formatTime(mail.time),
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: mail.isRead
-                                    ? null
-                                    : FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 6,
-                            ),
-                            child: Text(
-                              _showRecipientColumn ? mail.to : mail.from,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: mail.isRead
-                                    ? null
-                                    : FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 3,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 6,
-                            ),
-                            child: Text(
-                              mail.subject,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: mail.isRead
-                                    ? null
-                                    : FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

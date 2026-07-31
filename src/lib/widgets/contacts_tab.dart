@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'tab_visibility.dart';
 import '../l10n/app_localizations.dart';
 import '../services/window_service.dart';
@@ -37,6 +39,14 @@ class _ContactsTabState extends State<ContactsTab>
   /// The current station list, loaded from and saved to the DataBroker.
   List<StationInfo> _contacts = [];
 
+  // Keyboard navigation for the contact list.
+  final FocusNode _listFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
+  // GlobalKeys for contact rows (by contact index) used to scroll into view.
+  final Map<int, GlobalKey> _rowKeys = {};
+  // Anchor index used as the starting point for arrow/page navigation.
+  int? _navIndex;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -54,6 +64,8 @@ class _ContactsTabState extends State<ContactsTab>
   @override
   void dispose() {
     _broker.dispose();
+    _listFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -612,24 +624,108 @@ class _ContactsTabState extends State<ContactsTab>
     return LayoutBuilder(
       builder: (context, constraints) {
         _isCompact = constraints.maxWidth < _compactWidthThreshold;
-        return Container(
-          color: scheme.surface,
-          child: ListView(
-            children: [
-              // Column headers
-              _buildColumnHeaders(),
-              // Grouped contacts
-              for (final type in StationType.values)
-                if (groupedContacts.containsKey(type)) ...[
-                  _buildGroupHeader(type),
-                  for (final entry in groupedContacts[type]!)
-                    _buildContactRow(entry.key, entry.value),
-                ],
-            ],
+        return Focus(
+          focusNode: _listFocusNode,
+          onKeyEvent: _handleListKey,
+          child: Container(
+            color: scheme.surface,
+            child: ListView(
+              controller: _scrollController,
+              // Keep off-screen rows built so page navigation can scroll to them.
+              scrollCacheExtent: const ScrollCacheExtent.pixels(2000),
+              children: [
+                // Column headers
+                _buildColumnHeaders(),
+                // Grouped contacts
+                for (final type in StationType.values)
+                  if (groupedContacts.containsKey(type)) ...[
+                    _buildGroupHeader(type),
+                    for (final entry in groupedContacts[type]!)
+                      _buildContactRow(entry.key, entry.value),
+                  ],
+              ],
+            ),
           ),
         );
       },
     );
+  }
+
+  /// Contact indices in the order they are displayed (grouped by station type),
+  /// used for keyboard navigation.
+  List<int> _displayOrder() {
+    final ordered = <int>[];
+    for (final type in StationType.values) {
+      for (var i = 0; i < _contacts.length; i++) {
+        if (_contacts[i].stationType == type) ordered.add(i);
+      }
+    }
+    return ordered;
+  }
+
+  /// Selects a single contact by its index and scrolls it into view.
+  void _selectSingle(int index) {
+    setState(() {
+      _selectedIndices
+        ..clear()
+        ..add(index);
+      _navIndex = index;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _rowKeys[index]?.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          alignment: 0.5,
+          duration: const Duration(milliseconds: 100),
+        );
+      }
+    });
+  }
+
+  /// Handles arrow up/down and page up/down while the contact list has focus.
+  KeyEventResult _handleListKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final order = _displayOrder();
+    if (order.isEmpty) return KeyEventResult.ignored;
+
+    // Estimate how many rows fit in the viewport for page navigation.
+    int page = 10;
+    if (_scrollController.hasClients) {
+      page = (_scrollController.position.viewportDimension / 33)
+          .floor()
+          .clamp(1, order.length);
+    }
+
+    final anchor = _navIndex ??
+        (_selectedIndices.isNotEmpty ? _selectedIndices.first : order.first);
+    var pos = order.indexOf(anchor);
+    if (pos < 0) pos = 0;
+
+    int next;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowDown) {
+      next = pos + 1;
+    } else if (key == LogicalKeyboardKey.arrowUp) {
+      next = pos - 1;
+    } else if (key == LogicalKeyboardKey.pageDown) {
+      next = pos + page;
+    } else if (key == LogicalKeyboardKey.pageUp) {
+      next = pos - page;
+    } else if (key == LogicalKeyboardKey.home) {
+      next = 0;
+    } else if (key == LogicalKeyboardKey.end) {
+      next = order.length - 1;
+    } else {
+      return KeyEventResult.ignored;
+    }
+    next = next.clamp(0, order.length - 1);
+    if (order[next] != anchor || _selectedIndices.length != 1) {
+      _selectSingle(order[next]);
+    }
+    return KeyEventResult.handled;
   }
 
   Widget _buildColumnHeaders() {
@@ -712,14 +808,18 @@ class _ContactsTabState extends State<ContactsTab>
 
   Widget _buildContactRow(int index, StationInfo contact) {
     final isSelected = _selectedIndices.contains(index);
+    final rowKey = _rowKeys.putIfAbsent(index, () => GlobalKey());
     return InkWell(
+      key: rowKey,
       onTap: () {
+        _listFocusNode.requestFocus();
         setState(() {
           if (isSelected) {
             _selectedIndices.remove(index);
           } else {
             _selectedIndices.add(index);
           }
+          _navIndex = index;
         });
       },
       onDoubleTap: () {

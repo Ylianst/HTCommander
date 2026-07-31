@@ -132,4 +132,59 @@ void main() {
       expect(info.correctedUplinkHz(0), 145990000);
     });
   });
+
+  group('Multiple usages per satellite', () {
+    SatelliteInfo makeIssWithUsages() {
+      final tle = SatelliteTle.parseThreeLine(_seedTle)
+          .firstWhere((t) => t.noradId == 25544);
+      return SatelliteInfo(
+        tle: tle,
+        transponders: const [
+          SatelliteTransponder(
+            noradId: 25544,
+            name: 'ISS Cross-band FM Repeater',
+            usage: 'Repeater',
+            uplinkHz: 145990000,
+            downlinkHz: 437800000,
+            mode: 'FM',
+            ctcssHz: 67.0,
+            inverting: false,
+            status: 'active',
+          ),
+          SatelliteTransponder(
+            noradId: 25544,
+            name: 'ISS SSTV',
+            usage: 'SSTV',
+            uplinkHz: null,
+            downlinkHz: 145800000,
+            mode: 'FM',
+            ctcssHz: null,
+            inverting: false,
+            status: 'active',
+          ),
+        ],
+      );
+    }
+
+    test('primary transponder resolves to the first usage', () {
+      final info = makeIssWithUsages();
+      expect(info.transponders.length, 2);
+      expect(info.transponder.usage, 'Repeater');
+    });
+
+    test('receive-only usage has downlink Doppler but no uplink', () {
+      final sstv = makeIssWithUsages().transponders[1];
+      expect(sstv.correctedUplinkHz(5.0), isNull);
+      expect(sstv.correctedDownlinkHz(0), 145800000);
+      expect(sstv.correctedDownlinkHz(5.0)!, lessThan(145800000));
+    });
+
+    test('JSON round-trip preserves every usage', () {
+      final info = makeIssWithUsages();
+      final restored = SatelliteInfo.fromJson(info.toJson());
+      expect(restored.transponders.length, 2);
+      expect(restored.transponders[1].usage, 'SSTV');
+      expect(restored.transponders[1].uplinkHz, isNull);
+    });
+  });
 }

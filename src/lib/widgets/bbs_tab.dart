@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'tab_visibility.dart';
 import '../handlers/bbs_handler.dart';
 import '../l10n/app_localizations.dart';
@@ -35,6 +36,11 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin, Tab
   final List<MergedStationStats> _stations = [];
   final List<BbsTrafficEntry> _traffic = [];
   final ScrollController _trafficScrollController = ScrollController();
+
+  // Keyboard navigation for the station list.
+  final FocusNode _stationFocusNode = FocusNode();
+  final ScrollController _stationScrollController = ScrollController();
+  static const double _stationRowHeight = 30;
 
   /// Connected radios, each a map with 'DeviceId' and 'FriendlyName'.
   final List<Map<String, dynamic>> _connectedRadios = [];
@@ -109,6 +115,8 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin, Tab
   void dispose() {
     _broker.dispose();
     _trafficScrollController.dispose();
+    _stationFocusNode.dispose();
+    _stationScrollController.dispose();
     super.dispose();
   }
 
@@ -229,6 +237,68 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin, Tab
     setState(() {
       _selectedStationIndex = index;
     });
+  }
+
+  /// Handles arrow up/down and page up/down while the station list has focus,
+  /// moving the selection between stations and scrolling to keep it visible.
+  KeyEventResult _handleStationKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final count = _stations.length;
+    if (count == 0) return KeyEventResult.ignored;
+
+    int page = 10;
+    if (_stationScrollController.hasClients) {
+      final viewport = _stationScrollController.position.viewportDimension;
+      page = (viewport / _stationRowHeight).floor().clamp(1, count);
+    }
+
+    final current = _selectedStationIndex ?? -1;
+    int next;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowDown) {
+      next = current + 1;
+    } else if (key == LogicalKeyboardKey.arrowUp) {
+      next = current < 0 ? count - 1 : current - 1;
+    } else if (key == LogicalKeyboardKey.pageDown) {
+      next = current + page;
+    } else if (key == LogicalKeyboardKey.pageUp) {
+      next = (current < 0 ? count - 1 : current) - page;
+    } else if (key == LogicalKeyboardKey.home) {
+      next = 0;
+    } else if (key == LogicalKeyboardKey.end) {
+      next = count - 1;
+    } else {
+      return KeyEventResult.ignored;
+    }
+    next = next.clamp(0, count - 1);
+    if (next != current) {
+      _onStationSelected(next);
+      _scrollStationIntoView(next);
+    }
+    return KeyEventResult.handled;
+  }
+
+  /// Scrolls the station list so the station at [index] is fully visible.
+  void _scrollStationIntoView(int index) {
+    if (!_stationScrollController.hasClients) return;
+    final position = _stationScrollController.position;
+    final itemTop = index * _stationRowHeight;
+    final itemBottom = itemTop + _stationRowHeight;
+    final viewTop = position.pixels;
+    final viewBottom = viewTop + position.viewportDimension;
+    double? target;
+    if (itemTop < viewTop) {
+      target = itemTop;
+    } else if (itemBottom > viewBottom) {
+      target = itemBottom - position.viewportDimension;
+    }
+    if (target != null) {
+      _stationScrollController.jumpTo(
+        target.clamp(position.minScrollExtent, position.maxScrollExtent),
+      );
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -629,96 +699,105 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin, Tab
       child: LayoutBuilder(
         builder: (context, constraints) {
           _isCompact = constraints.maxWidth < _compactWidthThreshold;
-          return Column(
-            children: [
-              _buildStationListHeaders(),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _stations.length,
-                  itemBuilder: (context, index) {
-                    final station = _stations[index];
-                    final isSelected = _selectedStationIndex == index;
-                    return InkWell(
-                      onTap: () => _onStationSelected(index),
-                      child: Container(
-                        clipBehavior: Clip.hardEdge,
-                        decoration: BoxDecoration(
-                          color: isSelected ? scheme.primaryContainer : null,
-                          border: Border(
-                            bottom: BorderSide(color: scheme.outlineVariant),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            // Icon
-                            SizedBox(
-                              width: 32,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 6,
-                                ),
-                                child: Icon(
-                                  Icons.person,
-                                  size: 18,
-                                  color: Colors.blue.shade700,
-                                ),
-                              ),
+          return Focus(
+            focusNode: _stationFocusNode,
+            onKeyEvent: _handleStationKey,
+            child: Column(
+              children: [
+                _buildStationListHeaders(),
+                Expanded(
+                  child: ListView.builder(
+                    controller: _stationScrollController,
+                    itemExtent: _stationRowHeight,
+                    itemCount: _stations.length,
+                    itemBuilder: (context, index) {
+                      final station = _stations[index];
+                      final isSelected = _selectedStationIndex == index;
+                      return InkWell(
+                        onTap: () {
+                          _stationFocusNode.requestFocus();
+                          _onStationSelected(index);
+                        },
+                        child: Container(
+                          clipBehavior: Clip.hardEdge,
+                          decoration: BoxDecoration(
+                            color: isSelected ? scheme.primaryContainer : null,
+                            border: Border(
+                              bottom: BorderSide(color: scheme.outlineVariant),
                             ),
-                            // Call sign
-                            SizedBox(
-                              width: 100,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 6,
-                                ),
-                                child: Text(
-                                  station.callsign,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                          ),
+                          child: Row(
+                            children: [
+                              // Icon
+                              SizedBox(
+                                width: 32,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 6,
+                                  ),
+                                  child: Icon(
+                                    Icons.person,
+                                    size: 18,
+                                    color: Colors.blue.shade700,
                                   ),
                                 ),
                               ),
-                            ),
-                            // Last seen
-                            SizedBox(
-                              width: 80,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 6,
-                                ),
-                                child: Text(
-                                  _formatLastSeen(station.lastSeen),
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ),
-                            // Stats (hidden in compact mode)
-                            if (!_isCompact)
-                              Expanded(
+                              // Call sign
+                              SizedBox(
+                                width: 100,
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 4,
                                     vertical: 6,
                                   ),
                                   child: Text(
-                                    station.statsString,
-                                    overflow: TextOverflow.ellipsis,
+                                    station.callsign,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Last seen
+                              SizedBox(
+                                width: 80,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 6,
+                                  ),
+                                  child: Text(
+                                    _formatLastSeen(station.lastSeen),
                                     style: const TextStyle(fontSize: 12),
                                   ),
                                 ),
                               ),
-                          ],
+                              // Stats (hidden in compact mode)
+                              if (!_isCompact)
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 6,
+                                    ),
+                                    child: Text(
+                                      station.statsString,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),

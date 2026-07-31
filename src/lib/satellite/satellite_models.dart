@@ -84,13 +84,18 @@ class SatelliteTle {
   );
 }
 
-/// An FM transponder / cross-band repeater on an amateur satellite.
+/// A single amateur-radio usage of a satellite: an FM cross-band repeater, an
+/// APRS/packet digipeater, an SSTV downlink, a crew-voice channel, etc.
 ///
 /// [uplinkHz] is the ground-to-satellite frequency the radio transmits on;
 /// [downlinkHz] is the satellite-to-ground frequency the radio receives on.
+/// Receive-only usages (SSTV, beacons) leave [uplinkHz] null.
 class SatelliteTransponder {
   final int noradId;
   final String name;
+
+  /// What this usage is for, e.g. `Repeater`, `APRS`, `SSTV`, `Voice`.
+  final String usage;
 
   /// Ground-to-satellite (radio TX) frequency in Hz.
   final int? uplinkHz;
@@ -113,6 +118,7 @@ class SatelliteTransponder {
   const SatelliteTransponder({
     required this.noradId,
     required this.name,
+    this.usage = 'Repeater',
     required this.uplinkHz,
     required this.downlinkHz,
     required this.mode,
@@ -122,16 +128,35 @@ class SatelliteTransponder {
   });
 
   /// True when both up- and downlink are defined FM frequencies for an active
-  /// bird (the only kind this radio can actually work).
+  /// bird (the only kind this radio can actually work as a repeater).
   bool get isWorkableFm =>
       status.toLowerCase() == 'active' &&
       mode.toUpperCase().contains('FM') &&
       uplinkHz != null &&
       downlinkHz != null;
 
+  /// Returns [downlinkHz] shifted for the receiver Doppler at the given
+  /// line-of-sight [rangeRateKmS] (positive = receding) — the frequency to tune
+  /// RX to so the incoming signal lands on channel. Null when receive is n/a.
+  int? correctedDownlinkHz(double rangeRateKmS) {
+    final base = downlinkHz;
+    if (base == null) return null;
+    return (base * (1 - rangeRateKmS / _cKmPerS)).round();
+  }
+
+  /// Returns [uplinkHz] pre-compensated for Doppler at the given line-of-sight
+  /// [rangeRateKmS] (positive = receding) so the satellite receives its nominal
+  /// uplink frequency — the frequency to TX on. Null for receive-only usages.
+  int? correctedUplinkHz(double rangeRateKmS) {
+    final base = uplinkHz;
+    if (base == null) return null;
+    return (base * (1 + rangeRateKmS / _cKmPerS)).round();
+  }
+
   Map<String, dynamic> toJson() => {
     'noradId': noradId,
     'name': name,
+    'usage': usage,
     'uplinkHz': uplinkHz,
     'downlinkHz': downlinkHz,
     'mode': mode,
@@ -148,6 +173,9 @@ class SatelliteTransponder {
     return SatelliteTransponder(
       noradId: toIntOrNull(json['noradId']) ?? 0,
       name: (json['name'] as String?) ?? '',
+      usage: (json['usage'] as String?)?.trim().isNotEmpty == true
+          ? (json['usage'] as String).trim()
+          : 'Repeater',
       uplinkHz: toIntOrNull(json['uplinkHz']),
       downlinkHz: toIntOrNull(json['downlinkHz']),
       mode: (json['mode'] as String?) ?? '',
@@ -158,48 +186,70 @@ class SatelliteTransponder {
   }
 }
 
-/// A satellite the user can track: its orbital elements paired with the FM
-/// transponder used to work it.
+/// A satellite the user can track: its orbital elements paired with the list of
+/// amateur usages ([transponders]) it offers — an FM cross-band repeater plus,
+/// for birds like the ISS, an APRS digipeater, SSTV, and crew-voice channels.
 class SatelliteInfo {
   final SatelliteTle tle;
-  final SatelliteTransponder transponder;
 
-  const SatelliteInfo({required this.tle, required this.transponder});
+  /// All amateur usages for this satellite. The primary workable FM repeater is
+  /// first when present, so [transponder] resolves to it.
+  final List<SatelliteTransponder> transponders;
+
+  SatelliteInfo({
+    required this.tle,
+    SatelliteTransponder? transponder,
+    List<SatelliteTransponder>? transponders,
+  }) : transponders = transponders ??
+            (transponder != null
+                ? <SatelliteTransponder>[transponder]
+                : const <SatelliteTransponder>[]);
 
   int get noradId => tle.noradId;
   String get name => tle.name;
 
+  /// The primary usage (first entry, normally the FM cross-band repeater).
+  SatelliteTransponder get transponder => transponders.first;
+
   Map<String, dynamic> toJson() => {
     'tle': tle.toJson(),
-    'transponder': transponder.toJson(),
+    'transponders': transponders.map((t) => t.toJson()).toList(),
   };
 
-  factory SatelliteInfo.fromJson(Map<String, dynamic> json) => SatelliteInfo(
-    tle: SatelliteTle.fromJson(
-      Map<String, dynamic>.from(json['tle'] as Map? ?? const {}),
-    ),
-    transponder: SatelliteTransponder.fromJson(
-      Map<String, dynamic>.from(json['transponder'] as Map? ?? const {}),
-    ),
-  );
-
-  /// Returns [downlinkHz] shifted for the receiver Doppler at the given
-  /// line-of-sight [rangeRateKmS] (positive = receding). This is the frequency
-  /// the radio should tune its RX to so the incoming signal lands on channel.
-  int? correctedDownlinkHz(double rangeRateKmS) {
-    final base = transponder.downlinkHz;
-    if (base == null) return null;
-    return (base * (1 - rangeRateKmS / _cKmPerS)).round();
+  factory SatelliteInfo.fromJson(Map<String, dynamic> json) {
+    final list = json['transponders'];
+    final transponders = <SatelliteTransponder>[];
+    if (list is List) {
+      for (final e in list.whereType<Map>()) {
+        transponders.add(
+          SatelliteTransponder.fromJson(Map<String, dynamic>.from(e)),
+        );
+      }
+    } else if (json['transponder'] is Map) {
+      // Backward compatibility with the single-transponder payload.
+      transponders.add(
+        SatelliteTransponder.fromJson(
+          Map<String, dynamic>.from(json['transponder'] as Map),
+        ),
+      );
+    }
+    return SatelliteInfo(
+      tle: SatelliteTle.fromJson(
+        Map<String, dynamic>.from(json['tle'] as Map? ?? const {}),
+      ),
+      transponders: transponders,
+    );
   }
 
-  /// Returns [uplinkHz] pre-compensated for Doppler at the given line-of-sight
-  /// [rangeRateKmS] (positive = receding), so the satellite receives its
-  /// nominal uplink frequency. This is the frequency the radio should TX on.
-  int? correctedUplinkHz(double rangeRateKmS) {
-    final base = transponder.uplinkHz;
-    if (base == null) return null;
-    return (base * (1 + rangeRateKmS / _cKmPerS)).round();
-  }
+  /// Doppler-corrected downlink of the primary usage; see
+  /// [SatelliteTransponder.correctedDownlinkHz].
+  int? correctedDownlinkHz(double rangeRateKmS) =>
+      transponder.correctedDownlinkHz(rangeRateKmS);
+
+  /// Doppler-corrected uplink of the primary usage; see
+  /// [SatelliteTransponder.correctedUplinkHz].
+  int? correctedUplinkHz(double rangeRateKmS) =>
+      transponder.correctedUplinkHz(rangeRateKmS);
 }
 
 /// A live computed snapshot of a satellite as seen from the observer, produced

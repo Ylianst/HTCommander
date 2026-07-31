@@ -81,6 +81,20 @@ it into the radio.
 
 ---
 
+## Radio Protocol
+
+The low-level language HTCommander and the radio speak to each other.
+
+1. **[Every Command a Benshi Radio Understands: A Complete Protocol Reference](radio-command-protocol.md)**
+   A byte-level reference for the whole control protocol — the two Bluetooth
+   framings, the command envelope and response bit, the full basic/extended
+   opcode set, the bit-packed layout of every important payload (device info,
+   settings, channels, HT status, GPS position, BSS, FM radio, buttons), the
+   notification model, and the two sub-protocols that ride on top: fragmented TNC
+   data carrying AX.25 packets, and the VM firmware-update channel.
+
+---
+
 ## Sharing & Interop
 
 Making HTCommander features portable between operators and radios.

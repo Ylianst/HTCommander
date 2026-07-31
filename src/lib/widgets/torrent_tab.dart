@@ -7,12 +7,13 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
-import 'dart:typed_data';
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'tab_visibility.dart';
 
 import '../dialogs/add_torrent_file_dialog.dart';
@@ -173,6 +174,12 @@ class _TorrentTabState extends State<TorrentTab>
   final List<_TorrentView> _torrents = [];
   String? _selectedKey;
 
+  // Keyboard navigation for the torrent list.
+  final FocusNode _listFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
+  // GlobalKeys for torrent rows (by torrent key) used to scroll into view.
+  final Map<String, GlobalKey> _rowKeys = {};
+
   // Radio / lock state used to drive the Activate button.
   final List<int> _connectedRadios = [];
   final Map<int, RadioLockState> _lockStates = {};
@@ -240,6 +247,8 @@ class _TorrentTabState extends State<TorrentTab>
   @override
   void dispose() {
     _broker.dispose();
+    _listFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -1008,7 +1017,89 @@ class _TorrentTabState extends State<TorrentTab>
       }
     }
 
-    return ListView(children: rows);
+    return Focus(
+      focusNode: _listFocusNode,
+      onKeyEvent: _handleListKey,
+      child: ListView(
+        controller: _scrollController,
+        // Keep off-screen rows built so page navigation can scroll to them.
+        scrollCacheExtent: const ScrollCacheExtent.pixels(2000),
+        children: rows,
+      ),
+    );
+  }
+
+  /// Torrent keys in the order they are displayed (grouped by source), used for
+  /// keyboard navigation.
+  List<String> _displayOrder() {
+    final groups = <String, List<_TorrentView>>{};
+    for (final torrent in _torrents) {
+      groups.putIfAbsent(torrent.source, () => []).add(torrent);
+    }
+    final sourceKeys = groups.keys.toList()..sort();
+    final ordered = <String>[];
+    for (final source in sourceKeys) {
+      for (final torrent in groups[source]!) {
+        ordered.add(torrent.key);
+      }
+    }
+    return ordered;
+  }
+
+  /// Selects a torrent by key and scrolls it into view.
+  void _selectByKey(String key) {
+    setState(() => _selectedKey = key);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _rowKeys[key]?.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          alignment: 0.5,
+          duration: const Duration(milliseconds: 100),
+        );
+      }
+    });
+  }
+
+  /// Handles arrow up/down and page up/down while the torrent list has focus.
+  KeyEventResult _handleListKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final order = _displayOrder();
+    if (order.isEmpty) return KeyEventResult.ignored;
+
+    // Estimate how many rows fit in the viewport for page navigation.
+    int page = 10;
+    if (_scrollController.hasClients) {
+      page = (_scrollController.position.viewportDimension / 33)
+          .floor()
+          .clamp(1, order.length);
+    }
+
+    var pos = _selectedKey == null ? -1 : order.indexOf(_selectedKey!);
+    int next;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowDown) {
+      next = pos + 1;
+    } else if (key == LogicalKeyboardKey.arrowUp) {
+      next = pos < 0 ? order.length - 1 : pos - 1;
+    } else if (key == LogicalKeyboardKey.pageDown) {
+      next = pos + page;
+    } else if (key == LogicalKeyboardKey.pageUp) {
+      next = (pos < 0 ? order.length - 1 : pos) - page;
+    } else if (key == LogicalKeyboardKey.home) {
+      next = 0;
+    } else if (key == LogicalKeyboardKey.end) {
+      next = order.length - 1;
+    } else {
+      return KeyEventResult.ignored;
+    }
+    next = next.clamp(0, order.length - 1);
+    if (order[next] != _selectedKey) {
+      _selectByKey(order[next]);
+    }
+    return KeyEventResult.handled;
   }
 
   Widget _buildGroupHeader(String source) {
@@ -1030,18 +1121,25 @@ class _TorrentTabState extends State<TorrentTab>
   Widget _buildTorrentRow(_TorrentView torrent) {
     final scheme = Theme.of(context).colorScheme;
     final isSelected = _selectedKey == torrent.key;
+    final rowKey = _rowKeys.putIfAbsent(torrent.key, () => GlobalKey());
     return GestureDetector(
+      key: rowKey,
       behavior: HitTestBehavior.opaque,
       onSecondaryTapDown: (details) {
+        _listFocusNode.requestFocus();
         setState(() => _selectedKey = torrent.key);
         _showRowMenu(torrent, details.globalPosition);
       },
       onLongPressStart: (details) {
+        _listFocusNode.requestFocus();
         setState(() => _selectedKey = torrent.key);
         _showRowMenu(torrent, details.globalPosition);
       },
       child: InkWell(
-        onTap: () => setState(() => _selectedKey = torrent.key),
+        onTap: () {
+          _listFocusNode.requestFocus();
+          setState(() => _selectedKey = torrent.key);
+        },
         child: Container(
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(

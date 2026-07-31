@@ -7,6 +7,8 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -41,6 +43,11 @@ class _SatelliteTabState extends State<SatelliteTab> {
   bool _observerKnown = false;
   int? _selectedId;
 
+  // Keyboard navigation of the satellite list (arrows / page up-down / home-end).
+  final FocusNode _listFocusNode = FocusNode(debugLabel: 'SatelliteList');
+  final ScrollController _listScrollController = ScrollController();
+  final Map<int, GlobalKey> _itemKeys = {};
+
   // Fraction of the height given to the list in the stacked (narrow) layout.
   double _listHeightRatio = 0.5;
   static const double _minListRatio = 0.2;
@@ -53,7 +60,11 @@ class _SatelliteTabState extends State<SatelliteTab> {
   @override
   void initState() {
     super.initState();
-    _selectedId = DataBroker.getValue<int>(_deviceId, 'SelectedSatelliteId', null);
+    _selectedId = DataBroker.getValue<int>(
+      _deviceId,
+      'SelectedSatelliteId',
+      null,
+    );
 
     _broker.subscribe(
       deviceId: _deviceId,
@@ -99,14 +110,30 @@ class _SatelliteTabState extends State<SatelliteTab> {
   void dispose() {
     _clock?.cancel();
     _broker.dispose();
+    _listFocusNode.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
   // --- Broker callbacks -----------------------------------------------------
 
+  /// setState that defers to the next frame when a broker event is delivered
+  /// while the tree is building (e.g. the initState `SatelliteResync` makes the
+  /// handler re-emit its cached snapshot synchronously during the parent build).
+  void _safeSetState(VoidCallback fn) {
+    if (!mounted) return;
+    if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
+      setState(fn);
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(fn);
+      });
+    }
+  }
+
   void _onCatalog(int deviceId, String name, Object? data) {
     if (data is! List) return;
-    setState(() {
+    _safeSetState(() {
       _catalog
         ..clear()
         ..addEntries(
@@ -117,13 +144,13 @@ class _SatelliteTabState extends State<SatelliteTab> {
 
   void _onPositions(int deviceId, String name, Object? data) {
     if (data is! List) return;
-    setState(() {
+    _safeSetState(() {
       _positions
         ..clear()
         ..addEntries(
-          data
-              .whereType<SatellitePosition>()
-              .map((p) => MapEntry(p.noradId, p)),
+          data.whereType<SatellitePosition>().map(
+            (p) => MapEntry(p.noradId, p),
+          ),
         );
     });
     // Drive the open map dialog's marker as the tracked satellite moves.
@@ -138,7 +165,7 @@ class _SatelliteTabState extends State<SatelliteTab> {
 
   void _onNextPasses(int deviceId, String name, Object? data) {
     if (data is! List) return;
-    setState(() {
+    _safeSetState(() {
       _nextPass
         ..clear()
         ..addEntries(
@@ -149,12 +176,14 @@ class _SatelliteTabState extends State<SatelliteTab> {
 
   void _onSelectedPasses(int deviceId, String name, Object? data) {
     if (data is! List) return;
-    setState(() => _selectedPasses = data.whereType<SatellitePass>().toList());
+    _safeSetState(
+      () => _selectedPasses = data.whereType<SatellitePass>().toList(),
+    );
   }
 
   void _onObserverKnown(int deviceId, String name, Object? data) {
     if (data is! bool) return;
-    setState(() => _observerKnown = data);
+    _safeSetState(() => _observerKnown = data);
   }
 
   void _select(int noradId) {
@@ -164,6 +193,79 @@ class _SatelliteTabState extends State<SatelliteTab> {
       name: 'SelectSatellite',
       data: noradId,
       store: false,
+    );
+  }
+
+  // --- Keyboard navigation --------------------------------------------------
+
+  List<SatelliteInfo> _sortedSats() =>
+      _catalog.values.toList()..sort(_compareForList);
+
+  /// Rows that fit a viewport, used as the page-up/down step (keeps one row of
+  /// overlap for context); falls back to a fixed step before first layout.
+  int _pageStep() {
+    if (_listScrollController.hasClients) {
+      final rows = (_listScrollController.position.viewportDimension / 52)
+          .floor();
+      if (rows > 1) return rows - 1;
+    }
+    return 5;
+  }
+
+  KeyEventResult _handleListKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowDown) {
+      _moveSelection(1);
+    } else if (key == LogicalKeyboardKey.arrowUp) {
+      _moveSelection(-1);
+    } else if (key == LogicalKeyboardKey.pageDown) {
+      _moveSelection(_pageStep());
+    } else if (key == LogicalKeyboardKey.pageUp) {
+      _moveSelection(-_pageStep());
+    } else if (key == LogicalKeyboardKey.home) {
+      _selectAtIndex(0);
+    } else if (key == LogicalKeyboardKey.end) {
+      _selectAtIndex(_sortedSats().length - 1);
+    } else {
+      return KeyEventResult.ignored;
+    }
+    return KeyEventResult.handled;
+  }
+
+  void _moveSelection(int delta) {
+    final sats = _sortedSats();
+    if (sats.isEmpty) return;
+    final idx = sats.indexWhere((s) => s.noradId == _selectedId);
+    if (idx < 0) {
+      _selectAtIndex(delta > 0 ? 0 : sats.length - 1);
+      return;
+    }
+    _selectAtIndex(idx + delta);
+  }
+
+  void _selectAtIndex(int index) {
+    final sats = _sortedSats();
+    if (sats.isEmpty) return;
+    final i = index.clamp(0, sats.length - 1);
+    _select(sats[i].noradId);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _scrollSelectedIntoView(),
+    );
+  }
+
+  void _scrollSelectedIntoView() {
+    final id = _selectedId;
+    if (id == null) return;
+    final ctx = _itemKeys[id]?.currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(
+      ctx,
+      alignment: 0.5,
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeInOut,
     );
   }
 
@@ -177,8 +279,9 @@ class _SatelliteTabState extends State<SatelliteTab> {
   }
 
   void _showOnMap(String name, int noradId, SatellitePosition pos) {
-    final notifier =
-        ValueNotifier<LatLng>(LatLng(pos.latitudeDeg, pos.longitudeDeg));
+    final notifier = ValueNotifier<LatLng>(
+      LatLng(pos.latitudeDeg, pos.longitudeDeg),
+    );
     _mapLiveNotifier = notifier;
     _mapDialogNoradId = noradId;
     showAprsLocationDialog(
@@ -260,8 +363,11 @@ class _SatelliteTabState extends State<SatelliteTab> {
         onVerticalDragUpdate: (details) {
           if (totalHeight <= 0) return;
           setState(() {
-            _listHeightRatio = (_listHeightRatio + details.delta.dy / totalHeight)
-                .clamp(_minListRatio, _maxListRatio);
+            _listHeightRatio =
+                (_listHeightRatio + details.delta.dy / totalHeight).clamp(
+                  _minListRatio,
+                  _maxListRatio,
+                );
           });
         },
         child: Container(
@@ -308,8 +414,10 @@ class _SatelliteTabState extends State<SatelliteTab> {
               return Column(
                 children: [
                   SizedBox(
-                    height: (constraints.maxHeight * _listHeightRatio)
-                        .clamp(80.0, constraints.maxHeight - 120.0),
+                    height: (constraints.maxHeight * _listHeightRatio).clamp(
+                      80.0,
+                      constraints.maxHeight - 120.0,
+                    ),
                     child: list,
                   ),
                   _buildHorizontalSplitter(constraints.maxHeight),
@@ -366,7 +474,11 @@ class _SatelliteTabState extends State<SatelliteTab> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          Icon(Icons.location_off, size: 18, color: scheme.onSecondaryContainer),
+          Icon(
+            Icons.location_off,
+            size: 18,
+            color: scheme.onSecondaryContainer,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -385,91 +497,118 @@ class _SatelliteTabState extends State<SatelliteTab> {
     }
     final scheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context);
-    final sats = _catalog.values.toList()..sort(_compareForList);
-    return ListView.separated(
-      itemCount: sats.length,
-      separatorBuilder: (_, _) => Divider(
-        height: 1,
-        color: scheme.outlineVariant.withValues(alpha: 0.4),
-      ),
-      itemBuilder: (context, i) {
-        final sat = sats[i];
-        final pos = _positions[sat.noradId];
-        final selected = sat.noradId == _selectedId;
-        final visible = pos != null && pos.isVisible;
-        return Material(
-          color: selected ? scheme.primaryContainer : Colors.transparent,
-          child: InkWell(
-            onTap: () => _select(sat.noradId),
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  left: BorderSide(
-                    color: selected ? scheme.primary : Colors.transparent,
-                    width: 3,
+    final sats = _sortedSats();
+    return Focus(
+      focusNode: _listFocusNode,
+      onKeyEvent: _handleListKey,
+      child: ListView.separated(
+        controller: _listScrollController,
+        itemCount: sats.length,
+        separatorBuilder: (_, _) => Divider(
+          height: 1,
+          color: scheme.outlineVariant.withValues(alpha: 0.4),
+        ),
+        itemBuilder: (context, i) {
+          final sat = sats[i];
+          final pos = _positions[sat.noradId];
+          final selected = sat.noradId == _selectedId;
+          final visible = pos != null && pos.isVisible;
+          final itemKey = _itemKeys.putIfAbsent(sat.noradId, () => GlobalKey());
+          return Material(
+            key: itemKey,
+            color: selected ? scheme.primaryContainer : Colors.transparent,
+            child: InkWell(
+              // Keep keyboard focus on the list's Focus node (not the row) so
+              // arrow/page keys drive selection instead of leaking to the
+              // enclosing TabBarView's directional focus traversal.
+              canRequestFocus: false,
+              onTap: () {
+                _listFocusNode.requestFocus();
+                _select(sat.noradId);
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    left: BorderSide(
+                      color: selected ? scheme.primary : Colors.transparent,
+                      width: 3,
+                    ),
                   ),
                 ),
-              ),
-              padding: const EdgeInsets.fromLTRB(9, 8, 12, 8),
-              child: Row(
-                children: [
-                  _visibilityIcon(pos),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          sat.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight:
-                                selected ? FontWeight.bold : FontWeight.w500,
-                            color:
-                                selected ? scheme.onPrimaryContainer : null,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _listSubtitle(sat),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: selected
-                                ? scheme.onPrimaryContainer
-                                    .withValues(alpha: 0.8)
-                                : scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (visible)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${pos.elevationDeg.round()}\u00b0',
-                        style: const TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
+                padding: const EdgeInsets.fromLTRB(9, 8, 12, 8),
+                child: Row(
+                  children: [
+                    _visibilityIcon(pos),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          final subtitle = _listSubtitle(sat);
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: subtitle.isEmpty
+                                ? MainAxisAlignment.center
+                                : MainAxisAlignment.start,
+                            children: [
+                              Text(
+                                sat.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: selected
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                  color: selected
+                                      ? scheme.onPrimaryContainer
+                                      : null,
+                                ),
+                              ),
+                              if (subtitle.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  subtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: selected
+                                        ? scheme.onPrimaryContainer.withValues(
+                                            alpha: 0.8,
+                                          )
+                                        : scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          );
+                        },
                       ),
                     ),
-                ],
+                    if (visible)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${pos.elevationDeg.round()}\u00b0',
+                          style: const TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -509,7 +648,7 @@ class _SatelliteTabState extends State<SatelliteTab> {
       return 'Overhead \u2022 az ${pos.azimuthDeg.round()}\u00b0';
     }
     final next = _nextPass[sat.noradId];
-    if (next == null) return 'No pass in 48 h';
+    if (next == null) return _observerKnown ? 'No pass in 48 h' : '';
     final delta = next.aos.difference(DateTime.now().toUtc());
     return 'AOS in ${_formatDuration(delta)} \u2022 max '
         '${next.maxElevationDeg.round()}\u00b0';
@@ -550,7 +689,7 @@ class _SatelliteTabState extends State<SatelliteTab> {
         _section(
           context,
           icon: Icons.settings_input_antenna,
-          title: 'Frequencies (Doppler-corrected)',
+          title: 'Usages & frequencies (Doppler-corrected)',
           child: _buildFrequencySection(context, sat, pos),
         ),
         _section(
@@ -643,7 +782,12 @@ class _SatelliteTabState extends State<SatelliteTab> {
     );
   }
 
-  Widget _pill(BuildContext context, String text, {Color? color, VoidCallback? onTap}) {
+  Widget _pill(
+    BuildContext context,
+    String text, {
+    Color? color,
+    VoidCallback? onTap,
+  }) {
     final scheme = Theme.of(context).colorScheme;
     final bg = (color ?? scheme.primary).withValues(alpha: 0.15);
     final fg = color ?? scheme.onPrimaryContainer;
@@ -699,9 +843,7 @@ class _SatelliteTabState extends State<SatelliteTab> {
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.5),
-        ),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -738,7 +880,11 @@ class _SatelliteTabState extends State<SatelliteTab> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _kv(context, 'Azimuth', '${pos.azimuthDeg.toStringAsFixed(1)}\u00b0'),
-        _kv(context, 'Elevation', '${pos.elevationDeg.toStringAsFixed(1)}\u00b0'),
+        _kv(
+          context,
+          'Elevation',
+          '${pos.elevationDeg.toStringAsFixed(1)}\u00b0',
+        ),
         _kv(context, 'Range', '${pos.rangeKm.toStringAsFixed(0)} km'),
         _kv(
           context,
@@ -757,15 +903,60 @@ class _SatelliteTabState extends State<SatelliteTab> {
     SatellitePosition? pos,
   ) {
     final rate = pos?.rangeRateKmS ?? 0;
-    final downBase = sat.transponder.downlinkHz;
-    final upBase = sat.transponder.uplinkHz;
-    final downCorr = sat.correctedDownlinkHz(rate);
-    final upCorr = sat.correctedUplinkHz(rate);
-    final tone = sat.transponder.ctcssHz;
+    final scheme = Theme.of(context).colorScheme;
+    final usages = sat.transponders;
+    final blocks = <Widget>[];
+    for (var i = 0; i < usages.length; i++) {
+      if (i > 0) {
+        blocks.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Divider(
+              height: 1,
+              color: scheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+          ),
+        );
+      }
+      blocks.add(_buildUsageBlock(context, usages[i], rate));
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: blocks,
+    );
+  }
 
+  Widget _buildUsageBlock(
+    BuildContext context,
+    SatelliteTransponder t,
+    double rate,
+  ) {
+    final downBase = t.downlinkHz;
+    final upBase = t.uplinkHz;
+    final downCorr = t.correctedDownlinkHz(rate);
+    final upCorr = t.correctedUplinkHz(rate);
+    final tone = t.ctcssHz;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Row(
+          children: [
+            _usageChip(context, t.usage),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                t.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
         _kv(
           context,
           'Downlink (RX)',
@@ -776,7 +967,9 @@ class _SatelliteTabState extends State<SatelliteTab> {
         _kv(
           context,
           'Uplink (TX)',
-          upCorr == null ? '\u2014' : '${_mhz(upCorr)}  (${_mhz(upBase!)})',
+          upCorr == null
+              ? 'Receive only'
+              : '${_mhz(upCorr)}  (${_mhz(upBase!)})',
         ),
         _kv(
           context,
@@ -787,9 +980,40 @@ class _SatelliteTabState extends State<SatelliteTab> {
     );
   }
 
+  Widget _usageChip(BuildContext context, String usage) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = switch (usage.toLowerCase()) {
+      'aprs' => Colors.orange,
+      'sstv' => Colors.purple,
+      'voice' => Colors.teal,
+      _ => scheme.primary,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        usage,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
+  }
+
   List<Widget> _buildPassRows(BuildContext context) {
     if (_selectedPasses.isEmpty) {
-      return const [Text('No passes predicted in the next 48 hours.')];
+      return [
+        Text(
+          _observerKnown
+              ? 'No passes predicted in the next 48 hours.'
+              : 'A GPS location is needed to predict passes.',
+        ),
+      ];
     }
     return _selectedPasses.take(10).map((p) {
       final now = DateTime.now().toUtc();
@@ -805,9 +1029,7 @@ class _SatelliteTabState extends State<SatelliteTab> {
           inPass ? Icons.satellite_alt : Icons.schedule,
           color: inPass ? Colors.green : null,
         ),
-        title: Text(
-          '${_formatLocal(p.aos)} \u2192 ${_formatLocal(p.los)}',
-        ),
+        title: Text('${_formatLocal(p.aos)} \u2192 ${_formatLocal(p.los)}'),
         subtitle: Text(
           'max ${p.maxElevationDeg.round()}\u00b0 \u2022 '
           'az ${p.aosAzimuthDeg.round()}\u00b0\u2192${p.losAzimuthDeg.round()}\u00b0 '

@@ -40,12 +40,13 @@ class TransponderRepository {
     [300000000, 550000000],
   ];
 
-  final Map<int, SatelliteTransponder> _byNorad = {};
+  final Map<int, List<SatelliteTransponder>> _byNorad = {};
   File? _cacheFile;
 
-  /// The transponder catalog keyed by NORAD catalog number.
-  Map<int, SatelliteTransponder> get byNorad =>
-      Map<int, SatelliteTransponder>.unmodifiable(_byNorad);
+  /// The transponder catalog keyed by NORAD catalog number. Each value is the
+  /// list of amateur usages for that satellite (FM repeater, APRS, SSTV, …).
+  Map<int, List<SatelliteTransponder>> get byNorad =>
+      Map<int, List<SatelliteTransponder>>.unmodifiable(_byNorad);
 
   /// True when [hz] is within a frequency range this radio can tune in FM.
   static bool isRadioTunable(int? hz) {
@@ -72,6 +73,11 @@ class TransponderRepository {
 
     text ??= await _readSeed();
     _parseOwnFormat(text);
+
+    // Overlay the bundled seed so every curated usage (and any curated bird the
+    // cache predates, e.g. added in an app update) is present; online data
+    // already loaded above wins per usage, so this only fills gaps.
+    _mergeSeed(_byNorad, await _readSeed());
   }
 
   /// Fetches the SatNOGS transmitter list when the cache is stale, filters it
@@ -102,7 +108,9 @@ class TransponderRepository {
         return false;
       }
 
-      final next = <int, SatelliteTransponder>{};
+      // One FM cross-band repeater per satellite (the qualifying usage that
+      // decides which birds appear in the list).
+      final repeaters = <int, SatelliteTransponder>{};
       for (final entry in decoded.whereType<Map>()) {
         final t = _fromSatnogs(Map<String, dynamic>.from(entry));
         if (t == null || !t.isWorkableFm) continue;
@@ -111,14 +119,22 @@ class TransponderRepository {
         }
         // Keep the first workable FM transponder per satellite. Carry over a
         // CTCSS tone from the seed/previous catalog, which SatNOGS omits.
-        if (next.containsKey(t.noradId)) continue;
-        next[t.noradId] = _withCarriedTone(t);
+        if (repeaters.containsKey(t.noradId)) continue;
+        repeaters[t.noradId] = _withCarriedTone(t);
       }
 
-      if (next.isEmpty) {
+      if (repeaters.isEmpty) {
         debugPrint('TransponderRepository: no workable FM birds in payload.');
         return false;
       }
+
+      // Overlay the bundled seed so curated usages (APRS/SSTV/voice) and any
+      // curated bird SatNOGS didn't return survive the refresh; the online
+      // repeater above wins per usage.
+      final next = <int, List<SatelliteTransponder>>{
+        for (final e in repeaters.entries) e.key: [e.value],
+      };
+      _mergeSeed(next, await _readSeed());
 
       await _writeCache(next);
       _byNorad
@@ -137,11 +153,13 @@ class TransponderRepository {
   /// when the fresh SatNOGS record has none.
   SatelliteTransponder _withCarriedTone(SatelliteTransponder t) {
     if (t.ctcssHz != null) return t;
-    final prior = _byNorad[t.noradId];
+    final priorList = _byNorad[t.noradId];
+    final prior = (priorList == null || priorList.isEmpty) ? null : priorList.first;
     if (prior?.ctcssHz == null) return t;
     return SatelliteTransponder(
       noradId: t.noradId,
       name: t.name,
+      usage: t.usage,
       uplinkHz: t.uplinkHz,
       downlinkHz: t.downlinkHz,
       mode: t.mode,
@@ -149,6 +167,55 @@ class TransponderRepository {
       inverting: t.inverting,
       status: t.status,
     );
+  }
+
+  /// Overlays the bundled seed onto [target]: adds curated birds the catalog
+  /// lacks and appends any curated usage not already listed for a bird it has.
+  /// Existing (online) usages win, so this only fills gaps; idempotent, so it
+  /// is safe to call on both the cached catalog and a fresh online one.
+  void _mergeSeed(
+    Map<int, List<SatelliteTransponder>> target,
+    String seedText,
+  ) {
+    final seed = _seedGrouped(seedText);
+    seed.forEach((noradId, usages) {
+      final existing = target[noradId];
+      if (existing == null) {
+        target[noradId] = List<SatelliteTransponder>.of(usages);
+        return;
+      }
+      for (final usage in usages) {
+        final present = existing.any(
+          (t) => t.usage.toLowerCase() == usage.usage.toLowerCase(),
+        );
+        if (!present) existing.add(usage);
+      }
+    });
+  }
+
+  /// Parses the bundled seed into radio-tunable usages grouped by NORAD.
+  Map<int, List<SatelliteTransponder>> _seedGrouped(String text) {
+    final result = <int, List<SatelliteTransponder>>{};
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is! Map) return result;
+      final list = decoded['transponders'];
+      if (list is! List) return result;
+      for (final entry in list.whereType<Map>()) {
+        final t = SatelliteTransponder.fromJson(
+          Map<String, dynamic>.from(entry),
+        );
+        if (t.noradId == 0) continue;
+        // Keep only usages the radio can at least receive or transmit.
+        if (!isRadioTunable(t.downlinkHz) && !isRadioTunable(t.uplinkHz)) {
+          continue;
+        }
+        result.putIfAbsent(t.noradId, () => []).add(t);
+      }
+    } catch (e) {
+      debugPrint('TransponderRepository: failed to parse seed: $e');
+    }
+    return result;
   }
 
   static SatelliteTransponder? _fromSatnogs(Map<String, dynamic> json) {
@@ -197,12 +264,15 @@ class TransponderRepository {
     }
   }
 
-  Future<void> _writeCache(Map<int, SatelliteTransponder> catalog) async {
+  Future<void> _writeCache(Map<int, List<SatelliteTransponder>> catalog) async {
     final cache = _cacheFile;
     if (cache == null) return;
     try {
       final payload = {
-        'transponders': catalog.values.map((t) => t.toJson()).toList(),
+        'transponders': catalog.values
+            .expand((usages) => usages)
+            .map((t) => t.toJson())
+            .toList(),
       };
       await cache.writeAsString(jsonEncode(payload), flush: true);
     } catch (e) {
@@ -230,7 +300,9 @@ class TransponderRepository {
         final t = SatelliteTransponder.fromJson(
           Map<String, dynamic>.from(entry),
         );
-        if (t.noradId != 0) _byNorad[t.noradId] = t;
+        if (t.noradId != 0) {
+          _byNorad.putIfAbsent(t.noradId, () => []).add(t);
+        }
       }
     } catch (e) {
       debugPrint('TransponderRepository: failed to parse catalog: $e');

@@ -289,10 +289,16 @@ class SatelliteHandler {
     _catalog.clear();
     final transponders = _transponderRepo.byNorad;
     for (final tle in _tleRepo.tles) {
-      final transponder = transponders[tle.noradId];
-      if (transponder == null || !transponder.isWorkableFm) continue;
+      final usages = transponders[tle.noradId];
+      if (usages == null || !usages.any((t) => t.isWorkableFm)) continue;
+      // Primary (workable FM repeater) first so SatelliteInfo.transponder and
+      // list sorting use it; the rest (APRS/SSTV/voice) follow.
+      final ordered = [
+        ...usages.where((t) => t.isWorkableFm),
+        ...usages.where((t) => !t.isWorkableFm),
+      ];
       _catalog[tle.noradId] =
-          SatelliteInfo(tle: tle, transponder: transponder);
+          SatelliteInfo(tle: tle, transponders: ordered);
     }
   }
 
