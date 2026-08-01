@@ -89,5 +89,7 @@
 	<string>HTCommander needs camera access so you can capture and send photos.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>HTCommander uses the microphone to capture audio and display a live audio spectrogram.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>HTCommander uses your location to correct the compass to true north when aiming an antenna at a satellite.</string>
 </dict>
 </plist>

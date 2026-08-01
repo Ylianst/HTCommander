@@ -684,10 +684,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     // configuration stays visible and editable.
     _aprsIsCustomServer = !(_settings.aprsIsPort == _aprsIsDefaultPort &&
         _aprsIsRegionHosts.contains(_settings.aprsIsServer));
-    // Start the passcode field blank each time the dialog opens so a saved
-    // passcode is not shown on screen (e.g. while recording videos). The stored
-    // passcode in _settings is kept intact; only re-typing overwrites it.
-    _aprsIsPasscodeController = TextEditingController();
+    _aprsIsPasscodeController = TextEditingController(
+      text: _settings.aprsIsPasscode,
+    );
     _webPortController = TextEditingController(
       text: _settings.webServerPort.toString(),
     );
@@ -1713,6 +1712,11 @@ class _SettingsDialogState extends State<SettingsDialog>
               TextField(
                 controller: _aprsIsPasscodeController,
                 enabled: hasCallSign,
+                // Once APRS-IS is enabled with a valid passcode, hide the
+                // passcode behind dots and lock the field. The user must
+                // un-check APRS-IS to reveal and change it.
+                readOnly: _settings.aprsIsEnabled && passcodeValid,
+                obscureText: _settings.aprsIsEnabled && passcodeValid,
                 keyboardType: TextInputType.number,
                 decoration: _inputDecoration(
                   hintText: l10n.settingsAprsIsPasscodeHint,

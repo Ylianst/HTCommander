@@ -16,8 +16,10 @@ import '../dialogs/aprs_location_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../radio/radio.dart';
 import '../radio/radio_models.dart';
+import '../satellite/orientation_service.dart';
 import '../satellite/satellite_models.dart';
 import '../services/data_broker.dart';
+import 'antenna_pointer_page.dart';
 import 'satellite_aim_indicators.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
@@ -453,6 +455,15 @@ class _SatelliteTabState extends State<SatelliteTab> {
       _mapLiveNotifier = null;
       notifier.dispose();
     });
+  }
+
+  void _openAntennaPointer(int noradId, String name) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            AntennaPointerPage(noradId: noradId, satelliteName: name),
+      ),
+    );
   }
 
   void _showMenu(BuildContext context) {
@@ -943,6 +954,17 @@ class _SatelliteTabState extends State<SatelliteTab> {
                 ? () => _showOnMap(sat.name, sat.noradId, pos)
                 : null,
           ),
+          if (OrientationService.isSupported)
+            IconButton(
+              icon: Icon(
+                Icons.explore,
+                color: pos != null ? scheme.primary : theme.disabledColor,
+              ),
+              tooltip: 'Point antenna',
+              onPressed: pos != null
+                  ? () => _openAntennaPointer(sat.noradId, sat.name)
+                  : null,
+            ),
         ],
       ),
     );

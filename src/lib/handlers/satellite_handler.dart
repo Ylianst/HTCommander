@@ -280,6 +280,12 @@ class SatelliteHandler {
       data: _lastObserverKnown,
       store: false,
     );
+    _broker.dispatch(
+      deviceId: _settingsDeviceId,
+      name: 'SatelliteObserverLocation',
+      data: _observerLocation(),
+      store: false,
+    );
   }
 
   void _onObserverSettingChanged(int deviceId, String name, Object? data) {
@@ -720,6 +726,20 @@ class SatelliteHandler {
       data: known,
       store: false,
     );
+    _broker.dispatch(
+      deviceId: _settingsDeviceId,
+      name: 'SatelliteObserverLocation',
+      data: _observerLocation(),
+      store: false,
+    );
+  }
+
+  /// Latest resolved observer position as `{lat, lon}`, or null when unknown.
+  Map<String, double>? _observerLocation() {
+    if (!_lastObserverKnown || _lastObsLat == null || _lastObsLon == null) {
+      return null;
+    }
+    return <String, double>{'lat': _lastObsLat!, 'lon': _lastObsLon!};
   }
 
   Future<void> _refresh() async {
