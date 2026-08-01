@@ -527,10 +527,10 @@ class SatelliteHandler {
 
     final rate = look.rangeRateKmS;
     final rx = usage.correctedDownlinkHz(rate) ?? usage.downlinkHz;
-    // Receive-only usages have no uplink; keep TX on the downlink so the radio
-    // simply sits on the receive frequency.
-    final tx = usage.correctedUplinkHz(rate) ?? rx;
-    if (rx == null || tx == null) return;
+    // Receive-only usages have no uplink; send 0 as the TX frequency to test
+    // whether the radio accepts it (rather than parking TX on the RX freq).
+    final tx = usage.correctedUplinkHz(rate) ?? 0;
+    if (rx == null) return;
 
     // Seconds until the next pass (AOS) for the radio's "Next Pass" countdown.
     // While the bird is above the horizon (a pass is in progress) the original

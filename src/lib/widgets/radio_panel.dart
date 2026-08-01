@@ -17,6 +17,7 @@ import '../utils/channel_share.dart';
 import '../utils/web_channel_import/web_channel_import.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../echolink/echolink_station.dart';
+import '../satellite/satellite_models.dart' show SatelliteTrackParams;
 
 /// Radio panel control widget - displays radio image, VFO frequencies, and status
 class RadioPanelControl extends StatefulWidget {
@@ -67,6 +68,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   bool _gpsEnabled = false;
   RadioPosition? _position;
   RadioLockState? _lockState;
+  // Live satellite tracking data while the radio is locked in 'Satellite'
+  // usage, pushed ~1s by the satellite handler. Used to label VFO A with the
+  // bird name and its Doppler-corrected downlink frequency.
+  String _satelliteName = '';
+  int _satelliteRxFreqHz = 0;
 
   // EchoLink (device 200) state, used when this panel displays EchoLink.
   // Whether EchoLink is currently online (connected as a radio). Tracked with an
@@ -483,6 +489,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     _gpsEnabled = false;
     _position = null;
     _lockState = null;
+    _satelliteName = '';
+    _satelliteRxFreqHz = 0;
     _echoLinkState = null;
     _echoLinkStations = const [];
     _echoLinkConnected = null;
@@ -530,6 +538,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         'GpsEnabled',
         'Position',
         'LockState',
+        'SatelliteTrackUpdate',
       ],
       callback: _onBrokerEvent,
     );
@@ -744,6 +753,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
             _lockState = RadioLockState.fromJson(data);
           }
           break;
+        case 'SatelliteTrackUpdate':
+          if (data is SatelliteTrackParams) {
+            _satelliteName = data.name;
+            _satelliteRxFreqHz = data.rxFreqHz;
+          }
+          break;
       }
     });
   }
@@ -895,7 +910,23 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   bool get _isDualChannel => _currentSettings?.doubleChannel == 1;
   bool get _isScanning => _currentSettings?.scan ?? false;
 
+  /// True while the radio is locked in the native "Satellite" usage mode, where
+  /// VFO A shows the tracked bird name over its Doppler-corrected frequency.
+  bool get _isSatelliteMode =>
+      (_lockState?.isLocked ?? false) && _lockState!.usage == 'Satellite';
+
+  /// The Doppler-corrected downlink frequency (Hz) shown on VFO A while in
+  /// satellite mode. Prefers the live freq-mode value and falls back to the
+  /// last value pushed with the satellite track update.
+  int get _satelliteFreqHz =>
+      _freqModeFreqHz > 0 ? _freqModeFreqHz : _satelliteRxFreqHz;
+
   String get _vfo1Label {
+    // In satellite mode the large top box shows the tracked bird name and the
+    // frequency drops to the small box below.
+    if (_isSatelliteMode) {
+      return _satelliteName.isNotEmpty ? _satelliteName : 'Satellite';
+    }
     // In frequency mode the large top box shows the live frequency (with unit)
     // instead of a channel name; the mode caption drops to the small box below.
     if (_showFrequencyMode) {
@@ -913,6 +944,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   String get _vfo1Freq {
+    // In satellite mode the small box shows the Doppler-corrected downlink
+    // frequency beneath the bird name.
+    if (_isSatelliteMode) {
+      final hz = _satelliteFreqHz;
+      return hz > 0 ? '${(hz / 1000000).toStringAsFixed(3)} MHz' : '';
+    }
     // In frequency mode the small box shows the mode caption (Weather / Broadcast
     // FM) beneath the large frequency; empty for a plain VFO free-tune or until a
     // frequency is available.

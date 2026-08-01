@@ -684,9 +684,10 @@ class _SettingsDialogState extends State<SettingsDialog>
     // configuration stays visible and editable.
     _aprsIsCustomServer = !(_settings.aprsIsPort == _aprsIsDefaultPort &&
         _aprsIsRegionHosts.contains(_settings.aprsIsServer));
-    _aprsIsPasscodeController = TextEditingController(
-      text: _settings.aprsIsPasscode,
-    );
+    // Start the passcode field blank each time the dialog opens so a saved
+    // passcode is not shown on screen (e.g. while recording videos). The stored
+    // passcode in _settings is kept intact; only re-typing overwrites it.
+    _aprsIsPasscodeController = TextEditingController();
     _webPortController = TextEditingController(
       text: _settings.webServerPort.toString(),
     );
