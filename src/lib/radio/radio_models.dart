@@ -610,6 +610,138 @@ class RadioChannelInfo {
   };
 }
 
+/// Parameters for FREQ_MODE_SET_PAR (35) — puts the radio into frequency (VFO)
+/// mode and tunes explicit RX/TX frequencies plus sub-audio. This is the
+/// command used to steer the VFO for satellite Doppler tracking (sent ~once a
+/// second with freshly Doppler-corrected frequencies).
+///
+/// The 16-byte payload (all multi-byte fields big-endian):
+///   0..3   RX (downlink) frequency in Hz; top 2 bits = modulation, low 30 = Hz
+///   4..7   TX (uplink) frequency, same encoding
+///   8..9   RX sub-audio (CTCSS/DCS) in units of 0.01 Hz (0 = none)
+///   10..11 TX sub-audio, same units
+///   12..13 status/mode flags (settles to 0 once in VFO mode)
+///   14..15 constant channel step (0x61A8 = 25000) sent unchanged each update
+class RadioFreqModePar {
+  final int rxFreq;
+  final int txFreq;
+  final RadioModulationType rxMod;
+  final RadioModulationType txMod;
+
+  /// RX sub-audio (CTCSS/DCS) in units of 0.01 Hz; 0 = none.
+  final int rxSubAudio;
+
+  /// TX sub-audio (CTCSS/DCS) in units of 0.01 Hz; 0 = none.
+  final int txSubAudio;
+
+  /// Status/mode flags word; 0 once the radio has settled into VFO mode.
+  final int flags;
+
+  /// Constant channel step sent on every update (0x61A8 = 25000).
+  final int step;
+
+  const RadioFreqModePar({
+    required this.rxFreq,
+    required this.txFreq,
+    this.rxMod = RadioModulationType.fm,
+    this.txMod = RadioModulationType.fm,
+    this.rxSubAudio = 0,
+    this.txSubAudio = 0,
+    this.flags = 0,
+    this.step = 0x61A8,
+  });
+
+  /// The teardown payload: an all-zero FREQ_MODE_SET_PAR drops the radio out of
+  /// frequency (VFO) mode and restores its normal channel state, ending a
+  /// tracking session.
+  const RadioFreqModePar.stop()
+    : rxFreq = 0,
+      txFreq = 0,
+      rxMod = RadioModulationType.fm,
+      txMod = RadioModulationType.fm,
+      rxSubAudio = 0,
+      txSubAudio = 0,
+      flags = 0,
+      step = 0;
+
+  /// Serialize to the 16-byte FREQ_MODE_SET_PAR payload.
+  Uint8List toByteArray() {
+    final r = Uint8List(16);
+    RadioUtils.setInt(r, 0, rxFreq & 0x3FFFFFFF);
+    r[0] = (r[0] & 0x3F) | ((rxMod.index & 0x03) << 6);
+    RadioUtils.setInt(r, 4, txFreq & 0x3FFFFFFF);
+    r[4] = (r[4] & 0x3F) | ((txMod.index & 0x03) << 6);
+    RadioUtils.setShort(r, 8, rxSubAudio);
+    RadioUtils.setShort(r, 10, txSubAudio);
+    RadioUtils.setShort(r, 12, flags);
+    RadioUtils.setShort(r, 14, step);
+    return r;
+  }
+}
+
+/// Payload for SET_SATELLITE_INFO (77) — names the satellite being tracked and
+/// carries the live look-angle the radio shows on its own screen. Sent
+/// immediately before each [RadioFreqModePar] update during a pass.
+///
+/// The 30-byte payload is a 20-byte NUL-padded ASCII name followed by a 10-byte
+/// tracking block of big-endian fields, confirmed by comparing the values sent
+/// against the radio's on-screen readout:
+///   20–21  azimuth   × 128 (uint16, degrees)
+///   22–23  elevation × 256 (signed int16, degrees)
+///   24–25  slant range / distance in km (uint16)
+///   26–27  altitude in km (uint16)
+///   28–29  seconds until the next pass (uint16) — the "Next Pass" countdown
+class RadioSatelliteInfo {
+  /// Satellite name (TLE line-0), truncated/padded to 20 bytes.
+  final String name;
+
+  /// Topocentric azimuth in degrees (0 = north, clockwise).
+  final double azimuthDeg;
+
+  /// Elevation above the horizon in degrees.
+  final double elevationDeg;
+
+  /// Slant range (distance) from the observer in kilometres.
+  final double rangeKm;
+
+  /// Satellite height above the ellipsoid in kilometres.
+  final double altitudeKm;
+
+  /// Seconds until the next pass (AOS), shown as the radio's "Next Pass"
+  /// countdown. 0 when unknown.
+  final int secondsToNextPass;
+
+  const RadioSatelliteInfo({
+    required this.name,
+    required this.azimuthDeg,
+    required this.elevationDeg,
+    required this.rangeKm,
+    required this.altitudeKm,
+    required this.secondsToNextPass,
+  });
+
+  /// Serialize to the 30-byte SET_SATELLITE_INFO payload.
+  Uint8List toByteArray() {
+    final r = Uint8List(30);
+    final nameBytes = RadioUtils.encodeUtf8Padded(name, 20);
+    for (int i = 0; i < 20; i++) {
+      r[i] = nameBytes[i];
+    }
+    // Azimuth in 1/128°, wrapped to [0, 360).
+    final az = ((azimuthDeg % 360.0) * 128).round().clamp(0, 0xFFFF);
+    RadioUtils.setShort(r, 20, az);
+    // Elevation in 1/256° (signed).
+    final el = (elevationDeg.clamp(-90.0, 90.0) * 256).round();
+    RadioUtils.setShort(r, 22, el & 0xFFFF);
+    // Slant range (distance) and altitude, both in km.
+    RadioUtils.setShort(r, 24, rangeKm.round().clamp(0, 0xFFFF));
+    RadioUtils.setShort(r, 26, altitudeKm.round().clamp(0, 0xFFFF));
+    // Seconds until the next pass (the radio's "Next Pass" countdown).
+    RadioUtils.setShort(r, 28, secondsToNextPass.clamp(0, 0xFFFF));
+    return r;
+  }
+}
+
 /// Radio position - GPS position information
 class RadioPosition {
   final RadioCommandState status;

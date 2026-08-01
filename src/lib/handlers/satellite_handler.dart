@@ -66,6 +66,16 @@ class SatelliteHandler {
   double _minElevationDeg = 10;
   int? _selectedNoradId;
 
+  // Active Satellite-mode tracking target: the radio locked in Satellite mode
+  // and the bird/usage it is following. All null when not tracking.
+  int? _trackRadioDeviceId;
+  int? _trackNoradId;
+  int _trackUsageIndex = 0;
+
+  // Cached next-pass AOS for the tracked bird, so the "Next Pass" countdown does
+  // not run an SGP4 pass search every tick. Recomputed once it elapses.
+  DateTime? _trackNextAosUtc;
+
   // Latest valid GPS fix reported by each connected radio (device id > 0).
   final Map<int, RadioPosition> _radioFixes = {};
 
@@ -123,6 +133,11 @@ class SatelliteHandler {
       deviceId: _settingsDeviceId,
       name: 'SatelliteSupport',
       callback: _onSupportChanged,
+    );
+    _broker.subscribe(
+      deviceId: _settingsDeviceId,
+      name: 'SatelliteTrackTarget',
+      callback: _onTrackTargetChanged,
     );
 
     _minElevationDeg =
@@ -190,6 +205,27 @@ class SatelliteHandler {
       unawaited(_enable());
     } else {
       _disable();
+    }
+  }
+
+  /// Starts or stops driving a radio's native Satellite mode. The tab sends a
+  /// `{radioDeviceId, noradId, usageIndex}` map to start and `null` to stop.
+  /// While active, each tick pushes a [SatelliteTrackUpdate] to the radio.
+  void _onTrackTargetChanged(int deviceId, String name, Object? data) {
+    if (data is Map) {
+      final radioId = (data['radioDeviceId'] as num?)?.toInt();
+      final norad = (data['noradId'] as num?)?.toInt();
+      if (radioId == null || norad == null) return;
+      _trackRadioDeviceId = radioId;
+      _trackNoradId = norad;
+      _trackUsageIndex = (data['usageIndex'] as num?)?.toInt() ?? 0;
+      _trackNextAosUtc = null; // force a fresh next-pass computation
+      _sendTrackUpdate(); // push immediately so the radio tunes without delay
+    } else {
+      _trackRadioDeviceId = null;
+      _trackNoradId = null;
+      _trackUsageIndex = 0;
+      _trackNextAosUtc = null;
     }
   }
 
@@ -457,8 +493,85 @@ class SatelliteHandler {
       store: false,
     );
 
+    // Steer a radio locked in Satellite mode toward the tracked bird.
+    _sendTrackUpdate();
+
     // Refresh the selected satellite's ground track roughly twice a minute.
     if (_tickCount++ % 30 == 0) _recomputeGroundTrack();
+  }
+
+  /// Computes the Doppler-corrected frequencies and look-angle for the tracked
+  /// satellite/usage and pushes them to the locked radio. No-op when not
+  /// tracking or when the bird has no computable position/observer yet.
+  void _sendTrackUpdate() {
+    final radioId = _trackRadioDeviceId;
+    final norad = _trackNoradId;
+    if (radioId == null || norad == null) return;
+    final observer = _observers[norad];
+    final info = _catalog[norad];
+    if (observer == null || info == null) return;
+    if (_trackUsageIndex < 0 || _trackUsageIndex >= info.transponders.length) {
+      return;
+    }
+    final usage = info.transponders[_trackUsageIndex];
+
+    final now = DateTime.now().toUtc();
+    final so.LookAngle look;
+    double altitudeKm;
+    try {
+      look = observer.lookAngleAt(now);
+      altitudeKm = observer.subPointAt(now).altitudeKm;
+    } catch (_) {
+      return;
+    }
+
+    final rate = look.rangeRateKmS;
+    final rx = usage.correctedDownlinkHz(rate) ?? usage.downlinkHz;
+    // Receive-only usages have no uplink; keep TX on the downlink so the radio
+    // simply sits on the receive frequency.
+    final tx = usage.correctedUplinkHz(rate) ?? rx;
+    if (rx == null || tx == null) return;
+
+    // Seconds until the next pass (AOS) for the radio's "Next Pass" countdown.
+    // While the bird is above the horizon (a pass is in progress) the original
+    // app sends 0, so match that; otherwise count down to the next AOS. The AOS
+    // instant is cached and only re-searched once it has elapsed.
+    int secondsToNextPass;
+    if (look.elevationDeg > 0) {
+      secondsToNextPass = 0;
+      _trackNextAosUtc = null; // recompute after the pass ends
+    } else {
+      if (_trackNextAosUtc == null || !now.isBefore(_trackNextAosUtc!)) {
+        try {
+          _trackNextAosUtc = observer
+              .nextPass(after: now, minElevationDeg: _minElevationDeg)
+              ?.rise
+              .utc;
+        } catch (_) {
+          _trackNextAosUtc = null;
+        }
+      }
+      final aos = _trackNextAosUtc;
+      secondsToNextPass =
+          aos == null ? 0 : aos.difference(now).inSeconds.clamp(0, 0xFFFF);
+    }
+
+    _broker.dispatch(
+      deviceId: radioId,
+      name: 'SatelliteTrackUpdate',
+      data: SatelliteTrackParams(
+        name: info.name,
+        rxFreqHz: rx,
+        txFreqHz: tx,
+        txCtcssHz: usage.ctcssHz,
+        azimuthDeg: look.azimuthDeg,
+        elevationDeg: look.elevationDeg,
+        rangeKm: look.rangeKm,
+        altitudeKm: altitudeKm,
+        secondsToNextPass: secondsToNextPass,
+      ),
+      store: false,
+    );
   }
 
   void _recomputePasses() {

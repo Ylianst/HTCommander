@@ -17,6 +17,7 @@ import 'bss_packet.dart';
 import 'gaia_protocol.dart';
 import 'firmware_vm_protocol.dart';
 import 'utils.dart';
+import '../satellite/satellite_models.dart';
 
 /// Maximum MTU for fragmenting data
 const int _maxMtu = 50;
@@ -201,6 +202,10 @@ class Radio {
   bool _savedScan = false;
   int _savedDualWatch = 0;
 
+  // Counts satellite-tracking updates sent since the current Satellite lock, so
+  // the first couple carry the 0x0A03 mode-entry flags (then 0x0A00).
+  int _satTrackCount = 0;
+
   // Tracks the FM broadcast (is_radio) state so we request the FM frequency once
   // when the radio enters FM broadcast mode.
   bool _wasFmBroadcast = false;
@@ -371,6 +376,14 @@ class Radio {
       deviceId: deviceId,
       name: 'SetUnlock',
       callback: _onSetUnlockEvent,
+    );
+
+    // Live satellite-tracking frames from the SatelliteHandler, applied only
+    // while this radio is locked in Satellite mode.
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'SatelliteTrackUpdate',
+      callback: _onSatelliteTrackUpdate,
     );
 
     // Subscribe to volume events
@@ -701,6 +714,23 @@ class Radio {
     _savedScan = settings!.scan;
     _savedDualWatch = settings!.doubleChannel;
 
+    // Satellite mode does not force a stored channel: the tracking loop drives
+    // the VFO directly via FREQ_MODE_SET_PAR. Claim the lock (so channel/mode
+    // changes are blocked) and wait for SatelliteTrackUpdate frames.
+    if (lockData.usage == 'Satellite') {
+      _lockState = RadioLockState(
+        isLocked: true,
+        usage: 'Satellite',
+        regionId: -1,
+        channelId: -1,
+        modem: lockData.modem,
+      );
+      _satTrackCount = 0;
+      _dispatch('LockState', _lockState!.toJson());
+      _debug('Radio locked for Satellite tracking');
+      return;
+    }
+
     // Use current if -1
     final targetRegionId = lockData.regionId >= 0
         ? lockData.regionId
@@ -750,6 +780,19 @@ class Radio {
       "Radio unlocked from usage '${unlockData.usage}' - Restoring previous settings",
     );
 
+    // Satellite mode never forced a channel; sending an all-zero
+    // FREQ_MODE_SET_PAR drops the radio out of frequency (VFO) mode and lets it
+    // restore its own channel state, so there is nothing to write back here.
+    if (unlockData.usage == 'Satellite') {
+      stopFreqMode();
+      _lockState = null;
+      _dispatch(
+        'LockState',
+        RadioLockState(isLocked: false).toJson(),
+      );
+      return;
+    }
+
     // Restore region
     if (htStatus != null &&
         _savedRegionId != htStatus!.currRegion &&
@@ -775,6 +818,42 @@ class Radio {
       channelId: -1,
     );
     _dispatch('LockState', unlockedState.toJson());
+  }
+
+  /// Applies one live satellite-tracking frame: names the bird and steers the
+  /// VFO to the Doppler-corrected RX/TX frequencies. Ignored unless the radio
+  /// is currently locked in Satellite mode.
+  void _onSatelliteTrackUpdate(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    if (data is! SatelliteTrackParams) return;
+    if (_lockState?.usage != 'Satellite') return;
+
+    setSatelliteInfo(
+      RadioSatelliteInfo(
+        name: data.name,
+        azimuthDeg: data.azimuthDeg,
+        elevationDeg: data.elevationDeg,
+        rangeKm: data.rangeKm,
+        altitudeKm: data.altitudeKm,
+        secondsToNextPass: data.secondsToNextPass,
+      ),
+    );
+    // The high flags byte 0x0A switches the radio to its satellite (VFO)
+    // tracking screen. The manufacturer app sends 0x0A03 on the first couple of
+    // updates, then settles to 0x0A00 — replicated here so the radio enters and
+    // stays in satellite mode.
+    final flags = _satTrackCount < 2 ? 0x0A03 : 0x0A00;
+    _satTrackCount++;
+    freqModeSetPar(
+      RadioFreqModePar(
+        rxFreq: data.rxFreqHz,
+        txFreq: data.txFreqHz,
+        txSubAudio: data.txCtcssHz == null
+            ? 0
+            : (data.txCtcssHz! * 100).round(),
+        flags: flags,
+      ),
+    );
   }
 
   void _onSetVolumeLevelEvent(int devId, String name, dynamic data) {
@@ -1573,6 +1652,36 @@ class Radio {
       RadioCommandGroup.basic,
       RadioBasicCommand.setPosition,
       pos.toByteArray(),
+    );
+  }
+
+  /// Tunes the VFO to explicit RX/TX frequencies (FREQ_MODE_SET_PAR, 35),
+  /// putting the radio into frequency (VFO) mode. This is the workhorse of
+  /// satellite Doppler tracking: send it ~once a second with freshly
+  /// Doppler-corrected frequencies for the length of a pass.
+  void freqModeSetPar(RadioFreqModePar par) {
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.freqModeSetPar,
+      par.toByteArray(),
+    );
+  }
+
+  /// Drops the radio out of frequency (VFO) mode by sending a FREQ_MODE_SET_PAR
+  /// with an all-zero payload, ending a satellite tracking session and
+  /// restoring the radio's normal channel state.
+  void stopFreqMode() {
+    freqModeSetPar(const RadioFreqModePar.stop());
+  }
+
+  /// Sets the satellite name and live look-angle shown on the radio's own
+  /// screen (SET_SATELLITE_INFO, 77). Sent immediately before each
+  /// [freqModeSetPar] update during a pass.
+  void setSatelliteInfo(RadioSatelliteInfo info) {
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.setSatelliteInfo,
+      info.toByteArray(),
     );
   }
 

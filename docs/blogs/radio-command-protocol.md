@@ -510,6 +510,13 @@ downlink **437.800 MHz**). The two commands are always sent **as a pair**, once
 per update (roughly once a second), and each gets a one-byte `[0x00]` success
 reply.
 
+HTCommander implements this same flow: a **Satellite** usage lock puts the radio
+into tracking mode, and the satellite handler pushes a fresh
+`SET_SATELLITE_INFO` + `FREQ_MODE_SET_PAR` pair every second for the length of
+the pass (see `RadioFreqModePar` / `RadioSatelliteInfo` in
+[radio_models.dart](../../src/lib/radio/radio_models.dart) and
+`Radio._onSatelliteTrackUpdate` in [radio.dart](../../src/lib/radio/radio.dart)).
+
 #### FREQ_MODE_SET_PAR (35) — the Doppler-steered VFO
 
 This is the important one: it puts the radio into "frequency mode" (a free-tuned
@@ -532,8 +539,18 @@ Example (first update of the ISS pass):
 | 4–7 | `08 b3 a4 93` | **TX (uplink) frequency** — same encoding | mod 0 (FM), 145 990 803 Hz ≈ **145.9908 MHz** |
 | 8–9 | `00 00` | **RX sub-audio** — `uint16`, CTCSS in units of 0.01 Hz (`0` = none) | none (nothing to decode on the downlink) |
 | 10–11 | `1a 2c` | **TX sub-audio** — same units | `0x1a2c` = 6700 = **67.00 Hz** CTCSS (the ISS repeater access tone) |
-| 12–13 | `0a 03` | **status / mode flags** — the low byte settles from `0x03` to `0x00` over the first couple of updates (same "is-in-VFO-mode" flag family as `freqModeStatusChanged`) | |
+| 12–13 | `0a 03` | **status / mode flags** — the **high byte `0x0a` is the satellite-mode switch**: it is what makes the radio jump to its on-screen satellite tracker instead of an ordinary VFO. The low byte carries `0x03` on the first couple of updates then settles to `0x00` (same "is-in-VFO-mode" flag family as `freqModeStatusChanged`) | `0x0a03` → `0x0a00` |
 | 14–15 | `61 a8` | **constant** — `0x61a8` (25000) is sent unchanged on every update | |
+
+> **The `0x0a` flag is load-bearing.** This was confirmed against HTCommander's
+> own implementation: sending the frame with the flags word left at `0x0000`
+> (frequencies, sub-audio and the `0x61a8` constant all correct) *does* drop the
+> radio into frequency (VFO) mode and it happily ACKs every update — but it
+> **never switches to the satellite tracking screen**. Only once the high byte
+> is `0x0a` does the radio show its satellite display. HTCommander therefore
+> sends `0x0a03` on the first two updates of a session and `0x0a00` thereafter,
+> mirroring the capture. See `Radio._onSatelliteTrackUpdate` in
+> [radio.dart](../../src/lib/radio/radio.dart).
 
 The RX and TX frequencies are what carry the Doppler correction. The app runs
 the orbit propagator on the phone and, each second, recomputes:
@@ -556,28 +573,40 @@ range-rate shrinking as the pass progresses.
 Sent immediately before each `FREQ_MODE_SET_PAR`, this names the satellite and
 carries the live look-angle the radio shows on its own screen. The 30-byte
 payload is a 20-byte name field followed by a 10-byte tracking block (big-endian
-`uint16` fields):
+fields):
 
 ```
 49 53 53 20 28 5a 41 52 59 41 29 00 00 00 00 00 00 00 00 00  39 00  b4 00  31 fb  01 b0  0c 12
-└──────────────  "ISS (ZARYA)" + NUL padding (20 bytes) ──────────────┘ └f20─┘ └f22─┘ └A──┘ └B──┘ └C──┘
+└──────────────  "ISS (ZARYA)" + NUL padding (20 bytes) ──────────────┘ └az──┘ └el──┘ └dist┘ └alt─┘ └next┘
 ```
 
-| Offset | Bytes | Field | Notes |
-| --- | --- | --- | --- |
-| 0–19 | `49 53 53 …` | **Satellite name**, ASCII, NUL-padded to 20 bytes | the TLE line-0 name, `"ISS (ZARYA)"` |
-| 20–21 | `39 00` | constant across the capture | |
-| 22–23 | `b4 00` | constant across the capture | |
-| 24–25 | `31 fb …` | **field A** — `uint16` that climbs monotonically 12795 → 12816 | most consistent with **azimuth in centi-degrees** (≈ 127.95° → 128.16°) |
-| 26–27 | `01 b0 …` | **field B** — `uint16`, near-constant 432 → 431 | |
-| 28–29 | `0c 12 …` | **field C** — `uint16` that falls monotonically 3090 → 3077 | most consistent with **elevation in centi-degrees** (≈ 30.90° → 30.77°, i.e. the bird setting) |
+The tracking block was originally guessed from a single capture. It has since
+been **pinned down by driving a real radio and reading the values off its
+on-screen satellite display** — the radio simply echoes the fields we send, so
+comparing sent bytes to shown numbers gave the exact scales:
 
-The frequency steering is done entirely by `FREQ_MODE_SET_PAR`; the values here
-appear to feed the radio's on-screen satellite display. The az/el reading of
-fields A and C is inferred (their monotonic, "setting-satellite" trend matches
-the receding range-rate the frequencies imply), but the exact scaling and the
-meaning of the constant leading fields are not yet confirmed — they are recorded
-here from the capture rather than proven from source.
+| Offset | Bytes | Field | Decode | Example |
+| --- | --- | --- | --- | --- |
+| 20–21 | `39 00` | **Azimuth** | `uint16` = degrees **× 128** | `0x3900`/128 = **114°** |
+| 22–23 | `b4 00` | **Elevation** | **signed** `int16` = degrees **× 256** | `0xb400` = −19456 → −19456/256 = **−76°** |
+| 24–25 | `31 fb` | **Distance** (slant range) | `uint16`, kilometres | `0x31fb` = **12795 km** |
+| 26–27 | `01 b0` | **Altitude** | `uint16`, kilometres | `0x01b0` = **432 km** (ISS ✓) |
+| 28–29 | `0c 12` | **Next pass** (seconds to AOS) | `uint16`, seconds → `hh:mm:ss` | `0x0c12` = 3090 s = **00:51:30** |
+
+This capture was of the ISS while it was **below the horizon on the far side of
+the Earth** — hence elevation −76°, and a "distance" of ~12795 km (about one
+Earth diameter, the straight-line chord to the antipode). The values that were
+once thought to be constants (`39 00`, `b4 00`, `01 b0`) were simply the
+azimuth, elevation, and altitude holding nearly steady over the short capture.
+The last field is the **"Next Pass" countdown** the radio shows: it decremented
+by exactly one per second across the capture (3090 → 3089 → 3088 …), which is
+what gives it away as a wall-clock seconds counter rather than a physical
+quantity. HTCommander encodes exactly these five fields — azimuth, elevation,
+distance, altitude, and seconds-to-next-AOS from the orbit propagator; see
+`RadioSatelliteInfo.toByteArray()` in
+[radio_models.dart](../../src/lib/radio/radio_models.dart).
+
+All five fields are now confirmed against the radio's on-screen read-outs.
 
 #### The tracking session, start to finish
 

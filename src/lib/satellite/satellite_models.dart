@@ -115,6 +115,10 @@ class SatelliteTransponder {
   /// Operational status, e.g. `active`.
   final String status;
 
+  /// Optional helpful web link for this usage (e.g. the ARISS SSTV events page
+  /// for ISS SSTV), opened from the usage row. Null when there is none.
+  final String? infoUrl;
+
   const SatelliteTransponder({
     required this.noradId,
     required this.name,
@@ -125,7 +129,23 @@ class SatelliteTransponder {
     required this.ctcssHz,
     required this.inverting,
     required this.status,
+    this.infoUrl,
   });
+
+  /// Returns a copy overlaying the given fields; used to carry a curated
+  /// [infoUrl] onto an online usage that lacks one.
+  SatelliteTransponder copyWith({String? infoUrl}) => SatelliteTransponder(
+    noradId: noradId,
+    name: name,
+    usage: usage,
+    uplinkHz: uplinkHz,
+    downlinkHz: downlinkHz,
+    mode: mode,
+    ctcssHz: ctcssHz,
+    inverting: inverting,
+    status: status,
+    infoUrl: infoUrl ?? this.infoUrl,
+  );
 
   /// True when both up- and downlink are defined FM frequencies for an active
   /// bird (the only kind this radio can actually work as a repeater).
@@ -163,6 +183,7 @@ class SatelliteTransponder {
     'ctcssHz': ctcssHz,
     'inverting': inverting,
     'status': status,
+    'infoUrl': infoUrl,
   };
 
   factory SatelliteTransponder.fromJson(Map<String, dynamic> json) {
@@ -182,6 +203,9 @@ class SatelliteTransponder {
       ctcssHz: toDoubleOrNull(json['ctcssHz']),
       inverting: json['inverting'] == true,
       status: (json['status'] as String?) ?? '',
+      infoUrl: (json['infoUrl'] as String?)?.trim().isNotEmpty == true
+          ? (json['infoUrl'] as String).trim()
+          : null,
     );
   }
 }
@@ -389,4 +413,50 @@ class SatellitePass {
       losAzimuthDeg: toDouble(json['losAzimuthDeg']),
     );
   }
+}
+
+/// One frame of live satellite-tracking data pushed from the [SatelliteHandler]
+/// to a radio locked in Satellite mode. The handler computes the
+/// Doppler-corrected frequencies and look-angle each second; the radio turns
+/// this into the native SET_SATELLITE_INFO + FREQ_MODE_SET_PAR command pair.
+class SatelliteTrackParams {
+  /// Satellite name shown on the radio's own tracker screen.
+  final String name;
+
+  /// Doppler-corrected downlink (radio RX) frequency in Hz.
+  final int rxFreqHz;
+
+  /// Doppler-corrected uplink (radio TX) frequency in Hz.
+  final int txFreqHz;
+
+  /// CTCSS tone the uplink requires in Hz, or null for none.
+  final double? txCtcssHz;
+
+  /// Topocentric azimuth in degrees (0 = north, clockwise).
+  final double azimuthDeg;
+
+  /// Elevation above the horizon in degrees.
+  final double elevationDeg;
+
+  /// Slant range (distance) from the observer in kilometres.
+  final double rangeKm;
+
+  /// Satellite height above the ellipsoid in kilometres.
+  final double altitudeKm;
+
+  /// Seconds until the next pass (AOS); shown as the radio's "Next Pass"
+  /// countdown. 0 when unknown.
+  final int secondsToNextPass;
+
+  const SatelliteTrackParams({
+    required this.name,
+    required this.rxFreqHz,
+    required this.txFreqHz,
+    required this.txCtcssHz,
+    required this.azimuthDeg,
+    required this.elevationDeg,
+    required this.rangeKm,
+    required this.altitudeKm,
+    required this.secondsToNextPass,
+  });
 }

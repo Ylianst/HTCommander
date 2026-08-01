@@ -185,10 +185,15 @@ class TransponderRepository {
         return;
       }
       for (final usage in usages) {
-        final present = existing.any(
+        final index = existing.indexWhere(
           (t) => t.usage.toLowerCase() == usage.usage.toLowerCase(),
         );
-        if (!present) existing.add(usage);
+        if (index < 0) {
+          existing.add(usage);
+        } else if (existing[index].infoUrl == null && usage.infoUrl != null) {
+          // Online usage wins, but adopt the curated helpful link it lacks.
+          existing[index] = existing[index].copyWith(infoUrl: usage.infoUrl);
+        }
       }
     });
   }

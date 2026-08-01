@@ -14,6 +14,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../dialogs/aprs_location_dialog.dart';
 import '../l10n/app_localizations.dart';
+import '../radio/radio.dart';
+import '../radio/radio_models.dart';
 import '../satellite/satellite_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -42,6 +44,16 @@ class _SatelliteTabState extends State<SatelliteTab> {
   List<SatellitePass> _selectedPasses = const [];
   bool _observerKnown = false;
   int? _selectedId;
+
+  // Preferred (audible) radio and the lock state of each connected radio, used
+  // to start/stop native Satellite tracking on the selected radio.
+  int _preferredRadioId = -1;
+  final Map<int, RadioLockState> _lockStates = {};
+
+  // Usage index (into the selected satellite's transponders) currently being
+  // tracked, for highlighting; null when not tracking.
+  int? _trackingUsageIndex;
+  int? _trackingNoradId;
 
   // Keyboard navigation of the satellite list (arrows / page up-down / home-end).
   final FocusNode _listFocusNode = FocusNode(debugLabel: 'SatelliteList');
@@ -90,6 +102,20 @@ class _SatelliteTabState extends State<SatelliteTab> {
       deviceId: _deviceId,
       name: 'SatelliteObserverKnown',
       callback: _onObserverKnown,
+    );
+
+    _preferredRadioId =
+        DataBroker.getValue<int>(1, 'SelectedRadioDeviceId', -1) ?? -1;
+    _hydrateLockState(_preferredRadioId);
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'SelectedRadioDeviceId',
+      callback: _onPreferredRadioChanged,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'LockState',
+      callback: _onLockStateChanged,
     );
 
     // Ask the handler to re-emit the current snapshot (events are broadcast).
@@ -184,6 +210,132 @@ class _SatelliteTabState extends State<SatelliteTab> {
   void _onObserverKnown(int deviceId, String name, Object? data) {
     if (data is! bool) return;
     _safeSetState(() => _observerKnown = data);
+  }
+
+  void _onPreferredRadioChanged(int deviceId, String name, Object? data) {
+    if (data is! int) return;
+    _safeSetState(() {
+      _preferredRadioId = data;
+      _hydrateLockState(data);
+    });
+  }
+
+  /// Loads the current (broker-persisted) lock state and tracking marker for
+  /// [radioId] into local state, so the Disconnect button and the tracked-usage
+  /// highlight survive tab rebuilds (LockState events are only received while
+  /// the tab is mounted, but the value is retained in the broker).
+  void _hydrateLockState(int radioId) {
+    if (radioId < 0) return;
+    final stored = DataBroker.getValue<Object?>(radioId, 'LockState', null);
+    if (stored is! Map) return;
+    final lock = RadioLockState.fromJson(Map<String, dynamic>.from(stored));
+    if (!lock.isLocked) return;
+    _lockStates[radioId] = lock;
+    if (lock.usage == 'Satellite') {
+      final marker =
+          DataBroker.getValue<Object?>(_deviceId, 'SatelliteTrackingMarker', null);
+      if (marker is Map) {
+        _trackingNoradId = (marker['noradId'] as num?)?.toInt();
+        _trackingUsageIndex = (marker['usageIndex'] as num?)?.toInt();
+      }
+    }
+  }
+
+  void _onLockStateChanged(int deviceId, String name, Object? data) {
+    if (data is! Map) return;
+    final lock = RadioLockState.fromJson(Map<String, dynamic>.from(data));
+    _safeSetState(() {
+      if (lock.isLocked) {
+        _lockStates[deviceId] = lock;
+      } else {
+        _lockStates.remove(deviceId);
+        if (deviceId == _preferredRadioId) {
+          _trackingUsageIndex = null;
+          _trackingNoradId = null;
+        }
+      }
+    });
+  }
+
+  /// Lock state of the preferred radio, or null when none/unlocked.
+  RadioLockState? get _preferredLock =>
+      _preferredRadioId >= 0 ? _lockStates[_preferredRadioId] : null;
+
+  /// True while the preferred radio is locked in Satellite mode.
+  bool get _satelliteActive => _preferredLock?.usage == 'Satellite';
+
+  /// True when the preferred radio is locked to some other usage (BBS,
+  /// Terminal, …) and so cannot be taken over for satellite tracking.
+  bool get _radioBusyOther {
+    final lock = _preferredLock;
+    return lock != null && lock.usage != 'Satellite';
+  }
+
+  /// Locks the preferred radio in Satellite mode and starts steering it toward
+  /// the selected bird's [usageIndex] transponder.
+  void _startTracking(int usageIndex) {
+    final id = _selectedId;
+    final sat = id == null ? null : _catalog[id];
+    final radioId = _preferredRadioId;
+    if (sat == null || radioId < 0 || _radioBusyOther) return;
+
+    _broker.dispatch(
+      deviceId: radioId,
+      name: 'SetLock',
+      data: SetLockData(usage: 'Satellite'),
+      store: false,
+    );
+    _broker.dispatch(
+      deviceId: _deviceId,
+      name: 'SatelliteTrackTarget',
+      data: {
+        'radioDeviceId': radioId,
+        'noradId': sat.noradId,
+        'usageIndex': usageIndex,
+      },
+      store: false,
+    );
+    // Persist a marker so the tracked-usage highlight survives tab rebuilds.
+    _broker.dispatch(
+      deviceId: _deviceId,
+      name: 'SatelliteTrackingMarker',
+      data: {'noradId': sat.noradId, 'usageIndex': usageIndex},
+      store: true,
+    );
+    setState(() {
+      _trackingUsageIndex = usageIndex;
+      _trackingNoradId = sat.noradId;
+    });
+  }
+
+  /// Stops satellite tracking: drops the radio back to normal mode and clears
+  /// the Satellite usage lock.
+  void _stopTracking() {
+    final radioId = _preferredRadioId;
+    _broker.dispatch(
+      deviceId: _deviceId,
+      name: 'SatelliteTrackTarget',
+      data: null,
+      store: false,
+    );
+    _broker.dispatch(
+      deviceId: _deviceId,
+      name: 'SatelliteTrackingMarker',
+      data: null,
+      store: true,
+    );
+    if (radioId >= 0) {
+      _broker.dispatch(
+        deviceId: radioId,
+        name: 'SetUnlock',
+        data: SetUnlockData(usage: 'Satellite'),
+        store: false,
+      );
+    }
+    setState(() {
+      _trackingUsageIndex = null;
+      _trackingNoradId = null;
+    });
   }
 
   void _select(int noradId) {
@@ -443,6 +595,19 @@ class _SatelliteTabState extends State<SatelliteTab> {
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
           const Spacer(),
+          if (_satelliteActive)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilledButton.tonalIcon(
+                onPressed: _stopTracking,
+                icon: const Icon(Icons.link_off, size: 16),
+                label: const Text('Disconnect'),
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+              ),
+            ),
           Builder(
             builder: (context) => InkWell(
               onTap: () => _showMenu(context),
@@ -829,6 +994,12 @@ class _SatelliteTabState extends State<SatelliteTab> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   Widget _section(
     BuildContext context, {
     required IconData icon,
@@ -906,6 +1077,25 @@ class _SatelliteTabState extends State<SatelliteTab> {
     final scheme = Theme.of(context).colorScheme;
     final usages = sat.transponders;
     final blocks = <Widget>[];
+    if (!_satelliteActive) {
+      final String? note = _preferredRadioId < 0
+          ? 'Select a radio to enable satellite tracking.'
+          : _radioBusyOther
+              ? 'The selected radio is busy with '
+                  '${_preferredLock?.usage} and cannot track a satellite.'
+              : null;
+      if (note != null) {
+        blocks.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              note,
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+            ),
+          ),
+        );
+      }
+    }
     for (var i = 0; i < usages.length; i++) {
       if (i > 0) {
         blocks.add(
@@ -918,7 +1108,7 @@ class _SatelliteTabState extends State<SatelliteTab> {
           ),
         );
       }
-      blocks.add(_buildUsageBlock(context, usages[i], rate));
+      blocks.add(_buildUsageBlock(context, usages[i], rate, i));
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -930,13 +1120,27 @@ class _SatelliteTabState extends State<SatelliteTab> {
     BuildContext context,
     SatelliteTransponder t,
     double rate,
+    int index,
   ) {
+    final scheme = Theme.of(context).colorScheme;
     final downBase = t.downlinkHz;
     final upBase = t.uplinkHz;
     final downCorr = t.correctedDownlinkHz(rate);
     final upCorr = t.correctedUplinkHz(rate);
     final tone = t.ctcssHz;
-    return Column(
+
+    final active = _satelliteActive &&
+        _trackingNoradId == t.noradId &&
+        _trackingUsageIndex == index;
+    // A usage can be tracked when a preferred radio is available, that radio is
+    // not already locked to another usage, and the usage has a downlink to tune.
+    final trackable =
+        !_satelliteActive &&
+        _preferredRadioId >= 0 &&
+        !_radioBusyOther &&
+        downBase != null;
+
+    final block = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -954,6 +1158,40 @@ class _SatelliteTabState extends State<SatelliteTab> {
                 ),
               ),
             ),
+            if (active)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.podcasts, size: 12, color: Colors.green),
+                    SizedBox(width: 4),
+                    Text(
+                      'Tracking',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (trackable)
+              Icon(Icons.satellite_alt, size: 16, color: scheme.primary),
+            if (t.infoUrl != null)
+              IconButton(
+                icon: const Icon(Icons.open_in_new, size: 16),
+                tooltip: 'Open ${t.usage} info',
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => _openUrl(t.infoUrl!),
+              ),
           ],
         ),
         const SizedBox(height: 6),
@@ -976,7 +1214,42 @@ class _SatelliteTabState extends State<SatelliteTab> {
           'CTCSS',
           tone == null ? 'None' : '${tone.toStringAsFixed(1)} Hz',
         ),
+        if (trackable)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Tap to track on the radio',
+              style: TextStyle(
+                fontSize: 11,
+                fontStyle: FontStyle.italic,
+                color: scheme.primary,
+              ),
+            ),
+          ),
       ],
+    );
+
+    if (!trackable) {
+      if (!active) return block;
+      // Highlight the actively tracked usage.
+      return Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+        ),
+        child: block,
+      );
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _startTracking(index),
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(padding: const EdgeInsets.all(4), child: block),
+      ),
     );
   }
 

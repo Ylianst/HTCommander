@@ -96,9 +96,9 @@ enum RadioBasicCommand {
   getPfActions(75),
   getPosition(76),
   // Native satellite mode: the firmware's own satellite command, used by the
-  // manufacturer app to run a bird (incl. Doppler) on the radio itself. Only
-  // the opcode is known publicly (benlink); the payload is not yet decoded, so
-  // this is defined for recognition but not sent until a capture is analysed.
+  // manufacturer app to run a bird (incl. Doppler) on the radio itself. Carries
+  // the satellite name and live look-angle for the radio's on-screen tracker;
+  // sent paired with FREQ_MODE_SET_PAR. See RadioSatelliteInfo.
   setSatelliteInfo(77);
 
   final int value;

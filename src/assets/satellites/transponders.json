@@ -10,7 +10,8 @@
       "mode": "FM",
       "ctcssHz": 67.0,
       "inverting": false,
-      "status": "active"
+      "status": "active",
+      "infoUrl": "https://www.ariss.org/contact-the-iss.html"
     },
     {
       "noradId": 25544,
@@ -21,7 +22,8 @@
       "mode": "FM",
       "ctcssHz": null,
       "inverting": false,
-      "status": "active"
+      "status": "active",
+      "infoUrl": "https://www.ariss.org/"
     },
     {
       "noradId": 25544,
@@ -32,7 +34,8 @@
       "mode": "FM",
       "ctcssHz": null,
       "inverting": false,
-      "status": "active"
+      "status": "active",
+      "infoUrl": "https://www.ariss.org/upcoming-sstv-events.html"
     },
     {
       "noradId": 25544,
@@ -43,7 +46,8 @@
       "mode": "FM",
       "ctcssHz": null,
       "inverting": false,
-      "status": "active"
+      "status": "active",
+      "infoUrl": "https://www.ariss.org/contact-the-iss.html"
     },
     {
       "noradId": 27607,
@@ -54,7 +58,8 @@
       "mode": "FM",
       "ctcssHz": 67.0,
       "inverting": false,
-      "status": "active"
+      "status": "active",
+      "infoUrl": "https://www.amsat.org/two-way-satellites/so-50/"
     },
     {
       "noradId": 43678,
@@ -65,7 +70,8 @@
       "mode": "FM",
       "ctcssHz": 141.3,
       "inverting": false,
-      "status": "active"
+      "status": "active",
+      "infoUrl": "https://amsat-uk.org/2018/08/13/diwata-2-fm-transponder/"
     },
     {
       "noradId": 43017,
@@ -74,9 +80,10 @@
       "uplinkHz": 435250000,
       "downlinkHz": 145960000,
       "mode": "FM",
-      "ctcssHz": 67.0,
+      "ctcssHz": null,
       "inverting": false,
-      "status": "active"
+      "status": "active",
+      "infoUrl": "https://www.amsat.org/two-way-satellites/ao-91/"
     },
     {
       "noradId": 40908,
@@ -87,7 +94,8 @@
       "mode": "FM",
       "ctcssHz": null,
       "inverting": false,
-      "status": "active"
+      "status": "active",
+      "infoUrl": "https://amsat-uk.org/satellites/communications/lilacsat-2/"
     },
     {
       "noradId": 63218,
@@ -98,7 +106,8 @@
       "mode": "FM",
       "ctcssHz": 67.0,
       "inverting": false,
-      "status": "active"
+      "status": "active",
+      "infoUrl": "https://amsat-uk.org/2022/01/12/tevel-satellites/"
     },
     {
       "noradId": 40931,
@@ -109,7 +118,8 @@
       "mode": "FM",
       "ctcssHz": 88.5,
       "inverting": false,
-      "status": "active"
+      "status": "active",
+      "infoUrl": "https://amsat-uk.org/tag/lapan-a2/"
     },
     {
       "noradId": 40931,
@@ -120,7 +130,8 @@
       "mode": "FM",
       "ctcssHz": null,
       "inverting": false,
-      "status": "active"
+      "status": "active",
+      "infoUrl": "https://amsat-uk.org/tag/lapan-a2/"
     }
   ]
 }
