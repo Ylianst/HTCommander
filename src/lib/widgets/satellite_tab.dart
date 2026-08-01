@@ -18,6 +18,7 @@ import '../radio/radio.dart';
 import '../radio/radio_models.dart';
 import '../satellite/satellite_models.dart';
 import '../services/data_broker.dart';
+import 'satellite_aim_indicators.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
 
@@ -1047,7 +1048,7 @@ class _SatelliteTabState extends State<SatelliteTab> {
     if (pos == null) {
       return const Text('Waiting for tracking data\u2026');
     }
-    return Column(
+    final textColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _kv(context, 'Azimuth', '${pos.azimuthDeg.toStringAsFixed(1)}\u00b0'),
@@ -1064,6 +1065,49 @@ class _SatelliteTabState extends State<SatelliteTab> {
               '${pos.longitudeDeg.toStringAsFixed(2)}',
         ),
         _kv(context, 'Altitude', '${pos.altitudeKm.toStringAsFixed(0)} km'),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Only show the aim indicators when there is room to the right of the text.
+        if (constraints.maxWidth < 300) return textColumn;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(child: textColumn),
+            const SizedBox(width: 12),
+            _buildAimIndicator(
+              context,
+              CompassIndicator(azimuthDeg: pos.azimuthDeg),
+              'Direction',
+            ),
+            const SizedBox(width: 8),
+            _buildAimIndicator(
+              context,
+              ElevationIndicator(elevationDeg: pos.elevationDeg),
+              'Elevation',
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAimIndicator(
+    BuildContext context,
+    Widget indicator,
+    String label,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        indicator,
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11),
+        ),
       ],
     );
   }
