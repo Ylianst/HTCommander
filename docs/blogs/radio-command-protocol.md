@@ -243,7 +243,7 @@ radio sends it unsolicited; a reply always mirrors the request opcode with
 | 32 | `SET_POSITION` | R | Payload = 18-byte position |
 | 33 | `READ_BSS_SETTINGS` | R | **Parsed** → `RadioBssSettings` |
 | 34 | `WRITE_BSS_SETTINGS` | R | Payload = 46-byte BSS struct |
-| 35 | `FREQ_MODE_SET_PAR` | R | VFO |
+| 35 | `FREQ_MODE_SET_PAR` | R | Tune the VFO to explicit RX/TX freqs + sub-audio; the workhorse of satellite Doppler tracking. **Decoded** below |
 | 36 | `FREQ_MODE_GET_STATUS` | R | VFO tuned frequency |
 | 37 | `READ_RDA1846S_AGC` | R | RF chip register |
 | 38 | `WRITE_RDA1846S_AGC` | R | |
@@ -285,7 +285,7 @@ radio sends it unsolicited; a reply always mirrors the request opcode with
 | 74 | `SET_DEV_ID` | R | |
 | 75 | `GET_PF_ACTIONS` | R | |
 | 76 | `GET_POSITION` | R | **Parsed** → `RadioPosition` |
-| 77 | `SET_SATELLITE_INFO` | R | Native satellite mode; payload not yet decoded |
+| 77 | `SET_SATELLITE_INFO` | R | Native satellite mode: bird name + live look-angle metadata for the radio's on-screen tracker. **Decoded** below |
 
 Only a subset of these are actively used by HTCommander today; the rest are
 defined for recognition (so an unexpected reply is named rather than shown as raw
@@ -498,6 +498,123 @@ re-reading so the cached table reflects the settled state.
 A simple variable-length UTF-8 string, e.g. `"WIDE1-1,WIDE2-1"`. The reply is
 `[status] + UTF-8 path`. The app updates its cache optimistically on write and
 re-reads to confirm.
+
+### Satellite tracking: SET_SATELLITE_INFO (77) + FREQ_MODE_SET_PAR (35)
+
+These two commands are how the manufacturer app works an amateur satellite —
+telling the radio which bird it is looking at and continuously steering the VFO
+to follow the Doppler shift. They were reverse-engineered from a capture of the
+original app tracking the **International Space Station** through its FM
+cross-band voice repeater (uplink **145.990 MHz** with a **67.0 Hz** CTCSS tone,
+downlink **437.800 MHz**). The two commands are always sent **as a pair**, once
+per update (roughly once a second), and each gets a one-byte `[0x00]` success
+reply.
+
+#### FREQ_MODE_SET_PAR (35) — the Doppler-steered VFO
+
+This is the important one: it puts the radio into "frequency mode" (a free-tuned
+VFO, not a stored channel) and sets the exact receive and transmit frequencies.
+Its 16-byte payload uses the **same field layout** as the
+[`freqModeStatusChanged` notification](#freqmodestatuschanged-14-layout) — RX
+freq, TX freq, sub-audio, flags — which is what let us decode it. All multi-byte
+fields are big-endian.
+
+Example (first update of the ISS pass):
+
+```
+1a 18 42 d7  08 b3 a4 93  00 00  1a 2c  0a 03  61 a8
+└── RX ────┘ └── TX ────┘ └rxSA┘ └txSA┘ └flags┘ └const┘
+```
+
+| Offset | Bytes | Field | Value in the example |
+| --- | --- | --- | --- |
+| 0–3 | `1a 18 42 d7` | **RX (downlink) frequency** — `uint32`; top 2 bits = modulation, low 30 bits (`& 0x3FFFFFFF`) = Hz | mod 0 (FM), 437 797 591 Hz ≈ **437.7976 MHz** |
+| 4–7 | `08 b3 a4 93` | **TX (uplink) frequency** — same encoding | mod 0 (FM), 145 990 803 Hz ≈ **145.9908 MHz** |
+| 8–9 | `00 00` | **RX sub-audio** — `uint16`, CTCSS in units of 0.01 Hz (`0` = none) | none (nothing to decode on the downlink) |
+| 10–11 | `1a 2c` | **TX sub-audio** — same units | `0x1a2c` = 6700 = **67.00 Hz** CTCSS (the ISS repeater access tone) |
+| 12–13 | `0a 03` | **status / mode flags** — the low byte settles from `0x03` to `0x00` over the first couple of updates (same "is-in-VFO-mode" flag family as `freqModeStatusChanged`) | |
+| 14–15 | `61 a8` | **constant** — `0x61a8` (25000) is sent unchanged on every update | |
+
+The RX and TX frequencies are what carry the Doppler correction. The app runs
+the orbit propagator on the phone and, each second, recomputes:
+
+- `RX = downlinkHz × (1 − rangeRate/c)`  (receiver Doppler)
+- `TX = uplinkHz × (1 + rangeRate/c)`  (transmit pre-compensation)
+
+with `rangeRate` in km/s (positive = receding) and `c = 299 792.458 km/s` — the
+exact formulas already used by
+[satellite_models.dart](../../src/lib/satellite/satellite_models.dart). Both
+numbers agree: in the sample above the downlink is 2.4 kHz **low** and the uplink
+0.8 kHz **high**, each corresponding to the same line-of-sight range-rate of
+**+1.65 km/s** (the ISS receding). Over the captured segment the downlink drifts
+up (437.797591 → 437.797662 MHz) while the uplink drifts down
+(145.990803 → 145.990779 MHz) — the classic mirror-image signature of a single
+range-rate shrinking as the pass progresses.
+
+#### SET_SATELLITE_INFO (77) — the bird and its look-angle
+
+Sent immediately before each `FREQ_MODE_SET_PAR`, this names the satellite and
+carries the live look-angle the radio shows on its own screen. The 30-byte
+payload is a 20-byte name field followed by a 10-byte tracking block (big-endian
+`uint16` fields):
+
+```
+49 53 53 20 28 5a 41 52 59 41 29 00 00 00 00 00 00 00 00 00  39 00  b4 00  31 fb  01 b0  0c 12
+└──────────────  "ISS (ZARYA)" + NUL padding (20 bytes) ──────────────┘ └f20─┘ └f22─┘ └A──┘ └B──┘ └C──┘
+```
+
+| Offset | Bytes | Field | Notes |
+| --- | --- | --- | --- |
+| 0–19 | `49 53 53 …` | **Satellite name**, ASCII, NUL-padded to 20 bytes | the TLE line-0 name, `"ISS (ZARYA)"` |
+| 20–21 | `39 00` | constant across the capture | |
+| 22–23 | `b4 00` | constant across the capture | |
+| 24–25 | `31 fb …` | **field A** — `uint16` that climbs monotonically 12795 → 12816 | most consistent with **azimuth in centi-degrees** (≈ 127.95° → 128.16°) |
+| 26–27 | `01 b0 …` | **field B** — `uint16`, near-constant 432 → 431 | |
+| 28–29 | `0c 12 …` | **field C** — `uint16` that falls monotonically 3090 → 3077 | most consistent with **elevation in centi-degrees** (≈ 30.90° → 30.77°, i.e. the bird setting) |
+
+The frequency steering is done entirely by `FREQ_MODE_SET_PAR`; the values here
+appear to feed the radio's on-screen satellite display. The az/el reading of
+fields A and C is inferred (their monotonic, "setting-satellite" trend matches
+the receding range-rate the frequencies imply), but the exact scaling and the
+meaning of the constant leading fields are not yet confirmed — they are recorded
+here from the capture rather than proven from source.
+
+#### The tracking session, start to finish
+
+The whole ISS session in the capture unfolds like this:
+
+1. **Housekeeping / setup** — before tracking, the app does its normal connect
+   chores: `GET_DEV_INFO`, reads every channel (`READ_RF_CH`), reads settings and
+   BSS settings, `GET_APRS_PATH`, `SET_TIME` (a big-endian `uint32` Unix
+   timestamp so the radio clock is current), `SET_PHONE_STATUS`, a `READ_STATUS`
+   battery poll, and a `READ_REGION_NAME` sweep.
+2. **Tracking loop** — once the bird is selected the app enters the steady state:
+   every ~1 s it sends `SET_SATELLITE_INFO` (name + look-angle) immediately
+   followed by `FREQ_MODE_SET_PAR` (Doppler-corrected RX/TX), and the radio
+   ACKs each with `[0x00]`. This repeats for the whole pass — 25+ update pairs in
+   the capture.
+3. **Teardown** — to stop tracking, the app sends a single `FREQ_MODE_SET_PAR`
+   with an **all-zero 16-byte payload**. That drops the radio out of frequency
+   (VFO) mode, and the radio responds with a burst of `htSettingsChanged`
+   (`EVENT_NOTIFICATION` type 6) events as it restores its normal channel state.
+   No "stop" `SET_SATELLITE_INFO` is sent — clearing the VFO is what ends the
+   session.
+
+```mermaid
+sequenceDiagram
+    participant A as App (phone)
+    participant R as Radio
+    Note over A,R: setup (dev info, channels, settings, SET_TIME, region names)
+    loop every ~1 s for the whole pass
+        A->>R: SET_SATELLITE_INFO (name + az/el)
+        R-->>A: 0x00
+        A->>R: FREQ_MODE_SET_PAR (Doppler RX/TX + 67.0 Hz tone)
+        R-->>A: 0x00
+    end
+    A->>R: FREQ_MODE_SET_PAR (16 zero bytes)  %% stop tracking
+    R-->>A: 0x00
+    R-->>A: EVENT_NOTIFICATION htSettingsChanged (×N)
+```
 
 ---
 
