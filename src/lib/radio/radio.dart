@@ -714,20 +714,21 @@ class Radio {
     _savedScan = settings!.scan;
     _savedDualWatch = settings!.doubleChannel;
 
-    // Satellite mode does not force a stored channel: the tracking loop drives
-    // the VFO directly via FREQ_MODE_SET_PAR. Claim the lock (so channel/mode
-    // changes are blocked) and wait for SatelliteTrackUpdate frames.
-    if (lockData.usage == 'Satellite') {
+    // Satellite modes (Satellite / APRSSat) do not force a stored channel: the
+    // tracking loop drives the VFO directly via FREQ_MODE_SET_PAR. Claim the
+    // lock (so channel/mode changes are blocked) and wait for
+    // SatelliteTrackUpdate frames. Both usages behave identically.
+    if (kSatelliteLockUsages.contains(lockData.usage)) {
       _lockState = RadioLockState(
         isLocked: true,
-        usage: 'Satellite',
+        usage: lockData.usage,
         regionId: -1,
         channelId: -1,
         modem: lockData.modem,
       );
       _satTrackCount = 0;
       _dispatch('LockState', _lockState!.toJson());
-      _debug('Radio locked for Satellite tracking');
+      _debug("Radio locked for '${lockData.usage}' tracking");
       return;
     }
 
@@ -780,10 +781,10 @@ class Radio {
       "Radio unlocked from usage '${unlockData.usage}' - Restoring previous settings",
     );
 
-    // Satellite mode never forced a channel; sending an all-zero
+    // Satellite modes never forced a channel; sending an all-zero
     // FREQ_MODE_SET_PAR drops the radio out of frequency (VFO) mode and lets it
     // restore its own channel state, so there is nothing to write back here.
-    if (unlockData.usage == 'Satellite') {
+    if (kSatelliteLockUsages.contains(unlockData.usage)) {
       stopFreqMode();
       _lockState = null;
       _dispatch(
@@ -826,7 +827,7 @@ class Radio {
   void _onSatelliteTrackUpdate(int devId, String name, dynamic data) {
     if (devId != deviceId) return;
     if (data is! SatelliteTrackParams) return;
-    if (_lockState?.usage != 'Satellite') return;
+    if (!kSatelliteLockUsages.contains(_lockState?.usage)) return;
 
     setSatelliteInfo(
       RadioSatelliteInfo(
@@ -3138,10 +3139,15 @@ class Radio {
       // received on the locked channel. Mirrors the C# `AccumulateFragment`:
       // handlers (Torrent / BBS / Terminal) filter incoming frames by usage, so
       // without this they would never receive any locked-mode traffic.
+      //
+      // APRSSat is VFO-driven (no stored channel, so lock.channelId is -1 and
+      // never matches): while it holds the lock every received frame is treated
+      // as APRS, so tag all traffic with the usage regardless of channel.
       final lock = _lockState;
       if (lock != null &&
           lock.isLocked &&
-          _frameAccumulator!.channelId == lock.channelId) {
+          (_frameAccumulator!.channelId == lock.channelId ||
+              lock.usage == kAprsSatLockUsage)) {
         _frameAccumulator!.usage = lock.usage;
         if (_packetTrace) {
           _debug(

@@ -1037,6 +1037,21 @@ class RadioBssSettings {
   }
 }
 
+/// Lock usage for app-driven FM satellite tracking (voice/repeater birds).
+const String kSatelliteLockUsage = 'Satellite';
+
+/// Lock usage for app-driven APRS/packet digipeater satellites. Behaves like
+/// [kSatelliteLockUsage] (VFO steered directly via FREQ_MODE_SET_PAR) but is a
+/// distinct lock so the app can tell the two tracking modes apart.
+const String kAprsSatLockUsage = 'APRSSat';
+
+/// Lock usages that put the radio into app-driven satellite tracking, where the
+/// VFO is steered directly via FREQ_MODE_SET_PAR instead of a stored channel.
+const Set<String> kSatelliteLockUsages = {
+  kSatelliteLockUsage,
+  kAprsSatLockUsage,
+};
+
 /// Radio lock state - for exclusive operations
 class RadioLockState {
   bool isLocked;

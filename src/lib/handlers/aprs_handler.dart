@@ -192,6 +192,16 @@ class AprsHandler {
     return -1;
   }
 
+  /// Whether [radioDeviceId] is locked in APRSSat mode (tracking an APRS
+  /// satellite via VFO A), in which case all its traffic is treated as APRS.
+  bool _isRadioInAprsSatMode(int radioDeviceId) {
+    final ls = _broker.getValueDynamic(radioDeviceId, 'LockState', null);
+    if (ls is! Map) return false;
+    final isLocked = (ls['isLocked'] ?? ls['IsLocked']) == true;
+    final usage = (ls['usage'] ?? ls['Usage']) as String?;
+    return isLocked && usage == 'APRSSat';
+  }
+
   void _trimFrames() {
     while (_aprsFrames.length > _maxFrameHistory) {
       _aprsFrames.removeAt(0);
@@ -256,13 +266,21 @@ class AprsHandler {
     final bool aprsIsOnly = messageData.radioDeviceId < 0;
     int aprsChannelId = -1;
     if (!aprsIsOnly) {
-      aprsChannelId = _getAprsChannelId(messageData.radioDeviceId);
-      if (aprsChannelId < 0) {
-        _broker.logError(
-          'Cannot send APRS message: No APRS channel found on radio '
-          '${messageData.radioDeviceId}',
-        );
-        return;
+      if (_isRadioInAprsSatMode(messageData.radioDeviceId)) {
+        // APRSSat mode: the radio is in frequency mode on VFO A (tracking an
+        // APRS satellite), not on a stored APRS channel, so transmit on VFO A.
+        // NOTE: channel 0 is a placeholder for the frequency-mode transmit
+        // channel; the correct value is not yet confirmed and may change.
+        aprsChannelId = 0;
+      } else {
+        aprsChannelId = _getAprsChannelId(messageData.radioDeviceId);
+        if (aprsChannelId < 0) {
+          _broker.logError(
+            'Cannot send APRS message: No APRS channel found on radio '
+            '${messageData.radioDeviceId}',
+          );
+          return;
+        }
       }
     }
 
@@ -395,7 +413,10 @@ class AprsHandler {
     if (_disposed) return;
     if (data is! TncDataFragment) return;
     final frame = data;
-    if (frame.channelName != 'APRS') return;
+    // Normally only frames from the "APRS" channel are APRS. In APRSSat mode the
+    // radio is tuned to an APRS satellite via VFO A (no APRS channel), so every
+    // frame it receives is tagged 'APRSSat' and is treated as APRS here.
+    if (frame.channelName != 'APRS' && frame.usage != 'APRSSat') return;
 
     final ax25Packet = AX25Packet.decode(frame);
     if (ax25Packet == null) return;

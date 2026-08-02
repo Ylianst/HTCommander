@@ -802,10 +802,14 @@ class _CommsTabState extends State<CommsTab>
   /// Whether the radio shown in the Radio Panel is locked to a usage (BBS,
   /// Terminal, Winlink, Torrent, ...). While locked the Comms tab cannot
   /// transmit chat, images or audio on that radio.
+  ///
+  /// Satellite mode is the exception: the radio is tuning VFO A to track a
+  /// bird, so the operator is still allowed to work it with voice / PTT / morse
+  /// / SSTV. (APRSSat, where all traffic is APRS, keeps Comms locked.)
   bool get _isRadioLocked {
     if (_currentRadioDeviceId <= 0) return false;
     final ls = _lockStates[_currentRadioDeviceId];
-    return ls != null && ls.isLocked;
+    return ls != null && ls.isLocked && ls.usage != 'Satellite';
   }
 
   /// Whether to show the de-emphasis warning banner: a software modem

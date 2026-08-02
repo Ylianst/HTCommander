@@ -910,10 +910,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   bool get _isDualChannel => _currentSettings?.doubleChannel == 1;
   bool get _isScanning => _currentSettings?.scan ?? false;
 
-  /// True while the radio is locked in the native "Satellite" usage mode, where
-  /// VFO A shows the tracked bird name over its Doppler-corrected frequency.
+  /// True while the radio is locked in a satellite tracking mode (Satellite or
+  /// APRSSat), where VFO A shows the tracked bird name over its
+  /// Doppler-corrected frequency.
   bool get _isSatelliteMode =>
-      (_lockState?.isLocked ?? false) && _lockState!.usage == 'Satellite';
+      (_lockState?.isLocked ?? false) &&
+      radio.kSatelliteLockUsages.contains(_lockState!.usage);
 
   /// The Doppler-corrected downlink frequency (Hz) shown on VFO A while in
   /// satellite mode. Prefers the live freq-mode value and falls back to the

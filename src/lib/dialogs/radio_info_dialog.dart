@@ -259,10 +259,16 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
               // Scrollable content
               Expanded(child: _buildContent()),
               const SizedBox(height: 16),
-              // Close button
+              // Action buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  OutlinedButton.icon(
+                    onPressed: _deviceId > 0 ? _copyAll : null,
+                    icon: const Icon(Icons.copy_all, size: 18),
+                    label: const Text('Copy All'),
+                  ),
+                  const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: DialogStyles.primaryButtonStyle(context),
@@ -555,6 +561,41 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   }
 
   _InfoRow _row(String label, String value) => _InfoRow(label, value);
+
+  /// Builds all sections as plain "Section / label: value" text, matching the
+  /// on-screen layout, for pasting into error reports.
+  String _buildAllText() {
+    final l10n = AppLocalizations.of(context);
+    final buffer = StringBuffer();
+    void section(String title, List<_InfoRow> rows) {
+      buffer.writeln(title);
+      for (final r in rows) {
+        buffer.writeln('  ${r.label}: ${r.value}');
+      }
+      buffer.writeln();
+    }
+
+    if (_friendlyName.isNotEmpty) {
+      section(l10n.riSectionRadio, [_row(l10n.riName, _friendlyName)]);
+    }
+    section(l10n.riSectionDeviceInfo, _infoRows());
+    section(l10n.riSectionDeviceStatus, _statusRows());
+    section(l10n.riSectionDeviceSettings, _settingsRows());
+    section(l10n.riSectionBss, _bssRows());
+    section(l10n.riSectionPosition, _positionRows());
+    return buffer.toString().trimRight();
+  }
+
+  Future<void> _copyAll() async {
+    await Clipboard.setData(ClipboardData(text: _buildAllText()));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Copied to clipboard'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
 
   /// Shows a "Copy" context menu (long-press or right-click) that copies the
   /// given [value] to the clipboard.

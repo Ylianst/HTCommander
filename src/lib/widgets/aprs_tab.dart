@@ -370,6 +370,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         Map<String, dynamic>.from(data),
       );
     });
+    // APRSSat mode allows transmit without an APRS channel, so re-evaluate the
+    // "missing APRS channel" warning as the lock is taken or released.
+    _recomputeChannelState();
   }
 
   /// Seeds the current lock state for every connected radio from the broker, so
@@ -385,6 +388,20 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       }
     }
   }
+
+  /// Device id of a connected radio locked in APRSSat mode (tracking an APRS
+  /// satellite via VFO A), or -1. In this mode all of the radio's traffic is
+  /// APRS, so the tab may transmit even without a dedicated "APRS" channel.
+  int get _aprsSatRadioDeviceId {
+    for (final id in _connectedRadioDeviceIds()) {
+      final ls = _lockStates[id];
+      if (ls != null && ls.isLocked && ls.usage == 'APRSSat') return id;
+    }
+    return -1;
+  }
+
+  /// True when a connected radio is currently in APRSSat mode.
+  bool get _isAprsSatActive => _aprsSatRadioDeviceId >= 0;
 
   /// Whether the radio the APRS tab would transmit on is locked to a usage
   /// that blocks APRS activity (BBS, Terminal, Winlink, Torrent, ...).
@@ -483,7 +500,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         break;
       }
     }
-    final showMissing = hasLoaded && !hasAprs;
+    // In APRSSat mode the radio transmits APRS via VFO A without an APRS
+    // channel, so the missing-channel warning would be misleading: suppress it.
+    final showMissing = hasLoaded && !hasAprs && !_isAprsSatActive;
     if (!mounted) {
       _hasAprsChannel = hasAprs;
       _showMissingChannel = showMissing;
@@ -499,6 +518,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
 
   /// Returns the preferred radio device id with an APRS channel, or -1.
   int _getPreferredAprsRadioDeviceId() {
+    // A radio in APRSSat mode is the preferred APRS target: it is tuned to an
+    // APRS satellite via VFO A and transmits APRS even without an APRS channel.
+    final satId = _aprsSatRadioDeviceId;
+    if (satId >= 0) return satId;
     for (final id in _connectedRadioDeviceIds()) {
       final allLoaded =
           _broker.getValue<bool>(id, 'AllChannelsLoaded', false) ?? false;
@@ -516,10 +539,11 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
 
   /// True when a message can be transmitted: either an APRS channel is
   /// available on a connected radio or APRS-IS can carry the message, and both
-  /// the destination and message fields are non-empty.
+  /// the destination and message fields are non-empty. In APRSSat mode transmit
+  /// is allowed even without an APRS channel (the radio's APRS-satellite lock).
   bool get _canSend =>
-      (_hasAprsChannel || _aprsIsTransmitAvailable) &&
-      !_isRadioLockedForOtherUsage &&
+      (_hasAprsChannel || _aprsIsTransmitAvailable || _isAprsSatActive) &&
+      (!_isRadioLockedForOtherUsage || _isAprsSatActive) &&
       _destinationController.text.trim().isNotEmpty &&
       _messageController.text.trim().isNotEmpty;
 
@@ -1478,7 +1502,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           value: 'sendSms',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _allowTransmit && (_hasAprsChannel || _aprsIsTransmitAvailable) && !_isRadioLockedForOtherUsage,
+          enabled: _allowTransmit && (_hasAprsChannel || _aprsIsTransmitAvailable || _isAprsSatActive) && (!_isRadioLockedForOtherUsage || _isAprsSatActive),
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.aprsSendSms)],
           ),
@@ -1487,7 +1511,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           value: 'weatherReport',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _allowTransmit && (_hasAprsChannel || _aprsIsTransmitAvailable) && !_isRadioLockedForOtherUsage,
+          enabled: _allowTransmit && (_hasAprsChannel || _aprsIsTransmitAvailable || _isAprsSatActive) && (!_isRadioLockedForOtherUsage || _isAprsSatActive),
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.aprsWeatherReport)],
           ),

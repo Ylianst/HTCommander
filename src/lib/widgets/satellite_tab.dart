@@ -234,7 +234,7 @@ class _SatelliteTabState extends State<SatelliteTab> {
     final lock = RadioLockState.fromJson(Map<String, dynamic>.from(stored));
     if (!lock.isLocked) return;
     _lockStates[radioId] = lock;
-    if (lock.usage == 'Satellite') {
+    if (kSatelliteLockUsages.contains(lock.usage)) {
       final marker =
           DataBroker.getValue<Object?>(_deviceId, 'SatelliteTrackingMarker', null);
       if (marker is Map) {
@@ -264,14 +264,16 @@ class _SatelliteTabState extends State<SatelliteTab> {
   RadioLockState? get _preferredLock =>
       _preferredRadioId >= 0 ? _lockStates[_preferredRadioId] : null;
 
-  /// True while the preferred radio is locked in Satellite mode.
-  bool get _satelliteActive => _preferredLock?.usage == 'Satellite';
+  /// True while the preferred radio is locked in a satellite tracking mode
+  /// (Satellite or APRSSat).
+  bool get _satelliteActive =>
+      kSatelliteLockUsages.contains(_preferredLock?.usage);
 
   /// True when the preferred radio is locked to some other usage (BBS,
   /// Terminal, …) and so cannot be taken over for satellite tracking.
   bool get _radioBusyOther {
     final lock = _preferredLock;
-    return lock != null && lock.usage != 'Satellite';
+    return lock != null && !kSatelliteLockUsages.contains(lock.usage);
   }
 
   /// Locks the preferred radio in Satellite mode and starts steering it toward
@@ -281,11 +283,17 @@ class _SatelliteTabState extends State<SatelliteTab> {
     final sat = id == null ? null : _catalog[id];
     final radioId = _preferredRadioId;
     if (sat == null || radioId < 0 || _radioBusyOther) return;
+    if (usageIndex < 0 || usageIndex >= sat.transponders.length) return;
+
+    // APRS/packet digipeater usages lock the radio in the dedicated APRSSat
+    // mode; every other usage uses the generic Satellite mode. Both behave
+    // identically for now.
+    final lockUsage = _lockUsageFor(sat.transponders[usageIndex]);
 
     _broker.dispatch(
       deviceId: radioId,
       name: 'SetLock',
-      data: SetLockData(usage: 'Satellite'),
+      data: SetLockData(usage: lockUsage),
       store: false,
     );
     _broker.dispatch(
@@ -311,10 +319,20 @@ class _SatelliteTabState extends State<SatelliteTab> {
     });
   }
 
+  /// The lock usage to claim for a given transponder: [kAprsSatLockUsage] for
+  /// APRS/packet digipeater usages, [kSatelliteLockUsage] otherwise.
+  String _lockUsageFor(SatelliteTransponder t) =>
+      t.usage.toLowerCase() == 'aprs'
+          ? kAprsSatLockUsage
+          : kSatelliteLockUsage;
+
   /// Stops satellite tracking: drops the radio back to normal mode and clears
   /// the Satellite usage lock.
   void _stopTracking() {
     final radioId = _preferredRadioId;
+    // Unlock with whichever satellite usage currently holds the lock so the
+    // usage matches (the radio only unlocks on a matching usage).
+    final lockUsage = _preferredLock?.usage ?? kSatelliteLockUsage;
     _broker.dispatch(
       deviceId: _deviceId,
       name: 'SatelliteTrackTarget',
@@ -331,7 +349,7 @@ class _SatelliteTabState extends State<SatelliteTab> {
       _broker.dispatch(
         deviceId: radioId,
         name: 'SetUnlock',
-        data: SetUnlockData(usage: 'Satellite'),
+        data: SetUnlockData(usage: lockUsage),
         store: false,
       );
     }
@@ -1199,12 +1217,14 @@ class _SatelliteTabState extends State<SatelliteTab> {
         _trackingNoradId == t.noradId &&
         _trackingUsageIndex == index;
     // A usage can be tracked when a preferred radio is available, that radio is
-    // not already locked to another usage, and the usage has a downlink to tune.
+    // not already locked to another usage, the usage has a downlink to tune, and
+    // a GPS location is known (required to compute the Doppler correction).
     final trackable =
         !_satelliteActive &&
         _preferredRadioId >= 0 &&
         !_radioBusyOther &&
-        downBase != null;
+        downBase != null &&
+        _observerKnown;
 
     final block = Column(
       crossAxisAlignment: CrossAxisAlignment.start,

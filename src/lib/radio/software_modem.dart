@@ -36,6 +36,7 @@ import '../models/radio_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import 'modem_tx_encoder.dart';
+import 'radio_models.dart' as radio;
 import 'tnc_data_fragment.dart';
 
 /// Software modem mode types.
@@ -1753,11 +1754,14 @@ class SoftwareModem {
     // Tag the frame with the radio's locked usage when it was received on the
     // locked channel, so usage-filtered handlers (Torrent / BBS / Terminal)
     // process it. Mirrors the hardware modem path in Radio._accumulateFragment.
+    // APRSSat is VFO-driven (lock.channelId is -1 and never matches), so while
+    // it holds the lock every received frame is tagged as APRS traffic.
     final state = _radioModems[deviceId];
     if (state != null &&
         state.lockIsLocked &&
         state.lockUsage != null &&
-        fragment.channelId == state.lockChannelId) {
+        (fragment.channelId == state.lockChannelId ||
+            state.lockUsage == radio.kAprsSatLockUsage)) {
       fragment.usage = state.lockUsage;
     }
     // Record which radio this frame arrived on so the packet capture can show
