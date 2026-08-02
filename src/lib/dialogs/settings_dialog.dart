@@ -1982,7 +1982,7 @@ class _SettingsDialogState extends State<SettingsDialog>
     final items = <DropdownMenuItem<int>>[
       DropdownMenuItem<int>(value: 0, child: Text(l10n.settingsAprsIsRangeOff)),
     ];
-    for (final n in const [10, 20, 30]) {
+    for (final n in const [10, 20, 30, 40, 50, 60]) {
       final km = metric ? n : (n * 1.60934).round();
       items.add(
         DropdownMenuItem<int>(
