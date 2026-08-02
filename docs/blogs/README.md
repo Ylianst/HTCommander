@@ -93,6 +93,14 @@ The low-level language HTCommander and the radio speak to each other.
    notification model, and the two sub-protocols that ride on top: fragmented TNC
    data carrying AX.25 packets, and the VM firmware-update channel.
 
+2. **[The Radio's Secret Handshake: Reverse-Engineering the BSS Protocol](bss-protocol.md)**
+   A field note on **BSS**, the undocumented Baofeng/BTech binary format for text,
+   location, and "ring my radio" alerts — the `0x01` marker that separates it from
+   AX.25, the length-includes-type TLV framing, a packet decoded by hand, the
+   `0x85` message-ID sentinel, the field catalog and the location-request /
+   call-request verbs, and an honest ledger of the location bytes still on the
+   workbench.
+
 ---
 
 ## Sharing & Interop
@@ -104,6 +112,20 @@ Making HTCommander features portable between operators and radios.
    frequency, offset, tones, bandwidth, modulation, and flags — so you can drag a
    channel into a chat, send it (even over the air), and have the recipient drop
    it straight into their radio.
+
+---
+
+## Messaging & Security
+
+Trusting what comes off the air — proving who sent a message, without breaking
+the no-encryption rules.
+
+1. **[Signing the Airwaves: Authenticating APRS Messages Without Encryption](aprs-message-authentication.md)**
+   How HTCommander proves an APRS message really came from who it claims — and
+   isn't a replay of an old one — by appending a six-character HMAC-SHA256 token
+   keyed by a shared password: the wire format that stays backward compatible,
+   the who/what/when string that gets signed, the minute-based freshness window,
+   why ACKs must be re-signed, and where key exchange stays out of scope.
 
 ---
 
