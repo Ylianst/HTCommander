@@ -64,10 +64,9 @@ class _SatelliteTabState extends State<SatelliteTab> {
   final ScrollController _listScrollController = ScrollController();
   final Map<int, GlobalKey> _itemKeys = {};
 
-  // Fraction of the height given to the list in the stacked (narrow) layout.
-  double _listHeightRatio = 0.5;
-  static const double _minListRatio = 0.2;
-  static const double _maxListRatio = 0.8;
+  // In the narrow (single-column) layout, whether the selected satellite's
+  // details take over the whole tab (true) or the list is shown (false).
+  bool _narrowShowDetail = false;
 
   // Live marker feed for an open "show on map" dialog and the sat it tracks.
   ValueNotifier<LatLng>? _mapLiveNotifier;
@@ -361,7 +360,12 @@ class _SatelliteTabState extends State<SatelliteTab> {
   }
 
   void _select(int noradId) {
-    setState(() => _selectedId = noradId);
+    // In the narrow layout, selecting a bird hands the whole tab over to its
+    // details (the header's back button returns to the list).
+    setState(() {
+      _selectedId = noradId;
+      _narrowShowDetail = true;
+    });
     _broker.dispatch(
       deviceId: _deviceId,
       name: 'SelectSatellite',
@@ -545,86 +549,43 @@ class _SatelliteTabState extends State<SatelliteTab> {
 
   // --- UI -------------------------------------------------------------------
 
-  /// Draggable divider that lets the user resize the list vs. detail panes in
-  /// the stacked (narrow) layout, mirroring the mail tab's splitter.
-  Widget _buildHorizontalSplitter(double totalHeight) {
-    final scheme = Theme.of(context).colorScheme;
-    return MouseRegion(
-      cursor: SystemMouseCursors.resizeRow,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onVerticalDragUpdate: (details) {
-          if (totalHeight <= 0) return;
-          setState(() {
-            _listHeightRatio =
-                (_listHeightRatio + details.delta.dy / totalHeight).clamp(
-                  _minListRatio,
-                  _maxListRatio,
-                );
-          });
-        },
-        child: Container(
-          height: 8,
-          color: scheme.surfaceContainerHigh,
-          child: Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: scheme.onSurfaceVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildHeader(context),
-        if (!_observerKnown) _buildObserverBanner(context),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final wide = constraints.maxWidth >= 720;
-              final list = _buildSatelliteList(context);
-              final detail = _buildDetailPanel(context);
-              if (wide) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(width: 320, child: list),
-                    const VerticalDivider(width: 1),
-                    Expanded(child: detail),
-                  ],
-                );
-              }
-              return Column(
-                children: [
-                  SizedBox(
-                    height: (constraints.maxHeight * _listHeightRatio).clamp(
-                      80.0,
-                      constraints.maxHeight - 120.0,
-                    ),
-                    child: list,
-                  ),
-                  _buildHorizontalSplitter(constraints.maxHeight),
-                  Expanded(child: detail),
-                ],
-              );
-            },
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 720;
+        // In the narrow layout the details take over the whole tab once a
+        // satellite has been selected; the header shows a back button.
+        final narrowDetail = !wide && _narrowShowDetail && _selectedId != null;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildHeader(context, showBack: narrowDetail),
+            if (!_observerKnown) _buildObserverBanner(context),
+            Expanded(
+              child: wide
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          width: 320,
+                          child: _buildSatelliteList(context),
+                        ),
+                        const VerticalDivider(width: 1),
+                        Expanded(child: _buildDetailPanel(context)),
+                      ],
+                    )
+                  : (narrowDetail
+                        ? _buildDetailPanel(context)
+                        : _buildSatelliteList(context)),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, {bool showBack = false}) {
     return Container(
       height: 40,
       color: Theme.of(context).colorScheme.surfaceContainerHigh,
@@ -647,6 +608,16 @@ class _SatelliteTabState extends State<SatelliteTab> {
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
+              ),
+            ),
+          if (showBack)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: IconButton(
+                tooltip: 'Back to satellite list',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.close, size: 24),
+                onPressed: () => setState(() => _narrowShowDetail = false),
               ),
             ),
           Builder(
