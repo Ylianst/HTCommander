@@ -34,6 +34,7 @@ import '../models/radio_models.dart';
 import '../radio/radio_models.dart' as radio;
 import '../utils/channel_share.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
+import '../allstar/allstar_client.dart' show allStarDeviceId;
 
 /// Voice transmit mode
 enum VoiceTransmitMode { chat, speak, morse, dtmf, ptt, morseKey, none }
@@ -72,6 +73,13 @@ class _CommsTabState extends State<CommsTab>
   /// Whether the currently displayed radio is the internet-only EchoLink radio.
   bool get _isEchoLink => _currentRadioDeviceId == echoLinkDeviceId;
 
+  /// True while the AllStarLink radio (device 202) is in a call, which enables
+  /// voice transmit (it has no radio AudioState of its own).
+  bool _allStarInCall = false;
+
+  /// Whether the currently displayed radio is the internet-only AllStarLink
+  /// radio.
+  bool get _isAllStar => _currentRadioDeviceId == allStarDeviceId;
   /// Whether the header should show the EchoLink channel-information icon: the
   /// EchoLink radio is displayed, a QSO is up, and the node published info text.
   bool get _hasEchoLinkChannelInfo =>
@@ -265,6 +273,13 @@ class _CommsTabState extends State<CommsTab>
       name: 'StationInfo',
       callback: _onEchoLinkStationInfoChanged,
     );
+    // AllStarLink call state (device 202) gates voice transmit when AllStarLink
+    // is the displayed radio.
+    _broker.subscribe(
+      deviceId: allStarDeviceId,
+      name: 'State',
+      callback: _onAllStarStateChanged,
+    );
     _broker.subscribe(
       deviceId: 1,
       name: 'VoiceTextCleared',
@@ -334,6 +349,8 @@ class _CommsTabState extends State<CommsTab>
         _broker.getValue<String>(echoLinkDeviceId, 'State') == 'Connected';
     _echoLinkStationInfo =
         _broker.getValue<String>(echoLinkDeviceId, 'StationInfo', '') ?? '';
+    _allStarInCall =
+        _broker.getValue<String>(allStarDeviceId, 'State') == 'Connected';
     _softwareModemMode =
         (_broker.getValue<String>(0, 'SoftwareModemMode', 'none') ?? 'none')
             .toLowerCase();
@@ -701,6 +718,11 @@ class _CommsTabState extends State<CommsTab>
         (_broker.getValue<bool>(1, 'EchoLinkAvailable', false) ?? false)) {
       return echoLinkDeviceId;
     }
+    // AllStarLink is likewise selectable while available.
+    if (selected == allStarDeviceId &&
+        (_broker.getValue<bool>(1, 'AllStarAvailable', false) ?? false)) {
+      return allStarDeviceId;
+    }
     if (selected > 0 && connectedIds.contains(selected)) return selected;
     return connectedIds.isNotEmpty ? connectedIds.first : -1;
   }
@@ -722,6 +744,7 @@ class _CommsTabState extends State<CommsTab>
   bool get _isCurrentRadioConnected {
     // EchoLink is "connected" for transmit purposes while a QSO is active.
     if (_isEchoLink) return _echoLinkInQso;
+    if (_isAllStar) return _allStarInCall;
     if (_currentRadioDeviceId <= 0) return false;
     final connected = _radioIds(
       DataBroker.getValueDynamic(1, 'ConnectedRadios'),
@@ -740,10 +763,20 @@ class _CommsTabState extends State<CommsTab>
     _updatePttMic();
   }
 
+  /// Handles AllStarLink (device 202) call-state changes so voice transmit is
+  /// enabled while a call is up.
+  void _onAllStarStateChanged(int deviceId, String name, Object? data) {
+    final inCall = data == 'Connected';
+    if (inCall == _allStarInCall) return;
+    _allStarInCall = inCall;
+    if (!_isAllStar || !mounted) return;
+    setState(() => _audioEnabled = _readAudioState());
+    _updatePttMic();
+  }
+
   /// Handles EchoLink (device 200) channel-info updates so the header info icon
   /// appears/updates while a QSO is up.
-  void _onEchoLinkStationInfoChanged(int deviceId, String name, Object? data) {
-    final info = data is String ? data : '';
+  void _onEchoLinkStationInfoChanged(int deviceId, String name, Object? data) {    final info = data is String ? data : '';
     if (info == _echoLinkStationInfo) return;
     if (!mounted) {
       _echoLinkStationInfo = info;
@@ -883,6 +916,7 @@ class _CommsTabState extends State<CommsTab>
     // EchoLink has no radio audio channel: voice transmit is enabled whenever a
     // QSO is up.
     if (_isEchoLink) return _echoLinkInQso;
+    if (_isAllStar) return _allStarInCall;
     if (_currentRadioDeviceId <= 0) return false;
     return _broker.getValue<bool>(_currentRadioDeviceId, 'AudioState', false) ??
         false;
@@ -2494,7 +2528,7 @@ class _CommsTabState extends State<CommsTab>
           value: 'pttReleaseSettings',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _currentRadioDeviceId > 0 && !_isEchoLink,
+          enabled: _currentRadioDeviceId > 0 && !_isEchoLink && !_isAllStar,
           child: const Row(
             children: [SizedBox(width: 20), Text('PTT Release Settings...')],
           ),

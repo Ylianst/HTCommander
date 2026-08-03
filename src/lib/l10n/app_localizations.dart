@@ -794,6 +794,102 @@ abstract class AppLocalizations {
   /// **'EchoLink'**
   String get settingsTabEchoLink;
 
+  /// No description provided for @settingsTabAllStar.
+  ///
+  /// In en, this message translates to:
+  /// **'AllStarLink'**
+  String get settingsTabAllStar;
+
+  /// No description provided for @settingsAllStarIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to an AllStarLink node over the internet using IAX2.'**
+  String get settingsAllStarIntro;
+
+  /// No description provided for @settingsAllStarNodes.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved Nodes'**
+  String get settingsAllStarNodes;
+
+  /// No description provided for @settingsAllStarNoNodes.
+  ///
+  /// In en, this message translates to:
+  /// **'No nodes configured yet. Add a node to connect to it.'**
+  String get settingsAllStarNoNodes;
+
+  /// No description provided for @settingsAllStarAddNode.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Node'**
+  String get settingsAllStarAddNode;
+
+  /// No description provided for @settingsAllStarEditNode.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Node'**
+  String get settingsAllStarEditNode;
+
+  /// No description provided for @settingsAllStarNodeName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get settingsAllStarNodeName;
+
+  /// No description provided for @settingsAllStarNodeNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. My Repeater'**
+  String get settingsAllStarNodeNameHint;
+
+  /// No description provided for @settingsAllStarNodeHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Host'**
+  String get settingsAllStarNodeHost;
+
+  /// No description provided for @settingsAllStarNodePort.
+  ///
+  /// In en, this message translates to:
+  /// **'Port'**
+  String get settingsAllStarNodePort;
+
+  /// No description provided for @settingsAllStarNodeUser.
+  ///
+  /// In en, this message translates to:
+  /// **'IAX Username'**
+  String get settingsAllStarNodeUser;
+
+  /// No description provided for @settingsAllStarNodeSecret.
+  ///
+  /// In en, this message translates to:
+  /// **'IAX Secret'**
+  String get settingsAllStarNodeSecret;
+
+  /// No description provided for @settingsAllStarNodeNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Node Number'**
+  String get settingsAllStarNodeNumber;
+
+  /// No description provided for @settingsAllStarNodeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The host, IAX username and secret come from the node\'s iax.conf; the node number is the AllStarLink node you want to connect to.'**
+  String get settingsAllStarNodeHelp;
+
+  /// No description provided for @settingsAllStarDeleteNode.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete node'**
+  String get settingsAllStarDeleteNode;
+
+  /// No description provided for @settingsAllStarDeleteNodeConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{name}\" from your saved nodes?'**
+  String settingsAllStarDeleteNodeConfirm(String name);
+
   /// No description provided for @settingsTabServers.
   ///
   /// In en, this message translates to:

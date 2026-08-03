@@ -17,6 +17,7 @@ import '../utils/channel_share.dart';
 import '../utils/web_channel_import/web_channel_import.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../echolink/echolink_station.dart';
+import '../allstar/allstar_client.dart' show allStarDeviceId;
 import '../satellite/satellite_models.dart' show SatelliteTrackParams;
 
 /// Radio panel control widget - displays radio image, VFO frequencies, and status
@@ -95,6 +96,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   // mirroring the physical radio's signal / transmit indicator.
   double _echoLinkRxLevel = 0;
   bool _echoLinkTransmitting = false;
+
+  // AllStarLink (device 202) mirror of the EchoLink switcher/panel state.
+  bool _allStarRadioConnected = false;
+  String? _allStarState;
+  Map<String, Object?>? _allStarConnectedNode;
+  List<Map<String, Object?>> _allStarNodes = const [];
 
   // UI state
   bool _showAllChannels = false;
@@ -178,6 +185,14 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       name: 'State',
       callback: _onEchoLinkSwitcherStateChanged,
     );
+    _allStarRadioConnected = _isAllStarOnlineState(
+      _broker.getValue<String>(allStarDeviceId, 'State'),
+    );
+    _broker.subscribe(
+      deviceId: allStarDeviceId,
+      name: 'State',
+      callback: _onAllStarSwitcherStateChanged,
+    );
     _subscribeToDevice();
   }
 
@@ -216,6 +231,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         deviceId: echoLinkDeviceId,
         name: 'State',
         callback: _onEchoLinkSwitcherStateChanged,
+      );
+      _broker.subscribe(
+        deviceId: allStarDeviceId,
+        name: 'State',
+        callback: _onAllStarSwitcherStateChanged,
       );
       _clearCachedState();
       _subscribeToDevice();
@@ -276,6 +296,55 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     final bool online = _isEchoLinkOnlineState(data is String ? data : null);
     if (online == _echoLinkRadioConnected) return;
     setState(() => _echoLinkRadioConnected = online);
+  }
+
+  bool _isAllStarOnlineState(String? state) =>
+      state == 'Online' || state == 'Connecting' || state == 'Connected';
+
+  /// Tracks AllStarLink's online state for the radio switcher (always on).
+  void _onAllStarSwitcherStateChanged(
+      int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final bool online = _isAllStarOnlineState(data is String ? data : null);
+    if (online == _allStarRadioConnected) return;
+    setState(() => _allStarRadioConnected = online);
+  }
+
+  /// Handles AllStarLink status events (device 202) when this panel shows it.
+  void _onAllStarEvent(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(() {
+      switch (name) {
+        case 'State':
+          _allStarState = data as String?;
+          break;
+        case 'ConnectedNode':
+          _allStarConnectedNode =
+              data is Map ? Map<String, Object?>.from(data) : null;
+          break;
+        case 'NodeList':
+          _allStarNodes = <Map<String, Object?>>[
+            if (data is List)
+              for (final Object? e in data)
+                if (e is Map) Map<String, Object?>.from(e),
+          ];
+          break;
+      }
+    });
+  }
+
+  void _loadAllStarState() {
+    _allStarState = _broker.getValue<String>(allStarDeviceId, 'State');
+    final Object? node =
+        _broker.getValueDynamic(allStarDeviceId, 'ConnectedNode');
+    _allStarConnectedNode =
+        node is Map ? Map<String, Object?>.from(node) : null;
+    final Object? list = _broker.getValueDynamic(allStarDeviceId, 'NodeList');
+    _allStarNodes = <Map<String, Object?>>[
+      if (list is List)
+        for (final Object? e in list)
+          if (e is Map) Map<String, Object?>.from(e),
+    ];
   }
 
   /// Handles EchoLink status events (device 200) when this panel displays
@@ -498,10 +567,23 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     _echoLinkBusy = false;
     _echoLinkRxLevel = 0;
     _echoLinkTransmitting = false;
+    _allStarState = null;
+    _allStarConnectedNode = null;
+    _allStarNodes = const [];
   }
 
   void _subscribeToDevice() {
     if (widget.deviceId <= 0) return;
+
+    if (widget.deviceId == allStarDeviceId) {
+      _loadAllStarState();
+      _broker.subscribeMultiple(
+        deviceId: allStarDeviceId,
+        names: ['State', 'ConnectedNode', 'NodeList'],
+        callback: _onAllStarEvent,
+      );
+      return;
+    }
 
     if (widget.deviceId == echoLinkDeviceId) {
       _broker.subscribeMultiple(
@@ -642,6 +724,13 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       unique.add(ConnectedRadioInfo(
         deviceId: echoLinkDeviceId,
         friendlyName: 'EchoLink',
+      ));
+    }
+    // AllStarLink is likewise offered in the switcher while it is online.
+    if (_allStarRadioConnected && seen.add(allStarDeviceId)) {
+      unique.add(ConnectedRadioInfo(
+        deviceId: allStarDeviceId,
+        friendlyName: 'AllStarLink',
       ));
     }
     return unique;
@@ -1286,6 +1375,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         child: _buildEchoLinkPanel(),
       );
     }
+    if (widget.deviceId == allStarDeviceId) {
+      return Container(
+        color: const Color(0xFF808080), // 50% gray
+        child: _buildAllStarPanel(),
+      );
+    }
     return Container(
       color: const Color(0xFF808080), // 50% gray
       child: _buildRadioDisplayWithChannels(),
@@ -1337,6 +1432,156 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     });
     if (!mounted) return;
     setState(() => _echoLinkPendingConnect = station);
+  }
+
+  // ---------------------------------------------------------------------------
+  // AllStarLink panel (device 202)
+  // ---------------------------------------------------------------------------
+
+  bool get _allStarInCall => _allStarState == 'Connected';
+  bool get _allStarConnecting => _allStarState == 'Connecting';
+
+  void _allStarDispatch(String name, {Object? data}) {
+    _broker.dispatch(
+      deviceId: allStarDeviceId,
+      name: name,
+      data: data,
+      store: false,
+    );
+  }
+
+  bool _isSameAllStarNode(Map<String, Object?>? a, Map<String, Object?>? b) {
+    if (a == null || b == null) return false;
+    return (a['NodeNumber']?.toString() ?? '') ==
+            (b['NodeNumber']?.toString() ?? '') &&
+        (a['Host']?.toString() ?? '') == (b['Host']?.toString() ?? '');
+  }
+
+  void _connectAllStarNode(Map<String, Object?> node) {
+    if (_isSameAllStarNode(node, _allStarConnectedNode) &&
+        (_allStarInCall || _allStarConnecting)) {
+      _allStarDispatch('AllStarDisconnect');
+      return;
+    }
+    _allStarDispatch('AllStarConnect', data: node);
+  }
+
+  Widget _buildAllStarPanel() {
+    final l10n = AppLocalizations.of(context);
+    final String stateLabel = _allStarInCall
+        ? l10n.stateConnected
+        : _allStarConnecting
+            ? l10n.stateConnecting
+            : l10n.stateDisconnected;
+    final Map<String, Object?>? node = _allStarConnectedNode;
+
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Status "LCD" display.
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD3D3D3),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  (node != null && (_allStarInCall || _allStarConnecting))
+                      ? (node['Name']?.toString().isNotEmpty == true
+                          ? node['Name'].toString()
+                          : node['NodeNumber']?.toString() ?? 'AllStarLink')
+                      : 'AllStarLink',
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(stateLabel,
+                        style: const TextStyle(color: Colors.black54)),
+                    if (node != null &&
+                        (_allStarInCall || _allStarConnecting) &&
+                        (node['NodeNumber']?.toString().isNotEmpty == true))
+                      Text('#${node['NodeNumber']}',
+                          style: const TextStyle(color: Colors.black54)),
+                    Text(l10n.radioConnectionInternet,
+                        style: const TextStyle(color: Colors.black54)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Saved-node grid.
+          Expanded(
+            child: _allStarNodes.isEmpty
+                ? Center(
+                    child: Text(
+                      l10n.settingsAllStarNoNodes,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  )
+                : GridView.count(
+                    crossAxisCount: 3,
+                    childAspectRatio: 2.2,
+                    crossAxisSpacing: 6,
+                    mainAxisSpacing: 6,
+                    children: [
+                      for (final n in _allStarNodes) _buildAllStarNodeTile(n),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAllStarNodeTile(Map<String, Object?> node) {
+    final bool isConnected = _isSameAllStarNode(node, _allStarConnectedNode) &&
+        _allStarInCall;
+    final bool isConnecting =
+        _isSameAllStarNode(node, _allStarConnectedNode) && _allStarConnecting;
+    final Color bg = isConnected
+        ? Colors.green.shade700
+        : isConnecting
+            ? Colors.blue.shade700
+            : const Color(0xFF606060);
+    final String name = node['Name']?.toString().isNotEmpty == true
+        ? node['Name'].toString()
+        : (node['NodeNumber']?.toString() ?? '?');
+    return InkWell(
+      onTap: () => _connectAllStarNode(node),
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(name,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+            Text('#${node['NodeNumber'] ?? ''}',
+                style: const TextStyle(color: Colors.white70, fontSize: 11),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildEchoLinkPanel() {

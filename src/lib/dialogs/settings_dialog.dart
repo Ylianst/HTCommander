@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
+import 'allstar_node_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../aprs/aprs_util.dart';
 import '../aprs/weather_data.dart';
@@ -584,10 +585,10 @@ class _SettingsDialogState extends State<SettingsDialog>
   /// internet-service "Servers" / "Map" tabs are hidden. On Android/iOS the
   /// "Servers" tab is hidden. All tabs remain visible on desktop platforms.
   List<String> get _visibleTabs {
-    const all = ['License', 'APRS', 'Comms', 'Winlink', 'EchoLink', 'Servers', 'Map', 'Limits', 'Application'];
+    const all = ['License', 'APRS', 'Comms', 'Winlink', 'EchoLink', 'AllStar', 'Servers', 'Map', 'Limits', 'Application'];
     if (kIsWeb) {
       return all
-          .where((t) => t != 'Comms' && t != 'Servers' && t != 'Map' && t != 'EchoLink')
+          .where((t) => t != 'Comms' && t != 'Servers' && t != 'Map' && t != 'EchoLink' && t != 'AllStar')
           .toList();
     }
     if (defaultTargetPlatform == TargetPlatform.android ||
@@ -611,6 +612,8 @@ class _SettingsDialogState extends State<SettingsDialog>
         return l10n.settingsTabWinlink;
       case 'EchoLink':
         return l10n.settingsTabEchoLink;
+      case 'AllStar':
+        return l10n.settingsTabAllStar;
       case 'Servers':
         return l10n.settingsTabServers;
       case 'Map':
@@ -636,6 +639,8 @@ class _SettingsDialogState extends State<SettingsDialog>
         return _buildWinlinkTab();
       case 'EchoLink':
         return _buildEchoLinkTab();
+      case 'AllStar':
+        return const AllStarNodesSettings();
       case 'Servers':
         return _buildServersTab();
       case 'Map':

@@ -159,6 +159,14 @@ Bringing internet-linked voice into the same app that drives the radio.
    and the internet (q-constructs, NOGATE, the "recently heard" list), and the
    receive-only-first test plan.
 
+3. **[Dialing In: Adding AllStarLink Support to HTCommander](allstarlink-support.md)**
+   How we speak Asterisk's native **IAX2** protocol from pure Dart to connect to
+   an AllStarLink node — the single-UDP-port design, full vs. mini frames, the
+   NEW/AUTHREQ/AUTHREP/ACCEPT/ANSWER call handshake, MD5 challenge-response auth,
+   GSM and μ-law voice, UDP reliability with sequence numbers and the 0x8000
+   timestamp-resync trick, why we connect client-to-node (DVSwitch/iaxRPT style),
+   and how to configure a node and make your first call.
+
 ---
 
 ## Voice & CW

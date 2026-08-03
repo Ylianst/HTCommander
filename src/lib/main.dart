@@ -45,6 +45,10 @@ import 'echolink/echolink_manager_stub.dart'
 // glue is never compiled for the browser.
 import 'aprsis/aprsis_manager_stub.dart'
     if (dart.library.io) 'aprsis/aprsis_manager.dart';
+// AllStarLink relies on dart:io UDP sockets + native audio; use a no-op stub on
+// web so the IAX2 internet-radio glue is never compiled for the browser.
+import 'allstar/allstar_manager_stub.dart'
+    if (dart.library.io) 'allstar/allstar_manager.dart';
 import 'radio/radio_transport.dart';
 // The soft-modem relies on an audio channel, which the web build does not have.
 // Use a no-op stub on web so the hamlib DSP code is never compiled for web.
@@ -70,6 +74,7 @@ import 'winlink/winlink_client.dart';
 import 'widgets/radio_panel.dart';
 import 'widgets/radio_status_bar.dart';
 import 'echolink/echolink_client.dart' show echoLinkDeviceId;
+import 'allstar/allstar_client.dart' show allStarDeviceId;
 import 'widgets/comms_tab.dart';
 import 'widgets/audio_tab.dart';
 import 'widgets/aprs_tab.dart';
@@ -221,6 +226,13 @@ void main(List<String> args) async {
   final echoLinkManager = EchoLinkManager();
   echoLinkManager.init();
   DataBroker.addDataHandler('EchoLinkManager', echoLinkManager);
+
+  // Register the AllStarLink manager so the internet-only AllStarLink radio
+  // (device 202) can go online, place an IAX2 call to a saved node and route
+  // its voice through the shared audio player + CommsHandler. No-op on web.
+  final allStarManager = AllStarManager();
+  allStarManager.init();
+  DataBroker.addDataHandler('AllStarManager', allStarManager);
 
   // Register the APRS-IS manager so the internet-only APRS-IS IGate (device
   // 201) can connect to an APRS-IS server, gate RF packets to the internet and
@@ -730,6 +742,18 @@ class _MainFormState extends State<MainForm>
   // connects, while an explicit user choice of EchoLink is preserved.
   bool _echoLinkAutoSelected = false;
 
+  // Whether the internet-only AllStarLink radio (device 202) is available (at
+  // least one node configured). Kept out of `ConnectedRadios` like EchoLink.
+  bool _allStarAvailable = false;
+
+  // Whether AllStarLink is currently online (its IAX2 transport is open),
+  // driving whether it appears in the radio switcher and can be disconnected.
+  bool _allStarOnline = false;
+
+  // True when AllStarLink is shown only because it was auto-selected as a
+  // fallback; a real radio takes over when it connects.
+  bool _allStarAutoSelected = false;
+
   // Current radio panel device ID (the radio being displayed/controlled)
   int _currentRadioDeviceId = -1;
 
@@ -888,6 +912,27 @@ class _MainFormState extends State<MainForm>
     );
     if (_echoLinkOnline) {
       _maybeAutoSelectEchoLink();
+    }
+
+    // AllStarLink availability (device 1) + connection state (device 202),
+    // mirroring EchoLink so it can be offered and selected as a radio.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'AllStarAvailable',
+      callback: _onAllStarAvailableChanged,
+    );
+    _allStarAvailable =
+        _broker.getValue<bool>(1, 'AllStarAvailable', false) ?? false;
+    _broker.subscribe(
+      deviceId: allStarDeviceId,
+      name: 'State',
+      callback: _onAllStarStateChanged,
+    );
+    _allStarOnline = _isAllStarOnlineState(
+      _broker.getValue<String>(allStarDeviceId, 'State'),
+    );
+    if (_allStarOnline) {
+      _maybeAutoSelectAllStar();
     }
 
     // Subscribe to RadioConnect request (from RadioPanelControl)
@@ -1200,17 +1245,32 @@ class _MainFormState extends State<MainForm>
           _loadBatteryForCurrentRadio();
           _loadSettingsForCurrentRadio();
         }
+        // Same for an auto-selected AllStarLink fallback.
+        else if (_currentRadioDeviceId == allStarDeviceId &&
+            _allStarAutoSelected &&
+            ids.isNotEmpty) {
+          _allStarAutoSelected = false;
+          _currentRadioDeviceId = ids.first;
+          _loadBatteryForCurrentRadio();
+          _loadSettingsForCurrentRadio();
+        }
         // If current radio disconnected, switch to another or reset. EchoLink
         // (device 200) is not part of this list, so leave it selected when it
         // is the current radio.
         if (_currentRadioDeviceId >= 0 &&
             _currentRadioDeviceId != echoLinkDeviceId &&
+            _currentRadioDeviceId != allStarDeviceId &&
             !ids.contains(_currentRadioDeviceId)) {
           _currentRadioDeviceId = ids.isNotEmpty
               ? ids.first
-              : (_echoLinkOnline ? echoLinkDeviceId : -1);
+              : (_echoLinkOnline
+                  ? echoLinkDeviceId
+                  : (_allStarOnline ? allStarDeviceId : -1));
           if (_currentRadioDeviceId == echoLinkDeviceId) {
             _echoLinkAutoSelected = true;
+          }
+          if (_currentRadioDeviceId == allStarDeviceId) {
+            _allStarAutoSelected = true;
           }
           // Load battery percentage for the newly selected radio (or reset)
           _loadBatteryForCurrentRadio();
@@ -1235,10 +1295,13 @@ class _MainFormState extends State<MainForm>
   /// `SetPreferredRadio` DataBroker command.
   void _setPreferredRadio(int radioId) {
     if (radioId == _currentRadioDeviceId) return;
-    if (radioId != echoLinkDeviceId && !_connectedRadioIds.contains(radioId)) {
+    if (radioId != echoLinkDeviceId &&
+        radioId != allStarDeviceId &&
+        !_connectedRadioIds.contains(radioId)) {
       return;
     }
     if (radioId == echoLinkDeviceId && !_echoLinkOnline) return;
+    if (radioId == allStarDeviceId && !_allStarOnline) return;
     setState(() {
       _currentRadioDeviceId = radioId;
       // An explicit choice is never treated as an auto-selection fallback.
@@ -1336,6 +1399,73 @@ class _MainFormState extends State<MainForm>
       deviceId: 1,
       name: 'SelectedRadioDeviceId',
       data: echoLinkDeviceId,
+    );
+  }
+
+  /// Returns true when the AllStarLink device-202 `State` means it is online.
+  bool _isAllStarOnlineState(String? state) {
+    return state == 'Online' || state == 'Connecting' || state == 'Connected';
+  }
+
+  /// Availability changed (device 1): if AllStarLink becomes unavailable while
+  /// it is the displayed radio, fall back to another radio.
+  void _onAllStarAvailableChanged(int deviceId, String name, Object? data) {
+    final available = data == true;
+    if (available == _allStarAvailable) return;
+    setState(() {
+      _allStarAvailable = available;
+      if (!available && _currentRadioDeviceId == allStarDeviceId) {
+        _allStarAutoSelected = false;
+        _currentRadioDeviceId =
+            _connectedRadioIds.isNotEmpty ? _connectedRadioIds.first : -1;
+        _broker.dispatch(
+          deviceId: 1,
+          name: 'SelectedRadioDeviceId',
+          data: _currentRadioDeviceId,
+        );
+      }
+    });
+  }
+
+  /// AllStarLink connection-state changed (device 202): mirrors EchoLink.
+  void _onAllStarStateChanged(int deviceId, String name, Object? data) {
+    final bool online = _isAllStarOnlineState(data is String ? data : null);
+    if (online == _allStarOnline) return;
+    setState(() {
+      _allStarOnline = online;
+      if (online) {
+        _maybeAutoSelectAllStar();
+      } else if (_currentRadioDeviceId == allStarDeviceId) {
+        _allStarAutoSelected = false;
+        _currentRadioDeviceId =
+            _connectedRadioIds.isNotEmpty ? _connectedRadioIds.first : -1;
+        _loadBatteryForCurrentRadio();
+        _loadSettingsForCurrentRadio();
+        _broker.dispatch(
+          deviceId: 1,
+          name: 'SelectedRadioDeviceId',
+          data: _currentRadioDeviceId,
+        );
+      }
+    });
+  }
+
+  /// Selects AllStarLink as the displayed radio when it is online and nothing
+  /// else is connected/selected. Must be called inside setState.
+  void _maybeAutoSelectAllStar() {
+    if (!_allStarOnline) return;
+    if (_connectedRadioIds.isNotEmpty) return;
+    if (_currentRadioDeviceId >= 0 &&
+        _currentRadioDeviceId != allStarDeviceId) {
+      return;
+    }
+    if (_currentRadioDeviceId == allStarDeviceId) return;
+    _currentRadioDeviceId = allStarDeviceId;
+    _allStarAutoSelected = true;
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'SelectedRadioDeviceId',
+      data: allStarDeviceId,
     );
   }
 
@@ -2088,12 +2218,18 @@ class _MainFormState extends State<MainForm>
   /// separate from [_hasConnectedRadio] so radio-only menu items stay gated on
   /// physical radios only.
   bool get _canDisconnect =>
-      _hasConnectedRadio || (_isEchoLink && _echoLinkOnline);
+      _hasConnectedRadio ||
+      (_isEchoLink && _echoLinkOnline) ||
+      (_isAllStar && _allStarOnline);
 
   /// Whether the currently displayed radio is the internet-only EchoLink
   /// radio, which does not support physical-radio features (dual-watch, scan,
   /// GPS, trusted devices, buttons, channel import/export, audio modems).
   bool get _isEchoLink => _currentRadioDeviceId == echoLinkDeviceId;
+
+  /// Whether the currently displayed radio is the internet-only AllStarLink
+  /// radio, which likewise does not support physical-radio features.
+  bool get _isAllStar => _currentRadioDeviceId == allStarDeviceId;
 
   /// Whether GPS serial port is configured.
   bool get _hasGpsConfigured {
@@ -2110,6 +2246,7 @@ class _MainFormState extends State<MainForm>
     // EchoLink (device 200) is not part of `ConnectedRadios`, but is offered in
     // the switcher as a selectable radio when available.
     if (deviceId == echoLinkDeviceId) return 'EchoLink';
+    if (deviceId == allStarDeviceId) return 'AllStarLink';
     final radios = DataBroker.getValueDynamic(1, 'ConnectedRadios', null);
     if (radios is List) {
       for (final radio in radios) {
@@ -2129,6 +2266,9 @@ class _MainFormState extends State<MainForm>
     final ids = <int>[..._connectedRadioIds];
     if (_echoLinkOnline && !ids.contains(echoLinkDeviceId)) {
       ids.add(echoLinkDeviceId);
+    }
+    if (_allStarOnline && !ids.contains(allStarDeviceId)) {
+      ids.add(allStarDeviceId);
     }
     return ids;
   }
@@ -3257,10 +3397,14 @@ class _MainFormState extends State<MainForm>
   void _onConnect() async {
     _broker.logInfo('Connect requested - checking Bluetooth...');
 
-    // EchoLink can be connected over the internet even when Bluetooth is
-    // unavailable or no radios are found, so it is always offered in the dialog
-    // when configured (callsign + password set).
-    final bool echoLinkAvailable = _echoLinkAvailable;
+    // EchoLink and AllStarLink can be connected over the internet even when
+    // Bluetooth is unavailable or no radios are found, so they are always
+    // offered in the dialog when configured.
+    final List<CompatibleDevice> internetDevices = <CompatibleDevice>[
+      if (_echoLinkAvailable) _echoLinkCompatibleDevice(),
+      if (_allStarAvailable) _allStarCompatibleDevice(),
+    ];
+    final bool echoLinkAvailable = internetDevices.isNotEmpty;
 
     setState(() {
       _statusText = AppLocalizations.of(context).statusCheckingBluetooth;
@@ -3274,7 +3418,7 @@ class _MainFormState extends State<MainForm>
       if (echoLinkAvailable) {
         // Offer EchoLink even though Bluetooth radios cannot be reached.
         setState(() => _statusText = '');
-        await RadioConnectionDialog.show(context, [_echoLinkCompatibleDevice()]);
+        await RadioConnectionDialog.show(context, internetDevices);
         return;
       }
       setState(() {
@@ -3302,7 +3446,7 @@ class _MainFormState extends State<MainForm>
       _broker.logError('Error scanning for radios: $e');
       if (echoLinkAvailable) {
         setState(() => _statusText = '');
-        await RadioConnectionDialog.show(context, [_echoLinkCompatibleDevice()]);
+        await RadioConnectionDialog.show(context, internetDevices);
         return;
       }
       setState(() {
@@ -3322,7 +3466,7 @@ class _MainFormState extends State<MainForm>
       _broker.logInfo('No compatible radios found');
       if (echoLinkAvailable) {
         setState(() => _statusText = '');
-        await RadioConnectionDialog.show(context, [_echoLinkCompatibleDevice()]);
+        await RadioConnectionDialog.show(context, internetDevices);
         return;
       }
       setState(() {
@@ -3416,7 +3560,7 @@ class _MainFormState extends State<MainForm>
 
     final dialogDevices = <CompatibleDevice>[
       ...compatibleDevices,
-      if (echoLinkAvailable) _echoLinkCompatibleDevice(),
+      ...internetDevices,
     ];
     await RadioConnectionDialog.show(context, dialogDevices);
   }
@@ -3425,6 +3569,13 @@ class _MainFormState extends State<MainForm>
   /// by going online with the directory server rather than over Bluetooth.
   CompatibleDevice _echoLinkCompatibleDevice() {
     return CompatibleDevice(name: 'EchoLink', mac: '', isEchoLink: true);
+  }
+
+  /// Builds the AllStarLink entry shown in the connection dialog. AllStarLink
+  /// connects by going online (opening its IAX2 transport) rather than over
+  /// Bluetooth.
+  CompatibleDevice _allStarCompatibleDevice() {
+    return CompatibleDevice(name: 'AllStarLink', mac: '', isAllStar: true);
   }
 
 
@@ -3531,6 +3682,21 @@ class _MainFormState extends State<MainForm>
       _broker.dispatch(
         deviceId: echoLinkDeviceId,
         name: 'EchoLinkGoOffline',
+        data: null,
+        store: false,
+      );
+      return;
+    }
+
+    // AllStarLink (device 202): going offline is its disconnect.
+    if (_isAllStar && _allStarOnline) {
+      _broker.logInfo('Disconnecting AllStarLink...');
+      setState(() {
+        _statusText = AppLocalizations.of(context).statusDisconnecting;
+      });
+      _broker.dispatch(
+        deviceId: allStarDeviceId,
+        name: 'AllStarGoOffline',
         data: null,
         store: false,
       );
@@ -3662,7 +3828,7 @@ class _MainFormState extends State<MainForm>
 
   void _onFirmwareUpdate() {
     final id = _currentRadioDeviceId;
-    if (id <= 0 || id == echoLinkDeviceId) {
+    if (id <= 0 || id == echoLinkDeviceId || id == allStarDeviceId) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context).commonNoRadioConnected),

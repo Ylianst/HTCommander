@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'dialog_utils.dart';
 import '../l10n/app_localizations.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
+import '../allstar/allstar_client.dart' show allStarDeviceId;
 import '../services/bluetooth_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -26,11 +27,17 @@ class CompatibleDevice {
   /// by going online with the EchoLink directory rather than over Bluetooth.
   final bool isEchoLink;
 
+  /// True for the internet-only AllStarLink pseudo-radio (device 202). It
+  /// connects by going online (opening its IAX2 transport) rather than over
+  /// Bluetooth.
+  final bool isAllStar;
+
   CompatibleDevice({
     required this.name,
     required this.mac,
     this.bluetoothName = '',
     this.isEchoLink = false,
+    this.isAllStar = false,
   });
 }
 
@@ -80,6 +87,9 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
   // Current device-200 (EchoLink) state, used when an EchoLink row is shown.
   String _echoLinkState = 'Disconnected';
 
+  // Current device-202 (AllStarLink) state, used when an AllStar row is shown.
+  String _allStarState = 'Disconnected';
+
   @override
   void initState() {
     super.initState();
@@ -90,6 +100,9 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
     // Load initial EchoLink state (device 200).
     _echoLinkState =
         _broker.getValue<String>(echoLinkDeviceId, 'State') ?? 'Disconnected';
+    // Load initial AllStarLink state (device 202).
+    _allStarState =
+        _broker.getValue<String>(allStarDeviceId, 'State') ?? 'Disconnected';
 
     // Subscribe to connected radios updates
     _broker.subscribe(
@@ -152,6 +165,12 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
         });
         return;
       }
+      if (deviceId == allStarDeviceId) {
+        setState(() {
+          _allStarState = data;
+        });
+        return;
+      }
       final macAddress = _deviceIdToMac[deviceId];
       if (macAddress != null) {
         setState(() {
@@ -181,7 +200,21 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
 
   /// Status for any dialog row, handling the EchoLink pseudo-radio specially.
   String _statusForDevice(CompatibleDevice device) {
-    return device.isEchoLink ? _echoLinkStatus() : _getRadioStatus(device.mac);
+    if (device.isEchoLink) return _echoLinkStatus();
+    if (device.isAllStar) return _allStarStatus();
+    return _getRadioStatus(device.mac);
+  }
+
+  /// Maps the AllStarLink device-202 `State` onto the dialog status vocabulary.
+  String _allStarStatus() {
+    switch (_allStarState) {
+      case 'Online':
+      case 'Connecting':
+      case 'Connected':
+        return 'Connected';
+      default:
+        return 'Disconnected';
+    }
   }
 
   bool _isConnectable(String status) {
@@ -233,6 +266,26 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
     );
   }
 
+  /// Connect AllStarLink by going online (opening its transport, device 202).
+  void _connectAllStar() {
+    _broker.dispatch(
+      deviceId: allStarDeviceId,
+      name: 'AllStarGoOnline',
+      data: null,
+      store: false,
+    );
+  }
+
+  /// Disconnect AllStarLink by going offline (device 202).
+  void _disconnectAllStar() {
+    _broker.dispatch(
+      deviceId: allStarDeviceId,
+      name: 'AllStarGoOffline',
+      data: null,
+      store: false,
+    );
+  }
+
   void _toggleDevice(CompatibleDevice device) {
     final status = _statusForDevice(device);
     if (device.isEchoLink) {
@@ -240,6 +293,14 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
         _disconnectEchoLink();
       } else if (_isConnectable(status)) {
         _connectEchoLink();
+      }
+      return;
+    }
+    if (device.isAllStar) {
+      if (_isConnectedOrConnecting(status)) {
+        _disconnectAllStar();
+      } else if (_isConnectable(status)) {
+        _connectAllStar();
       }
       return;
     }
@@ -421,10 +482,12 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    // Sort radios by name, but always keep the EchoLink pseudo-radio last.
+    // Sort radios by name, but always keep the internet pseudo-radios last.
     final sortedDevices = List<CompatibleDevice>.from(widget.devices)
       ..sort((a, b) {
-        if (a.isEchoLink != b.isEchoLink) return a.isEchoLink ? 1 : -1;
+        final bool aNet = a.isEchoLink || a.isAllStar;
+        final bool bNet = b.isEchoLink || b.isAllStar;
+        if (aNet != bNet) return aNet ? 1 : -1;
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
       });
 
@@ -474,9 +537,11 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                                     ? (connected
                                         ? Icons.public
                                         : Icons.public_off)
-                                    : (connected
-                                        ? Icons.bluetooth_connected
-                                        : Icons.bluetooth_disabled),
+                                    : device.isAllStar
+                                        ? Icons.cell_tower
+                                        : (connected
+                                            ? Icons.bluetooth_connected
+                                            : Icons.bluetooth_disabled),
                                 color: _getStatusColor(status),
                               ),
                               onPressed: (connected || connectable)
@@ -488,7 +553,7 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                               style: DialogStyles.bodyStyle,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            subtitle: device.isEchoLink
+                            subtitle: (device.isEchoLink || device.isAllStar)
                                 ? Text(
                                     l10n.radioConnectionInternet,
                                     style: DialogStyles.bodyStyle.copyWith(
@@ -510,7 +575,7 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (!device.isEchoLink)
+                                if (!device.isEchoLink && !device.isAllStar)
                                   IconButton(
                                     visualDensity: VisualDensity.compact,
                                     tooltip: l10n.commonRename,

@@ -13,6 +13,7 @@ import 'package:record/record.dart' show InputDevice;
 
 import '../l10n/app_localizations.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
+import '../allstar/allstar_client.dart' show allStarDeviceId;
 import '../services/audio_output_devices.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -466,8 +467,11 @@ class _AudioTabState extends State<AudioTab>
     // TabBarView keeps it alive but nothing it draws is visible.
     if (!isTabVisible) return;
     // Visualize the current radio's received audio, plus EchoLink (device 200)
-    // internet audio, which is never part of the connected-radios aggregate.
-    if (deviceId != _currentRadioDeviceId && deviceId != echoLinkDeviceId) {
+    // and AllStarLink (device 202) internet audio, which are never part of the
+    // connected-radios aggregate.
+    if (deviceId != _currentRadioDeviceId &&
+        deviceId != echoLinkDeviceId &&
+        deviceId != allStarDeviceId) {
       return;
     }
     if (data is! Map) return;

@@ -367,6 +367,59 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsTabEchoLink => 'EchoLink';
 
   @override
+  String get settingsTabAllStar => 'AllStarLink';
+
+  @override
+  String get settingsAllStarIntro =>
+      'Connect to an AllStarLink node over the internet using IAX2.';
+
+  @override
+  String get settingsAllStarNodes => 'Saved Nodes';
+
+  @override
+  String get settingsAllStarNoNodes =>
+      'No nodes configured yet. Add a node to connect to it.';
+
+  @override
+  String get settingsAllStarAddNode => 'Add Node';
+
+  @override
+  String get settingsAllStarEditNode => 'Edit Node';
+
+  @override
+  String get settingsAllStarNodeName => 'Name';
+
+  @override
+  String get settingsAllStarNodeNameHint => 'e.g. My Repeater';
+
+  @override
+  String get settingsAllStarNodeHost => 'Host';
+
+  @override
+  String get settingsAllStarNodePort => 'Port';
+
+  @override
+  String get settingsAllStarNodeUser => 'IAX Username';
+
+  @override
+  String get settingsAllStarNodeSecret => 'IAX Secret';
+
+  @override
+  String get settingsAllStarNodeNumber => 'Node Number';
+
+  @override
+  String get settingsAllStarNodeHelp =>
+      'The host, IAX username and secret come from the node\'s iax.conf; the node number is the AllStarLink node you want to connect to.';
+
+  @override
+  String get settingsAllStarDeleteNode => 'Delete node';
+
+  @override
+  String settingsAllStarDeleteNodeConfirm(String name) {
+    return 'Remove \"$name\" from your saved nodes?';
+  }
+
+  @override
   String get settingsTabServers => 'サーバー';
 
   @override

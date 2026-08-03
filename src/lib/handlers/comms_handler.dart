@@ -46,6 +46,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../aprs/aprs_packet.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
+import '../allstar/allstar_client.dart' show allStarDeviceId;
 import '../radio/ax25_packet.dart';
 import '../radio/bss_packet.dart';
 import '../radio/cw_monitor.dart';
@@ -2238,6 +2239,8 @@ class CommsHandler {
     // EchoLink (device 200) has its own text-chat path handled by the EchoLink
     // manager; do not also send it as a radio BSS packet.
     if (deviceId == echoLinkDeviceId) return;
+    // AllStarLink (device 202) is an internet pseudo-radio with no BSS path.
+    if (deviceId == allStarDeviceId) return;
     final message = data;
     // Validate message length (must be between 1 and 254 characters).
     if (message.isEmpty || message.length >= 255) {

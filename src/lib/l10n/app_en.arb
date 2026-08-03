@@ -416,6 +416,29 @@
   "settingsTabComms": "Comms",
   "settingsTabWinlink": "Winlink",
   "settingsTabEchoLink": "EchoLink",
+  "settingsTabAllStar": "AllStarLink",
+  "settingsAllStarIntro": "Connect to an AllStarLink node over the internet using IAX2.",
+  "settingsAllStarNodes": "Saved Nodes",
+  "settingsAllStarNoNodes": "No nodes configured yet. Add a node to connect to it.",
+  "settingsAllStarAddNode": "Add Node",
+  "settingsAllStarEditNode": "Edit Node",
+  "settingsAllStarNodeName": "Name",
+  "settingsAllStarNodeNameHint": "e.g. My Repeater",
+  "settingsAllStarNodeHost": "Host",
+  "settingsAllStarNodePort": "Port",
+  "settingsAllStarNodeUser": "IAX Username",
+  "settingsAllStarNodeSecret": "IAX Secret",
+  "settingsAllStarNodeNumber": "Node Number",
+  "settingsAllStarNodeHelp": "The host, IAX username and secret come from the node's iax.conf; the node number is the AllStarLink node you want to connect to.",
+  "settingsAllStarDeleteNode": "Delete node",
+  "settingsAllStarDeleteNodeConfirm": "Remove \"{name}\" from your saved nodes?",
+  "@settingsAllStarDeleteNodeConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "settingsTabServers": "Servers",
   "settingsTabMap": "Map",
   "settingsTabLimits": "Limits",
