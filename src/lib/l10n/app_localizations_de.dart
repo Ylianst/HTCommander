@@ -373,26 +373,26 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get settingsAllStarIntro =>
-      'Connect to an AllStarLink node over the internet using IAX2.';
+      'Verbinden Sie sich über das Internet per IAX2 mit einem AllStarLink-Knoten.';
 
   @override
-  String get settingsAllStarNodes => 'Saved Nodes';
+  String get settingsAllStarNodes => 'Gespeicherte Knoten';
 
   @override
   String get settingsAllStarNoNodes =>
-      'No nodes configured yet. Add a node to connect to it.';
+      'Noch keine Knoten konfiguriert. Fügen Sie einen Knoten hinzu, um sich zu verbinden.';
 
   @override
-  String get settingsAllStarAddNode => 'Add Node';
+  String get settingsAllStarAddNode => 'Knoten hinzufügen';
 
   @override
-  String get settingsAllStarEditNode => 'Edit Node';
+  String get settingsAllStarEditNode => 'Knoten bearbeiten';
 
   @override
   String get settingsAllStarNodeName => 'Name';
 
   @override
-  String get settingsAllStarNodeNameHint => 'e.g. My Repeater';
+  String get settingsAllStarNodeNameHint => 'z. B. Mein Relais';
 
   @override
   String get settingsAllStarNodeHost => 'Host';
@@ -401,24 +401,24 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsAllStarNodePort => 'Port';
 
   @override
-  String get settingsAllStarNodeUser => 'IAX Username';
+  String get settingsAllStarNodeUser => 'IAX-Benutzername';
 
   @override
-  String get settingsAllStarNodeSecret => 'IAX Secret';
+  String get settingsAllStarNodeSecret => 'IAX-Geheimnis';
 
   @override
-  String get settingsAllStarNodeNumber => 'Node Number';
+  String get settingsAllStarNodeNumber => 'Knotennummer';
 
   @override
   String get settingsAllStarNodeHelp =>
-      'The host, IAX username and secret come from the node\'s iax.conf; the node number is the AllStarLink node you want to connect to.';
+      'Host, IAX-Benutzername und Geheimnis stammen aus der iax.conf des Knotens; die Knotennummer ist der AllStarLink-Knoten, mit dem Sie sich verbinden möchten.';
 
   @override
-  String get settingsAllStarDeleteNode => 'Delete node';
+  String get settingsAllStarDeleteNode => 'Knoten löschen';
 
   @override
   String settingsAllStarDeleteNodeConfirm(String name) {
-    return 'Remove \"$name\" from your saved nodes?';
+    return '„$name“ aus Ihren gespeicherten Knoten entfernen?';
   }
 
   @override

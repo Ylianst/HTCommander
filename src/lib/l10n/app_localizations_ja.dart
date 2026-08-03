@@ -371,52 +371,51 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settingsAllStarIntro =>
-      'Connect to an AllStarLink node over the internet using IAX2.';
+      'IAX2 を使ってインターネット経由で AllStarLink ノードに接続します。';
 
   @override
-  String get settingsAllStarNodes => 'Saved Nodes';
+  String get settingsAllStarNodes => '保存済みノード';
 
   @override
-  String get settingsAllStarNoNodes =>
-      'No nodes configured yet. Add a node to connect to it.';
+  String get settingsAllStarNoNodes => 'まだノードが設定されていません。接続するノードを追加してください。';
 
   @override
-  String get settingsAllStarAddNode => 'Add Node';
+  String get settingsAllStarAddNode => 'ノードを追加';
 
   @override
-  String get settingsAllStarEditNode => 'Edit Node';
+  String get settingsAllStarEditNode => 'ノードを編集';
 
   @override
-  String get settingsAllStarNodeName => 'Name';
+  String get settingsAllStarNodeName => '名前';
 
   @override
-  String get settingsAllStarNodeNameHint => 'e.g. My Repeater';
+  String get settingsAllStarNodeNameHint => '例: マイ リピーター';
 
   @override
-  String get settingsAllStarNodeHost => 'Host';
+  String get settingsAllStarNodeHost => 'ホスト';
 
   @override
-  String get settingsAllStarNodePort => 'Port';
+  String get settingsAllStarNodePort => 'ポート';
 
   @override
-  String get settingsAllStarNodeUser => 'IAX Username';
+  String get settingsAllStarNodeUser => 'IAX ユーザー名';
 
   @override
-  String get settingsAllStarNodeSecret => 'IAX Secret';
+  String get settingsAllStarNodeSecret => 'IAX シークレット';
 
   @override
-  String get settingsAllStarNodeNumber => 'Node Number';
+  String get settingsAllStarNodeNumber => 'ノード番号';
 
   @override
   String get settingsAllStarNodeHelp =>
-      'The host, IAX username and secret come from the node\'s iax.conf; the node number is the AllStarLink node you want to connect to.';
+      'ホスト、IAX ユーザー名、シークレットはノードの iax.conf に由来します。ノード番号は接続したい AllStarLink ノードです。';
 
   @override
-  String get settingsAllStarDeleteNode => 'Delete node';
+  String get settingsAllStarDeleteNode => 'ノードを削除';
 
   @override
   String settingsAllStarDeleteNodeConfirm(String name) {
-    return 'Remove \"$name\" from your saved nodes?';
+    return '「$name」を保存済みノードから削除しますか？';
   }
 
   @override

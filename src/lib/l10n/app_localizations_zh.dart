@@ -368,53 +368,51 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTabAllStar => 'AllStarLink';
 
   @override
-  String get settingsAllStarIntro =>
-      'Connect to an AllStarLink node over the internet using IAX2.';
+  String get settingsAllStarIntro => '使用 IAX2 通过互联网连接到 AllStarLink 节点。';
 
   @override
-  String get settingsAllStarNodes => 'Saved Nodes';
+  String get settingsAllStarNodes => '已保存的节点';
 
   @override
-  String get settingsAllStarNoNodes =>
-      'No nodes configured yet. Add a node to connect to it.';
+  String get settingsAllStarNoNodes => '尚未配置任何节点。请添加一个节点以进行连接。';
 
   @override
-  String get settingsAllStarAddNode => 'Add Node';
+  String get settingsAllStarAddNode => '添加节点';
 
   @override
-  String get settingsAllStarEditNode => 'Edit Node';
+  String get settingsAllStarEditNode => '编辑节点';
 
   @override
-  String get settingsAllStarNodeName => 'Name';
+  String get settingsAllStarNodeName => '名称';
 
   @override
-  String get settingsAllStarNodeNameHint => 'e.g. My Repeater';
+  String get settingsAllStarNodeNameHint => '例如：我的中继台';
 
   @override
-  String get settingsAllStarNodeHost => 'Host';
+  String get settingsAllStarNodeHost => '主机';
 
   @override
-  String get settingsAllStarNodePort => 'Port';
+  String get settingsAllStarNodePort => '端口';
 
   @override
-  String get settingsAllStarNodeUser => 'IAX Username';
+  String get settingsAllStarNodeUser => 'IAX 用户名';
 
   @override
-  String get settingsAllStarNodeSecret => 'IAX Secret';
+  String get settingsAllStarNodeSecret => 'IAX 密钥';
 
   @override
-  String get settingsAllStarNodeNumber => 'Node Number';
+  String get settingsAllStarNodeNumber => '节点号';
 
   @override
   String get settingsAllStarNodeHelp =>
-      'The host, IAX username and secret come from the node\'s iax.conf; the node number is the AllStarLink node you want to connect to.';
+      '主机、IAX 用户名和密钥来自节点的 iax.conf；节点号是您要连接的 AllStarLink 节点。';
 
   @override
-  String get settingsAllStarDeleteNode => 'Delete node';
+  String get settingsAllStarDeleteNode => '删除节点';
 
   @override
   String settingsAllStarDeleteNodeConfirm(String name) {
-    return 'Remove \"$name\" from your saved nodes?';
+    return '要从已保存的节点中移除“$name”吗？';
   }
 
   @override

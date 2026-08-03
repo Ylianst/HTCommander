@@ -372,52 +372,52 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get settingsAllStarIntro =>
-      'Connect to an AllStarLink node over the internet using IAX2.';
+      'Connectez-vous à un nœud AllStarLink via Internet en utilisant IAX2.';
 
   @override
-  String get settingsAllStarNodes => 'Saved Nodes';
+  String get settingsAllStarNodes => 'Nœuds enregistrés';
 
   @override
   String get settingsAllStarNoNodes =>
-      'No nodes configured yet. Add a node to connect to it.';
+      'Aucun nœud configuré pour l\'instant. Ajoutez un nœud pour vous y connecter.';
 
   @override
-  String get settingsAllStarAddNode => 'Add Node';
+  String get settingsAllStarAddNode => 'Ajouter un nœud';
 
   @override
-  String get settingsAllStarEditNode => 'Edit Node';
+  String get settingsAllStarEditNode => 'Modifier le nœud';
 
   @override
-  String get settingsAllStarNodeName => 'Name';
+  String get settingsAllStarNodeName => 'Nom';
 
   @override
-  String get settingsAllStarNodeNameHint => 'e.g. My Repeater';
+  String get settingsAllStarNodeNameHint => 'p. ex. Mon relais';
 
   @override
-  String get settingsAllStarNodeHost => 'Host';
+  String get settingsAllStarNodeHost => 'Hôte';
 
   @override
   String get settingsAllStarNodePort => 'Port';
 
   @override
-  String get settingsAllStarNodeUser => 'IAX Username';
+  String get settingsAllStarNodeUser => 'Nom d\'utilisateur IAX';
 
   @override
-  String get settingsAllStarNodeSecret => 'IAX Secret';
+  String get settingsAllStarNodeSecret => 'Secret IAX';
 
   @override
-  String get settingsAllStarNodeNumber => 'Node Number';
+  String get settingsAllStarNodeNumber => 'Numéro de nœud';
 
   @override
   String get settingsAllStarNodeHelp =>
-      'The host, IAX username and secret come from the node\'s iax.conf; the node number is the AllStarLink node you want to connect to.';
+      'L\'hôte, le nom d\'utilisateur IAX et le secret proviennent du fichier iax.conf du nœud ; le numéro de nœud est le nœud AllStarLink auquel vous souhaitez vous connecter.';
 
   @override
-  String get settingsAllStarDeleteNode => 'Delete node';
+  String get settingsAllStarDeleteNode => 'Supprimer le nœud';
 
   @override
   String settingsAllStarDeleteNodeConfirm(String name) {
-    return 'Remove \"$name\" from your saved nodes?';
+    return 'Retirer « $name » de vos nœuds enregistrés ?';
   }
 
   @override

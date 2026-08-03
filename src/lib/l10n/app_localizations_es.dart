@@ -371,52 +371,52 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsAllStarIntro =>
-      'Connect to an AllStarLink node over the internet using IAX2.';
+      'Conéctate a un nodo AllStarLink por internet usando IAX2.';
 
   @override
-  String get settingsAllStarNodes => 'Saved Nodes';
+  String get settingsAllStarNodes => 'Nodos guardados';
 
   @override
   String get settingsAllStarNoNodes =>
-      'No nodes configured yet. Add a node to connect to it.';
+      'Aún no hay nodos configurados. Añade un nodo para conectarte.';
 
   @override
-  String get settingsAllStarAddNode => 'Add Node';
+  String get settingsAllStarAddNode => 'Añadir nodo';
 
   @override
-  String get settingsAllStarEditNode => 'Edit Node';
+  String get settingsAllStarEditNode => 'Editar nodo';
 
   @override
-  String get settingsAllStarNodeName => 'Name';
+  String get settingsAllStarNodeName => 'Nombre';
 
   @override
-  String get settingsAllStarNodeNameHint => 'e.g. My Repeater';
+  String get settingsAllStarNodeNameHint => 'p. ej. Mi repetidor';
 
   @override
   String get settingsAllStarNodeHost => 'Host';
 
   @override
-  String get settingsAllStarNodePort => 'Port';
+  String get settingsAllStarNodePort => 'Puerto';
 
   @override
-  String get settingsAllStarNodeUser => 'IAX Username';
+  String get settingsAllStarNodeUser => 'Usuario IAX';
 
   @override
-  String get settingsAllStarNodeSecret => 'IAX Secret';
+  String get settingsAllStarNodeSecret => 'Secreto IAX';
 
   @override
-  String get settingsAllStarNodeNumber => 'Node Number';
+  String get settingsAllStarNodeNumber => 'Número de nodo';
 
   @override
   String get settingsAllStarNodeHelp =>
-      'The host, IAX username and secret come from the node\'s iax.conf; the node number is the AllStarLink node you want to connect to.';
+      'El host, el usuario IAX y el secreto provienen del iax.conf del nodo; el número de nodo es el nodo AllStarLink al que quieres conectarte.';
 
   @override
-  String get settingsAllStarDeleteNode => 'Delete node';
+  String get settingsAllStarDeleteNode => 'Eliminar nodo';
 
   @override
   String settingsAllStarDeleteNodeConfirm(String name) {
-    return 'Remove \"$name\" from your saved nodes?';
+    return '¿Quitar «$name» de tus nodos guardados?';
   }
 
   @override

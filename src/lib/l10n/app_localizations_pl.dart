@@ -373,26 +373,26 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get settingsAllStarIntro =>
-      'Connect to an AllStarLink node over the internet using IAX2.';
+      'Połącz się z węzłem AllStarLink przez internet za pomocą IAX2.';
 
   @override
-  String get settingsAllStarNodes => 'Saved Nodes';
+  String get settingsAllStarNodes => 'Zapisane węzły';
 
   @override
   String get settingsAllStarNoNodes =>
-      'No nodes configured yet. Add a node to connect to it.';
+      'Nie skonfigurowano jeszcze żadnych węzłów. Dodaj węzeł, aby się z nim połączyć.';
 
   @override
-  String get settingsAllStarAddNode => 'Add Node';
+  String get settingsAllStarAddNode => 'Dodaj węzeł';
 
   @override
-  String get settingsAllStarEditNode => 'Edit Node';
+  String get settingsAllStarEditNode => 'Edytuj węzeł';
 
   @override
-  String get settingsAllStarNodeName => 'Name';
+  String get settingsAllStarNodeName => 'Nazwa';
 
   @override
-  String get settingsAllStarNodeNameHint => 'e.g. My Repeater';
+  String get settingsAllStarNodeNameHint => 'np. Mój przemiennik';
 
   @override
   String get settingsAllStarNodeHost => 'Host';
@@ -401,24 +401,24 @@ class AppLocalizationsPl extends AppLocalizations {
   String get settingsAllStarNodePort => 'Port';
 
   @override
-  String get settingsAllStarNodeUser => 'IAX Username';
+  String get settingsAllStarNodeUser => 'Nazwa użytkownika IAX';
 
   @override
-  String get settingsAllStarNodeSecret => 'IAX Secret';
+  String get settingsAllStarNodeSecret => 'Sekret IAX';
 
   @override
-  String get settingsAllStarNodeNumber => 'Node Number';
+  String get settingsAllStarNodeNumber => 'Numer węzła';
 
   @override
   String get settingsAllStarNodeHelp =>
-      'The host, IAX username and secret come from the node\'s iax.conf; the node number is the AllStarLink node you want to connect to.';
+      'Host, nazwa użytkownika IAX i sekret pochodzą z pliku iax.conf węzła; numer węzła to węzeł AllStarLink, z którym chcesz się połączyć.';
 
   @override
-  String get settingsAllStarDeleteNode => 'Delete node';
+  String get settingsAllStarDeleteNode => 'Usuń węzeł';
 
   @override
   String settingsAllStarDeleteNodeConfirm(String name) {
-    return 'Remove \"$name\" from your saved nodes?';
+    return 'Usunąć „$name” z zapisanych węzłów?';
   }
 
   @override
