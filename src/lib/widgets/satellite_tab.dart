@@ -7,6 +7,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:latlong2/latlong.dart';
@@ -434,9 +435,19 @@ class _SatelliteTabState extends State<SatelliteTab> {
     if (id == null) return;
     final ctx = _itemKeys[id]?.currentContext;
     if (ctx == null) return;
-    Scrollable.ensureVisible(
-      ctx,
-      alignment: 0.5,
+    final box = ctx.findRenderObject();
+    if (box == null || !_listScrollController.hasClients) return;
+    // Scroll only the list's own viewport (not ancestor Scrollables such as the
+    // enclosing TabBarView, which would otherwise slide the whole tab sideways
+    // trying to reveal this row).
+    final viewport = RenderAbstractViewport.of(box);
+    final position = _listScrollController.position;
+    final target = viewport
+        .getOffsetToReveal(box, 0.5)
+        .offset
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    position.animateTo(
+      target,
       duration: const Duration(milliseconds: 120),
       curve: Curves.easeInOut,
     );
