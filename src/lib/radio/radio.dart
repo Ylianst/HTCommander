@@ -1915,8 +1915,16 @@ class Radio {
   }) {
     if (!_allowTransmit) return 0;
 
-    // Fill defaults from current settings
-    if (channelId == -1 && settings != null) channelId = settings!.channelA;
+    // Satellite modes (Satellite / APRSSat) steer the VFO directly via
+    // FREQ_MODE_SET_PAR instead of a stored channel; the radio uses this VFO as
+    // channel 254. Force transmits onto 254 so data goes out on the satellite
+    // uplink rather than a memory channel (e.g. channel 0).
+    if (kSatelliteLockUsages.contains(_lockState?.usage)) {
+      channelId = kSatelliteTransmitChannelId;
+    } else if (channelId == -1 && settings != null) {
+      // Fill defaults from current settings
+      channelId = settings!.channelA;
+    }
     if (regionId == -1 && htStatus != null) regionId = htStatus!.currRegion;
 
     // Fill channel name if not specified

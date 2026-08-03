@@ -1052,6 +1052,12 @@ const Set<String> kSatelliteLockUsages = {
   kAprsSatLockUsage,
 };
 
+/// Channel id to transmit on while locked in a satellite usage. The radio is in
+/// frequency (VFO) mode—steered by FREQ_MODE_SET_PAR—rather than on a stored
+/// channel, and it reports/uses this VFO as channel 254. Transmitting on 254
+/// keeps data frames on the satellite uplink instead of a memory channel (0).
+const int kSatelliteTransmitChannelId = 254;
+
 /// Radio lock state - for exclusive operations
 class RadioLockState {
   bool isLocked;
