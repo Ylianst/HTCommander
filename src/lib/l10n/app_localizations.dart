@@ -1472,6 +1472,12 @@ abstract class AppLocalizations {
   /// **'Password'**
   String get settingsPassword;
 
+  /// Label above the password input, showing the account it applies to.
+  ///
+  /// In en, this message translates to:
+  /// **'Password for {account}'**
+  String settingsPasswordFor(String account);
+
   /// No description provided for @settingsUseStationIdWinlink.
   ///
   /// In en, this message translates to:

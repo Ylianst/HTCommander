@@ -428,7 +428,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsAllStarAccountForCallsign =>
-      'Enter the password for your call sign\'s AllStarLink portal account.';
+      'Introduzca la contraseña de la cuenta del portal AllStarLink de su indicativo.';
 
   @override
   String get settingsAllStarAccountPassword => 'Contraseña de la cuenta';
@@ -753,6 +753,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsPassword => 'Contraseña';
+
+  @override
+  String settingsPasswordFor(String account) {
+    return 'Contraseña para $account';
+  }
 
   @override
   String get settingsUseStationIdWinlink =>

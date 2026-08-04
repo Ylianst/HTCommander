@@ -427,7 +427,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settingsAllStarAccountForCallsign =>
-      'Enter the password for your call sign\'s AllStarLink portal account.';
+      'あなたのコールサインの AllStarLink ポータルアカウントのパスワードを入力してください。';
 
   @override
   String get settingsAllStarAccountPassword => 'アカウントのパスワード';
@@ -738,6 +738,11 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settingsPassword => 'パスワード';
+
+  @override
+  String settingsPasswordFor(String account) {
+    return '$account のパスワード';
+  }
 
   @override
   String get settingsUseStationIdWinlink => 'Winlink に局 ID を使用';

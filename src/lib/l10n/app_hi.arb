@@ -144,6 +144,7 @@
   "settingsAllStarDeleteNodeConfirm": "क्या \"{name}\" को आपके सहेजे गए नोड से हटाएँ?",
   "settingsAllStarAccount": "AllStarLink खाता",
   "settingsAllStarAccountIntro": "प्रति-नोड क्रेडेंशियल के बिना सार्वजनिक (WT) नोड्स से कनेक्ट करने के लिए अपने AllStarLink पोर्टल खाते का उपयोग करें।",
+  "settingsAllStarAccountForCallsign": "अपने कॉल साइन के AllStarLink पोर्टल खाते का पासवर्ड दर्ज करें।",
   "settingsAllStarAccountPassword": "खाता पासवर्ड",
   "settingsAllStarAuthenticate": "प्रमाणित करें",
   "settingsAllStarReauthenticate": "पुनः प्रमाणित करें",
@@ -249,6 +250,14 @@
   "settingsAccount": "खाता",
   "settingsWinlinkAccountHelp": "लाइसेंस टैब में आपके कॉल साइन पर आधारित",
   "settingsPassword": "पासवर्ड",
+  "settingsPasswordFor": "{account} के लिए पासवर्ड",
+  "@settingsPasswordFor": {
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
   "settingsUseStationIdWinlink": "Winlink के लिए स्टेशन ID का उपयोग करें",
 
   "settingsEchoLinkIntro": "इंटरनेट पर अन्य स्टेशनों से बात करने के लिए EchoLink कॉन्फ़िगर करें।",

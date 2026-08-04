@@ -428,7 +428,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get settingsAllStarAccountForCallsign =>
-      'Enter the password for your call sign\'s AllStarLink portal account.';
+      'अपने कॉल साइन के AllStarLink पोर्टल खाते का पासवर्ड दर्ज करें।';
 
   @override
   String get settingsAllStarAccountPassword => 'खाता पासवर्ड';
@@ -751,6 +751,11 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get settingsPassword => 'पासवर्ड';
+
+  @override
+  String settingsPasswordFor(String account) {
+    return '$account के लिए पासवर्ड';
+  }
 
   @override
   String get settingsUseStationIdWinlink =>

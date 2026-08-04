@@ -144,6 +144,7 @@
   "settingsAllStarDeleteNodeConfirm": "Retirer « {name} » de vos nœuds enregistrés ?",
   "settingsAllStarAccount": "Compte AllStarLink",
   "settingsAllStarAccountIntro": "Utilisez votre compte du portail AllStarLink pour vous connecter aux nœuds publics (WT) sans identifiants par nœud.",
+  "settingsAllStarAccountForCallsign": "Saisissez le mot de passe du compte du portail AllStarLink de votre indicatif.",
   "settingsAllStarAccountPassword": "Mot de passe du compte",
   "settingsAllStarAuthenticate": "Authentifier",
   "settingsAllStarReauthenticate": "Ré-authentifier",
@@ -249,6 +250,14 @@
   "settingsAccount": "Compte",
   "settingsWinlinkAccountHelp": "Basé sur votre indicatif de l'onglet Licence",
   "settingsPassword": "Mot de passe",
+  "settingsPasswordFor": "Mot de passe pour {account}",
+  "@settingsPasswordFor": {
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
   "settingsUseStationIdWinlink": "Utiliser l'ID de station pour Winlink",
 
   "settingsEchoLinkIntro": "Configurez EchoLink pour communiquer avec d'autres stations via Internet.",

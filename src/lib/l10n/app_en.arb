@@ -629,6 +629,15 @@
   "settingsAccount": "Account",
   "settingsWinlinkAccountHelp": "Based on your call sign from the License tab",
   "settingsPassword": "Password",
+  "settingsPasswordFor": "Password for {account}",
+  "@settingsPasswordFor": {
+    "description": "Label above the password input, showing the account it applies to.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
   "settingsUseStationIdWinlink": "Use Station ID for Winlink",
 
   "settingsEchoLinkIntro": "Configure EchoLink to talk to other stations over the internet.",

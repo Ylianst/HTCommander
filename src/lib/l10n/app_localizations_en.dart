@@ -749,6 +749,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPassword => 'Password';
 
   @override
+  String settingsPasswordFor(String account) {
+    return 'Password for $account';
+  }
+
+  @override
   String get settingsUseStationIdWinlink => 'Use Station ID for Winlink';
 
   @override

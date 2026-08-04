@@ -144,6 +144,7 @@
   "settingsAllStarDeleteNodeConfirm": "「{name}」を保存済みノードから削除しますか？",
   "settingsAllStarAccount": "AllStarLink アカウント",
   "settingsAllStarAccountIntro": "ノードごとの認証情報なしでパブリック (WT) ノードに接続するには、AllStarLink ポータルアカウントを使用します。",
+  "settingsAllStarAccountForCallsign": "あなたのコールサインの AllStarLink ポータルアカウントのパスワードを入力してください。",
   "settingsAllStarAccountPassword": "アカウントのパスワード",
   "settingsAllStarAuthenticate": "認証",
   "settingsAllStarReauthenticate": "再認証",
@@ -249,6 +250,14 @@
   "settingsAccount": "アカウント",
   "settingsWinlinkAccountHelp": "「ライセンス」タブのコールサインに基づきます",
   "settingsPassword": "パスワード",
+  "settingsPasswordFor": "{account} のパスワード",
+  "@settingsPasswordFor": {
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
   "settingsUseStationIdWinlink": "Winlink に局 ID を使用",
 
   "settingsEchoLinkIntro": "インターネット経由で他の局と通信するために EchoLink を設定します。",

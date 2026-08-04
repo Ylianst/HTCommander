@@ -144,6 +144,7 @@
   "settingsAllStarDeleteNodeConfirm": "¿Quitar «{name}» de tus nodos guardados?",
   "settingsAllStarAccount": "Cuenta de AllStarLink",
   "settingsAllStarAccountIntro": "Usa tu cuenta del portal de AllStarLink para conectarte a nodos públicos (WT) sin credenciales por nodo.",
+  "settingsAllStarAccountForCallsign": "Introduzca la contraseña de la cuenta del portal AllStarLink de su indicativo.",
   "settingsAllStarAccountPassword": "Contraseña de la cuenta",
   "settingsAllStarAuthenticate": "Autenticar",
   "settingsAllStarReauthenticate": "Volver a autenticar",
@@ -249,6 +250,14 @@
   "settingsAccount": "Cuenta",
   "settingsWinlinkAccountHelp": "Basado en su indicativo de la pestaña Licencia",
   "settingsPassword": "Contraseña",
+  "settingsPasswordFor": "Contraseña para {account}",
+  "@settingsPasswordFor": {
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
   "settingsUseStationIdWinlink": "Usar el ID de estación para Winlink",
 
   "settingsEchoLinkIntro": "Configure EchoLink para comunicarse con otras estaciones a través de internet.",

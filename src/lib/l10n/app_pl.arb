@@ -144,6 +144,7 @@
   "settingsAllStarDeleteNodeConfirm": "Usunąć „{name}” z zapisanych węzłów?",
   "settingsAllStarAccount": "Konto AllStarLink",
   "settingsAllStarAccountIntro": "Użyj konta portalu AllStarLink, aby łączyć się z publicznymi węzłami (WT) bez poświadczeń dla poszczególnych węzłów.",
+  "settingsAllStarAccountForCallsign": "Wprowadź hasło do konta portalu AllStarLink dla swojego znaku wywoławczego.",
   "settingsAllStarAccountPassword": "Hasło do konta",
   "settingsAllStarAuthenticate": "Uwierzytelnij",
   "settingsAllStarReauthenticate": "Uwierzytelnij ponownie",
@@ -249,6 +250,14 @@
   "settingsAccount": "Konto",
   "settingsWinlinkAccountHelp": "Na podstawie znaku wywoławczego z karty Licencja",
   "settingsPassword": "Hasło",
+  "settingsPasswordFor": "Hasło dla {account}",
+  "@settingsPasswordFor": {
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
   "settingsUseStationIdWinlink": "Użyj ID stacji dla Winlink",
 
   "settingsEchoLinkIntro": "Skonfiguruj EchoLink, aby rozmawiać z innymi stacjami przez internet.",

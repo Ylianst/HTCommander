@@ -144,6 +144,7 @@
   "settingsAllStarDeleteNodeConfirm": "要从已保存的节点中移除“{name}”吗？",
   "settingsAllStarAccount": "AllStarLink 账户",
   "settingsAllStarAccountIntro": "使用您的 AllStarLink 门户账户连接到公共 (WT) 节点，无需为每个节点提供凭据。",
+  "settingsAllStarAccountForCallsign": "输入您呼号的 AllStarLink 门户账户密码。",
   "settingsAllStarAccountPassword": "账户密码",
   "settingsAllStarAuthenticate": "验证",
   "settingsAllStarReauthenticate": "重新验证",
@@ -249,6 +250,14 @@
   "settingsAccount": "账户",
   "settingsWinlinkAccountHelp": "基于“许可”标签页中的呼号",
   "settingsPassword": "密码",
+  "settingsPasswordFor": "{account} 的密码",
+  "@settingsPasswordFor": {
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
   "settingsUseStationIdWinlink": "为 Winlink 使用台站 ID",
 
   "settingsEchoLinkIntro": "配置 EchoLink 以通过互联网与其他台站通话。",
