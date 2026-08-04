@@ -6,13 +6,15 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
-import 'allstar_node_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../aprs/aprs_util.dart';
 import '../aprs/weather_data.dart';
+import '../allstar/allstar_node.dart';
+import '../allstar/allstar_portal_service.dart';
 import '../echolink/echolink_credential_test.dart';
 import '../services/serial/serial_port.dart';
 import '../services/data_broker.dart';
+import '../services/data_broker_client.dart';
 import '../services/history_limiter.dart';
 import '../services/locale_controller.dart';
 import '../services/mqtt/mqtt_client_facade.dart';
@@ -525,11 +527,15 @@ class _SettingsDialogState extends State<SettingsDialog>
   late TabController _tabController;
   late AppSettings _settings;
 
+  // Data Broker client for reading/writing the AllStarLink account credentials.
+  final DataBrokerClient _broker = DataBrokerClient();
+
   // Controllers
   late TextEditingController _callSignController;
   late TextEditingController _winlinkPasswordController;
   late TextEditingController _echoLinkPasswordController;
   late TextEditingController _echoLinkLocationController;
+  late TextEditingController _allStarPasswordController;
   late TextEditingController _aprsIsServerController;
   late TextEditingController _aprsIsPortController;
   late TextEditingController _aprsIsPasscodeController;
@@ -561,6 +567,11 @@ class _SettingsDialogState extends State<SettingsDialog>
   bool _echoLinkTesting = false;
   String _echoLinkTestResult = '';
   bool _echoLinkTestOk = false;
+
+  // AllStarLink account "Test" state.
+  bool _allStarTesting = false;
+  String _allStarTestResult = '';
+  bool _allStarTestOk = false;
 
   // Serial ports available for the GPS receiver (desktop only).
   List<String> _availablePorts = const [];
@@ -640,7 +651,7 @@ class _SettingsDialogState extends State<SettingsDialog>
       case 'EchoLink':
         return _buildEchoLinkTab();
       case 'AllStar':
-        return const AllStarNodesSettings();
+        return _buildAllStarTab();
       case 'Servers':
         return _buildServersTab();
       case 'Map':
@@ -678,6 +689,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     _echoLinkLocationController = TextEditingController(
       text: _settings.echoLinkLocation,
     );
+    _allStarPasswordController = TextEditingController(
+      text: _broker.getValue<String>(0, allStarPasswordKey, '') ?? '',
+    );
     _aprsIsServerController = TextEditingController(
       text: _settings.aprsIsServer,
     );
@@ -713,6 +727,7 @@ class _SettingsDialogState extends State<SettingsDialog>
 
     _callSignController.addListener(_onCallSignChanged);
     _echoLinkPasswordController.addListener(_onEchoLinkPasswordChanged);
+    _allStarPasswordController.addListener(_onAllStarPasswordChanged);
     _aprsIsPasscodeController.addListener(_onAprsIsPasscodeChanged);
 
     // Load the available TTS voices for the Voice tab.
@@ -767,6 +782,7 @@ class _SettingsDialogState extends State<SettingsDialog>
     _winlinkPasswordController.dispose();
     _echoLinkPasswordController.dispose();
     _echoLinkLocationController.dispose();
+    _allStarPasswordController.dispose();
     _aprsIsServerController.dispose();
     _aprsIsPortController.dispose();
     _aprsIsPasscodeController.dispose();
@@ -793,6 +809,12 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   /// Rebuilds so the EchoLink "Test" button enables once a password is entered.
   void _onEchoLinkPasswordChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Rebuilds so the AllStarLink "Test" button enables once a password is
+  /// entered.
+  void _onAllStarPasswordChanged() {
     if (mounted) setState(() {});
   }
 
@@ -853,6 +875,57 @@ class _SettingsDialogState extends State<SettingsDialog>
           _echoLinkTestResult = l10n.settingsEchoLinkTestInconclusive;
           break;
       }
+    });
+  }
+
+  /// Authenticates the AllStarLink portal account (call sign + password) and, on
+  /// success, stores the account password and the Web Transceiver token so the
+  /// AllStarLink radio can go online.
+  Future<void> _testAllStarConnection() async {
+    final l10n = AppLocalizations.of(context);
+    final String callSign = _settings.callSign.trim();
+    if (callSign.isEmpty) {
+      setState(() {
+        _allStarTestOk = false;
+        _allStarTestResult = l10n.settingsAllStarNoCallsign;
+      });
+      return;
+    }
+    setState(() {
+      _allStarTesting = true;
+      _allStarTestResult = l10n.settingsTestTesting;
+    });
+
+    final AllStarPortalService service = AllStarPortalService();
+    AllStarWtAuthResult result;
+    try {
+      result = await service.fetchToken(
+        username: callSign,
+        password: _allStarPasswordController.text,
+      );
+    } finally {
+      service.dispose();
+    }
+    if (!mounted) return;
+
+    if (result.success) {
+      _broker.dispatch(
+          deviceId: 0,
+          name: allStarPasswordKey,
+          data: _allStarPasswordController.text,
+          store: true);
+      _broker.dispatch(
+          deviceId: 0,
+          name: allStarWtTokenKey,
+          data: result.token,
+          store: true);
+    }
+    setState(() {
+      _allStarTesting = false;
+      _allStarTestOk = result.success;
+      _allStarTestResult = result.success
+          ? l10n.settingsAllStarAuthSuccess
+          : l10n.settingsAllStarAuthFailed(result.message);
     });
   }
 
@@ -2733,6 +2806,103 @@ class _SettingsDialogState extends State<SettingsDialog>
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAllStarTab() {
+    final l10n = AppLocalizations.of(context);
+    final hasCallSign = _settings.callSign.isNotEmpty;
+    final allStarAccount = hasCallSign ? _settings.callSign : l10n.settingsNone;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.settingsAllStarIntro,
+            style: DialogStyles.bodyStyle,
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () => _launchUrl('https://www.allstarlink.org'),
+            child: const Text('www.allstarlink.org',
+                style: DialogStyles.linkStyle),
+          ),
+          const SizedBox(height: 16),
+          if (!hasCallSign) ...[
+            Text(
+              l10n.settingsAllStarNoCallsign,
+              style: _secondaryStyle(),
+            ),
+            const SizedBox(height: 16),
+          ],
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: _sectionDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.settingsAllStarAccount,
+                  style: _sectionTitleStyle(),
+                ),
+                const SizedBox(height: 16),
+                Text(l10n.settingsAccount, style: DialogStyles.labelStyle),
+                const SizedBox(height: 4),
+                TextField(
+                  enabled: false,
+                  decoration: _inputDecoration(hintText: allStarAccount),
+                  controller: TextEditingController(text: allStarAccount),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  l10n.settingsAllStarAccountForCallsign,
+                  style: _secondaryStyle(),
+                ),
+                const SizedBox(height: 16),
+                Text(l10n.settingsPassword, style: DialogStyles.labelStyle),
+                const SizedBox(height: 4),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _allStarPasswordController,
+                        enabled: hasCallSign,
+                        obscureText: true,
+                        decoration: _inputDecoration(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: (hasCallSign &&
+                              _allStarPasswordController.text.isNotEmpty &&
+                              !_allStarTesting)
+                          ? _testAllStarConnection
+                          : null,
+                      child: Text(l10n.settingsTest),
+                    ),
+                  ],
+                ),
+                if (_allStarTestResult.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _allStarTestResult,
+                    style: TextStyle(
+                      color: _allStarTesting
+                          ? Theme.of(context).colorScheme.onSurfaceVariant
+                          : (_allStarTestOk
+                              ? Colors.green.shade700
+                              : Colors.red.shade700),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );

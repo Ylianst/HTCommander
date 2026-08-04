@@ -902,6 +902,12 @@ abstract class AppLocalizations {
   /// **'Use your AllStarLink portal account to connect to public (WT) nodes without per-node credentials.'**
   String get settingsAllStarAccountIntro;
 
+  /// No description provided for @settingsAllStarAccountForCallsign.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the password for your call sign\'s AllStarLink portal account.'**
+  String get settingsAllStarAccountForCallsign;
+
   /// No description provided for @settingsAllStarAccountPassword.
   ///
   /// In en, this message translates to:

@@ -427,6 +427,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Use your AllStarLink portal account to connect to public (WT) nodes without per-node credentials.';
 
   @override
+  String get settingsAllStarAccountForCallsign =>
+      'Enter the password for your call sign\'s AllStarLink portal account.';
+
+  @override
   String get settingsAllStarAccountPassword => 'Account Password';
 
   @override

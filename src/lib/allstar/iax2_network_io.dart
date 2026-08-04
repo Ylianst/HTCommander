@@ -32,6 +32,10 @@ class DartIoIax2Network implements Iax2Network {
   StreamSubscription<RawSocketEvent>? _sub;
   final Map<String, InternetAddress> _resolved = <String, InternetAddress>{};
 
+  /// Optional sink for human-readable connection diagnostics (resolved IP
+  /// addresses, DNS failures). Wired by the manager to the Debug tab.
+  void Function(String message)? onDiagnostic;
+
   final StreamController<Iax2Datagram> _in =
       StreamController<Iax2Datagram>.broadcast();
 
@@ -69,6 +73,7 @@ class DartIoIax2Network implements Iax2Network {
     final InternetAddress? literal = InternetAddress.tryParse(host);
     if (literal != null) {
       _resolved[host] = literal;
+      onDiagnostic?.call('Connecting to ${literal.address}:$port');
       sock.send(data, literal, port);
       return;
     }
@@ -79,12 +84,16 @@ class DartIoIax2Network implements Iax2Network {
     try {
       final List<InternetAddress> addrs =
           await InternetAddress.lookup(host, type: InternetAddressType.IPv4);
-      if (addrs.isEmpty) return;
+      if (addrs.isEmpty) {
+        onDiagnostic?.call('DNS lookup for $host returned no IPv4 address');
+        return;
+      }
       final InternetAddress addr = addrs.first;
       _resolved[host] = addr;
+      onDiagnostic?.call('Resolved $host to ${addr.address}:$port');
       _sock?.send(data, addr, port);
-    } catch (_) {
-      // Resolution failure: drop the datagram; the call layer will time out.
+    } catch (e) {
+      onDiagnostic?.call('DNS lookup failed for $host: $e');
     }
   }
 

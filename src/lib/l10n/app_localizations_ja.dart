@@ -426,6 +426,10 @@ class AppLocalizationsJa extends AppLocalizations {
       'ノードごとの認証情報なしでパブリック (WT) ノードに接続するには、AllStarLink ポータルアカウントを使用します。';
 
   @override
+  String get settingsAllStarAccountForCallsign =>
+      'Enter the password for your call sign\'s AllStarLink portal account.';
+
+  @override
   String get settingsAllStarAccountPassword => 'アカウントのパスワード';
 
   @override

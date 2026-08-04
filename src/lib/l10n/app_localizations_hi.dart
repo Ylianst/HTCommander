@@ -427,6 +427,10 @@ class AppLocalizationsHi extends AppLocalizations {
       'प्रति-नोड क्रेडेंशियल के बिना सार्वजनिक (WT) नोड्स से कनेक्ट करने के लिए अपने AllStarLink पोर्टल खाते का उपयोग करें।';
 
   @override
+  String get settingsAllStarAccountForCallsign =>
+      'Enter the password for your call sign\'s AllStarLink portal account.';
+
+  @override
   String get settingsAllStarAccountPassword => 'खाता पासवर्ड';
 
   @override

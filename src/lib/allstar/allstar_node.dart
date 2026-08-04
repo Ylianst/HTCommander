@@ -37,6 +37,10 @@ const String allStarWasOnlineKey = 'AllStarWasOnline';
 /// Transceiver" access token, obtained from the operator's account password.
 const String allStarWtTokenKey = 'AllStarWtToken';
 
+/// DataBroker key (device 0, persisted) holding the AllStarLink portal account
+/// password. Kept so the token can be refreshed (re-authenticated) on connect.
+const String allStarPasswordKey = 'AllStarPassword';
+
 /// DNS suffix used to resolve an AllStarLink node number to its IAX2 host when
 /// connecting with account (Web Transceiver) authentication.
 const String allStarNodeDnsSuffix = '.nodes.allstarlink.org';

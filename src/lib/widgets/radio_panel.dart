@@ -12,12 +12,14 @@ import '../dialogs/gps_details_dialog.dart';
 import '../dialogs/fm_radio_dialog.dart';
 import '../dialogs/digipeater_dialog.dart';
 import '../dialogs/echolink_channel_dialog.dart';
+import '../dialogs/allstar_node_dialog.dart' show showAllStarNodeDialog;
 import '../utils/channel_colors.dart';
 import '../utils/channel_share.dart';
 import '../utils/web_channel_import/web_channel_import.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../echolink/echolink_station.dart';
 import '../allstar/allstar_client.dart' show allStarDeviceId;
+import '../allstar/allstar_node.dart';
 import '../satellite/satellite_models.dart' show SatelliteTrackParams;
 
 /// Radio panel control widget - displays radio image, VFO frequencies, and status
@@ -102,6 +104,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   String? _allStarState;
   Map<String, Object?>? _allStarConnectedNode;
   List<Map<String, Object?>> _allStarNodes = const [];
+  double _allStarRxLevel = 0;
+  bool _allStarTransmitting = false;
 
   // UI state
   bool _showAllChannels = false;
@@ -347,6 +351,24 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     ];
   }
 
+  /// Handles the AllStarLink receive-level meter (device 202 'RxLevel', 0..1),
+  /// quantized so the RSSI-style bar rebuilds only in coarse steps.
+  void _onAllStarRxLevel(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final double raw = (data is num) ? data.toDouble() : 0.0;
+    final double level = (raw.clamp(0.0, 1.0) * 15).round() / 15.0;
+    if (level == _allStarRxLevel) return;
+    setState(() => _allStarRxLevel = level);
+  }
+
+  /// Handles the AllStarLink transmit indicator (device 202 'TxActive').
+  void _onAllStarTxActive(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final bool active = data == true;
+    if (active == _allStarTransmitting) return;
+    setState(() => _allStarTransmitting = active);
+  }
+
   /// Handles EchoLink status events (device 200) when this panel displays
   /// EchoLink.
   void _onEchoLinkEvent(int deviceId, String name, Object? data) {
@@ -570,6 +592,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     _allStarState = null;
     _allStarConnectedNode = null;
     _allStarNodes = const [];
+    _allStarRxLevel = 0;
+    _allStarTransmitting = false;
   }
 
   void _subscribeToDevice() {
@@ -581,6 +605,16 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         deviceId: allStarDeviceId,
         names: ['State', 'ConnectedNode', 'NodeList'],
         callback: _onAllStarEvent,
+      );
+      _broker.subscribe(
+        deviceId: allStarDeviceId,
+        name: 'RxLevel',
+        callback: _onAllStarRxLevel,
+      );
+      _broker.subscribe(
+        deviceId: allStarDeviceId,
+        name: 'TxActive',
+        callback: _onAllStarTxActive,
       );
       return;
     }
@@ -1441,6 +1475,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   bool get _allStarInCall => _allStarState == 'Connected';
   bool get _allStarConnecting => _allStarState == 'Connecting';
 
+  bool get _allStarOnline =>
+      _allStarState == 'Online' ||
+      _allStarState == 'Connecting' ||
+      _allStarState == 'Connected';
+
   void _allStarDispatch(String name, {Object? data}) {
     _broker.dispatch(
       deviceId: allStarDeviceId,
@@ -1467,121 +1506,475 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   Widget _buildAllStarPanel() {
-    final l10n = AppLocalizations.of(context);
-    final String stateLabel = _allStarInCall
-        ? l10n.stateConnected
-        : _allStarConnecting
-            ? l10n.stateConnecting
-            : l10n.stateDisconnected;
-    final Map<String, Object?>? node = _allStarConnectedNode;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double maxHeight = constraints.maxHeight;
+        const double imageWidth = _kFixedImageWidth;
+        final double leftMargin = (constraints.maxWidth - imageWidth) / 2;
+        final double scaledImageHeight = imageWidth * _kImageAspectRatio;
+        final double displayPanelTop = scaledImageHeight * _kDisplayTop;
 
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Status "LCD" display.
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFD3D3D3),
-              borderRadius: BorderRadius.circular(4),
+        final double maxTopCrop = (displayPanelTop - 18 - 6).clamp(
+          0.0,
+          double.infinity,
+        );
+        final double topCrop =
+            (_kCropStartHeight - maxHeight).clamp(0.0, maxTopCrop);
+
+        final double rssiTop =
+            scaledImageHeight * (_kDisplayTop + _kDisplayHeight) +
+            2 -
+            50 -
+            topCrop;
+        final double maxPanelTop = rssiTop + 6 + 24;
+        final double maxPanelHeight = maxHeight - maxPanelTop;
+
+        return Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            // Radio background image (same artwork as a physical radio).
+            Positioned(
+              top: -topCrop,
+              left: leftMargin,
+              width: _kFixedImageWidth,
+              height: scaledImageHeight,
+              child: Image.asset(
+                'assets/images/Radio.png',
+                fit: BoxFit.fitWidth,
+                alignment: Alignment.topCenter,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: Colors.grey.shade800,
+                  child: const Center(
+                    child: Icon(Icons.radio, size: 100, color: Colors.white54),
+                  ),
+                ),
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  (node != null && (_allStarInCall || _allStarConnecting))
-                      ? (node['Name']?.toString().isNotEmpty == true
-                          ? node['Name'].toString()
-                          : node['NodeNumber']?.toString() ?? 'AllStarLink')
-                      : 'AllStarLink',
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis,
+            // LCD display.
+            Positioned(
+              left: leftMargin +
+                  (_kFixedImageWidth * _kDisplayLeft) +
+                  _kDisplayLeftOffset,
+              top: scaledImageHeight * _kDisplayTop - topCrop,
+              width: _kFixedImageWidth * _kDisplayWidth,
+              child: _buildAllStarDisplayPanel(),
+            ),
+            // "AllStarLink" name with dropdown to switch radios.
+            Positioned(
+              left: leftMargin + 4,
+              width: _kFixedImageWidth,
+              top: scaledImageHeight * _kFriendlyNameTop +
+                  _kFriendlyNameTopOffset -
+                  topCrop,
+              child: Center(child: _buildAllStarNameSwitcher()),
+            ),
+            // RSSI / Transmit bar: red while transmitting, green (rising with
+            // the received audio level) while receiving. Same look as a radio.
+            if (_allStarInCall &&
+                (_allStarTransmitting || _allStarRxLevel > 0))
+              Positioned(
+                left: leftMargin +
+                    (_kFixedImageWidth * _kDisplayLeft) +
+                    _kDisplayLeftOffset,
+                top: rssiTop,
+                width: _kFixedImageWidth * _kDisplayWidth,
+                height: 6,
+                child: _allStarTransmitting
+                    ? Container(color: Colors.red)
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(1),
+                        child: LinearProgressIndicator(
+                          value: _allStarRxLevel,
+                          backgroundColor: _displayBgColor,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Colors.green,
+                          ),
+                        ),
+                      ),
+              ),
+            // Bottom panel: Connect button when offline, channels otherwise.
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _allStarOnline
+                  ? _buildAllStarChannelsPanel(
+                      constraints.maxWidth,
+                      maxPanelHeight,
+                    )
+                  : _buildAllStarConnectPanel(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// The "AllStarLink" name shown where a radio's friendly name appears, with a
+  /// dropdown affordance to switch to another connected radio.
+  Widget _buildAllStarNameSwitcher() {
+    final bool hasMultiple = _connectedRadios().length >= 2;
+    final text = Text(
+      'AllStarLink',
+      style: TextStyle(
+        color: Colors.grey.shade500,
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+      ),
+    );
+    if (!hasMultiple) return text;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (d) => _showRadioSelectionMenu(context, d.globalPosition),
+        onSecondaryTapDown: (d) =>
+            _showRadioSelectionMenu(context, d.globalPosition),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            text,
+            Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey.shade500),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// LCD panel styled like the radio display: VFO A shows the connected node,
+  /// VFO B is blank, and the bottom-right shows the "Internet" mode label. When
+  /// not in a call it shows a centered "Disconnected"/"Connecting" message.
+  Widget _buildAllStarDisplayPanel() {
+    if (!_allStarInCall) {
+      final l10n = AppLocalizations.of(context);
+      final String centerText =
+          _allStarConnecting ? l10n.stateConnecting : l10n.stateDisconnected;
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _displayBgColor,
+          borderRadius: BorderRadius.circular(2),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              centerText,
+              style: const TextStyle(
+                color: Color(0xFFD3D3D3),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final Color aColor = _activeVfoColor;
+    final AllStarNode node =
+        AllStarNode.fromMap(_allStarConnectedNode ?? const {});
+    final String aLabel = node.name.isNotEmpty ? node.name : node.nodeNumber;
+    final String aSub = node.effectiveHost;
+    final int? nodeNumber = int.tryParse(node.nodeNumber);
+
+    Widget vfoBlock(String label, String sub, Color color) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 32,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(stateLabel,
-                        style: const TextStyle(color: Colors.black54)),
-                    if (node != null &&
-                        (_allStarInCall || _allStarConnecting) &&
-                        (node['NodeNumber']?.toString().isNotEmpty == true))
-                      Text('#${node['NodeNumber']}',
-                          style: const TextStyle(color: Colors.black54)),
-                    Text(l10n.radioConnectionInternet,
-                        style: const TextStyle(color: Colors.black54)),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          // Saved-node grid.
-          Expanded(
-            child: _allStarNodes.isEmpty
-                ? Center(
-                    child: Text(
-                      l10n.settingsAllStarNoNodes,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                  )
-                : GridView.count(
-                    crossAxisCount: 3,
-                    childAspectRatio: 2.2,
-                    crossAxisSpacing: 6,
-                    mainAxisSpacing: 6,
-                    children: [
-                      for (final n in _allStarNodes) _buildAllStarNodeTile(n),
-                    ],
-                  ),
+          Text(sub, style: TextStyle(color: color, fontSize: 10)),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: _displayBgColor,
+        borderRadius: BorderRadius.circular(2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Transform.translate(
+            offset: const Offset(0, -20),
+            child: vfoBlock(aLabel, aSub, aColor),
+          ),
+          Transform.translate(
+            offset: const Offset(0, -14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              child: Container(height: 1, color: const Color(0xFF999999)),
+            ),
+          ),
+          Transform.translate(
+            offset: const Offset(0, -14),
+            child: vfoBlock('', '', aColor),
+          ),
+          Transform.translate(
+            offset: const Offset(0, -12),
+            child: _buildAllStarBottomRow(nodeNumber),
           ),
         ],
       ),
     );
   }
 
+  /// Bottom row of the AllStarLink LCD: the connected node number on the left
+  /// (gray) and the "Internet" mode label on the right.
+  Widget _buildAllStarBottomRow(int? nodeNumber) {
+    final style = TextStyle(color: Colors.grey.shade500, fontSize: 10);
+    return Row(
+      children: [
+        if (nodeNumber != null) Text('#$nodeNumber', style: style),
+        const Spacer(),
+        Text('Internet', style: style, textAlign: TextAlign.right),
+      ],
+    );
+  }
+
+  /// The "Connect" button shown (in place of the channels) while AllStarLink is
+  /// offline, mirroring the radio's Connect button.
+  Widget _buildAllStarConnectPanel() {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(8),
+      child: SizedBox(
+        width: double.infinity,
+        height: 44,
+        child: ElevatedButton(
+          onPressed: () => _allStarDispatch('AllStarGoOnline'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: scheme.surface,
+            foregroundColor: scheme.onSurface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          child: Text(
+            _allStarConnecting ? l10n.stateConnecting : l10n.commonConnect,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Channel grid shown below the radio, styled like the EchoLink favorites.
+  /// Shows the saved AllStarLink nodes plus a trailing "add" tile.
+  Widget _buildAllStarChannelsPanel(double panelWidth, double maxHeight) {
+    final nodes = _allStarNodes;
+    final int itemCount = nodes.length + 1; // trailing add tile
+
+    final int rowCount = ((itemCount + 2) ~/ 3);
+    double blockHeight = maxHeight / rowCount;
+    if (blockHeight > 50) blockHeight = 50;
+    if (blockHeight <= 0) blockHeight = 44;
+    final double panelHeight = blockHeight * rowCount;
+
+    double childAspectRatio = (panelWidth / 3) / blockHeight;
+    if (!childAspectRatio.isFinite || childAspectRatio <= 0) {
+      childAspectRatio = 1.0;
+    }
+
+    return Container(
+      width: panelWidth,
+      height: panelHeight,
+      color: ChannelPalette.of(context).base,
+      child: GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: childAspectRatio,
+          crossAxisSpacing: 0,
+          mainAxisSpacing: 0,
+        ),
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          if (index < nodes.length) {
+            return _buildAllStarNodeTile(nodes[index]);
+          }
+          return _buildAllStarAddTile();
+        },
+      ),
+    );
+  }
+
+  Widget _buildAllStarAddTile() {
+    final palette = ChannelPalette.of(context);
+    return GestureDetector(
+      onTap: _addAllStarNodeViaDialog,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: palette.base,
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(color: palette.border, width: 0.5),
+        ),
+        child: Center(
+          child: Icon(Icons.add, size: 20, color: palette.onChannelSecondary),
+        ),
+      ),
+    );
+  }
+
   Widget _buildAllStarNodeTile(Map<String, Object?> node) {
+    final palette = ChannelPalette.of(context);
     final bool isConnected = _isSameAllStarNode(node, _allStarConnectedNode) &&
         _allStarInCall;
     final bool isConnecting =
         _isSameAllStarNode(node, _allStarConnectedNode) && _allStarConnecting;
-    final Color bg = isConnected
-        ? Colors.green.shade700
-        : isConnecting
-            ? Colors.blue.shade700
-            : const Color(0xFF606060);
+    final bool highlighted = isConnected || isConnecting;
+
+    final Color dotColor =
+        highlighted ? Colors.lightBlueAccent : palette.border;
+    final Color bgColor = highlighted ? palette.selected : palette.base;
+
     final String name = node['Name']?.toString().isNotEmpty == true
         ? node['Name'].toString()
         : (node['NodeNumber']?.toString() ?? '?');
-    return InkWell(
+    final String number = node['NodeNumber']?.toString() ?? '';
+
+    return GestureDetector(
       onTap: () => _connectAllStarNode(node),
+      onSecondaryTapDown: (d) => _showAllStarNodeMenu(d.globalPosition, node),
+      onLongPressStart: (d) => _showAllStarNodeMenu(d.globalPosition, node),
       child: Container(
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(4),
+          color: bgColor,
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(color: palette.border, width: 0.5),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(name,
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold),
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.only(right: 4),
+                  decoration: BoxDecoration(
+                    color: dotColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: palette.onChannel,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            if (number.isNotEmpty)
+              Text(
+                '#$number',
+                style: TextStyle(
+                  fontSize: 9,
+                  color: palette.onChannelSecondary,
+                ),
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis),
-            Text('#${node['NodeNumber'] ?? ''}',
-                style: const TextStyle(color: Colors.white70, fontSize: 11),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
+                overflow: TextOverflow.ellipsis,
+              ),
           ],
         ),
       ),
     );
+  }
+
+  // --- AllStarLink channel management (persisted on device 0) --------------
+
+  Future<void> _addAllStarNodeViaDialog() async {
+    final AllStarNode? node = await showAllStarNodeDialog(context);
+    if (node == null || !mounted) return;
+    final next = <Map<String, Object?>>[..._allStarNodes, node.toMap()];
+    _persistAllStarNodes(next);
+  }
+
+  Future<void> _editAllStarNode(Map<String, Object?> node) async {
+    final AllStarNode? edited = await showAllStarNodeDialog(
+      context,
+      existing: AllStarNode.fromMap(node),
+    );
+    if (edited == null || !mounted) return;
+    final next = _allStarNodes
+        .map((n) => _isSameAllStarNode(n, node) ? edited.toMap() : n)
+        .toList();
+    _persistAllStarNodes(next);
+  }
+
+  void _removeAllStarNode(Map<String, Object?> node) {
+    final next =
+        _allStarNodes.where((n) => !_isSameAllStarNode(n, node)).toList();
+    _persistAllStarNodes(next);
+  }
+
+  /// Writes the channel list to device 0 (persisted). The AllStarManager watches
+  /// this key and republishes it as the device-202 `NodeList` the panel shows.
+  void _persistAllStarNodes(List<Map<String, Object?>> nodes) {
+    _broker.dispatch(
+      deviceId: 0,
+      name: allStarNodesKey,
+      data: nodes,
+      store: true,
+    );
+  }
+
+  void _showAllStarNodeMenu(
+      Offset globalPosition, Map<String, Object?> node) async {
+    final l10n = AppLocalizations.of(context);
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        globalPosition & const Size(40, 40),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem<String>(
+          value: 'edit',
+          child: Text(l10n.settingsAllStarEditNode),
+        ),
+        PopupMenuItem<String>(
+          value: 'remove',
+          child: Text(l10n.settingsAllStarDeleteNode),
+        ),
+      ],
+    );
+    if (selected == 'edit') {
+      _editAllStarNode(node);
+    } else if (selected == 'remove') {
+      _removeAllStarNode(node);
+    }
   }
 
   Widget _buildEchoLinkPanel() {

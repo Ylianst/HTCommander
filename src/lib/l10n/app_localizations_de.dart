@@ -429,6 +429,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Verwenden Sie Ihr AllStarLink-Portalkonto, um sich ohne knotenspezifische Anmeldedaten mit öffentlichen (WT-)Knoten zu verbinden.';
 
   @override
+  String get settingsAllStarAccountForCallsign =>
+      'Enter the password for your call sign\'s AllStarLink portal account.';
+
+  @override
   String get settingsAllStarAccountPassword => 'Kontopasswort';
 
   @override

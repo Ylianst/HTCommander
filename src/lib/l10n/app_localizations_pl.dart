@@ -429,6 +429,10 @@ class AppLocalizationsPl extends AppLocalizations {
       'Użyj konta portalu AllStarLink, aby łączyć się z publicznymi węzłami (WT) bez poświadczeń dla poszczególnych węzłów.';
 
   @override
+  String get settingsAllStarAccountForCallsign =>
+      'Enter the password for your call sign\'s AllStarLink portal account.';
+
+  @override
   String get settingsAllStarAccountPassword => 'Hasło do konta';
 
   @override

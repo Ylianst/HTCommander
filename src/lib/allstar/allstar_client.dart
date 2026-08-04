@@ -108,6 +108,17 @@ class AllStarClient {
     final String host = node.effectiveHost;
     final int port = node.effectivePort;
 
+    onDiagnostic?.call(
+      'Calling node ${node.nodeNumber} at $host:$port '
+      '(${account ? 'account/WT auth' : 'user "${node.iaxUser}"'})',
+    );
+    if (account && (wtToken == null || wtToken.isEmpty)) {
+      onDiagnostic?.call(
+        'Warning: no Web Transceiver token; authorize your account in '
+        'Settings > AllStarLink first',
+      );
+    }
+
     final Iax2Call call = Iax2Call(
       username: account ? allStarPublicUser : node.iaxUser,
       secret: account ? allStarPublicSecret : node.iaxSecret,

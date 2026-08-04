@@ -423,6 +423,10 @@ class AppLocalizationsZh extends AppLocalizations {
       '使用您的 AllStarLink 门户账户连接到公共 (WT) 节点，无需为每个节点提供凭据。';
 
   @override
+  String get settingsAllStarAccountForCallsign =>
+      'Enter the password for your call sign\'s AllStarLink portal account.';
+
+  @override
   String get settingsAllStarAccountPassword => '账户密码';
 
   @override

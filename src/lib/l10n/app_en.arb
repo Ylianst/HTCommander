@@ -441,6 +441,7 @@
   },
   "settingsAllStarAccount": "AllStarLink Account",
   "settingsAllStarAccountIntro": "Use your AllStarLink portal account to connect to public (WT) nodes without per-node credentials.",
+  "settingsAllStarAccountForCallsign": "Enter the password for your call sign's AllStarLink portal account.",
   "settingsAllStarAccountPassword": "Account Password",
   "settingsAllStarAuthenticate": "Authenticate",
   "settingsAllStarReauthenticate": "Re-authenticate",

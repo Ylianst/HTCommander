@@ -428,6 +428,10 @@ class AppLocalizationsFr extends AppLocalizations {
       'Utilisez votre compte du portail AllStarLink pour vous connecter aux nœuds publics (WT) sans identifiants par nœud.';
 
   @override
+  String get settingsAllStarAccountForCallsign =>
+      'Enter the password for your call sign\'s AllStarLink portal account.';
+
+  @override
   String get settingsAllStarAccountPassword => 'Mot de passe du compte';
 
   @override

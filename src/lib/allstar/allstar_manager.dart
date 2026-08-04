@@ -38,6 +38,7 @@ import '../radio/pcm_player.dart';
 import '../services/data_broker_client.dart';
 import 'allstar_client.dart';
 import 'allstar_node.dart';
+import 'allstar_portal_service.dart';
 import 'iax2_network_io.dart';
 
 /// Owns the [AllStarClient] and bridges it to the app's Data Broker, audio
@@ -120,6 +121,14 @@ class AllStarManager {
       callback: (_, _, _) => unawaited(_reconcile()),
     );
 
+    // Availability now tracks the account authorization (WT token), so re-check
+    // whenever the token is set or cleared (e.g. after a successful Test).
+    _broker.subscribe(
+      deviceId: 0,
+      name: allStarWtTokenKey,
+      callback: (_, _, _) => unawaited(_reconcile()),
+    );
+
     _broker.subscribe(
       deviceId: 1,
       name: 'SelectedRadioDeviceId',
@@ -131,8 +140,10 @@ class AllStarManager {
     unawaited(_reconcile());
   }
 
-  /// Enables or disables AllStarLink to match the saved node list. It is offered
-  /// (Available=true) whenever at least one node is configured.
+  /// Enables or disables AllStarLink to match the account authorization. It is
+  /// offered (Available=true) whenever the operator's portal account is
+  /// authorized (a Web Transceiver token is stored). Configured channels are
+  /// managed from the radio panel, not required for availability.
   Future<void> _reconcile() async {
     if (_reconciling) return;
     _reconciling = true;
@@ -140,11 +151,11 @@ class AllStarManager {
       final List<AllStarNode> nodes = _readNodes();
       _publishNodeList(nodes);
 
-      final bool shouldEnable = nodes.isNotEmpty;
+      final bool shouldEnable = _wtToken() != null;
       if (!shouldEnable) {
         if (_client != null || _opened) {
           await _closeClient();
-          _broker.logInfo('[AllStar] Disabled (no nodes configured)');
+          _broker.logInfo('[AllStar] Disabled (account not authorized)');
         }
         _publishAvailable(false);
         return;
@@ -153,13 +164,16 @@ class AllStarManager {
       _publishAvailable(true);
       if (_client != null) return; // Already prepared.
 
-      final AllStarClient client = AllStarClient(network: DartIoIax2Network())
+      final AllStarClient client = AllStarClient(
+        network: DartIoIax2Network()..onDiagnostic = _onDiagnostic,
+      )
         ..onAudio = _onRxAudio
         ..onStateChanged = _onClientState
         ..onConnectedNode = _onConnectedNode
         ..onDiagnostic = _onDiagnostic;
       _client = client;
-      _broker.logInfo('[AllStar] Ready (${nodes.length} node(s))');
+      _broker.logInfo(
+          '[AllStar] Ready (account authorized, ${nodes.length} channel(s))');
       unawaited(_maybeAutoReconnect());
     } finally {
       _reconciling = false;
@@ -218,12 +232,45 @@ class AllStarManager {
         deviceId: 0, name: allStarWasOnlineKey, data: true, store: true);
     unawaited(() async {
       try {
+        // Authenticate against the portal to obtain a fresh Web Transceiver
+        // token before opening the transport (tokens are short-lived).
+        await _refreshToken();
         await client.open();
         _opened = true;
       } catch (e) {
         _broker.logError('[AllStar] Go online failed: $e');
       }
     }());
+  }
+
+  /// Re-authenticates with the AllStarLink portal using the stored account
+  /// password and refreshes the Web Transceiver token. Silently no-ops when no
+  /// password or call sign is configured, leaving any existing token in place.
+  Future<void> _refreshToken() async {
+    final String password =
+        _broker.getValue<String>(0, allStarPasswordKey, '') ?? '';
+    final String callSign =
+        (_broker.getValue<String>(0, 'CallSign', '') ?? '').trim();
+    if (password.isEmpty || callSign.isEmpty) return;
+    final AllStarPortalService service = AllStarPortalService();
+    try {
+      final AllStarWtAuthResult result =
+          await service.fetchToken(username: callSign, password: password);
+      if (result.success && result.token.isNotEmpty) {
+        _broker.dispatch(
+            deviceId: 0,
+            name: allStarWtTokenKey,
+            data: result.token,
+            store: true);
+        _broker.logInfo('[AllStar] Authenticated (token refreshed)');
+      } else {
+        _broker.logError('[AllStar] Authentication failed: ${result.message}');
+      }
+    } catch (e) {
+      _broker.logError('[AllStar] Authentication error: $e');
+    } finally {
+      service.dispose();
+    }
   }
 
   void _onGoOffline(int deviceId, String name, Object? data) {
