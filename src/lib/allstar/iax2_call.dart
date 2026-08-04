@@ -90,7 +90,7 @@ class Iax2Call {
   static const int _pingIntervalMs = 20000;
   static const int _retransmitMs = 1000;
   static const int _maxRetransmits = 5;
-  static const int _connectTimeoutMs = 25000;
+  static const int _connectTimeoutMs = 10000;
   static const int _fullVoiceResyncMs = 0x8000; // 32768 ms.
 
   Iax2CallState _state = Iax2CallState.idle;
@@ -387,6 +387,12 @@ class Iax2Call {
     _sendAck(Iax2Subclass.ack, f.timestamp);
     if (cause != null) onHangupCause?.call(cause);
     _diag('Call rejected${cause != null ? ' ($cause)' : ''}');
+    // A "No such context/extension" reject means auth succeeded but the node
+    // has no dialplan route for us: Web Transceiver access is not enabled there.
+    if (cause != null && cause.toLowerCase().contains('no such context')) {
+      _diag('This node has not enabled Web Transceiver access; try a node you '
+          'own with WT enabled in your AllStarLink portal.');
+    }
     _teardown(Iax2CallState.hungUp);
   }
 
