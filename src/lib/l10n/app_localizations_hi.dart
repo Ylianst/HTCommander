@@ -420,6 +420,51 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
+  String get settingsAllStarAccount => 'AllStarLink खाता';
+
+  @override
+  String get settingsAllStarAccountIntro =>
+      'प्रति-नोड क्रेडेंशियल के बिना सार्वजनिक (WT) नोड्स से कनेक्ट करने के लिए अपने AllStarLink पोर्टल खाते का उपयोग करें।';
+
+  @override
+  String get settingsAllStarAccountPassword => 'खाता पासवर्ड';
+
+  @override
+  String get settingsAllStarAuthenticate => 'प्रमाणित करें';
+
+  @override
+  String get settingsAllStarReauthenticate => 'पुनः प्रमाणित करें';
+
+  @override
+  String settingsAllStarAccountAuthorized(String callsign) {
+    return '$callsign के रूप में अधिकृत';
+  }
+
+  @override
+  String get settingsAllStarAccountNotAuthorized => 'अधिकृत नहीं';
+
+  @override
+  String get settingsAllStarAuthSuccess => 'प्रमाणीकरण सफल।';
+
+  @override
+  String settingsAllStarAuthFailed(String message) {
+    return 'प्रमाणीकरण विफल: $message';
+  }
+
+  @override
+  String get settingsAllStarNoCallsign =>
+      'प्रमाणीकरण से पहले कॉल साइन सेटिंग्स में अपना कॉल साइन सेट करें।';
+
+  @override
+  String get settingsAllStarAuthMode => 'प्रमाणीकरण';
+
+  @override
+  String get settingsAllStarAuthModeAccount => 'खाता (WT)';
+
+  @override
+  String get settingsAllStarAuthModeNode => 'नोड क्रेडेंशियल';
+
+  @override
   String get settingsTabServers => 'सर्वर';
 
   @override

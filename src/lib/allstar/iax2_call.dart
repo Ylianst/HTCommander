@@ -57,6 +57,14 @@ class Iax2Call {
   final String secret;
   final String calledNumber;
 
+  /// CallerID number sent in the NEW frame. Defaults to [username] (iaxRPT
+  /// style); account (Web Transceiver) calls set it to the target node number.
+  final String? callingNumber;
+
+  /// CallerID name sent in the NEW frame. For account (Web Transceiver) auth
+  /// this carries the portal token the node validates; null otherwise.
+  final String? callingName;
+
   /// Codecs we can decode/encode, advertised in CAPABILITY.
   final int capability;
 
@@ -70,6 +78,8 @@ class Iax2Call {
     required this.username,
     required this.secret,
     required this.calledNumber,
+    this.callingNumber,
+    this.callingName,
     this.capability = Iax2Format.gsm | Iax2Format.ulaw,
     this.preferredFormat = Iax2Format.gsm,
     this.onDiagnostic,
@@ -129,7 +139,10 @@ class Iax2Call {
     final Iax2IeSet ies = Iax2IeSet();
     ies.addUint16(Iax2Ie.version, iax2ProtocolVersion); // Must be first.
     ies.addString(Iax2Ie.calledNumber, calledNumber);
-    ies.addString(Iax2Ie.callingNumber, username);
+    ies.addString(Iax2Ie.callingNumber, callingNumber ?? username);
+    if (callingName != null && callingName!.isNotEmpty) {
+      ies.addString(Iax2Ie.callingName, callingName!);
+    }
     ies.addRaw(Iax2Ie.callingPres, Uint8List(1)); // Allowed, not screened.
     ies.addRaw(Iax2Ie.callingTon, Uint8List(1)); // Unknown.
     ies.addUint16(Iax2Ie.callingTns, 0);

@@ -422,6 +422,51 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String get settingsAllStarAccount => 'AllStarLink-Konto';
+
+  @override
+  String get settingsAllStarAccountIntro =>
+      'Verwenden Sie Ihr AllStarLink-Portalkonto, um sich ohne knotenspezifische Anmeldedaten mit öffentlichen (WT-)Knoten zu verbinden.';
+
+  @override
+  String get settingsAllStarAccountPassword => 'Kontopasswort';
+
+  @override
+  String get settingsAllStarAuthenticate => 'Authentifizieren';
+
+  @override
+  String get settingsAllStarReauthenticate => 'Erneut authentifizieren';
+
+  @override
+  String settingsAllStarAccountAuthorized(String callsign) {
+    return 'Autorisiert als $callsign';
+  }
+
+  @override
+  String get settingsAllStarAccountNotAuthorized => 'Nicht autorisiert';
+
+  @override
+  String get settingsAllStarAuthSuccess => 'Authentifizierung erfolgreich.';
+
+  @override
+  String settingsAllStarAuthFailed(String message) {
+    return 'Authentifizierung fehlgeschlagen: $message';
+  }
+
+  @override
+  String get settingsAllStarNoCallsign =>
+      'Legen Sie Ihr Rufzeichen in den Rufzeichen-Einstellungen fest, bevor Sie sich authentifizieren.';
+
+  @override
+  String get settingsAllStarAuthMode => 'Authentifizierung';
+
+  @override
+  String get settingsAllStarAuthModeAccount => 'Konto (WT)';
+
+  @override
+  String get settingsAllStarAuthModeNode => 'Knoten-Anmeldedaten';
+
+  @override
   String get settingsTabServers => 'Server';
 
   @override

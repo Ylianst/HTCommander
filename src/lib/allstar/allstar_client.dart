@@ -35,6 +35,14 @@ import 'iax2_network.dart';
 /// Data Broker device id for the internet-only AllStarLink radio.
 const int allStarDeviceId = 202;
 
+/// IAX2 username matched by a node's `[allstar-public]` context for AllStarLink
+/// portal (Web Transceiver) authentication.
+const String allStarPublicUser = 'allstar-public';
+
+/// Fixed IAX2 secret used to satisfy the `[allstar-public]` MD5 challenge; the
+/// real authorization is the WT token carried in the CallerID name.
+const String allStarPublicSecret = 'allstar';
+
 /// High-level state of the AllStarLink client.
 enum AllStarClientState { offline, online, connecting, inCall }
 
@@ -88,17 +96,25 @@ class AllStarClient {
   }
 
   /// Places an outbound IAX2 call to [node]. Any existing call is dropped first.
-  void connectTo(AllStarNode node) {
+  /// For account (Web Transceiver) nodes, [wtToken] is the portal token sent as
+  /// the CallerID name for the node to validate.
+  void connectTo(AllStarNode node, {String? wtToken}) {
     if (!_opened) return;
     _endCall();
     _node = node;
     _txBuffer.clear();
 
+    final bool account = node.authMode == AllStarAuthMode.account;
+    final String host = node.effectiveHost;
+    final int port = node.effectivePort;
+
     final Iax2Call call = Iax2Call(
-      username: node.iaxUser,
-      secret: node.iaxSecret,
+      username: account ? allStarPublicUser : node.iaxUser,
+      secret: account ? allStarPublicSecret : node.iaxSecret,
       calledNumber: node.nodeNumber,
-      onSend: (Uint8List d) => network.send(node.host, node.port, d),
+      callingNumber: account ? node.nodeNumber : null,
+      callingName: account ? wtToken : null,
+      onSend: (Uint8List d) => network.send(host, port, d),
       onAudio: (Int16List pcm) => onAudio?.call(pcm),
       onStateChanged: _onCallState,
       onDiagnostic: onDiagnostic,

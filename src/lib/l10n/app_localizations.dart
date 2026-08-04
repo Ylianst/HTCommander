@@ -890,6 +890,84 @@ abstract class AppLocalizations {
   /// **'Remove \"{name}\" from your saved nodes?'**
   String settingsAllStarDeleteNodeConfirm(String name);
 
+  /// No description provided for @settingsAllStarAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'AllStarLink Account'**
+  String get settingsAllStarAccount;
+
+  /// No description provided for @settingsAllStarAccountIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Use your AllStarLink portal account to connect to public (WT) nodes without per-node credentials.'**
+  String get settingsAllStarAccountIntro;
+
+  /// No description provided for @settingsAllStarAccountPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Password'**
+  String get settingsAllStarAccountPassword;
+
+  /// No description provided for @settingsAllStarAuthenticate.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate'**
+  String get settingsAllStarAuthenticate;
+
+  /// No description provided for @settingsAllStarReauthenticate.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-authenticate'**
+  String get settingsAllStarReauthenticate;
+
+  /// No description provided for @settingsAllStarAccountAuthorized.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorized as {callsign}'**
+  String settingsAllStarAccountAuthorized(String callsign);
+
+  /// No description provided for @settingsAllStarAccountNotAuthorized.
+  ///
+  /// In en, this message translates to:
+  /// **'Not authorized'**
+  String get settingsAllStarAccountNotAuthorized;
+
+  /// No description provided for @settingsAllStarAuthSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication successful.'**
+  String get settingsAllStarAuthSuccess;
+
+  /// No description provided for @settingsAllStarAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication failed: {message}'**
+  String settingsAllStarAuthFailed(String message);
+
+  /// No description provided for @settingsAllStarNoCallsign.
+  ///
+  /// In en, this message translates to:
+  /// **'Set your call sign in the Call Sign settings before authenticating.'**
+  String get settingsAllStarNoCallsign;
+
+  /// No description provided for @settingsAllStarAuthMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication'**
+  String get settingsAllStarAuthMode;
+
+  /// No description provided for @settingsAllStarAuthModeAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Account (WT)'**
+  String get settingsAllStarAuthModeAccount;
+
+  /// No description provided for @settingsAllStarAuthModeNode.
+  ///
+  /// In en, this message translates to:
+  /// **'Node Credentials'**
+  String get settingsAllStarAuthModeNode;
+
   /// No description provided for @settingsTabServers.
   ///
   /// In en, this message translates to:

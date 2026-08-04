@@ -33,6 +33,23 @@ const String lastAllStarNodeKey = 'LastAllStarNode';
 /// (connected as a radio) when the app last closed.
 const String allStarWasOnlineKey = 'AllStarWasOnline';
 
+/// DataBroker key (device 0, persisted) holding the AllStarLink portal "Web
+/// Transceiver" access token, obtained from the operator's account password.
+const String allStarWtTokenKey = 'AllStarWtToken';
+
+/// DNS suffix used to resolve an AllStarLink node number to its IAX2 host when
+/// connecting with account (Web Transceiver) authentication.
+const String allStarNodeDnsSuffix = '.nodes.allstarlink.org';
+
+/// How a saved node authenticates to AllStarLink.
+enum AllStarAuthMode {
+  /// Per-node IAX2 username + secret from the node's iax.conf (iaxRPT style).
+  node,
+
+  /// The operator's AllStarLink portal account (Web Transceiver / public auth).
+  account,
+}
+
 class AllStarNode {
   /// Friendly display name shown in the UI (e.g. "My Repeater").
   final String name;
@@ -52,6 +69,9 @@ class AllStarNode {
   /// AllStarLink node number to connect to (the IAX2 "called number").
   final String nodeNumber;
 
+  /// Which credentials this node uses to authenticate.
+  final AllStarAuthMode authMode;
+
   const AllStarNode({
     required this.name,
     required this.host,
@@ -59,12 +79,23 @@ class AllStarNode {
     required this.iaxUser,
     required this.iaxSecret,
     required this.nodeNumber,
+    this.authMode = AllStarAuthMode.node,
   });
+
+  /// The IAX2 host to place the call to. In account mode the host is resolved
+  /// from the node number via AllStarLink's DNS, so the user need not supply it.
+  String get effectiveHost => authMode == AllStarAuthMode.account
+      ? '$nodeNumber$allStarNodeDnsSuffix'
+      : host;
+
+  /// The IAX2 port to use. Account (Web Transceiver) nodes always use 4569.
+  int get effectivePort =>
+      authMode == AllStarAuthMode.account ? iax2DefaultPort : port;
 
   /// Text shown as the node's subtitle: node number plus host.
   String get description {
     final String n = nodeNumber.isNotEmpty ? nodeNumber : '?';
-    return '$n @ $host';
+    return '$n @ $effectiveHost';
   }
 
   AllStarNode copyWith({
@@ -74,6 +105,7 @@ class AllStarNode {
     String? iaxUser,
     String? iaxSecret,
     String? nodeNumber,
+    AllStarAuthMode? authMode,
   }) {
     return AllStarNode(
       name: name ?? this.name,
@@ -82,6 +114,7 @@ class AllStarNode {
       iaxUser: iaxUser ?? this.iaxUser,
       iaxSecret: iaxSecret ?? this.iaxSecret,
       nodeNumber: nodeNumber ?? this.nodeNumber,
+      authMode: authMode ?? this.authMode,
     );
   }
 
@@ -92,6 +125,7 @@ class AllStarNode {
         'User': iaxUser,
         'Secret': iaxSecret,
         'NodeNumber': nodeNumber,
+        'AuthMode': authMode == AllStarAuthMode.account ? 'account' : 'node',
       };
 
   static AllStarNode fromMap(Map<dynamic, dynamic> m) {
@@ -111,6 +145,9 @@ class AllStarNode {
       iaxUser: str(m['User'], m['user']),
       iaxSecret: str(m['Secret'], m['secret']),
       nodeNumber: str(m['NodeNumber'], m['nodeNumber']),
+      authMode: str(m['AuthMode'], m['authMode']) == 'account'
+          ? AllStarAuthMode.account
+          : AllStarAuthMode.node,
     );
   }
 

@@ -416,6 +416,50 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get settingsAllStarAccount => 'AllStarLink 账户';
+
+  @override
+  String get settingsAllStarAccountIntro =>
+      '使用您的 AllStarLink 门户账户连接到公共 (WT) 节点，无需为每个节点提供凭据。';
+
+  @override
+  String get settingsAllStarAccountPassword => '账户密码';
+
+  @override
+  String get settingsAllStarAuthenticate => '验证';
+
+  @override
+  String get settingsAllStarReauthenticate => '重新验证';
+
+  @override
+  String settingsAllStarAccountAuthorized(String callsign) {
+    return '已授权为 $callsign';
+  }
+
+  @override
+  String get settingsAllStarAccountNotAuthorized => '未授权';
+
+  @override
+  String get settingsAllStarAuthSuccess => '验证成功。';
+
+  @override
+  String settingsAllStarAuthFailed(String message) {
+    return '验证失败：$message';
+  }
+
+  @override
+  String get settingsAllStarNoCallsign => '请在验证之前在呼号设置中设置您的呼号。';
+
+  @override
+  String get settingsAllStarAuthMode => '验证';
+
+  @override
+  String get settingsAllStarAuthModeAccount => '账户 (WT)';
+
+  @override
+  String get settingsAllStarAuthModeNode => '节点凭据';
+
+  @override
   String get settingsTabServers => '服务器';
 
   @override

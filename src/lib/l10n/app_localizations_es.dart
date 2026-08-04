@@ -420,6 +420,51 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get settingsAllStarAccount => 'Cuenta de AllStarLink';
+
+  @override
+  String get settingsAllStarAccountIntro =>
+      'Usa tu cuenta del portal de AllStarLink para conectarte a nodos públicos (WT) sin credenciales por nodo.';
+
+  @override
+  String get settingsAllStarAccountPassword => 'Contraseña de la cuenta';
+
+  @override
+  String get settingsAllStarAuthenticate => 'Autenticar';
+
+  @override
+  String get settingsAllStarReauthenticate => 'Volver a autenticar';
+
+  @override
+  String settingsAllStarAccountAuthorized(String callsign) {
+    return 'Autorizado como $callsign';
+  }
+
+  @override
+  String get settingsAllStarAccountNotAuthorized => 'No autorizado';
+
+  @override
+  String get settingsAllStarAuthSuccess => 'Autenticación correcta.';
+
+  @override
+  String settingsAllStarAuthFailed(String message) {
+    return 'Error de autenticación: $message';
+  }
+
+  @override
+  String get settingsAllStarNoCallsign =>
+      'Configura tu indicativo en los ajustes de Indicativo antes de autenticarte.';
+
+  @override
+  String get settingsAllStarAuthMode => 'Autenticación';
+
+  @override
+  String get settingsAllStarAuthModeAccount => 'Cuenta (WT)';
+
+  @override
+  String get settingsAllStarAuthModeNode => 'Credenciales del nodo';
+
+  @override
   String get settingsTabServers => 'Servidores';
 
   @override

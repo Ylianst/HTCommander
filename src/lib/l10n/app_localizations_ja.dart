@@ -419,6 +419,50 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get settingsAllStarAccount => 'AllStarLink アカウント';
+
+  @override
+  String get settingsAllStarAccountIntro =>
+      'ノードごとの認証情報なしでパブリック (WT) ノードに接続するには、AllStarLink ポータルアカウントを使用します。';
+
+  @override
+  String get settingsAllStarAccountPassword => 'アカウントのパスワード';
+
+  @override
+  String get settingsAllStarAuthenticate => '認証';
+
+  @override
+  String get settingsAllStarReauthenticate => '再認証';
+
+  @override
+  String settingsAllStarAccountAuthorized(String callsign) {
+    return '$callsign として認証済み';
+  }
+
+  @override
+  String get settingsAllStarAccountNotAuthorized => '未認証';
+
+  @override
+  String get settingsAllStarAuthSuccess => '認証に成功しました。';
+
+  @override
+  String settingsAllStarAuthFailed(String message) {
+    return '認証に失敗しました: $message';
+  }
+
+  @override
+  String get settingsAllStarNoCallsign => '認証する前に、コールサイン設定でコールサインを設定してください。';
+
+  @override
+  String get settingsAllStarAuthMode => '認証';
+
+  @override
+  String get settingsAllStarAuthModeAccount => 'アカウント (WT)';
+
+  @override
+  String get settingsAllStarAuthModeNode => 'ノード認証情報';
+
+  @override
   String get settingsTabServers => 'サーバー';
 
   @override

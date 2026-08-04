@@ -422,6 +422,51 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get settingsAllStarAccount => 'Konto AllStarLink';
+
+  @override
+  String get settingsAllStarAccountIntro =>
+      'Użyj konta portalu AllStarLink, aby łączyć się z publicznymi węzłami (WT) bez poświadczeń dla poszczególnych węzłów.';
+
+  @override
+  String get settingsAllStarAccountPassword => 'Hasło do konta';
+
+  @override
+  String get settingsAllStarAuthenticate => 'Uwierzytelnij';
+
+  @override
+  String get settingsAllStarReauthenticate => 'Uwierzytelnij ponownie';
+
+  @override
+  String settingsAllStarAccountAuthorized(String callsign) {
+    return 'Autoryzowano jako $callsign';
+  }
+
+  @override
+  String get settingsAllStarAccountNotAuthorized => 'Nieautoryzowany';
+
+  @override
+  String get settingsAllStarAuthSuccess => 'Uwierzytelnianie powiodło się.';
+
+  @override
+  String settingsAllStarAuthFailed(String message) {
+    return 'Uwierzytelnianie nie powiodło się: $message';
+  }
+
+  @override
+  String get settingsAllStarNoCallsign =>
+      'Ustaw swój znak wywoławczy w ustawieniach znaku wywoławczego przed uwierzytelnieniem.';
+
+  @override
+  String get settingsAllStarAuthMode => 'Uwierzytelnianie';
+
+  @override
+  String get settingsAllStarAuthModeAccount => 'Konto (WT)';
+
+  @override
+  String get settingsAllStarAuthModeNode => 'Poświadczenia węzła';
+
+  @override
   String get settingsTabServers => 'Serwery';
 
   @override

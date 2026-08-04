@@ -176,7 +176,7 @@ class AllStarManager {
       await client.open();
       final Object? last = _broker.getValueDynamic(0, lastAllStarNodeKey);
       if (last is Map) {
-        client.connectTo(AllStarNode.fromMap(last));
+        client.connectTo(AllStarNode.fromMap(last), wtToken: _wtToken());
       }
     } catch (e) {
       _broker.logError('[AllStar] Auto-reconnect failed: $e');
@@ -247,7 +247,7 @@ class AllStarManager {
     final AllStarClient? client = _client;
     if (client == null || data is! Map) return;
     final AllStarNode node = AllStarNode.fromMap(data);
-    if (node.host.isEmpty || node.nodeNumber.isEmpty) {
+    if (node.effectiveHost.isEmpty || node.nodeNumber.isEmpty) {
       _broker.logError('[AllStar] Cannot connect: node missing host/number');
       return;
     }
@@ -257,7 +257,7 @@ class AllStarManager {
           await client.open();
           _opened = true;
         }
-        client.connectTo(node);
+        client.connectTo(node, wtToken: _wtToken());
       } catch (e) {
         _broker.logError('[AllStar] Connect failed: $e');
       }
@@ -361,6 +361,12 @@ class AllStarManager {
       if (e is Map) nodes.add(AllStarNode.fromMap(e));
     }
     return nodes;
+  }
+
+  /// The stored AllStarLink portal (Web Transceiver) token, or null if none.
+  String? _wtToken() {
+    final String t = _broker.getValue<String>(0, allStarWtTokenKey, '') ?? '';
+    return t.isEmpty ? null : t;
   }
 
   // --- Received audio ------------------------------------------------------

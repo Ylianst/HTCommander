@@ -421,6 +421,51 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get settingsAllStarAccount => 'Compte AllStarLink';
+
+  @override
+  String get settingsAllStarAccountIntro =>
+      'Utilisez votre compte du portail AllStarLink pour vous connecter aux nœuds publics (WT) sans identifiants par nœud.';
+
+  @override
+  String get settingsAllStarAccountPassword => 'Mot de passe du compte';
+
+  @override
+  String get settingsAllStarAuthenticate => 'Authentifier';
+
+  @override
+  String get settingsAllStarReauthenticate => 'Ré-authentifier';
+
+  @override
+  String settingsAllStarAccountAuthorized(String callsign) {
+    return 'Autorisé en tant que $callsign';
+  }
+
+  @override
+  String get settingsAllStarAccountNotAuthorized => 'Non autorisé';
+
+  @override
+  String get settingsAllStarAuthSuccess => 'Authentification réussie.';
+
+  @override
+  String settingsAllStarAuthFailed(String message) {
+    return 'Échec de l\'authentification : $message';
+  }
+
+  @override
+  String get settingsAllStarNoCallsign =>
+      'Définissez votre indicatif dans les paramètres d\'indicatif avant de vous authentifier.';
+
+  @override
+  String get settingsAllStarAuthMode => 'Authentification';
+
+  @override
+  String get settingsAllStarAuthModeAccount => 'Compte (WT)';
+
+  @override
+  String get settingsAllStarAuthModeNode => 'Identifiants du nœud';
+
+  @override
   String get settingsTabServers => 'Serveurs';
 
   @override

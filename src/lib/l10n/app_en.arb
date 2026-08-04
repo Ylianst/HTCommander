@@ -439,6 +439,33 @@
       }
     }
   },
+  "settingsAllStarAccount": "AllStarLink Account",
+  "settingsAllStarAccountIntro": "Use your AllStarLink portal account to connect to public (WT) nodes without per-node credentials.",
+  "settingsAllStarAccountPassword": "Account Password",
+  "settingsAllStarAuthenticate": "Authenticate",
+  "settingsAllStarReauthenticate": "Re-authenticate",
+  "settingsAllStarAccountAuthorized": "Authorized as {callsign}",
+  "@settingsAllStarAccountAuthorized": {
+    "placeholders": {
+      "callsign": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAllStarAccountNotAuthorized": "Not authorized",
+  "settingsAllStarAuthSuccess": "Authentication successful.",
+  "settingsAllStarAuthFailed": "Authentication failed: {message}",
+  "@settingsAllStarAuthFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAllStarNoCallsign": "Set your call sign in the Call Sign settings before authenticating.",
+  "settingsAllStarAuthMode": "Authentication",
+  "settingsAllStarAuthModeAccount": "Account (WT)",
+  "settingsAllStarAuthModeNode": "Node Credentials",
   "settingsTabServers": "Servers",
   "settingsTabMap": "Map",
   "settingsTabLimits": "Limits",
