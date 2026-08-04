@@ -58,6 +58,9 @@ class AllStarClient {
   /// Fired with human-readable protocol diagnostics for the Debug tab.
   void Function(String message)? onDiagnostic;
 
+  /// Fired with a text message received from the node (IAX2 TEXT frame).
+  void Function(String text)? onText;
+
   /// Fired with the node currently being called / in a call, or null.
   void Function(AllStarNode? node)? onConnectedNode;
 
@@ -129,6 +132,7 @@ class AllStarClient {
       onAudio: (Int16List pcm) => onAudio?.call(pcm),
       onStateChanged: _onCallState,
       onDiagnostic: onDiagnostic,
+      onText: (String text) => onText?.call(text),
       onHangupCause: (String cause) =>
           onDiagnostic?.call('Node responded: $cause'),
     );

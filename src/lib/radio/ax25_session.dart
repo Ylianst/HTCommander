@@ -319,6 +319,18 @@ class AX25Session {
     onError?.call(this, error);
   }
 
+  /// Reports a recoverable AX.25 protocol condition (Direwolf's
+  /// `s_debug_protocol_errors` diagnostics). These describe automatic,
+  /// self-healing recovery (link resets, sequence resyncs, stray control
+  /// frames) and must NOT be surfaced to the user as errors -- doing so floods
+  /// the Terminal/BBS UI with alarming "Error:" lines during normal recovery
+  /// (e.g. a peer retransmitting SABM during a laggy connect). They are logged
+  /// for diagnostics only.
+  void _onProtocolError(String message) {
+    if (_disposed) return;
+    _broker.logInfo('[AX25Session/$_radioDeviceId] Protocol: $message');
+  }
+
   void _onStateChangedEvent(AX25ConnectionState state) =>
       onStateChanged?.call(this, state);
 
@@ -635,7 +647,7 @@ class AX25Session {
   }
 
   void _nrErrorRecovery() {
-    _onErrorEvent('AX.25 Protocol Error J: N(R) sequence error.');
+    _onProtocolError('AX.25 Protocol Error J: N(R) sequence error.');
     _establishDataLink();
     _layer3Initiated = false;
   }
@@ -701,7 +713,7 @@ class AX25Session {
     if (cmd && pf) {
       _enquiryResponse(frameType, true);
     } else if (!cmd && pf) {
-      _onErrorEvent('AX.25 Protocol Error A: F=1 received but P=1 not outstanding.');
+      _onProtocolError('AX.25 Protocol Error A: F=1 received but P=1 not outstanding.');
     }
   }
 
@@ -920,21 +932,21 @@ class AX25Session {
           _raData!.setRange(0, _raLen, data.sublist(2));
         }
       } else {
-        _onErrorEvent('AX.25 Reassembler Protocol Error Z: Not first segment in ready state.');
+        _onProtocolError('AX.25 Reassembler Protocol Error Z: Not first segment in ready state.');
       }
     } else {
       // Reassembling state.
       if (pid != _pidSegmentationFragment) {
         _onDataReceivedEvent(data);
-        _onErrorEvent('AX.25 Reassembler Protocol Error Z: Not segment in reassembling state.');
+        _onProtocolError('AX.25 Reassembler Protocol Error Z: Not segment in reassembling state.');
         _raData = null;
         return;
       } else if (data.isNotEmpty && (data[0] & 0x80) != 0) {
-        _onErrorEvent('AX.25 Reassembler Protocol Error Z: First segment in reassembling state.');
+        _onProtocolError('AX.25 Reassembler Protocol Error Z: First segment in reassembling state.');
         _raData = null;
         return;
       } else if (data.isEmpty || (data[0] & 0x7f) != _raFollowing - 1) {
-        _onErrorEvent('AX.25 Reassembler Protocol Error Z: Segments out of sequence.');
+        _onProtocolError('AX.25 Reassembler Protocol Error Z: Segments out of sequence.');
         _raData = null;
         return;
       } else {
@@ -943,7 +955,7 @@ class AX25Session {
           _raData!.setRange(_raLen, _raLen + data.length - 1, data.sublist(1));
           _raLen += data.length - 1;
         } else {
-          _onErrorEvent('AX.25 Reassembler Protocol Error Z: Segments exceed buffer space.');
+          _onProtocolError('AX.25 Reassembler Protocol Error Z: Segments exceed buffer space.');
           _raData = null;
           return;
         }
@@ -1405,7 +1417,7 @@ class AX25Session {
             _enterRecoveryAwaiting();
           }
         } else {
-          _onErrorEvent('AX.25 Protocol Error O: Information part length $info.length out of range.');
+          _onProtocolError('AX.25 Protocol Error O: Information part length $info.length out of range.');
           _establishDataLink();
           _layer3Initiated = false;
           _enterRecoveryAwaiting();
@@ -1751,7 +1763,7 @@ class AX25Session {
           }
         }
         _clearExceptionConditions();
-        _onErrorEvent('AX.25 Protocol Error F: Data Link reset; SABM(E) received while connected.');
+        _onProtocolError('AX.25 Protocol Error F: Data Link reset; SABM(E) received while connected.');
         if (_vs != _va) {
           _discardIQueue();
         }
@@ -1818,7 +1830,7 @@ class AX25Session {
 
       case _DlState.connected:
       case _DlState.timerRecovery:
-        _onErrorEvent('AX.25 Protocol Error E: DM received while connected.');
+        _onProtocolError('AX.25 Protocol Error E: DM received while connected.');
         _discardIQueue();
         _stopT1();
         _stopT3();
@@ -1846,7 +1858,7 @@ class AX25Session {
   void _uaFrame(bool f) {
     switch (_state) {
       case _DlState.disconnected:
-        _onErrorEvent('AX.25 Protocol Error C: Unexpected UA in disconnected state.');
+        _onProtocolError('AX.25 Protocol Error C: Unexpected UA in disconnected state.');
         break;
 
       case _DlState.awaitingConnection:
@@ -1870,7 +1882,7 @@ class AX25Session {
           _rc = 0;
           _enterNewState(_DlState.connected);
         } else {
-          _onErrorEvent('AX.25 Protocol Error D: UA received without F=1.');
+          _onProtocolError('AX.25 Protocol Error D: UA received without F=1.');
         }
         break;
 
@@ -1880,13 +1892,13 @@ class AX25Session {
           _enterNewState(_DlState.disconnected);
           _dlConnectionTerminated();
         } else {
-          _onErrorEvent('AX.25 Protocol Error D: UA received without F=1.');
+          _onProtocolError('AX.25 Protocol Error D: UA received without F=1.');
         }
         break;
 
       case _DlState.connected:
       case _DlState.timerRecovery:
-        _onErrorEvent('AX.25 Protocol Error C: Unexpected UA while connected.');
+        _onProtocolError('AX.25 Protocol Error C: Unexpected UA while connected.');
         _establishDataLink();
         _layer3Initiated = false;
         _enterRecoveryAwaiting();
@@ -1905,7 +1917,7 @@ class AX25Session {
 
       case _DlState.connected:
       case _DlState.timerRecovery:
-        _onErrorEvent('AX.25 Protocol Error K: FRMR not expected while connected.');
+        _onProtocolError('AX.25 Protocol Error K: FRMR not expected while connected.');
         _setVersion20();
         _establishDataLink();
         _layer3Initiated = false;
@@ -1968,10 +1980,10 @@ class AX25Session {
           if (pf) {
             _emitPacket(_uFrame(FrameType.uFrameXid, command: false, pf: true));
           } else {
-            _onErrorEvent('AX.25 Protocol Error MDL-A: XID command without P=1.');
+            _onProtocolError('AX.25 Protocol Error MDL-A: XID command without P=1.');
           }
         } else {
-          _onErrorEvent('AX.25 Protocol Error MDL-B: Unexpected XID response.');
+          _onProtocolError('AX.25 Protocol Error MDL-B: Unexpected XID response.');
         }
         break;
       case 1: // negotiating
@@ -1980,7 +1992,7 @@ class AX25Session {
             _mdlState = 0;
             _stopTm201();
           } else {
-            _onErrorEvent('AX.25 Protocol Error MDL-D: XID response without F=1.');
+            _onProtocolError('AX.25 Protocol Error MDL-D: XID response without F=1.');
           }
         }
         break;

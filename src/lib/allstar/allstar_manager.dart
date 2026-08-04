@@ -170,6 +170,7 @@ class AllStarManager {
         ..onAudio = _onRxAudio
         ..onStateChanged = _onClientState
         ..onConnectedNode = _onConnectedNode
+        ..onText = _onRxText
         ..onDiagnostic = _onDiagnostic;
       _client = client;
       _broker.logInfo(
@@ -347,6 +348,26 @@ class AllStarManager {
   void _onConnectedNode(AllStarNode? node) {
     _currentNode = node;
     _publishConnectedNode(node);
+  }
+
+  /// Surfaces a text message received from the node as an `AllStarChat` event so
+  /// the CommsHandler records it in history and the Comms tab renders it as an
+  /// "AllStarLink" message.
+  void _onRxText(String text) {
+    final String trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+    final String source = _currentNode?.nodeNumber ?? '';
+    _broker.dispatch(
+      deviceId: allStarDeviceId,
+      name: 'AllStarChat',
+      data: <String, Object?>{
+        'text': trimmed,
+        'isReceived': true,
+        'source': source,
+        'time': DateTime.now().millisecondsSinceEpoch,
+      },
+      store: false,
+    );
   }
 
   void _onDiagnostic(String message) {

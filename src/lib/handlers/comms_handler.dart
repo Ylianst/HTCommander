@@ -71,6 +71,7 @@ enum VoiceTextEncodingType {
   aprs,
   ident,
   echolink,
+  allStarLink,
 }
 
 /// Serializes a [VoiceTextEncodingType] to its C#-compatible name (PascalCase).
@@ -96,6 +97,8 @@ String _encodingToString(VoiceTextEncodingType e) {
       return 'Ident';
     case VoiceTextEncodingType.echolink:
       return 'EchoLink';
+    case VoiceTextEncodingType.allStarLink:
+      return 'AllStarLink';
   }
 }
 
@@ -121,6 +124,8 @@ VoiceTextEncodingType _encodingFromString(Object? value) {
       return VoiceTextEncodingType.ident;
     case 'echolink':
       return VoiceTextEncodingType.echolink;
+    case 'allstarlink':
+      return VoiceTextEncodingType.allStarLink;
     case 'voice':
     default:
       return VoiceTextEncodingType.voice;
@@ -430,6 +435,14 @@ class CommsHandler {
       deviceId: echoLinkDeviceId,
       name: 'EchoLinkChat',
       callback: _onEchoLinkChat,
+    );
+
+    // AllStarLink text messages (received), surfaced by the AllStar manager.
+    // Recorded in history so it persists across restarts like other messages.
+    _broker.subscribe(
+      deviceId: allStarDeviceId,
+      name: 'AllStarChat',
+      callback: _onAllStarChat,
     );
 
     // Outgoing Morse-code transmissions from the voice panel across all
@@ -2221,6 +2234,30 @@ class CommsHandler {
       channel: '',
       time: DateTime.now(),
       encoding: VoiceTextEncodingType.echolink,
+      isReceived: data['isReceived'] as bool? ?? true,
+      source: data['source'] as String?,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // AllStarLink text messages
+  // ---------------------------------------------------------------------------
+
+  /// Records an AllStarLink text message (received) in the decoded text history
+  /// so it persists across restarts, and surfaces it to the Comms tab. The
+  /// message is delivered by the AllStar manager from IAX2 text frames; this
+  /// only owns the history entry.
+  void _onAllStarChat(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (data is! Map) return;
+    final text = (data['text'] as String?)?.trim() ?? '';
+    if (text.isEmpty) return;
+    _addDataPacketEntry(
+      deviceId: allStarDeviceId,
+      text: text,
+      channel: '',
+      time: DateTime.now(),
+      encoding: VoiceTextEncodingType.allStarLink,
       isReceived: data['isReceived'] as bool? ?? true,
       source: data['source'] as String?,
     );

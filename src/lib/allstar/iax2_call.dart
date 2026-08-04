@@ -26,6 +26,7 @@ limitations under the License.
 //
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'allstar_audio.dart';
@@ -46,6 +47,10 @@ class Iax2Call {
 
   /// Reports call-state transitions.
   final void Function(Iax2CallState state) onStateChanged;
+
+  /// Optional callback for text messages received from the node (IAX2 TEXT
+  /// frames, e.g. app_rpt node status / connection announcements).
+  final void Function(String text)? onText;
 
   /// Optional human-readable protocol diagnostics (routed to the Debug tab).
   final void Function(String message)? onDiagnostic;
@@ -84,6 +89,7 @@ class Iax2Call {
     this.preferredFormat = Iax2Format.gsm,
     this.onDiagnostic,
     this.onHangupCause,
+    this.onText,
   });
 
   // Timing.
@@ -276,8 +282,11 @@ class Iax2Call {
       _voiceStreamStarted = true;
       _decodeAndEmit(f.subclass, f.payload);
       _sendAck(Iax2Subclass.ack, f.timestamp);
+    } else if (f.frameType == Iax2FrameType.text) {
+      _handleText(f.payload);
+      _sendAck(Iax2Subclass.ack, f.timestamp);
     } else {
-      // Text / other reliable frames: acknowledge and ignore.
+      // Other reliable frames: acknowledge and ignore.
       _sendAck(Iax2Subclass.ack, f.timestamp);
     }
   }
@@ -417,6 +426,20 @@ class Iax2Call {
     }
     final Int16List? pcm = _decoder.decode(payload);
     if (pcm != null && pcm.isNotEmpty) onAudio(pcm);
+  }
+
+  void _handleText(Uint8List payload) {
+    if (payload.isEmpty) return;
+    String text;
+    try {
+      text = utf8.decode(payload, allowMalformed: true);
+    } catch (_) {
+      text = String.fromCharCodes(payload);
+    }
+    // IAX2 text frames may be null-terminated; trim trailing NULs/whitespace.
+    text = text.replaceAll('\u0000', '').trim();
+    if (text.isEmpty) return;
+    onText?.call(text);
   }
 
   /// Sends one 20 ms (160-sample) frame of outbound 8 kHz PCM. Uses a full voice
