@@ -153,7 +153,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
 
     return AlertDialog(
       title: Text(title),
-      contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       content: SizedBox(
         width: 480,
         height: 460,
@@ -242,7 +242,6 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: scheme.outline),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Column(

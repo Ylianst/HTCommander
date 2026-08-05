@@ -18,6 +18,7 @@ import 'dialogs/fm_radio_dialog.dart';
 import 'dialogs/gps_serial_info_dialog.dart';import 'dialogs/import_channels_dialog.dart';
 import 'dialogs/radio_connection_dialog.dart';
 import 'dialogs/radio_info_dialog.dart';
+import 'dialogs/region_storage_dialog.dart';
 import 'dialogs/rename_regions_dialog.dart';
 import 'dialogs/settings_dialog.dart';
 import 'dialogs/trusted_devices_dialog.dart';
@@ -720,6 +721,9 @@ class _MainFormState extends State<MainForm>
   // Whether the currently displayed radio has a built-in FM broadcast receiver.
   bool _supportRadio = false;
   int _currRegion = 0; // Current region index of the currently displayed radio
+  // Whether the currently displayed radio is locked for a usage (e.g. a torrent
+  // transfer or satellite pass). Region programming is blocked while locked.
+  bool _radioLocked = false;
   // Names of the regions offered by the currently displayed radio, indexed by
   // region id. Entries may be null until the radio reports the name.
   List<String?> _regionNames = const [];
@@ -1006,6 +1010,14 @@ class _MainFormState extends State<MainForm>
       deviceId: DataBroker.allDevices,
       name: 'RegionNames',
       callback: _onRegionNamesChanged,
+    );
+
+    // Subscribe to LockState changes so the Regions > Storage item is disabled
+    // while the radio is locked for a usage.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'LockState',
+      callback: _onLockStateChanged,
     );
 
     // Subscribe to software modem mode changes
@@ -1629,6 +1641,16 @@ class _MainFormState extends State<MainForm>
     }
   }
 
+  /// Handle LockState changes for the current radio so the Regions > Storage
+  /// menu item can be disabled while the radio is locked for a usage.
+  void _onLockStateChanged(int deviceId, String name, Object? data) {
+    if (deviceId != _currentRadioDeviceId) return;
+    final locked = data is Map && (data['isLocked'] as bool? ?? false);
+    if (locked != _radioLocked) {
+      setState(() => _radioLocked = locked);
+    }
+  }
+
   /// Select a region on the currently selected radio (mirrors the C#
   /// regionToolStripMenuItem region item click). Dispatches a Region event
   /// which the radio handles by switching to the requested region.
@@ -1772,10 +1794,17 @@ class _MainFormState extends State<MainForm>
       );
       _currRegion =
           (htStatus is Map ? htStatus['currRegion'] as int? : null) ?? 0;
+      final lockState = DataBroker.getValueDynamic(
+        _currentRadioDeviceId,
+        'LockState',
+      );
+      _radioLocked =
+          lockState is Map && (lockState['isLocked'] as bool? ?? false);
     } else {
       _regionCount = 0;
       _supportRadio = false;
       _currRegion = 0;
+      _radioLocked = false;
     }
     if (_currentRadioDeviceId > 0) {
       final regionNames = DataBroker.getValueDynamic(
@@ -2301,6 +2330,10 @@ class _MainFormState extends State<MainForm>
       ),
       const AppMenuDivider(),
       AppMenuAction(label: 'Rename...', onPressed: _onRenameRegions),
+      AppMenuAction(
+        label: 'Storage...',
+        onPressed: _radioLocked ? null : _onRegionStorage,
+      ),
     ];
   }
 
@@ -2319,6 +2352,29 @@ class _MainFormState extends State<MainForm>
       context,
       deviceId: _currentRadioDeviceId,
       regionCount: _regionCount,
+    );
+  }
+
+  /// Opens the Region Storage dialog for the currently selected radio, letting
+  /// the user park entire regions in local storage and swap them back in.
+  void _onRegionStorage() {
+    if (_currentRadioDeviceId <= 0 || _regionCount <= 0) return;
+    if (_radioLocked) return;
+    final info = DataBroker.getValueDynamic(_currentRadioDeviceId, 'Info');
+    final channelCount =
+        (info is Map ? info['channelCount'] as int? : null) ?? 0;
+    if (channelCount <= 0) return;
+    final radioName = _broker.getValue<String>(
+      _currentRadioDeviceId,
+      'FriendlyName',
+      '',
+    );
+    showRegionStorageDialog(
+      context,
+      deviceId: _currentRadioDeviceId,
+      radioName: radioName,
+      regionCount: _regionCount,
+      channelCount: channelCount,
     );
   }
 
@@ -2366,12 +2422,12 @@ class _MainFormState extends State<MainForm>
           if (!_isEchoLink && _hasConnectedRadio) ...[
             AppMenuAction(
               label: l10n.menuDualWatch,
-              onPressed: _onToggleDualWatch,
+              onPressed: _radioLocked ? null : _onToggleDualWatch,
               checked: _dualWatchEnabled,
             ),
             AppMenuAction(
               label: l10n.menuScan,
-              onPressed: _onToggleScan,
+              onPressed: _radioLocked ? null : _onToggleScan,
               checked: _scanEnabled,
             ),
             AppMenuAction(
@@ -2380,10 +2436,13 @@ class _MainFormState extends State<MainForm>
               checked: _gpsEnabled,
             ),
             // Show the Regions submenu when the radio reports regions;
-            // otherwise show a disabled (grayed) entry with no sub-menu.
+            // otherwise show a disabled (grayed) entry with no sub-menu. The
+            // whole submenu is disabled while the radio is locked for a usage,
+            // since region switching/programming is blocked in that state.
             if (_regionCount > 0)
               AppSubmenu(
                 label: l10n.menuRegions,
+                enabled: !_radioLocked,
                 children: _buildRegionMenuItems(),
               )
             else
@@ -2397,7 +2456,7 @@ class _MainFormState extends State<MainForm>
             ),
             AppMenuAction(
               label: l10n.menuFmRadio,
-              onPressed: _supportRadio
+              onPressed: (_supportRadio && !_radioLocked)
                   ? () => showFmRadioDialog(
                       context,
                       deviceId: _currentRadioDeviceId,
@@ -2414,11 +2473,11 @@ class _MainFormState extends State<MainForm>
             const AppMenuDivider(),
             AppMenuAction(
               label: l10n.menuExportChannels,
-              onPressed: _onExportChannels,
+              onPressed: _radioLocked ? null : _onExportChannels,
             ),
             AppMenuAction(
               label: l10n.menuImportChannels,
-              onPressed: _onImportChannels,
+              onPressed: _radioLocked ? null : _onImportChannels,
             ),
           ],
           const AppMenuDivider(hideOnMacOS: true),
