@@ -1266,11 +1266,30 @@ class AX25Session {
 
     // No active link yet.
     if (addrs == null) {
+      // Always acknowledge a DISC with a UA -- even for an outgoing-only
+      // session that has already torn its link down. The UA is the terminating
+      // handshake the disconnecting peer is waiting for; answering every
+      // retransmitted DISC lets that peer finish promptly instead of
+      // retransmitting until it times out (the receiver otherwise answers only
+      // the first DISC before falling silent, so a single lost UA strands the
+      // peer). This is bounded by the peer's own retry limit and a UA is never
+      // harmful.
+      if (type == FrameType.uFrameDisc) {
+        final peer = AX25Address.parse(packet.addresses[1].toString());
+        final us = AX25Address.getAddress(sessionCallsign, sessionStationId);
+        if (peer == null || us == null) return false;
+        addresses = [peer, us];
+        _emitPacket(_uFrame(FrameType.uFrameUa, command: false, pf: pf));
+        addresses = null;
+        return false;
+      }
+
       // Outgoing-only client sessions stop mattering once their link is torn
-      // down. Auto-answering stray frames here is both futile and harmful: the
-      // radio has been unlocked (releasing any per-session modem override), so
-      // a reply would go out on the wrong modem and never reach the peer, while
-      // still trading frames endlessly with a peer that keeps retransmitting.
+      // down. Auto-answering other stray frames here is both futile and
+      // harmful: the radio has been unlocked (releasing any per-session modem
+      // override), so a reply would go out on the wrong modem and never reach
+      // the peer, while still trading frames endlessly with a peer that keeps
+      // retransmitting.
       if (!acceptIncoming) return false;
 
       if (type == FrameType.uFrameSabm || type == FrameType.uFrameSabme) {
@@ -1282,21 +1301,18 @@ class AX25Session {
         _resetLinkVariables();
         _initT1vSrt();
       } else {
-        // Only command frames warrant a response: reply to DISC with UA and to
-        // other commands with DM. Never answer a response frame (DM/UA/FRMR) --
-        // replying to a DM with a DM makes two disconnected stations bounce DM
-        // frames back and forth forever.
+        // Only command frames warrant a response, and a DISC was already
+        // acknowledged above. Reply to other stray commands with DM. Never
+        // answer a response frame (DM/UA/FRMR) -- replying to a DM with a DM
+        // makes two disconnected stations bounce DM frames back and forth
+        // forever.
         if (!cmd) return false;
-        // Respond with DM (or UA to a DISC) using swapped addresses.
+        // Respond with DM using swapped addresses.
         final peer = AX25Address.parse(packet.addresses[1].toString());
         final us = AX25Address.getAddress(sessionCallsign, sessionStationId);
         if (peer == null || us == null) return false;
         addresses = [peer, us];
-        _emitPacket(_uFrame(
-          type == FrameType.uFrameDisc ? FrameType.uFrameUa : FrameType.uFrameDm,
-          command: false,
-          pf: true,
-        ));
+        _emitPacket(_uFrame(FrameType.uFrameDm, command: false, pf: true));
         addresses = null;
         return false;
       }

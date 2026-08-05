@@ -37,6 +37,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/radio/ax25_address.dart';
+import 'package:htcommander/radio/ax25_packet.dart';
 import 'package:htcommander/radio/ax25_session.dart';
 import 'package:htcommander/radio/radio.dart' show TransmitDataFrameData;
 import 'package:htcommander/radio/tnc_data_fragment.dart';
@@ -348,5 +349,62 @@ void main() {
       expect(bridge.droppedFrames, greaterThan(0),
           reason: 'the test should actually have dropped some frames');
     }, timeout: const Timeout(Duration(seconds: 40)));
+
+    test('answers a retransmitted DISC after teardown so the peer can finish',
+        () async {
+      // Regression: an outgoing-only client (acceptIncoming = false) that has
+      // already torn its link down must still acknowledge a DISC with a UA.
+      // Otherwise it answers only the first DISC before falling silent, so a
+      // single lost UA strands the disconnecting peer, which retransmits DISC
+      // until it times out.
+      final client = DataBrokerClient();
+      final emitted = <int>[];
+      client.subscribe(
+        deviceId: DataBroker.allDevices,
+        name: 'TransmitDataFrame',
+        callback: (deviceId, name, data) {
+          if (data is TransmitDataFrameData && data.packet != null) {
+            emitted.add(data.packet!.type);
+          }
+        },
+      );
+
+      // Outgoing-only session with no active link (addresses == null).
+      final s = makeSession(0, 'NODEA');
+      s.acceptIncoming = false;
+      addTearDown(() {
+        s.dispose();
+        client.dispose();
+      });
+
+      // Deliver a DISC command from a peer as if it arrived over the air.
+      final disc = AX25Packet(
+        addresses: [
+          AX25Address.getAddress('NODEA')!, // dest = us
+          AX25Address.getAddress('NODEB')!, // src = peer
+        ],
+        pollFinal: true,
+        command: true,
+        type: FrameType.uFrameDisc,
+      );
+      client.dispatch(
+        deviceId: 0,
+        name: 'UniqueDataFrame',
+        data: TncDataFragment(
+          finalFragment: true,
+          fragmentId: 0,
+          data: disc.toByteArray(),
+          channelId: -1,
+          regionId: -1,
+          incoming: true,
+          radioDeviceId: 0,
+        ),
+        store: false,
+      );
+
+      await waitFor(() => emitted.contains(FrameType.uFrameUa));
+      expect(emitted, contains(FrameType.uFrameUa),
+          reason: 'a torn-down outgoing-only session must still UA a DISC');
+    });
   });
 }
