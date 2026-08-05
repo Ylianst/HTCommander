@@ -3060,10 +3060,15 @@ class _CommsTabState extends State<CommsTab>
   /// Full-width "hold to transmit" button shown at the bottom of the tab when
   /// the PTT transmit mode is selected. Sized to match the Send button.
   Widget _buildPttPanel() {
+    final scheme = Theme.of(context).colorScheme;
     final bool enabled = _canPtt || _pttActive;
+    // Idle-but-ready reuses the softer "error container" red used by the header
+    // Disable button; a real transmission keeps the hard red.
     final Color background = _pttActive
         ? Colors.red
-        : (enabled ? Colors.red.shade400 : Colors.grey.shade400);
+        : (enabled ? scheme.errorContainer : Colors.grey.shade400);
+    final Color foreground =
+        (enabled && !_pttActive) ? scheme.onErrorContainer : Colors.white;
     return Container(
       height: 50,
       color: Theme.of(context).colorScheme.surfaceContainerHigh,
@@ -3097,7 +3102,7 @@ class _CommsTabState extends State<CommsTab>
                   children: [
                     Icon(
                       _pttActive ? Icons.mic : Icons.mic_none,
-                      color: Colors.white,
+                      color: foreground,
                       size: 18,
                     ),
                     const SizedBox(width: 8),
@@ -3105,8 +3110,8 @@ class _CommsTabState extends State<CommsTab>
                       _pttActive
                           ? AppLocalizations.of(context).commsPttTransmitting
                           : AppLocalizations.of(context).commsPttHold,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: foreground,
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
@@ -3317,10 +3322,15 @@ class _CommsTabState extends State<CommsTab>
   }) {
     final scheme = Theme.of(context).colorScheme;
     final bool selected = _morseKeyMode == mode;
+    // The selected "Live" button reuses the softer "error container" red used by
+    // the header Disable button, with matching on-color text.
+    final bool liveSelected = selected && mode == MorseKeyMode.live;
     final Color bg = selected
-        ? (mode == MorseKeyMode.live ? Colors.red : scheme.primary)
+        ? (liveSelected ? scheme.errorContainer : scheme.primary)
         : scheme.surfaceContainerLow;
-    final Color fg = selected ? Colors.white : scheme.onSurface;
+    final Color fg = liveSelected
+        ? scheme.onErrorContainer
+        : (selected ? Colors.white : scheme.onSurface);
     return SizedBox(
       height: 34,
       child: ElevatedButton(
