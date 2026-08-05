@@ -43,9 +43,9 @@ class DartIoIax2Network implements Iax2Network {
   Stream<Iax2Datagram> get datagramsIn => _in.stream;
 
   @override
-  Future<void> open() async {
+  Future<void> open({int bindPort = 0}) async {
     final RawDatagramSocket sock =
-        await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+        await RawDatagramSocket.bind(InternetAddress.anyIPv4, bindPort);
     _sock = sock;
     _sub = sock.listen(_onEvent);
   }

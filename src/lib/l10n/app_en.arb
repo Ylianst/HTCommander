@@ -467,8 +467,25 @@
   "settingsAllStarAuthMode": "Authentication",
   "settingsAllStarAuthModeAccount": "Account (WT)",
   "settingsAllStarAuthModeNode": "Node Credentials",
-  "settingsTabServers": "Servers",
-  "settingsTabMap": "Map",
+  "settingsAllStarHostTitle": "Host a Node",
+  "settingsAllStarHostIntro": "Relay audio between a radio and the AllStarLink network. Get a node number and password from allstarlink.org, then lock a radio to AllStarLink in the Comms tab.",
+  "settingsAllStarHostPassword": "Node Password",
+  "settingsAllStarHostPort": "IAX Port",
+  "settingsAllStarHostRegistration": "Registration",
+  "settingsAllStarHostRegIax": "AllStarLink (IAX)",
+  "settingsAllStarHostRegHttp": "AllStarLink (HTTP)",
+  "settingsAllStarHostRegNone": "None (private)",
+  "settingsAllStarHostAllowWt": "Allow Web Transceiver connections",
+  "settingsAllStarHostAllowWtHint": "Let people using the AllStarLink public Web Transceiver client connect to your node. Each caller's portal token is verified with AllStarLink.",
+  "settingsAllStarHostNote": "Hosting requires forwarding UDP {port} to this computer. As the control operator you are responsible for all audio relayed to RF.",
+  "@settingsAllStarHostNote": {
+    "placeholders": {
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsTabServers": "Servers",  "settingsTabMap": "Map",
   "settingsTabLimits": "Limits",
   "settingsTabApplication": "Application",
   "@settingsTabLimits": {
@@ -1622,10 +1639,29 @@
   "commsAudioMuted": "Audio is muted.",
   "commsUnmute": "Un-mute",
   "commsDeemphasisWarning": "VFO A channel de-emphasis is on and will degrade data transfers.",
-  "commsPttTransmitting": "Transmitting...",
+  "commsPttTransmitting": "Transmitting",
   "commsPttHold": "PTT - Hold to Transmit",
   "commsDtmfHint": "Enter DTMF digits (0-9, *, #)...",
   "commsChannelInfo": "Channel Information",
+  "commsAllStarNodeTitle": "AllStarLink Node",
+  "commsAllStarNodeStart": "Start Node",
+  "commsAllStarNodeNotConfigured": "Set your AllStarLink node number and password in Settings \u2192 AllStarLink before hosting a node.",
+  "commsAllStarNodeControlOpNotice": "Host AllStarLink node {node}? This radio will relay all network audio to RF. You are the control operator and are responsible for all transmissions.",
+  "@commsAllStarNodeControlOpNotice": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "commsAllStarNodeHosting": "Hosting AllStarLink node ({count} linked)",
+  "@commsAllStarNodeHosting": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
 
   "mailComposeNewTitle": "New Message",
   "mailComposeEditTitle": "Edit Message",

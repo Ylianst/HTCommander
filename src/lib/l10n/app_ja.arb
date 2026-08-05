@@ -820,7 +820,7 @@
   "commsAudioMuted": "オーディオはミュートされています。",
   "commsUnmute": "ミュート解除",
   "commsDeemphasisWarning": "VFO A チャンネルのディエンファシスがオンになっており、データ転送を劣化させます。",
-  "commsPttTransmitting": "送信中...",
+  "commsPttTransmitting": "送信中",
   "commsPttHold": "PTT - 押している間送信",
   "commsDtmfHint": "DTMF 数字を入力（0-9、*、#）...",
   "commsChannelInfo": "チャンネル情報",

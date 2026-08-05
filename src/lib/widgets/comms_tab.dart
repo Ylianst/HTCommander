@@ -35,6 +35,11 @@ import '../radio/radio_models.dart' as radio;
 import '../utils/channel_share.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../allstar/allstar_client.dart' show allStarDeviceId;
+import '../allstar/allstar_node.dart'
+    show
+        allStarNodeDeviceId,
+        allStarNodeNumberKey,
+        allStarNodePasswordKey;
 
 /// Voice transmit mode
 enum VoiceTransmitMode { chat, speak, morse, dtmf, ptt, morseKey, none }
@@ -89,6 +94,10 @@ class _CommsTabState extends State<CommsTab>
   /// in the Radio Panel is locked to another usage (BBS, Terminal, Winlink,
   /// Torrent, ...) the Comms tab must not transmit.
   final Map<int, RadioLockState> _lockStates = {};
+
+  // AllStarLink node hosting (device 203) state, reflected in the header.
+  String _allStarNodeState = 'Stopped';
+  int _allStarNodePeerCount = 0;
 
   VoiceTransmitMode _currentMode = VoiceTransmitMode.chat;
   bool _audioEnabled = false;
@@ -279,6 +288,17 @@ class _CommsTabState extends State<CommsTab>
       deviceId: allStarDeviceId,
       name: 'State',
       callback: _onAllStarStateChanged,
+    );
+    // AllStarLink node hosting state (device 203) for the header control.
+    _broker.subscribe(
+      deviceId: allStarNodeDeviceId,
+      name: 'State',
+      callback: _onAllStarNodeStateChanged,
+    );
+    _broker.subscribe(
+      deviceId: allStarNodeDeviceId,
+      name: 'PeerCount',
+      callback: _onAllStarNodePeerCountChanged,
     );
     _broker.subscribe(
       deviceId: 1,
@@ -815,6 +835,83 @@ class _CommsTabState extends State<CommsTab>
         Map<String, dynamic>.from(data),
       );
     });
+  }
+
+  void _onAllStarNodeStateChanged(int deviceId, String name, Object? data) {
+    if (data is! String || !mounted) return;
+    setState(() => _allStarNodeState = data);
+  }
+
+  void _onAllStarNodePeerCountChanged(int deviceId, String name, Object? data) {
+    if (data is! int || !mounted) return;
+    setState(() => _allStarNodePeerCount = data);
+  }
+
+  /// Whether HTCommander is currently hosting an AllStarLink node.
+  bool get _allStarNodeHosting => _allStarNodeState == 'Hosting';
+
+  /// Whether the current radio is a physical, connected radio that can host a
+  /// node (excludes EchoLink / AllStar / APRS-IS internet pseudo-radios).
+  bool get _canHostAllStarNode {
+    if (_currentRadioDeviceId <= 0) return false;
+    return _radioIds(DataBroker.getValueDynamic(1, 'ConnectedRadios'))
+        .contains(_currentRadioDeviceId);
+  }
+
+  Future<void> _toggleAllStarNode() async {
+    final l10n = AppLocalizations.of(context);
+    if (_allStarNodeHosting) {
+      _broker.dispatch(
+          deviceId: allStarNodeDeviceId,
+          name: 'AllStarNodeStop',
+          data: null,
+          store: false);
+      return;
+    }
+    final String node =
+        (_broker.getValue<String>(0, allStarNodeNumberKey, '') ?? '').trim();
+    final String pass =
+        _broker.getValue<String>(0, allStarNodePasswordKey, '') ?? '';
+    if (node.isEmpty || pass.isEmpty) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(l10n.commsAllStarNodeTitle),
+          content: Text(l10n.commsAllStarNodeNotConfigured),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.commonOk),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    final bool? go = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.commsAllStarNodeTitle),
+        content: Text(l10n.commsAllStarNodeControlOpNotice(node)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.commsAllStarNodeStart),
+          ),
+        ],
+      ),
+    );
+    if (go != true) return;
+    _broker.dispatch(
+      deviceId: allStarNodeDeviceId,
+      name: 'AllStarNodeStart',
+      data: <String, Object?>{'radioDeviceId': _currentRadioDeviceId},
+      store: false,
+    );
   }
 
   /// Seeds the current lock state for every connected radio from the broker, so
@@ -2725,6 +2822,7 @@ class _CommsTabState extends State<CommsTab>
               !_isTransmitting)
             _buildInputPanel(),
           if (_isTransmitting &&
+              _currentMode != VoiceTransmitMode.ptt &&
               _currentMode != VoiceTransmitMode.morseKey &&
               _currentMode != VoiceTransmitMode.none)
             _buildCancelPanel(),
@@ -2843,6 +2941,24 @@ class _CommsTabState extends State<CommsTab>
                   ),
                 ),
               const Spacer(),
+              if (_canHostAllStarNode || _allStarNodeHosting)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  tooltip: _allStarNodeHosting
+                      ? AppLocalizations.of(context)
+                          .commsAllStarNodeHosting(_allStarNodePeerCount)
+                      : AppLocalizations.of(context).commsAllStarNodeTitle,
+                  icon: Icon(
+                    Icons.cell_tower,
+                    size: 20,
+                    color: _allStarNodeHosting
+                        ? Colors.red.shade400
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  onPressed: _toggleAllStarNode,
+                ),
               if (_hasEchoLinkChannelInfo)
                 IconButton(
                   visualDensity: VisualDensity.compact,

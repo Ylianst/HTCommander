@@ -467,6 +467,43 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsAllStarAuthModeNode => 'ノード認証情報';
 
   @override
+  String get settingsAllStarHostTitle => 'Host a Node';
+
+  @override
+  String get settingsAllStarHostIntro =>
+      'Relay audio between a radio and the AllStarLink network. Get a node number and password from allstarlink.org, then lock a radio to AllStarLink in the Comms tab.';
+
+  @override
+  String get settingsAllStarHostPassword => 'Node Password';
+
+  @override
+  String get settingsAllStarHostPort => 'IAX Port';
+
+  @override
+  String get settingsAllStarHostRegistration => 'Registration';
+
+  @override
+  String get settingsAllStarHostRegIax => 'AllStarLink (IAX)';
+
+  @override
+  String get settingsAllStarHostRegHttp => 'AllStarLink (HTTP)';
+
+  @override
+  String get settingsAllStarHostRegNone => 'None (private)';
+
+  @override
+  String get settingsAllStarHostAllowWt => 'Allow Web Transceiver connections';
+
+  @override
+  String get settingsAllStarHostAllowWtHint =>
+      'Let people using the AllStarLink public Web Transceiver client connect to your node. Each caller\'s portal token is verified with AllStarLink.';
+
+  @override
+  String settingsAllStarHostNote(int port) {
+    return 'Hosting requires forwarding UDP $port to this computer. As the control operator you are responsible for all audio relayed to RF.';
+  }
+
+  @override
   String get settingsTabServers => 'サーバー';
 
   @override
@@ -2578,7 +2615,7 @@ class AppLocalizationsJa extends AppLocalizations {
       'VFO A チャンネルのディエンファシスがオンになっており、データ転送を劣化させます。';
 
   @override
-  String get commsPttTransmitting => '送信中...';
+  String get commsPttTransmitting => '送信中';
 
   @override
   String get commsPttHold => 'PTT - 押している間送信';
@@ -2588,6 +2625,26 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get commsChannelInfo => 'チャンネル情報';
+
+  @override
+  String get commsAllStarNodeTitle => 'AllStarLink Node';
+
+  @override
+  String get commsAllStarNodeStart => 'Start Node';
+
+  @override
+  String get commsAllStarNodeNotConfigured =>
+      'Set your AllStarLink node number and password in Settings → AllStarLink before hosting a node.';
+
+  @override
+  String commsAllStarNodeControlOpNotice(String node) {
+    return 'Host AllStarLink node $node? This radio will relay all network audio to RF. You are the control operator and are responsible for all transmissions.';
+  }
+
+  @override
+  String commsAllStarNodeHosting(int count) {
+    return 'Hosting AllStarLink node ($count linked)';
+  }
 
   @override
   String get mailComposeNewTitle => '新規メッセージ';

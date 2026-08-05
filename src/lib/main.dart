@@ -49,6 +49,8 @@ import 'aprsis/aprsis_manager_stub.dart'
 // web so the IAX2 internet-radio glue is never compiled for the browser.
 import 'allstar/allstar_manager_stub.dart'
     if (dart.library.io) 'allstar/allstar_manager.dart';
+import 'handlers/allstar_node_handler_stub.dart'
+    if (dart.library.io) 'handlers/allstar_node_handler.dart';
 import 'radio/radio_transport.dart';
 // The soft-modem relies on an audio channel, which the web build does not have.
 // Use a no-op stub on web so the hamlib DSP code is never compiled for web.
@@ -233,6 +235,13 @@ void main(List<String> args) async {
   final allStarManager = AllStarManager();
   allStarManager.init();
   DataBroker.addDataHandler('AllStarManager', allStarManager);
+
+  // Register the AllStarLink node handler so HTCommander can host a node
+  // (device 203): bind an inbound IAX2 server, register with AllStarLink and
+  // relay audio between a locked radio and linked network peers. No-op on web.
+  final allStarNodeHandler = AllStarNodeHandler();
+  allStarNodeHandler.init();
+  DataBroker.addDataHandler('AllStarNodeHandler', allStarNodeHandler);
 
   // Register the APRS-IS manager so the internet-only APRS-IS IGate (device
   // 201) can connect to an APRS-IS server, gate RF packets to the internet and

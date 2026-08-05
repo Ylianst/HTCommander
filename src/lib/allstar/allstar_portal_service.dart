@@ -105,6 +105,28 @@ class AllStarPortalService {
         success: success, token: token, message: message);
   }
 
+  /// Verifies an AllStarLink Web Transceiver token against the portal, the same
+  /// way a node's `[allstar-public]` dialplan does: it GETs authwebphone.pl with
+  /// the token (which a WT client presents as the IAX2 CallerID name). The node
+  /// rejects the call only when the reply begins with '?'. This mirrors that
+  /// behaviour, including its fail-open stance: an empty token is rejected, but a
+  /// network/HTTP error lets the call through (returns true) rather than locking
+  /// out legitimate users during a portal outage.
+  Future<bool> verifyWebTransceiverToken(String token) async {
+    final String t = token.trim();
+    if (t.isEmpty) return false;
+    http.Response resp;
+    try {
+      final Uri uri = Uri.parse(
+          'https://register.allstarlink.org/cgi-bin/authwebphone.pl?$t');
+      resp = await _client.get(uri).timeout(const Duration(seconds: 15));
+    } catch (_) {
+      return true; // Fail open, matching the node dialplan.
+    }
+    if (resp.statusCode != 200) return true;
+    return !resp.body.trimLeft().startsWith('?');
+  }
+
   /// Releases the underlying HTTP client if this service created it.
   void dispose() {
     if (_ownsClient) _client.close();

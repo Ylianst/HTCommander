@@ -45,6 +45,74 @@ const String allStarPasswordKey = 'AllStarPassword';
 /// connecting with account (Web Transceiver) authentication.
 const String allStarNodeDnsSuffix = '.nodes.allstarlink.org';
 
+// --- Node hosting (act as an AllStarLink node that relays radio <-> internet).
+
+/// DataBroker key (device 0, persisted) holding the operator's AllStarLink node
+/// number used when HOSTING a node (registers + accepts inbound IAX2 links).
+const String allStarNodeNumberKey = 'AllStarNodeNumber';
+
+/// DataBroker key (device 0, persisted) holding the node password (the shared
+/// IAX2 secret for registration and inbound MD5 authentication).
+const String allStarNodePasswordKey = 'AllStarNodePassword';
+
+/// DataBroker key (device 0, persisted) recording whether node hosting was
+/// enabled when the app last closed, for auto-start on the next launch.
+const String allStarHostEnabledKey = 'AllStarHostEnabled';
+
+/// DataBroker key (device 0, persisted) holding the local UDP port the node
+/// binds for inbound IAX2 links (default 4569).
+const String allStarBindPortKey = 'AllStarBindPort';
+
+/// DataBroker key (device 0, persisted) selecting how the node registers with
+/// AllStarLink: 'iax' (REGREQ), 'http', or 'none' (private / manual DNS).
+const String allStarRegMethodKey = 'AllStarRegMethod';
+
+/// DataBroker key (device 0, persisted) allowing anyone using the AllStarLink
+/// public Web Transceiver client to connect to the hosted node.
+const String allStarAllowWtKey = 'AllStarAllowWt';
+
+/// Host name of the AllStarLink registration server.
+const String allStarRegistrationServer = 'register.allstarlink.org';
+
+/// Pseudo-device id carrying node-hosting control + state (distinct from the
+/// outbound AllStarLink client on device 202).
+const int allStarNodeDeviceId = 203;
+
+/// How a hosted node registers its address with the AllStarLink network.
+enum AllStarRegMethod {
+  /// IAX2 REGREQ/REGAUTH/REGACK to [allStarRegistrationServer].
+  iax,
+
+  /// HTTP registration (ASL3 default). Not yet implemented.
+  http,
+
+  /// No registration (private node reachable only by direct IP/DNS).
+  none,
+}
+
+AllStarRegMethod allStarRegMethodFromString(String? s) {
+  switch (s) {
+    case 'http':
+      return AllStarRegMethod.http;
+    case 'none':
+      return AllStarRegMethod.none;
+    case 'iax':
+    default:
+      return AllStarRegMethod.iax;
+  }
+}
+
+String allStarRegMethodToString(AllStarRegMethod m) {
+  switch (m) {
+    case AllStarRegMethod.http:
+      return 'http';
+    case AllStarRegMethod.none:
+      return 'none';
+    case AllStarRegMethod.iax:
+      return 'iax';
+  }
+}
+
 /// How a saved node authenticates to AllStarLink.
 enum AllStarAuthMode {
   /// Per-node IAX2 username + secret from the node's iax.conf (iaxRPT style).

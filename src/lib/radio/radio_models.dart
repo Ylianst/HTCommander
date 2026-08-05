@@ -1052,6 +1052,10 @@ const Set<String> kSatelliteLockUsages = {
   kAprsSatLockUsage,
 };
 
+/// Lock usage for hosting an AllStarLink node: the radio is dedicated to
+/// relaying audio between RF and the AllStarLink network.
+const String kAllStarNodeLockUsage = 'AllStarLink';
+
 /// Channel id to transmit on while locked in a satellite usage. The radio is in
 /// frequency (VFO) mode—steered by FREQ_MODE_SET_PAR—rather than on a stored
 /// channel, and it reports/uses this VFO as channel 254. Transmitting on 254

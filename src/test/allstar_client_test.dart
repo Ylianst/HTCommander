@@ -40,7 +40,7 @@ class FakeIax2Network implements Iax2Network {
   bool opened = false;
 
   @override
-  Future<void> open() async {
+  Future<void> open({int bindPort = 0}) async {
     opened = true;
   }
 

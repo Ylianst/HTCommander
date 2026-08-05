@@ -820,7 +820,7 @@
   "commsAudioMuted": "Dźwięk jest wyciszony.",
   "commsUnmute": "Wyłącz wyciszenie",
   "commsDeemphasisWarning": "Deemfaza kanału VFO A jest włączona i pogorszy transfery danych.",
-  "commsPttTransmitting": "Trwa transmisja...",
+  "commsPttTransmitting": "Trwa transmisja",
   "commsPttHold": "PTT - Przytrzymaj, aby nadawać",
   "commsDtmfHint": "Wprowadź cyfry DTMF (0-9, *, #)...",
   "commsChannelInfo": "Informacje o kanale",

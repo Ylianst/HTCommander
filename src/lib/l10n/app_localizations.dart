@@ -974,6 +974,72 @@ abstract class AppLocalizations {
   /// **'Node Credentials'**
   String get settingsAllStarAuthModeNode;
 
+  /// No description provided for @settingsAllStarHostTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Host a Node'**
+  String get settingsAllStarHostTitle;
+
+  /// No description provided for @settingsAllStarHostIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay audio between a radio and the AllStarLink network. Get a node number and password from allstarlink.org, then lock a radio to AllStarLink in the Comms tab.'**
+  String get settingsAllStarHostIntro;
+
+  /// No description provided for @settingsAllStarHostPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Node Password'**
+  String get settingsAllStarHostPassword;
+
+  /// No description provided for @settingsAllStarHostPort.
+  ///
+  /// In en, this message translates to:
+  /// **'IAX Port'**
+  String get settingsAllStarHostPort;
+
+  /// No description provided for @settingsAllStarHostRegistration.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration'**
+  String get settingsAllStarHostRegistration;
+
+  /// No description provided for @settingsAllStarHostRegIax.
+  ///
+  /// In en, this message translates to:
+  /// **'AllStarLink (IAX)'**
+  String get settingsAllStarHostRegIax;
+
+  /// No description provided for @settingsAllStarHostRegHttp.
+  ///
+  /// In en, this message translates to:
+  /// **'AllStarLink (HTTP)'**
+  String get settingsAllStarHostRegHttp;
+
+  /// No description provided for @settingsAllStarHostRegNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None (private)'**
+  String get settingsAllStarHostRegNone;
+
+  /// No description provided for @settingsAllStarHostAllowWt.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Web Transceiver connections'**
+  String get settingsAllStarHostAllowWt;
+
+  /// No description provided for @settingsAllStarHostAllowWtHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Let people using the AllStarLink public Web Transceiver client connect to your node. Each caller\'s portal token is verified with AllStarLink.'**
+  String get settingsAllStarHostAllowWtHint;
+
+  /// No description provided for @settingsAllStarHostNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Hosting requires forwarding UDP {port} to this computer. As the control operator you are responsible for all audio relayed to RF.'**
+  String settingsAllStarHostNote(int port);
+
   /// No description provided for @settingsTabServers.
   ///
   /// In en, this message translates to:
@@ -4811,7 +4877,7 @@ abstract class AppLocalizations {
   /// No description provided for @commsPttTransmitting.
   ///
   /// In en, this message translates to:
-  /// **'Transmitting...'**
+  /// **'Transmitting'**
   String get commsPttTransmitting;
 
   /// No description provided for @commsPttHold.
@@ -4831,6 +4897,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Channel Information'**
   String get commsChannelInfo;
+
+  /// No description provided for @commsAllStarNodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AllStarLink Node'**
+  String get commsAllStarNodeTitle;
+
+  /// No description provided for @commsAllStarNodeStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Node'**
+  String get commsAllStarNodeStart;
+
+  /// No description provided for @commsAllStarNodeNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Set your AllStarLink node number and password in Settings → AllStarLink before hosting a node.'**
+  String get commsAllStarNodeNotConfigured;
+
+  /// No description provided for @commsAllStarNodeControlOpNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Host AllStarLink node {node}? This radio will relay all network audio to RF. You are the control operator and are responsible for all transmissions.'**
+  String commsAllStarNodeControlOpNotice(String node);
+
+  /// No description provided for @commsAllStarNodeHosting.
+  ///
+  /// In en, this message translates to:
+  /// **'Hosting AllStarLink node ({count} linked)'**
+  String commsAllStarNodeHosting(int count);
 
   /// No description provided for @mailComposeNewTitle.
   ///

@@ -167,6 +167,15 @@ Bringing internet-linked voice into the same app that drives the radio.
    timestamp-resync trick, why we connect client-to-node (DVSwitch/iaxRPT style),
    and how to configure a node and make your first call.
 
+4. **[Becoming the Node: Hosting an AllStarLink Node in HTCommander](allstarlink-node-support.md)**
+   The other direction — turning HTCommander into a **node** others dial *into*.
+   Running the inbound IAX2 server (the handshake in reverse), sharing one socket
+   between calls and registration by call-number range, IAX2 registration so the
+   network can find you, and the radio relay: bridging 8 kHz call audio to a
+   handheld's PTT with half-duplex carrier arbitration so local RF always wins.
+   Plus accepting **Web Transceiver** clients safely by validating their portal
+   token the way a real `app_rpt` node does.
+
 ---
 
 ## Voice & CW

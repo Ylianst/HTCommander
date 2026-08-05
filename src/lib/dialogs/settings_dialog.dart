@@ -11,6 +11,7 @@ import '../aprs/aprs_util.dart';
 import '../aprs/weather_data.dart';
 import '../allstar/allstar_node.dart';
 import '../allstar/allstar_portal_service.dart';
+import '../allstar/iax2_constants.dart' show iax2DefaultPort;
 import '../echolink/echolink_credential_test.dart';
 import '../services/serial/serial_port.dart';
 import '../services/data_broker.dart';
@@ -536,6 +537,11 @@ class _SettingsDialogState extends State<SettingsDialog>
   late TextEditingController _echoLinkPasswordController;
   late TextEditingController _echoLinkLocationController;
   late TextEditingController _allStarPasswordController;
+  late TextEditingController _allStarNodeNumberController;
+  late TextEditingController _allStarNodePasswordController;
+  late TextEditingController _allStarBindPortController;
+  AllStarRegMethod _allStarRegMethod = AllStarRegMethod.iax;
+  bool _allStarAllowWt = false;
   late TextEditingController _aprsIsServerController;
   late TextEditingController _aprsIsPortController;
   late TextEditingController _aprsIsPasscodeController;
@@ -692,6 +698,20 @@ class _SettingsDialogState extends State<SettingsDialog>
     _allStarPasswordController = TextEditingController(
       text: _broker.getValue<String>(0, allStarPasswordKey, '') ?? '',
     );
+    _allStarNodeNumberController = TextEditingController(
+      text: _broker.getValue<String>(0, allStarNodeNumberKey, '') ?? '',
+    );
+    _allStarNodePasswordController = TextEditingController(
+      text: _broker.getValue<String>(0, allStarNodePasswordKey, '') ?? '',
+    );
+    _allStarBindPortController = TextEditingController(
+      text: (_broker.getValue<int>(0, allStarBindPortKey, iax2DefaultPort) ??
+              iax2DefaultPort)
+          .toString(),
+    );
+    _allStarRegMethod = allStarRegMethodFromString(
+        _broker.getValue<String>(0, allStarRegMethodKey, 'iax'));
+    _allStarAllowWt = _broker.getValue<bool>(0, allStarAllowWtKey, false) ?? false;
     _aprsIsServerController = TextEditingController(
       text: _settings.aprsIsServer,
     );
@@ -783,6 +803,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     _echoLinkPasswordController.dispose();
     _echoLinkLocationController.dispose();
     _allStarPasswordController.dispose();
+    _allStarNodeNumberController.dispose();
+    _allStarNodePasswordController.dispose();
+    _allStarBindPortController.dispose();
     _aprsIsServerController.dispose();
     _aprsIsPortController.dispose();
     _aprsIsPasscodeController.dispose();
@@ -1189,6 +1212,33 @@ class _SettingsDialogState extends State<SettingsDialog>
 
     // Save all settings to DataBroker (persisted to SharedPreferences)
     _settings.saveToDataBroker();
+
+    // Persist AllStarLink node-hosting configuration (device 0).
+    _broker.dispatch(
+        deviceId: 0,
+        name: allStarNodeNumberKey,
+        data: _allStarNodeNumberController.text.trim(),
+        store: true);
+    _broker.dispatch(
+        deviceId: 0,
+        name: allStarNodePasswordKey,
+        data: _allStarNodePasswordController.text,
+        store: true);
+    _broker.dispatch(
+        deviceId: 0,
+        name: allStarBindPortKey,
+        data: int.tryParse(_allStarBindPortController.text) ?? iax2DefaultPort,
+        store: true);
+    _broker.dispatch(
+        deviceId: 0,
+        name: allStarRegMethodKey,
+        data: allStarRegMethodToString(_allStarRegMethod),
+        store: true);
+    _broker.dispatch(
+        deviceId: 0,
+        name: allStarAllowWtKey,
+        data: _allStarAllowWt,
+        store: true);
 
     // Apply the selected application language (persists and rebuilds the app).
     LocaleController.instance.setLanguage(_settings.language);
@@ -2866,6 +2916,116 @@ class _SettingsDialogState extends State<SettingsDialog>
                 ],
               ],
             ),
+          ),
+          const SizedBox(height: 16),
+          _buildAllStarHostCard(l10n),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAllStarHostCard(AppLocalizations l10n) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _sectionDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.settingsAllStarHostTitle, style: _sectionTitleStyle()),
+          const SizedBox(height: 8),
+          Text(l10n.settingsAllStarHostIntro, style: _secondaryStyle()),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.settingsAllStarNodeNumber,
+                        style: DialogStyles.labelStyle),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: _allStarNodeNumberController,
+                      keyboardType: TextInputType.number,
+                      decoration: _inputDecoration(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 96,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.settingsAllStarHostPort,
+                        style: DialogStyles.labelStyle),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: _allStarBindPortController,
+                      keyboardType: TextInputType.number,
+                      decoration: _inputDecoration(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(l10n.settingsAllStarHostPassword, style: DialogStyles.labelStyle),
+          const SizedBox(height: 4),
+          TextField(
+            controller: _allStarNodePasswordController,
+            obscureText: true,
+            decoration: _inputDecoration(),
+          ),
+          const SizedBox(height: 12),
+          Text(l10n.settingsAllStarHostRegistration,
+              style: DialogStyles.labelStyle),
+          const SizedBox(height: 4),
+          DropdownButtonFormField<AllStarRegMethod>(
+            initialValue: _allStarRegMethod,
+            decoration: _inputDecoration(),
+            items: [
+              DropdownMenuItem(
+                value: AllStarRegMethod.iax,
+                child: Text(l10n.settingsAllStarHostRegIax),
+              ),
+              DropdownMenuItem(
+                value: AllStarRegMethod.http,
+                child: Text(l10n.settingsAllStarHostRegHttp),
+              ),
+              DropdownMenuItem(
+                value: AllStarRegMethod.none,
+                child: Text(l10n.settingsAllStarHostRegNone),
+              ),
+            ],
+            onChanged: (v) {
+              if (v != null) setState(() => _allStarRegMethod = v);
+            },
+          ),
+          const SizedBox(height: 4),
+          // Transparent Material so the SwitchListTile can paint its ink
+          // splashes without being hidden by the card's decorated background.
+          Material(
+            color: Colors.transparent,
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l10n.settingsAllStarHostAllowWt,
+                  style: DialogStyles.labelStyle),
+              subtitle: Text(l10n.settingsAllStarHostAllowWtHint,
+                  style: _secondaryStyle()),
+              value: _allStarAllowWt,
+              onChanged: (v) => setState(() => _allStarAllowWt = v),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            l10n.settingsAllStarHostNote(
+                int.tryParse(_allStarBindPortController.text) ??
+                    iax2DefaultPort),
+            style: _secondaryStyle(),
           ),
         ],
       ),

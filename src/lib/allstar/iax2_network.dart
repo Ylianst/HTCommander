@@ -34,8 +34,10 @@ class Iax2Datagram {
 
 /// Single-socket UDP transport for IAX2.
 abstract class Iax2Network {
-  /// Binds the UDP socket. Must be called before sending/receiving.
-  Future<void> open();
+  /// Binds the UDP socket. Must be called before sending/receiving. When
+  /// [bindPort] is non-zero the socket binds that fixed local port (server /
+  /// node mode); 0 uses an ephemeral port (outbound client mode).
+  Future<void> open({int bindPort = 0});
 
   /// Datagrams received on the socket.
   Stream<Iax2Datagram> get datagramsIn;

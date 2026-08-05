@@ -820,7 +820,7 @@
   "commsAudioMuted": "ऑडियो म्यूट है।",
   "commsUnmute": "अनम्यूट",
   "commsDeemphasisWarning": "VFO A चैनल डी-एम्फेसिस चालू है और डेटा ट्रांसफर को खराब करेगा।",
-  "commsPttTransmitting": "ट्रांसमिट हो रहा है...",
+  "commsPttTransmitting": "ट्रांसमिट हो रहा है",
   "commsPttHold": "PTT - ट्रांसमिट करने के लिए दबाए रखें",
   "commsDtmfHint": "DTMF अंक दर्ज करें (0-9, *, #)...",
   "commsChannelInfo": "चैनल जानकारी",
