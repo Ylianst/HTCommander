@@ -470,20 +470,20 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsAllStarAuthModeNode => 'Identifiants du nœud';
 
   @override
-  String get settingsAllStarHostTitle => 'Host a Node';
+  String get settingsAllStarHostTitle => 'Héberger un nœud';
 
   @override
   String get settingsAllStarHostIntro =>
-      'Relay audio between a radio and the AllStarLink network. Get a node number and password from allstarlink.org, then lock a radio to AllStarLink in the Comms tab.';
+      'Relaie l\'audio entre une radio et le réseau AllStarLink. Obtenez un numéro de nœud et un mot de passe sur allstarlink.org, puis verrouillez une radio sur AllStarLink dans l\'onglet Comms.';
 
   @override
-  String get settingsAllStarHostPassword => 'Node Password';
+  String get settingsAllStarHostPassword => 'Mot de passe du nœud';
 
   @override
-  String get settingsAllStarHostPort => 'IAX Port';
+  String get settingsAllStarHostPort => 'Port IAX';
 
   @override
-  String get settingsAllStarHostRegistration => 'Registration';
+  String get settingsAllStarHostRegistration => 'Enregistrement';
 
   @override
   String get settingsAllStarHostRegIax => 'AllStarLink (IAX)';
@@ -492,18 +492,19 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsAllStarHostRegHttp => 'AllStarLink (HTTP)';
 
   @override
-  String get settingsAllStarHostRegNone => 'None (private)';
+  String get settingsAllStarHostRegNone => 'Aucun (privé)';
 
   @override
-  String get settingsAllStarHostAllowWt => 'Allow Web Transceiver connections';
+  String get settingsAllStarHostAllowWt =>
+      'Autoriser les connexions Web Transceiver';
 
   @override
   String get settingsAllStarHostAllowWtHint =>
-      'Let people using the AllStarLink public Web Transceiver client connect to your node. Each caller\'s portal token is verified with AllStarLink.';
+      'Permet aux personnes utilisant le client public Web Transceiver d\'AllStarLink de se connecter à votre nœud. Le jeton de portail de chaque appelant est vérifié auprès d\'AllStarLink.';
 
   @override
   String settingsAllStarHostNote(int port) {
-    return 'Hosting requires forwarding UDP $port to this computer. As the control operator you are responsible for all audio relayed to RF.';
+    return 'L\'hébergement nécessite de rediriger le port UDP $port vers cet ordinateur. En tant qu\'opérateur de contrôle, vous êtes responsable de tout l\'audio relayé en RF.';
   }
 
   @override
@@ -2693,23 +2694,23 @@ class AppLocalizationsFr extends AppLocalizations {
   String get commsChannelInfo => 'Informations sur le canal';
 
   @override
-  String get commsAllStarNodeTitle => 'AllStarLink Node';
+  String get commsAllStarNodeTitle => 'Nœud AllStarLink';
 
   @override
-  String get commsAllStarNodeStart => 'Start Node';
+  String get commsAllStarNodeStart => 'Démarrer le nœud';
 
   @override
   String get commsAllStarNodeNotConfigured =>
-      'Set your AllStarLink node number and password in Settings → AllStarLink before hosting a node.';
+      'Définissez votre numéro de nœud et votre mot de passe AllStarLink dans Paramètres → AllStarLink avant d\'héberger un nœud.';
 
   @override
   String commsAllStarNodeControlOpNotice(String node) {
-    return 'Host AllStarLink node $node? This radio will relay all network audio to RF. You are the control operator and are responsible for all transmissions.';
+    return 'Héberger le nœud AllStarLink $node ? Cette radio relaiera tout l\'audio du réseau en RF. Vous êtes l\'opérateur de contrôle et responsable de toutes les émissions.';
   }
 
   @override
   String commsAllStarNodeHosting(int count) {
-    return 'Hosting AllStarLink node ($count linked)';
+    return 'Hébergement du nœud AllStarLink ($count connectés)';
   }
 
   @override

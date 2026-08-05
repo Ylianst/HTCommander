@@ -1,5 +1,21 @@
 {
   "@@locale": "de",
+  "settingsAllStarHostTitle": "Knoten hosten",
+  "settingsAllStarHostIntro": "Leiten Sie Audio zwischen einem Funkgerät und dem AllStarLink-Netzwerk weiter. Holen Sie sich eine Knotennummer und ein Passwort von allstarlink.org und sperren Sie dann im Comms-Tab ein Funkgerät auf AllStarLink.",
+  "settingsAllStarHostPassword": "Knoten-Passwort",
+  "settingsAllStarHostPort": "IAX-Port",
+  "settingsAllStarHostRegistration": "Registrierung",
+  "settingsAllStarHostRegIax": "AllStarLink (IAX)",
+  "settingsAllStarHostRegHttp": "AllStarLink (HTTP)",
+  "settingsAllStarHostRegNone": "Keine (privat)",
+  "settingsAllStarHostAllowWt": "Web-Transceiver-Verbindungen zulassen",
+  "settingsAllStarHostAllowWtHint": "Erlauben Sie Personen, die den öffentlichen AllStarLink-Web-Transceiver-Client verwenden, sich mit Ihrem Knoten zu verbinden. Das Portal-Token jedes Anrufers wird bei AllStarLink überprüft.",
+  "settingsAllStarHostNote": "Zum Hosten muss UDP {port} an diesen Computer weitergeleitet werden. Als Kontrolloperator sind Sie für alle an HF weitergeleiteten Audiosignale verantwortlich.",
+  "commsAllStarNodeTitle": "AllStarLink-Knoten",
+  "commsAllStarNodeStart": "Knoten starten",
+  "commsAllStarNodeNotConfigured": "Legen Sie Ihre AllStarLink-Knotennummer und Ihr Passwort unter Einstellungen \u2192 AllStarLink fest, bevor Sie einen Knoten hosten.",
+  "commsAllStarNodeControlOpNotice": "AllStarLink-Knoten {node} hosten? Dieses Funkgerät leitet den gesamten Netzwerk-Audio an HF weiter. Sie sind der Kontrolloperator und für alle Aussendungen verantwortlich.",
+  "commsAllStarNodeHosting": "AllStarLink-Knoten wird gehostet ({count} verbunden)",
 
   "appTitle": "Handi-Talkie Commander",
 

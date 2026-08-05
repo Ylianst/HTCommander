@@ -463,20 +463,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAllStarAuthModeNode => '节点凭据';
 
   @override
-  String get settingsAllStarHostTitle => 'Host a Node';
+  String get settingsAllStarHostTitle => '托管节点';
 
   @override
   String get settingsAllStarHostIntro =>
-      'Relay audio between a radio and the AllStarLink network. Get a node number and password from allstarlink.org, then lock a radio to AllStarLink in the Comms tab.';
+      '在无线电和 AllStarLink 网络之间中继音频。请在 allstarlink.org 获取节点号和密码，然后在 Comms 选项卡中将无线电锁定到 AllStarLink。';
 
   @override
-  String get settingsAllStarHostPassword => 'Node Password';
+  String get settingsAllStarHostPassword => '节点密码';
 
   @override
-  String get settingsAllStarHostPort => 'IAX Port';
+  String get settingsAllStarHostPort => 'IAX 端口';
 
   @override
-  String get settingsAllStarHostRegistration => 'Registration';
+  String get settingsAllStarHostRegistration => '注册';
 
   @override
   String get settingsAllStarHostRegIax => 'AllStarLink (IAX)';
@@ -485,18 +485,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAllStarHostRegHttp => 'AllStarLink (HTTP)';
 
   @override
-  String get settingsAllStarHostRegNone => 'None (private)';
+  String get settingsAllStarHostRegNone => '无（私有）';
 
   @override
-  String get settingsAllStarHostAllowWt => 'Allow Web Transceiver connections';
+  String get settingsAllStarHostAllowWt => '允许 Web Transceiver 连接';
 
   @override
   String get settingsAllStarHostAllowWtHint =>
-      'Let people using the AllStarLink public Web Transceiver client connect to your node. Each caller\'s portal token is verified with AllStarLink.';
+      '允许使用 AllStarLink 公共 Web Transceiver 客户端的用户连接到您的节点。每个呼叫者的门户令牌都会通过 AllStarLink 进行验证。';
 
   @override
   String settingsAllStarHostNote(int port) {
-    return 'Hosting requires forwarding UDP $port to this computer. As the control operator you are responsible for all audio relayed to RF.';
+    return '托管需要将 UDP $port 转发到此计算机。作为控制操作员，您需对所有中继到射频 (RF) 的音频负责。';
   }
 
   @override
@@ -2606,23 +2606,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commsChannelInfo => '频道信息';
 
   @override
-  String get commsAllStarNodeTitle => 'AllStarLink Node';
+  String get commsAllStarNodeTitle => 'AllStarLink 节点';
 
   @override
-  String get commsAllStarNodeStart => 'Start Node';
+  String get commsAllStarNodeStart => '启动节点';
 
   @override
   String get commsAllStarNodeNotConfigured =>
-      'Set your AllStarLink node number and password in Settings → AllStarLink before hosting a node.';
+      '在托管节点之前，请在 设置 → AllStarLink 中设置您的 AllStarLink 节点号和密码。';
 
   @override
   String commsAllStarNodeControlOpNotice(String node) {
-    return 'Host AllStarLink node $node? This radio will relay all network audio to RF. You are the control operator and are responsible for all transmissions.';
+    return '托管 AllStarLink 节点 $node？此无线电将把所有网络音频中继到射频 (RF)。您是控制操作员，需对所有发射负责。';
   }
 
   @override
   String commsAllStarNodeHosting(int count) {
-    return 'Hosting AllStarLink node ($count linked)';
+    return '正在托管 AllStarLink 节点（已连接 $count 个）';
   }
 
   @override

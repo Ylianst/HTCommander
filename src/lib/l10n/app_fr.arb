@@ -1,5 +1,21 @@
 {
   "@@locale": "fr",
+  "settingsAllStarHostTitle": "Héberger un nœud",
+  "settingsAllStarHostIntro": "Relaie l'audio entre une radio et le réseau AllStarLink. Obtenez un numéro de nœud et un mot de passe sur allstarlink.org, puis verrouillez une radio sur AllStarLink dans l'onglet Comms.",
+  "settingsAllStarHostPassword": "Mot de passe du nœud",
+  "settingsAllStarHostPort": "Port IAX",
+  "settingsAllStarHostRegistration": "Enregistrement",
+  "settingsAllStarHostRegIax": "AllStarLink (IAX)",
+  "settingsAllStarHostRegHttp": "AllStarLink (HTTP)",
+  "settingsAllStarHostRegNone": "Aucun (privé)",
+  "settingsAllStarHostAllowWt": "Autoriser les connexions Web Transceiver",
+  "settingsAllStarHostAllowWtHint": "Permet aux personnes utilisant le client public Web Transceiver d'AllStarLink de se connecter à votre nœud. Le jeton de portail de chaque appelant est vérifié auprès d'AllStarLink.",
+  "settingsAllStarHostNote": "L'hébergement nécessite de rediriger le port UDP {port} vers cet ordinateur. En tant qu'opérateur de contrôle, vous êtes responsable de tout l'audio relayé en RF.",
+  "commsAllStarNodeTitle": "Nœud AllStarLink",
+  "commsAllStarNodeStart": "Démarrer le nœud",
+  "commsAllStarNodeNotConfigured": "Définissez votre numéro de nœud et votre mot de passe AllStarLink dans Paramètres \u2192 AllStarLink avant d'héberger un nœud.",
+  "commsAllStarNodeControlOpNotice": "Héberger le nœud AllStarLink {node} ? Cette radio relaiera tout l'audio du réseau en RF. Vous êtes l'opérateur de contrôle et responsable de toutes les émissions.",
+  "commsAllStarNodeHosting": "Hébergement du nœud AllStarLink ({count} connectés)",
 
   "appTitle": "Handi-Talkie Commander",
 

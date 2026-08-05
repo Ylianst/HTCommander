@@ -1,5 +1,21 @@
 {
   "@@locale": "hi",
+  "settingsAllStarHostTitle": "नोड होस्ट करें",
+  "settingsAllStarHostIntro": "किसी रेडियो और AllStarLink नेटवर्क के बीच ऑडियो रिले करें। allstarlink.org से नोड नंबर और पासवर्ड प्राप्त करें, फिर Comms टैब में किसी रेडियो को AllStarLink पर लॉक करें।",
+  "settingsAllStarHostPassword": "नोड पासवर्ड",
+  "settingsAllStarHostPort": "IAX पोर्ट",
+  "settingsAllStarHostRegistration": "पंजीकरण",
+  "settingsAllStarHostRegIax": "AllStarLink (IAX)",
+  "settingsAllStarHostRegHttp": "AllStarLink (HTTP)",
+  "settingsAllStarHostRegNone": "कोई नहीं (निजी)",
+  "settingsAllStarHostAllowWt": "Web Transceiver कनेक्शन की अनुमति दें",
+  "settingsAllStarHostAllowWtHint": "AllStarLink के सार्वजनिक Web Transceiver क्लाइंट का उपयोग करने वाले लोगों को आपके नोड से कनेक्ट होने दें। प्रत्येक कॉलर का पोर्टल टोकन AllStarLink से सत्यापित किया जाता है।",
+  "settingsAllStarHostNote": "होस्टिंग के लिए इस कंप्यूटर पर UDP {port} को फ़ॉरवर्ड करना आवश्यक है। नियंत्रण ऑपरेटर के रूप में, RF पर रिले किए गए सभी ऑडियो के लिए आप ज़िम्मेदार हैं।",
+  "commsAllStarNodeTitle": "AllStarLink नोड",
+  "commsAllStarNodeStart": "नोड शुरू करें",
+  "commsAllStarNodeNotConfigured": "नोड होस्ट करने से पहले सेटिंग्स \u2192 AllStarLink में अपना AllStarLink नोड नंबर और पासवर्ड सेट करें।",
+  "commsAllStarNodeControlOpNotice": "AllStarLink नोड {node} होस्ट करें? यह रेडियो सभी नेटवर्क ऑडियो को RF पर रिले करेगा। आप नियंत्रण ऑपरेटर हैं और सभी प्रसारणों के लिए ज़िम्मेदार हैं।",
+  "commsAllStarNodeHosting": "AllStarLink नोड होस्ट किया जा रहा है ({count} जुड़े हुए)",
 
   "appTitle": "Handi-Talkie Commander",
 

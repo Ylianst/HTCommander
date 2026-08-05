@@ -1,5 +1,21 @@
 {
   "@@locale": "es",
+  "settingsAllStarHostTitle": "Alojar un nodo",
+  "settingsAllStarHostIntro": "Retransmite audio entre una radio y la red AllStarLink. Obtén un número de nodo y una contraseña en allstarlink.org y luego bloquea una radio en AllStarLink en la pestaña Comms.",
+  "settingsAllStarHostPassword": "Contraseña del nodo",
+  "settingsAllStarHostPort": "Puerto IAX",
+  "settingsAllStarHostRegistration": "Registro",
+  "settingsAllStarHostRegIax": "AllStarLink (IAX)",
+  "settingsAllStarHostRegHttp": "AllStarLink (HTTP)",
+  "settingsAllStarHostRegNone": "Ninguno (privado)",
+  "settingsAllStarHostAllowWt": "Permitir conexiones de Web Transceiver",
+  "settingsAllStarHostAllowWtHint": "Permite que las personas que usan el cliente público Web Transceiver de AllStarLink se conecten a tu nodo. El token del portal de cada interlocutor se verifica con AllStarLink.",
+  "settingsAllStarHostNote": "El alojamiento requiere reenviar el puerto UDP {port} a este equipo. Como operador de control, eres responsable de todo el audio retransmitido a RF.",
+  "commsAllStarNodeTitle": "Nodo AllStarLink",
+  "commsAllStarNodeStart": "Iniciar nodo",
+  "commsAllStarNodeNotConfigured": "Configura el número de nodo y la contraseña de AllStarLink en Ajustes \u2192 AllStarLink antes de alojar un nodo.",
+  "commsAllStarNodeControlOpNotice": "¿Alojar el nodo AllStarLink {node}? Esta radio retransmitirá todo el audio de la red a RF. Eres el operador de control y responsable de todas las transmisiones.",
+  "commsAllStarNodeHosting": "Alojando el nodo AllStarLink ({count} conectados)",
 
   "appTitle": "Handi-Talkie Commander",
 

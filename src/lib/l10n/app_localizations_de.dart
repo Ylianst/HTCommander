@@ -471,20 +471,20 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsAllStarAuthModeNode => 'Knoten-Anmeldedaten';
 
   @override
-  String get settingsAllStarHostTitle => 'Host a Node';
+  String get settingsAllStarHostTitle => 'Knoten hosten';
 
   @override
   String get settingsAllStarHostIntro =>
-      'Relay audio between a radio and the AllStarLink network. Get a node number and password from allstarlink.org, then lock a radio to AllStarLink in the Comms tab.';
+      'Leiten Sie Audio zwischen einem Funkgerät und dem AllStarLink-Netzwerk weiter. Holen Sie sich eine Knotennummer und ein Passwort von allstarlink.org und sperren Sie dann im Comms-Tab ein Funkgerät auf AllStarLink.';
 
   @override
-  String get settingsAllStarHostPassword => 'Node Password';
+  String get settingsAllStarHostPassword => 'Knoten-Passwort';
 
   @override
-  String get settingsAllStarHostPort => 'IAX Port';
+  String get settingsAllStarHostPort => 'IAX-Port';
 
   @override
-  String get settingsAllStarHostRegistration => 'Registration';
+  String get settingsAllStarHostRegistration => 'Registrierung';
 
   @override
   String get settingsAllStarHostRegIax => 'AllStarLink (IAX)';
@@ -493,18 +493,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsAllStarHostRegHttp => 'AllStarLink (HTTP)';
 
   @override
-  String get settingsAllStarHostRegNone => 'None (private)';
+  String get settingsAllStarHostRegNone => 'Keine (privat)';
 
   @override
-  String get settingsAllStarHostAllowWt => 'Allow Web Transceiver connections';
+  String get settingsAllStarHostAllowWt =>
+      'Web-Transceiver-Verbindungen zulassen';
 
   @override
   String get settingsAllStarHostAllowWtHint =>
-      'Let people using the AllStarLink public Web Transceiver client connect to your node. Each caller\'s portal token is verified with AllStarLink.';
+      'Erlauben Sie Personen, die den öffentlichen AllStarLink-Web-Transceiver-Client verwenden, sich mit Ihrem Knoten zu verbinden. Das Portal-Token jedes Anrufers wird bei AllStarLink überprüft.';
 
   @override
   String settingsAllStarHostNote(int port) {
-    return 'Hosting requires forwarding UDP $port to this computer. As the control operator you are responsible for all audio relayed to RF.';
+    return 'Zum Hosten muss UDP $port an diesen Computer weitergeleitet werden. Als Kontrolloperator sind Sie für alle an HF weitergeleiteten Audiosignale verantwortlich.';
   }
 
   @override
@@ -2697,23 +2698,23 @@ class AppLocalizationsDe extends AppLocalizations {
   String get commsChannelInfo => 'Kanalinformationen';
 
   @override
-  String get commsAllStarNodeTitle => 'AllStarLink Node';
+  String get commsAllStarNodeTitle => 'AllStarLink-Knoten';
 
   @override
-  String get commsAllStarNodeStart => 'Start Node';
+  String get commsAllStarNodeStart => 'Knoten starten';
 
   @override
   String get commsAllStarNodeNotConfigured =>
-      'Set your AllStarLink node number and password in Settings → AllStarLink before hosting a node.';
+      'Legen Sie Ihre AllStarLink-Knotennummer und Ihr Passwort unter Einstellungen → AllStarLink fest, bevor Sie einen Knoten hosten.';
 
   @override
   String commsAllStarNodeControlOpNotice(String node) {
-    return 'Host AllStarLink node $node? This radio will relay all network audio to RF. You are the control operator and are responsible for all transmissions.';
+    return 'AllStarLink-Knoten $node hosten? Dieses Funkgerät leitet den gesamten Netzwerk-Audio an HF weiter. Sie sind der Kontrolloperator und für alle Aussendungen verantwortlich.';
   }
 
   @override
   String commsAllStarNodeHosting(int count) {
-    return 'Hosting AllStarLink node ($count linked)';
+    return 'AllStarLink-Knoten wird gehostet ($count verbunden)';
   }
 
   @override

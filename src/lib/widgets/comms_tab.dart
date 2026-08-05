@@ -2941,7 +2941,7 @@ class _CommsTabState extends State<CommsTab>
                   ),
                 ),
               const Spacer(),
-              if (_canHostAllStarNode || _allStarNodeHosting)
+              if (_canHostAllStarNode || _allStarNodeHosting) ...[
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
@@ -2952,13 +2952,15 @@ class _CommsTabState extends State<CommsTab>
                       : AppLocalizations.of(context).commsAllStarNodeTitle,
                   icon: Icon(
                     Icons.cell_tower,
-                    size: 20,
+                    size: 24,
                     color: _allStarNodeHosting
                         ? Colors.red.shade400
                         : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   onPressed: _toggleAllStarNode,
                 ),
+                const SizedBox(width: 8),
+              ],
               if (_hasEchoLinkChannelInfo)
                 IconButton(
                   visualDensity: VisualDensity.compact,
@@ -2984,9 +2986,11 @@ class _CommsTabState extends State<CommsTab>
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       textStyle: const TextStyle(fontSize: 12),
                       backgroundColor: _audioEnabled
-                          ? Colors.red.shade300
+                          ? Theme.of(context).colorScheme.errorContainer
                           : null,
-                      foregroundColor: _audioEnabled ? Colors.black : null,
+                      foregroundColor: _audioEnabled
+                          ? Theme.of(context).colorScheme.onErrorContainer
+                          : null,
                     ),
                     child: Text(
                       _audioEnabled

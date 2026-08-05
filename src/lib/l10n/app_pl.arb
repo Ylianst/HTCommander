@@ -1,5 +1,21 @@
 {
   "@@locale": "pl",
+  "settingsAllStarHostTitle": "Hostuj węzeł",
+  "settingsAllStarHostIntro": "Przekazuj dźwięk między radiem a siecią AllStarLink. Uzyskaj numer węzła i hasło na allstarlink.org, a następnie zablokuj radio na AllStarLink w karcie Comms.",
+  "settingsAllStarHostPassword": "Hasło węzła",
+  "settingsAllStarHostPort": "Port IAX",
+  "settingsAllStarHostRegistration": "Rejestracja",
+  "settingsAllStarHostRegIax": "AllStarLink (IAX)",
+  "settingsAllStarHostRegHttp": "AllStarLink (HTTP)",
+  "settingsAllStarHostRegNone": "Brak (prywatny)",
+  "settingsAllStarHostAllowWt": "Zezwól na połączenia Web Transceiver",
+  "settingsAllStarHostAllowWtHint": "Pozwól osobom korzystającym z publicznego klienta Web Transceiver AllStarLink łączyć się z Twoim węzłem. Token portalu każdego dzwoniącego jest weryfikowany w AllStarLink.",
+  "settingsAllStarHostNote": "Hostowanie wymaga przekierowania portu UDP {port} na ten komputer. Jako operator kontrolny odpowiadasz za cały dźwięk przekazywany na RF.",
+  "commsAllStarNodeTitle": "Węzeł AllStarLink",
+  "commsAllStarNodeStart": "Uruchom węzeł",
+  "commsAllStarNodeNotConfigured": "Ustaw numer węzła i hasło AllStarLink w Ustawienia \u2192 AllStarLink przed hostowaniem węzła.",
+  "commsAllStarNodeControlOpNotice": "Hostować węzeł AllStarLink {node}? To radio będzie przekazywać cały dźwięk sieciowy na RF. Jesteś operatorem kontrolnym i odpowiadasz za wszystkie transmisje.",
+  "commsAllStarNodeHosting": "Hostowanie węzła AllStarLink (połączono {count})",
 
   "appTitle": "Handi-Talkie Commander",
 

@@ -1,5 +1,21 @@
 {
   "@@locale": "ja",
+  "settingsAllStarHostTitle": "ノードをホスト",
+  "settingsAllStarHostIntro": "無線機と AllStarLink ネットワークの間で音声を中継します。allstarlink.org でノード番号とパスワードを取得し、Comms タブで無線機を AllStarLink にロックします。",
+  "settingsAllStarHostPassword": "ノードパスワード",
+  "settingsAllStarHostPort": "IAX ポート",
+  "settingsAllStarHostRegistration": "登録",
+  "settingsAllStarHostRegIax": "AllStarLink (IAX)",
+  "settingsAllStarHostRegHttp": "AllStarLink (HTTP)",
+  "settingsAllStarHostRegNone": "なし（プライベート）",
+  "settingsAllStarHostAllowWt": "Web Transceiver 接続を許可",
+  "settingsAllStarHostAllowWtHint": "AllStarLink の公開 Web Transceiver クライアントを使用するユーザーがあなたのノードに接続できるようにします。各発信者のポータルトークンは AllStarLink で検証されます。",
+  "settingsAllStarHostNote": "ホストするには、このコンピューターに UDP {port} を転送する必要があります。制御操作者として、RF に中継されるすべての音声について責任を負います。",
+  "commsAllStarNodeTitle": "AllStarLink ノード",
+  "commsAllStarNodeStart": "ノードを開始",
+  "commsAllStarNodeNotConfigured": "ノードをホストする前に、設定 \u2192 AllStarLink で AllStarLink のノード番号とパスワードを設定してください。",
+  "commsAllStarNodeControlOpNotice": "AllStarLink ノード {node} をホストしますか？この無線機はすべてのネットワーク音声を RF に中継します。あなたは制御操作者であり、すべての送信に責任を負います。",
+  "commsAllStarNodeHosting": "AllStarLink ノードをホスト中（{count} 接続）",
 
   "appTitle": "Handi-Talkie Commander",
 
