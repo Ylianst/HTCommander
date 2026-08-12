@@ -42,6 +42,30 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
 
+      - name: Bundle Visual C++ runtime
+        shell: pwsh
+        run: |
+          # Flutter Windows apps link against the Visual C++ runtime
+          # (MSVCP140.dll, VCRUNTIME140.dll, VCRUNTIME140_1.dll). Machines without
+          # the VC++ Redistributable installed fail to launch with a missing-DLL
+          # error, so we ship the runtime app-locally next to the executable.
+          $buildDir = "src\build\windows\${{ matrix.arch }}\runner\Release"
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath = & $vswhere -latest -property installationPath
+          if (-not $vsPath) { Write-Error "Visual Studio installation not found"; exit 1 }
+
+          $redistRoot = Join-Path $vsPath "VC\Redist\MSVC"
+          $verDir = Get-ChildItem -Path $redistRoot -Directory |
+            Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+          $crtDir = Get-ChildItem -Path (Join-Path $verDir.FullName "${{ matrix.arch }}") -Directory -Filter "Microsoft.VC*.CRT" |
+            Select-Object -First 1
+          if (-not $crtDir) { Write-Error "Visual C++ CRT redistributable not found under $($verDir.FullName)"; exit 1 }
+
+          Write-Output "Bundling VC++ runtime from: $($crtDir.FullName)"
+          Copy-Item -Path (Join-Path $crtDir.FullName "*.dll") -Destination $buildDir -Force
+          Get-ChildItem -Path $buildDir -Filter "*140*.dll" | ForEach-Object { Write-Output "  bundled $($_.Name)" }
+
       - name: Create MSI installer
         shell: pwsh
         run: |
