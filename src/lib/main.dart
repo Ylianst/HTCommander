@@ -60,6 +60,7 @@ import 'radio/software_modem_stub.dart'
 import 'services/bluetooth_service.dart';
 import 'callsign/callsign_country.dart';
 import 'services/callsign_lookup_service.dart';
+import 'services/crash_logger.dart';
 import 'services/data_broker.dart';
 import 'services/data_broker_client.dart';
 import 'services/data_broker_serializers.dart';
@@ -93,18 +94,41 @@ import 'widgets/packets_tab.dart';
 import 'dialogs/update_dialog.dart';
 import 'widgets/debug_tab.dart';
 
-void main(List<String> args) async {
+void main(List<String> args) {
+  // Run the whole app inside a guarded zone so uncaught (including async)
+  // errors are captured and written to the cross-platform on-disk crash log,
+  // even on platforms or failure paths where the Debug tab is never shown.
+  runZonedGuarded(() => _startApp(args), (Object error, StackTrace stack) {
+    CrashLogger.instance.logError('Uncaught error', error, stack);
+    _forwardErrorToDebugTab('Uncaught error: $error');
+  });
+}
+
+/// Application entry point, executed inside the guarded zone set up by [main].
+Future<void> _startApp(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Resolve the on-disk crash log as early as possible so any failure during
+  // the initialization below is still recorded. Works on every non-web
+  // platform (Windows, macOS, Linux, Android, iOS); a no-op on web.
+  await CrashLogger.instance.init();
 
   // Some widgets (e.g. dropdowns showing long serial port names) can
   // legitimately overflow their available width. In those cases it's acceptable
   // to clip rather than treat it as a fatal error, so suppress RenderFlex
-  // overflow errors while forwarding all other errors to the default handler.
+  // overflow errors while forwarding all other errors to the default handler
+  // and the crash log.
   final originalOnError = FlutterError.onError;
   FlutterError.onError = (FlutterErrorDetails details) {
     if (details.exception.toString().contains('A RenderFlex overflowed')) {
       return;
     }
+    CrashLogger.instance.logError(
+      'Flutter framework error',
+      details.exception,
+      details.stack,
+    );
+    _forwardErrorToDebugTab('${details.exception}');
     originalOnError?.call(details);
   };
 
@@ -345,6 +369,17 @@ void main(List<String> args) async {
   await _restoreMainWindowSize();
 
   runApp(const HTCommanderApp());
+}
+
+/// Best-effort forward of an error string into the Debug tab log. The broker may
+/// not be initialized yet during very early startup, so failures are ignored;
+/// the crash log file remains the authoritative record.
+void _forwardErrorToDebugTab(String message) {
+  try {
+    DataBrokerClient().logError(message);
+  } catch (_) {
+    // Broker not ready (or unavailable); the on-disk crash log still captured it.
+  }
 }
 
 /// Minimum main window size. Shared between the native minimum and the

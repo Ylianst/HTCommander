@@ -3,6 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_localizations.dart';
+import '../services/crash_logger.dart';
 import '../services/update_service.dart';
 import 'dialog_utils.dart';
 import 'update_dialog.dart';
@@ -123,6 +124,11 @@ class HTAboutDialog extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  TextButton(
+                    onPressed: () => _reportCrash(context),
+                    style: DialogStyles.secondaryButtonStyle(context),
+                    child: const Text('Report an Issue...'),
+                  ),
                   if (UpdateService.instance.isSupported)
                     TextButton(
                       onPressed: () {
@@ -178,5 +184,37 @@ class HTAboutDialog extends StatelessWidget {
   void _launchUrl(String url) async {
     final uri = Uri.parse(url);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  /// Opens a pre-filled GitHub "New Issue" for a general issue report — no
+  /// server, no telemetry. The user reviews and submits it under their own
+  /// account. Unlike the Debug tab's crash reporter, this files an "Issue
+  /// report" with a general prompt rather than crash-specific wording.
+  Future<void> _reportCrash(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final Uri uri = await CrashLogger.instance.buildGithubIssueUri(
+      title: 'Issue report',
+      label: null,
+      promptHeader: '**Describe the issue:**',
+      promptHint: '_(what happened, and how can we reproduce it?)_',
+      attachNote:
+          'If this is about a crash or error, please attach the crash log file '
+          'to this issue (drag & drop).',
+    );
+    bool ok = false;
+    try {
+      ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      ok = false;
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Opening a pre-filled issue report in your browser. Add any details before submitting.'
+              : 'Could not open the browser. Please file an issue at github.com/${CrashLogger.githubRepo}/issues.',
+        ),
+      ),
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:io' show File, Platform;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'tab_visibility.dart';
 import '../dialogs/aprs_symbols_dialog.dart';
 import '../dialogs/radio_settings_dialog.dart';
@@ -11,6 +12,7 @@ import '../l10n/app_localizations.dart';
 import '../dialogs/raw_command_dialog.dart';
 import '../models/radio_models.dart';
 import '../services/bluetooth_service.dart';
+import '../services/crash_logger.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
 
@@ -293,6 +295,45 @@ class _DebugTabState extends State<DebugTab>
     });
   }
 
+  /// Opens the user's browser to a pre-filled GitHub "New Issue" so a crash can
+  /// be reported with no server and no telemetry: the user reviews and submits
+  /// it under their own GitHub account, attaching the full crash log file.
+  Future<void> _onReportCrash() async {
+    // In-memory Debug log fallback for platforms without an on-disk crash log
+    // (e.g. web); the on-disk log tail is preferred when available.
+    final StringBuffer fallback = StringBuffer();
+    for (final entry in _logEntries) {
+      final t = _formatTime(entry.time);
+      fallback.writeln(
+        entry.isError
+            ? '[$t] [Error] ${entry.message}'
+            : '[$t] ${entry.message}',
+      );
+    }
+
+    final Uri uri = await CrashLogger.instance.buildGithubIssueUri(
+      fallbackLog: fallback.toString(),
+    );
+
+    bool ok = false;
+    try {
+      ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      ok = false;
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Opening a pre-filled crash report in your browser. Please attach the crash log file before submitting.'
+              : 'Could not open the browser. Please file an issue at github.com/${CrashLogger.githubRepo}/issues.',
+        ),
+      ),
+    );
+  }
+
   void _showMenu(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final RenderBox button = context.findRenderObject() as RenderBox;
@@ -320,6 +361,14 @@ class _DebugTabState extends State<DebugTab>
           padding: menuItemPadding,
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.tabSaveToFile)],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'reportCrash',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [const SizedBox(width: 20), Text('Report a Crash...')],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -457,6 +506,9 @@ class _DebugTabState extends State<DebugTab>
       switch (value) {
         case 'saveToFile':
           await _onSaveToFile();
+          break;
+        case 'reportCrash':
+          await _onReportCrash();
           break;
         case 'showBluetoothFrames':
           setState(() => _showBluetoothFrames = !_showBluetoothFrames);

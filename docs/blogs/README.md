@@ -141,6 +141,19 @@ Connecting HTCommander to the wider ecosystem of tools operators already run.
 
 ---
 
+## Troubleshooting & Support
+
+Getting good diagnostics out of the app when something goes wrong.
+
+1. **[It Crashed — Now What? How to Report a Crash in HTCommander](crash-reporting.md)**
+   A user-facing guide to capturing what went wrong — exporting the Debug tab
+   log, finding the on-disk `htcommander_crash.log` on every platform, running
+   from a terminal when the app won't start at all, checking the OS crash
+   reporter, and exactly what to include so a report is actionable on the first
+   try.
+
+---
+
 ## Internet Linking
 
 Bringing internet-linked voice into the same app that drives the radio.
