@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import '../satellite/orientation_service.dart';
 import '../satellite/satellite_models.dart';
 import '../services/data_broker_client.dart';
+import 'antenna_aim_overlay.dart';
 
 /// Full-screen guide that helps aim a handheld antenna at a satellite by
 /// comparing the phone's live orientation (compass heading + tilt) against the
@@ -115,11 +116,35 @@ class _AntennaPointerPageState extends State<AntennaPointerPage> {
     return d;
   }
 
+  /// Collapses the full page into the draggable floating overlay so the operator
+  /// can keep aiming while using another tab.
+  void _minimizeToOverlay() {
+    final navigator = Navigator.of(context);
+    final noradId = widget.noradId;
+    final name = widget.satelliteName;
+    navigator.pop();
+    AntennaAimOverlay.show(
+      navigator.context,
+      noradId: noradId,
+      satelliteName: name,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text('Aim: ${widget.satelliteName}')),
+      appBar: AppBar(
+        title: Text('Aim: ${widget.satelliteName}'),
+        actions: [
+          if (_sensorSupported)
+            IconButton(
+              icon: const Icon(Icons.picture_in_picture_alt),
+              tooltip: 'Floating aim overlay',
+              onPressed: _minimizeToOverlay,
+            ),
+        ],
+      ),
       body: SafeArea(
         child: !_sensorSupported
             ? _buildUnsupported(context)

@@ -1091,8 +1091,10 @@ class _SatelliteTabState extends State<SatelliteTab> {
     );
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Only show the aim indicators when there is room to the right of the text.
-        if (constraints.maxWidth < 300) return textColumn;
+        // Only show the aim indicators when there is enough room to the right of
+        // the text for both gauges without crowding it (each gauge is ~76px wide
+        // plus spacing, and the text needs a readable minimum width).
+        if (constraints.maxWidth < 380) return textColumn;
         return Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
