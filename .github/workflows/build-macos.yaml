@@ -64,58 +64,67 @@ jobs:
           APP_PATH=$(find src/build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
           echo "Signing $APP_PATH"
 
-          # Some vendored frameworks (e.g. SherpaOnnxC.framework) ship either as a
-          # "flat" (iOS-style) bundle or with a stray top-level Info.plist, which makes
-          # codesign fail with "bundle format is ambiguous (could be app or framework)".
-          # Normalize every framework into the standard macOS versioned layout first.
+          # Some embedded frameworks (notably SherpaOnnxC.framework from sherpa_onnx)
+          # arrive malformed: the version symlinks are flattened into real copies at
+          # the framework root and/or Versions/Current, so codesign fails with
+          # "bundle format is ambiguous" or "unsealed contents present in the root
+          # directory of an embedded framework". Rebuild any malformed framework into
+          # the canonical macOS versioned layout; leave well-formed ones untouched.
           for framework in "$APP_PATH/Contents/Frameworks/"*.framework; do
             [ -d "$framework" ] || continue
             name=$(basename "$framework" .framework)
-            echo "Normalizing framework: $name"
-            ls -la "$framework" || true
 
-            # Flat framework (no Versions dir): relocate the payload into Versions/A.
-            if [ ! -d "$framework/Versions" ]; then
-              rm -rf "$framework/_CodeSignature"
-              mkdir -p "$framework/Versions/A"
-              for entry in "$framework"/*; do
-                [ "$(basename "$entry")" = "Versions" ] && continue
-                mv "$entry" "$framework/Versions/A/"
-              done
-            fi
-
-            ver="A"; [ -d "$framework/Versions/$ver" ] || ver=$(ls "$framework/Versions" | grep -v '^Current$' | head -1)
-            [ -n "$ver" ] || continue
-
-            # A framework's Info.plist must live in Versions/<ver>/Resources.
-            if [ -f "$framework/Versions/$ver/Info.plist" ] && [ ! -e "$framework/Versions/$ver/Resources/Info.plist" ]; then
-              mkdir -p "$framework/Versions/$ver/Resources"
-              mv "$framework/Versions/$ver/Info.plist" "$framework/Versions/$ver/Resources/Info.plist"
-            fi
-
-            # Strip stray top-level entries (non-symlinks other than Versions) that
-            # confuse codesign; relocate a stray Info.plist instead of deleting it.
+            malformed=0
             for entry in "$framework"/*; do
-              base=$(basename "$entry")
-              [ "$base" = "Versions" ] && continue
-              [ -L "$entry" ] && continue
-              if [ "$base" = "Info.plist" ] && [ ! -e "$framework/Versions/$ver/Resources/Info.plist" ]; then
-                mkdir -p "$framework/Versions/$ver/Resources"
-                mv "$entry" "$framework/Versions/$ver/Resources/Info.plist"
-              else
-                rm -rf "$entry"
-              fi
+              [ "$(basename "$entry")" = "Versions" ] && continue
+              [ -L "$entry" ] || malformed=1
+            done
+            if [ -e "$framework/Versions/Current" ] && [ ! -L "$framework/Versions/Current" ]; then malformed=1; fi
+            if [ -d "$framework/Versions" ]; then
+              for v in "$framework/Versions"/*; do
+                case "$(basename "$v")" in A|Current) ;; *) malformed=1;; esac
+              done
+            else
+              malformed=1
+            fi
+
+            if [ "$malformed" = 0 ]; then
+              echo "Framework $name: already well-formed"
+              continue
+            fi
+
+            echo "Framework $name: malformed, rebuilding. Original layout:"
+            ls -laR "$framework" || true
+
+            bin=$(find "$framework" -type f -name "$name" -not -path "*/_CodeSignature/*" | head -1)
+            plist=$(find "$framework" -type f -name "Info.plist" -not -path "*/_CodeSignature/*" | head -1)
+            if [ -z "$bin" ] || [ -z "$plist" ]; then
+              echo "ERROR: cannot locate binary or Info.plist for $name"; exit 1
+            fi
+
+            tmp=$(mktemp -d)
+            mkdir -p "$tmp/Versions/A/Resources"
+            cp -a "$bin" "$tmp/Versions/A/$name"
+            cp -a "$plist" "$tmp/Versions/A/Resources/Info.plist"
+            resdir=$(find "$framework" -type d -name Resources -not -path "*/_CodeSignature/*" | head -1)
+            if [ -n "$resdir" ]; then cp -a "$resdir/." "$tmp/Versions/A/Resources/"; fi
+            rm -rf "$tmp/Versions/A/Resources/_CodeSignature"
+            for sub in Headers Modules; do
+              d=$(find "$framework" -type d -name "$sub" -not -path "*/_CodeSignature/*" | head -1)
+              [ -n "$d" ] && cp -a "$d" "$tmp/Versions/A/$sub"
             done
 
-            # (Re)create the standard framework symlinks.
-            ln -sfn "$ver" "$framework/Versions/Current"
-            [ -e "$framework/Versions/Current/$name" ] && ln -sfn "Versions/Current/$name" "$framework/$name"
-            for sub in Resources Headers Modules; do
-              [ -e "$framework/Versions/Current/$sub" ] && ln -sfn "Versions/Current/$sub" "$framework/$sub"
+            ( cd "$tmp/Versions" && ln -s A Current )
+            ( cd "$tmp" && ln -s "Versions/Current/$name" "$name" && ln -s "Versions/Current/Resources" Resources )
+            for sub in Headers Modules; do
+              [ -d "$tmp/Versions/A/$sub" ] && ( cd "$tmp" && ln -s "Versions/Current/$sub" "$sub" )
             done
 
-            echo "Normalized layout for $name:"
-            ls -la "$framework" || true
+            rm -rf "$framework"
+            mv "$tmp" "$framework"
+
+            echo "Framework $name: rebuilt layout:"
+            ls -laR "$framework" || true
           done
 
           # Sign nested code first (inside-out), then the app bundle itself
