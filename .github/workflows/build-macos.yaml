@@ -64,22 +64,58 @@ jobs:
           APP_PATH=$(find src/build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
           echo "Signing $APP_PATH"
 
-          # Some vendored frameworks (e.g. SherpaOnnxC.framework) ship with a
-          # missing/broken Versions/Current symlink, which makes codesign fail with
-          # "bundle format is ambiguous (could be app or framework)". Rebuild the
-          # standard framework symlink structure before signing.
+          # Some vendored frameworks (e.g. SherpaOnnxC.framework) ship either as a
+          # "flat" (iOS-style) bundle or with a stray top-level Info.plist, which makes
+          # codesign fail with "bundle format is ambiguous (could be app or framework)".
+          # Normalize every framework into the standard macOS versioned layout first.
           for framework in "$APP_PATH/Contents/Frameworks/"*.framework; do
             [ -d "$framework" ] || continue
             name=$(basename "$framework" .framework)
-            versions="$framework/Versions"
-            [ -d "$versions" ] || continue
-            ver="A"; [ -d "$versions/$ver" ] || ver=$(ls "$versions" | grep -v '^Current$' | head -1)
+            echo "Normalizing framework: $name"
+            ls -la "$framework" || true
+
+            # Flat framework (no Versions dir): relocate the payload into Versions/A.
+            if [ ! -d "$framework/Versions" ]; then
+              rm -rf "$framework/_CodeSignature"
+              mkdir -p "$framework/Versions/A"
+              for entry in "$framework"/*; do
+                [ "$(basename "$entry")" = "Versions" ] && continue
+                mv "$entry" "$framework/Versions/A/"
+              done
+            fi
+
+            ver="A"; [ -d "$framework/Versions/$ver" ] || ver=$(ls "$framework/Versions" | grep -v '^Current$' | head -1)
             [ -n "$ver" ] || continue
-            ln -sfn "$ver" "$versions/Current"
-            [ -e "$versions/Current/$name" ] && ln -sfn "Versions/Current/$name" "$framework/$name"
-            for sub in Resources Headers Modules; do
-              [ -e "$versions/Current/$sub" ] && ln -sfn "Versions/Current/$sub" "$framework/$sub"
+
+            # A framework's Info.plist must live in Versions/<ver>/Resources.
+            if [ -f "$framework/Versions/$ver/Info.plist" ] && [ ! -e "$framework/Versions/$ver/Resources/Info.plist" ]; then
+              mkdir -p "$framework/Versions/$ver/Resources"
+              mv "$framework/Versions/$ver/Info.plist" "$framework/Versions/$ver/Resources/Info.plist"
+            fi
+
+            # Strip stray top-level entries (non-symlinks other than Versions) that
+            # confuse codesign; relocate a stray Info.plist instead of deleting it.
+            for entry in "$framework"/*; do
+              base=$(basename "$entry")
+              [ "$base" = "Versions" ] && continue
+              [ -L "$entry" ] && continue
+              if [ "$base" = "Info.plist" ] && [ ! -e "$framework/Versions/$ver/Resources/Info.plist" ]; then
+                mkdir -p "$framework/Versions/$ver/Resources"
+                mv "$entry" "$framework/Versions/$ver/Resources/Info.plist"
+              else
+                rm -rf "$entry"
+              fi
             done
+
+            # (Re)create the standard framework symlinks.
+            ln -sfn "$ver" "$framework/Versions/Current"
+            [ -e "$framework/Versions/Current/$name" ] && ln -sfn "Versions/Current/$name" "$framework/$name"
+            for sub in Resources Headers Modules; do
+              [ -e "$framework/Versions/Current/$sub" ] && ln -sfn "Versions/Current/$sub" "$framework/$sub"
+            done
+
+            echo "Normalized layout for $name:"
+            ls -la "$framework" || true
           done
 
           # Sign nested code first (inside-out), then the app bundle itself
