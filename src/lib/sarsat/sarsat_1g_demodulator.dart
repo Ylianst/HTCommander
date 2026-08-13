@@ -34,10 +34,26 @@ class Sarsat1gDemodulator {
   static const String _bitSync = '111111111111111';
   static const String _fsyncNormal = '000101111';
 
-  /// Demodulates [pcm] and returns every distinct BCH-valid frame found.
+  /// Demodulates [pcm] and returns every distinct BCH-valid frame found. Tries
+  /// both a coherent (phase-tone) path and an FM-demod (autocorrelation) path,
+  /// so SSB/discriminator recordings and FM-receiver audio both decode.
   List<Sarsat1gFrame> decode(Int16List pcm) {
+    if (pcm.length < sampleRate ~/ 4) return const [];
+    final results = <String, Sarsat1gFrame>{};
+    for (final f in _decodeCoherent(pcm)) {
+      results[f.bits.join()] = f;
+    }
+    for (final f in _decodeFmDemod(pcm)) {
+      results[f.bits.join()] = f;
+    }
+    return results.values.toList();
+  }
+
+  // Coherent (phase-tone) path: DC block -> carrier estimate -> quadrature mix
+  // -> de-rotate -> matched-filter sync -> biphase-L slice. Best for SSB/CW
+  // recordings where the beacon appears as a ±1.1 rad phase-modulated tone.
+  List<Sarsat1gFrame> _decodeCoherent(Int16List pcm) {
     final n = pcm.length;
-    if (n < sampleRate ~/ 4) return const [];
 
     // 1. DC block.
     final x = Float64List(n);
@@ -124,6 +140,135 @@ class Sarsat1gDemodulator {
       }
     }
     return results.values.toList();
+  }
+
+  // FM-demodulated path: an autocorrelation-at-1-bit-delay biphase-L slicer
+  // (ported from the reference dec406 `capture_trame`). Decodes the
+  // transition-pulse waveform an FM receiver / rtl_fm produces — which the
+  // coherent path cannot — and handles self-test beacons transparently.
+  List<Sarsat1gFrame> _decodeFmDemod(Int16List pcm) {
+    final n = pcm.length;
+    final nb = (sampleRate / _symbolRate).round(); // samples per bit
+    if (nb < 4 || n < nb * 40) return const [];
+    final results = <String, Sarsat1gFrame>{};
+    int pos = 0;
+    int guard = 0;
+    while (pos < n - nb * 40 && guard++ < 64) {
+      final res = _captureTrame(pcm, pos, nb);
+      pos = res.nextPos;
+      final frame = res.bits;
+      if (frame == null) break;
+      final len = frame.length;
+      final bits = List<int>.generate(
+        len,
+        (i) => frame.codeUnitAt(i) == 0x31 ? 1 : 0,
+      );
+      final f = Sarsat1gDecoder.decode(bits);
+      if (f == null) continue;
+      if (f.crc1Ok && (len == 112 || f.crc2Ok)) {
+        results[f.bits.join()] = f;
+      }
+    }
+    return results.values.toList();
+  }
+
+  // One pass of the reference biphase-L slicer. Finds the 15-bit sync run via a
+  // 1-bit-delay autocorrelation (Y1), then reconstructs the frame from
+  // transition timing. Returns the frame bits (as '0'/'1') and where scanning
+  // stopped so the caller can resume.
+  ({String? bits, int nextPos}) _captureTrame(Int16List pcm, int start, int nb) {
+    final twoNb = 2 * nb;
+    final y = Float64List(twoNb);
+    const coeff = 100.0;
+    int k = 0, numBit = 0, synchro = 0, depart = 0, longueur = 144, cpte = 0;
+    int etat = -1; // -1 = none, 0, or 1
+    final s = List<int>.filled(150, -1);
+    double mx = 10e3, mn = -10e3;
+    double seuil1 = mx / coeff, seuil0 = mn / coeff;
+    int i = start;
+    while (numBit < longueur && i < pcm.length) {
+      final ech = pcm[i].toDouble();
+      i++;
+      k = (k + 1) % twoNb;
+      y[k] = ech;
+      double ymoy = 0;
+      for (int j = 0; j < twoNb; j++) {
+        ymoy += y[j];
+      }
+      ymoy /= twoNb;
+      double y1 = 0;
+      for (int j = 0; j < nb; j++) {
+        y1 += (y[(k + j) % twoNb] - ymoy) * (y[(k + j + nb) % twoNb] - ymoy);
+      }
+      if (y1 > mx) {
+        mx = y1;
+        seuil1 = mx / coeff;
+      }
+      if (y1 < mn) {
+        mn = y1;
+        seuil0 = mn / coeff;
+      }
+      if (synchro == 0) {
+        if (depart == 0) {
+          if (y1 > seuil1) depart = 1;
+          cpte = 0;
+        } else {
+          cpte++;
+          if (y1 < seuil0) {
+            final nb15 = cpte ~/ nb;
+            if (nb15 >= 12 && nb15 <= 18) {
+              synchro = 1;
+              cpte = 0;
+              for (int x = 0; x < 15; x++) {
+                s[x] = 1;
+              }
+              numBit = 15;
+              etat = 0;
+            } else {
+              cpte = 0;
+              depart = 0;
+              synchro = 0;
+              etat = -1;
+              numBit = 0;
+            }
+          }
+        }
+      } else {
+        cpte++;
+        if (s[24] == 0) longueur = 112;
+        if (y1 > seuil1) {
+          if (etat == 0) {
+            etat = 1;
+            cpte -= nb ~/ 2;
+            while (cpte > 0 && numBit < longueur) {
+              s[numBit] = (s[numBit - 1] == 1) ? 0 : 1;
+              numBit++;
+              cpte -= nb;
+            }
+            cpte = 0;
+          }
+        } else if (y1 < seuil0) {
+          if (etat == 1) {
+            etat = 0;
+            cpte -= nb ~/ 2;
+            while (cpte > 0 && numBit < 149) {
+              s[numBit] = s[numBit - 1];
+              numBit++;
+              cpte -= nb;
+            }
+            cpte = 0;
+          }
+        }
+      }
+    }
+    if (numBit >= longueur) {
+      final sb = StringBuffer();
+      for (int j = 0; j < longueur; j++) {
+        sb.write(s[j] == 1 ? '1' : '0');
+      }
+      return (bits: sb.toString(), nextPos: i);
+    }
+    return (bits: null, nextPos: i);
   }
 
   double _estimateCarrier(Float64List x) {

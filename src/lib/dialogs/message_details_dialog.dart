@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
+import '../sarsat/sarsat_1g_decoder.dart';
 import 'dialog_utils.dart';
 
 /// All the metadata known about a single Comms tab message. Attached as the
@@ -36,6 +37,9 @@ class CommsMessageDetails {
   /// otherwise).
   final String? keyType;
 
+  /// Structured decoded fields for SARSAT beacon entries (null otherwise).
+  final Sarsat1gDetails? sarsat;
+
   const CommsMessageDetails({
     required this.encoding,
     required this.time,
@@ -51,6 +55,7 @@ class CommsMessageDetails {
     this.imagePath,
     this.wpm,
     this.keyType,
+    this.sarsat,
   });
 }
 
@@ -98,6 +103,64 @@ class MessageDetailsDialog extends StatelessWidget {
     items.add(MessageDetailItem(l10n.msgdFieldTime, _formatTime(d.time)));
     if (d.channel.isNotEmpty) {
       items.add(MessageDetailItem(l10n.packetsColChannel, d.channel));
+    }
+    // SARSAT beacons render a full breakdown of the structured decoded fields
+    // (plus the raw frame), falling back to parsing the message text for older
+    // records that predate the structured data.
+    if (d.encoding == 'Sarsat') {
+      final s = d.sarsat;
+      if (s != null) {
+        items.add(MessageDetailItem('Beacon ID', s.hexId));
+        final country = s.countryName;
+        if (country != null && country.isNotEmpty) {
+          items.add(MessageDetailItem('Country', country));
+        }
+        items.add(MessageDetailItem('Country code', '${s.countryCode}'));
+        items.add(MessageDetailItem('Protocol', s.protocolName));
+        items.add(MessageDetailItem('Protocol code', '${s.protocolCode}'));
+        if (s.identification.isNotEmpty) {
+          items.add(MessageDetailItem('Identification', s.identification));
+        }
+        final lat = s.latitude;
+        final lon = s.longitude;
+        if (lat != null && lon != null) {
+          items.add(
+            MessageDetailItem(l10n.msgdFieldLatitude, lat.toStringAsFixed(6)),
+          );
+          items.add(
+            MessageDetailItem(l10n.msgdFieldLongitude, lon.toStringAsFixed(6)),
+          );
+        }
+        items.add(MessageDetailItem(
+          'Format',
+          s.lengthBits == 144 ? 'Long (144-bit)' : 'Short (112-bit)',
+        ));
+        items.add(MessageDetailItem('BCH-1', s.crc1Ok ? 'OK' : 'FAIL'));
+        if (s.lengthBits == 144) {
+          items.add(MessageDetailItem('BCH-2', s.crc2Ok ? 'OK' : 'FAIL'));
+        }
+        items.add(MessageDetailItem('Self-test', s.isTest ? 'Yes' : 'No'));
+        if (s.count >= 2) {
+          items.add(MessageDetailItem('Beacons received', '${s.count}'));
+          final last = s.lastReceivedTime;
+          if (last != null) {
+            items.add(MessageDetailItem('Last received', _formatTime(last)));
+          }
+        }
+        items.add(MessageDetailItem('Raw frame', s.rawHex));
+      } else {
+        for (final seg in d.text.split(', ')) {
+          final i = seg.indexOf(': ');
+          if (i > 0) {
+            items.add(
+              MessageDetailItem(seg.substring(0, i), seg.substring(i + 2)),
+            );
+          } else if (seg.trim().isNotEmpty) {
+            items.add(MessageDetailItem(l10n.msgdFieldMessage, seg.trim()));
+          }
+        }
+      }
+      return items;
     }
     final source = d.source;
     if (source != null && source.isNotEmpty) {

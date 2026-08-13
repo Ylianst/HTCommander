@@ -12,11 +12,11 @@ import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'package:path_provider/path_provider.dart';
 import 'chat_widget.dart';
+import '../dialogs/aprs_location_dialog.dart';
 import '../dialogs/edit_ident_settings_dialog.dart';
 import '../dialogs/image_view_dialog.dart';
 import '../dialogs/message_details_dialog.dart';
-import '../dialogs/morse_key_settings_dialog.dart';
-import '../dialogs/morse_speed_dialog.dart';
+import '../dialogs/morse_key_settings_dialog.dart';import '../dialogs/morse_speed_dialog.dart';
 import '../dialogs/radio_channel_dialog.dart';
 import '../dialogs/recording_playback_dialog.dart';
 import '../dialogs/sstv_send_dialog.dart';
@@ -24,6 +24,7 @@ import '../l10n/app_localizations.dart';
 import '../sstv/encoder.dart';
 import '../radio/dtmf_engine.dart';
 import '../radio/morse_keyer.dart';
+import '../sarsat/sarsat_1g_decoder.dart';
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -1208,6 +1209,10 @@ class _CommsTabState extends State<CommsTab>
       filename: data['filename'] as String?,
       wpm: data['wpm'] as int?,
       keyType: data['keyType'] as String?,
+      sarsat: data['sarsat'] is Map
+          ? Sarsat1gDetails.fromJson(data['sarsat'] as Map)
+          : null,
+      updateKey: data['updateKey'] as String?,
     );
   }
 
@@ -1227,16 +1232,20 @@ class _CommsTabState extends State<CommsTab>
     String? filename,
     int? wpm,
     String? keyType,
+    Sarsat1gDetails? sarsat,
+    String? updateKey,
   }) {
     final hasLocation = latitude != 0 || longitude != 0;
     final imagePath = _sstvImagePath(encoding, filename);
     // SSTV pictures show the mode/progress label in the header above the
     // bubble; the bubble itself contains only the image.
     final isPicture = encoding == 'Picture' && imagePath != null;
+    final id = updateKey ??
+        (completed
+            ? '${time.millisecondsSinceEpoch}_${_messages.length}'
+            : _partialMessageId);
     final message = ChatMessage(
-      id: completed
-          ? '${time.millisecondsSinceEpoch}_${_messages.length}'
-          : _partialMessageId,
+      id: id,
       route: _formatRoute(
         channel,
         encoding,
@@ -1244,6 +1253,7 @@ class _CommsTabState extends State<CommsTab>
         destination: destination,
         duration: duration,
         pictureLabel: isPicture ? text : null,
+        sarsatCount: sarsat?.count ?? 1,
       ),
       senderCallsign: source ?? '',
       message: isPicture ? '' : text,
@@ -1270,11 +1280,17 @@ class _CommsTabState extends State<CommsTab>
         imagePath: imagePath,
         wpm: wpm,
         keyType: keyType,
+        sarsat: sarsat,
       ),
     );
     setState(() {
       _messages.removeWhere((m) => m.id == _partialMessageId);
-      _messages.add(message);
+      final idx = _messages.indexWhere((m) => m.id == id);
+      if (idx >= 0) {
+        _messages[idx] = message;
+      } else {
+        _messages.add(message);
+      }
     });
   }
 
@@ -1337,14 +1353,20 @@ class _CommsTabState extends State<CommsTab>
     final filename = raw['filename'] as String?;
     final wpm = raw['wpm'] as int?;
     final keyType = raw['keyType'] as String?;
+    final sarsat = raw['sarsat'] is Map
+        ? Sarsat1gDetails.fromJson(raw['sarsat'] as Map)
+        : null;
     final imagePath = _sstvImagePath(encoding, filename);
     // SSTV pictures show the mode label in the header; the bubble is image-only.
     final isPicture = encoding == 'Picture' && imagePath != null;
 
+    final id = sarsat != null
+        ? 'sarsat_${sarsat.hexId}_${time.millisecondsSinceEpoch}'
+        : (completed
+              ? '${time.millisecondsSinceEpoch}_$index'
+              : _partialMessageId);
     return ChatMessage(
-      id: completed
-          ? '${time.millisecondsSinceEpoch}_$index'
-          : _partialMessageId,
+      id: id,
       route: _formatRoute(
         channel,
         encoding,
@@ -1352,6 +1374,7 @@ class _CommsTabState extends State<CommsTab>
         destination: destination,
         duration: duration,
         pictureLabel: isPicture ? text : null,
+        sarsatCount: sarsat?.count ?? 1,
       ),
       senderCallsign: source ?? '',
       message: isPicture ? '' : text,
@@ -1378,6 +1401,7 @@ class _CommsTabState extends State<CommsTab>
         imagePath: imagePath,
         wpm: wpm,
         keyType: keyType,
+        sarsat: sarsat,
       ),
     );
   }
@@ -1396,8 +1420,12 @@ class _CommsTabState extends State<CommsTab>
     String? destination,
     int duration = 0,
     String? pictureLabel,
+    int sarsatCount = 1,
   }) {
     var encodingStr = _encodingDisplayName(encoding);
+    if (encoding == 'Sarsat' && sarsatCount >= 2) {
+      encodingStr = 'SARSAT x$sarsatCount';
+    }
     if (encoding == 'Recording') {
       encodingStr = duration > 0
           ? 'Recording ${_formatDuration(duration)}'
@@ -2197,7 +2225,18 @@ class _CommsTabState extends State<CommsTab>
         _showMessageDetails(message);
         break;
       case 'location':
-        // Showing the location on the map is not implemented yet.
+        final tag = message.tag;
+        final title = (tag is CommsMessageDetails && tag.sarsat != null)
+            ? 'SARSAT ${tag.sarsat!.hexId}'
+            : (message.senderCallsign.isNotEmpty
+                  ? message.senderCallsign
+                  : null);
+        showAprsLocationDialog(
+          context,
+          latitude: message.latitude!,
+          longitude: message.longitude!,
+          title: title,
+        );
         break;
       case 'copyMessage':
         _copyMessage(message);

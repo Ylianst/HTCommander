@@ -21,6 +21,9 @@ const String _refFrame =
 // Synthetic Standard Location: country 227, protocol 6, position 43.75N 7.25E:
 const String _stdLocFrame =
     '111111111111111000101111100011100011011000011110110100011101011100101011110000001110101001111101011111010000000000000000000000000000000000000000';
+// Real self-test ELT-DT beacon recovered from Sarsat.wav (country 227):
+const String _selfTestFrame =
+    '111111111111111011010000100011100011100100000100100011010001010110001010110000000001111000111010101001001000001010000101011010000010010011001110';
 
 List<int> _bits(String s) => s.split('').map(int.parse).toList();
 
@@ -54,6 +57,57 @@ void main() {
 
     test('rejects wrong-length input', () {
       expect(Sarsat1gDecoder.decode(List<int>.filled(100, 0)), isNull);
+    });
+
+    test('decodes a self-test ELT-DT beacon', () {
+      final f = Sarsat1gDecoder.decode(_bits(_selfTestFrame))!;
+      expect(f.length, 144);
+      expect(f.crc1Ok, isTrue);
+      expect(f.crc2Ok, isTrue);
+      expect(f.isTest, isTrue);
+      expect(f.countryCode, 227);
+      expect(f.protocolCode, 9);
+      expect(f.protocol, Sarsat1gProtocol.emergencyElt);
+      expect(f.hexId, '1C72091A2B3FDFF');
+    });
+  });
+
+  group('Sarsat1gDetails structured record', () {
+    test('bitsToHex renders the full frame', () {
+      final f = Sarsat1gDecoder.decode(_bits(_selfTestFrame))!;
+      final hex = Sarsat1gDecoder.bitsToHex(f.bits);
+      expect(hex.length, 36); // 144 bits / 4
+      expect(hex, 'FFFED08E39048D158AC01E3AA482856824CE');
+    });
+
+    test('fromFrame + JSON round-trip preserves fields', () {
+      final f = Sarsat1gDecoder.decode(_bits(_selfTestFrame))!;
+      final d = Sarsat1gDetails.fromFrame(f, countryName: 'France');
+      final round = Sarsat1gDetails.fromJson(d.toJson());
+      expect(round.lengthBits, 144);
+      expect(round.crc1Ok, isTrue);
+      expect(round.crc2Ok, isTrue);
+      expect(round.countryCode, 227);
+      expect(round.countryName, 'France');
+      expect(round.protocolCode, 9);
+      expect(round.hexId, '1C72091A2B3FDFF');
+      expect(round.isTest, isTrue);
+      expect(round.rawHex, Sarsat1gDecoder.bitsToHex(f.bits));
+      expect(round.count, 1);
+    });
+
+    test('coalescing metadata (count / last received) round-trips', () {
+      final f = Sarsat1gDecoder.decode(_bits(_selfTestFrame))!;
+      final last = DateTime.fromMillisecondsSinceEpoch(1734000000000);
+      final d = Sarsat1gDetails.fromFrame(
+        f,
+        countryName: 'France',
+        count: 5,
+        lastReceivedTime: last,
+      );
+      final round = Sarsat1gDetails.fromJson(d.toJson());
+      expect(round.count, 5);
+      expect(round.lastReceivedTime, last);
     });
   });
 

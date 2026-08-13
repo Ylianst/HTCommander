@@ -422,4 +422,137 @@ class Sarsat1gDecoder {
 
   static bool _validCoord(double lat, double lon) =>
       lat >= -90.0 && lat <= 90.0 && lon >= -180.0 && lon <= 180.0;
+
+  /// Renders frame [bits] (each 0/1) as an uppercase hex string.
+  static String bitsToHex(List<int> bits) {
+    final sb = StringBuffer();
+    for (int i = 0; i < bits.length; i += 4) {
+      int nib = 0;
+      for (int j = 0; j < 4; j++) {
+        nib <<= 1;
+        if (i + j < bits.length) nib |= bits[i + j] & 1;
+      }
+      sb.write(nib.toRadixString(16).toUpperCase());
+    }
+    return sb.toString();
+  }
 }
+
+/// Structured, JSON-serializable summary of a decoded beacon. Stored in the
+/// Comms record so the UI can show a full field breakdown and the raw frame,
+/// and so it survives persistence and cross-isolate/broker transport.
+class Sarsat1gDetails {
+  final int lengthBits; // 112 or 144
+  final bool crc1Ok;
+  final bool crc2Ok;
+  final int countryCode;
+  final String? countryName;
+  final int protocolCode;
+  final String protocolName;
+  final String hexId;
+  final String identification;
+  final double? latitude;
+  final double? longitude;
+  final bool isTest;
+
+  /// The full decoded frame (all bits, including sync) as hex.
+  final String rawHex;
+
+  /// Number of beacons with this ID coalesced into one bubble (>= 1).
+  final int count;
+
+  /// Time the most recent beacon in the bubble was received.
+  final DateTime? lastReceivedTime;
+
+  const Sarsat1gDetails({
+    required this.lengthBits,
+    required this.crc1Ok,
+    required this.crc2Ok,
+    required this.countryCode,
+    required this.countryName,
+    required this.protocolCode,
+    required this.protocolName,
+    required this.hexId,
+    required this.identification,
+    required this.latitude,
+    required this.longitude,
+    required this.isTest,
+    required this.rawHex,
+    this.count = 1,
+    this.lastReceivedTime,
+  });
+
+  /// Builds a record from a decoded [frame]; [countryName] is looked up by the
+  /// caller (the decoder itself has no country table). [count] /
+  /// [lastReceivedTime] carry beacon-coalescing metadata; [latitude] /
+  /// [longitude] override the frame's position (to retain a prior fix).
+  factory Sarsat1gDetails.fromFrame(
+    Sarsat1gFrame frame, {
+    String? countryName,
+    int count = 1,
+    DateTime? lastReceivedTime,
+    double? latitude,
+    double? longitude,
+  }) {
+    return Sarsat1gDetails(
+      lengthBits: frame.length,
+      crc1Ok: frame.crc1Ok,
+      crc2Ok: frame.crc2Ok,
+      countryCode: frame.countryCode,
+      countryName: countryName,
+      protocolCode: frame.protocolCode,
+      protocolName: frame.protocolName,
+      hexId: frame.hexId,
+      identification: frame.identification,
+      latitude: latitude ?? frame.latitude,
+      longitude: longitude ?? frame.longitude,
+      isTest: frame.isTest,
+      rawHex: Sarsat1gDecoder.bitsToHex(frame.bits),
+      count: count,
+      lastReceivedTime: lastReceivedTime,
+    );
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'lengthBits': lengthBits,
+    'crc1Ok': crc1Ok,
+    'crc2Ok': crc2Ok,
+    'countryCode': countryCode,
+    'countryName': countryName,
+    'protocolCode': protocolCode,
+    'protocolName': protocolName,
+    'hexId': hexId,
+    'identification': identification,
+    'latitude': latitude,
+    'longitude': longitude,
+    'isTest': isTest,
+    'rawHex': rawHex,
+    'count': count,
+    'lastReceivedTime': lastReceivedTime?.millisecondsSinceEpoch,
+  };
+
+  factory Sarsat1gDetails.fromJson(Map<dynamic, dynamic> json) {
+    double? toD(Object? v) => v is num ? v.toDouble() : null;
+    final lastMs = json['lastReceivedTime'];
+    return Sarsat1gDetails(
+      lengthBits: json['lengthBits'] as int? ?? 0,
+      crc1Ok: json['crc1Ok'] as bool? ?? false,
+      crc2Ok: json['crc2Ok'] as bool? ?? false,
+      countryCode: json['countryCode'] as int? ?? 0,
+      countryName: json['countryName'] as String?,
+      protocolCode: json['protocolCode'] as int? ?? 0,
+      protocolName: json['protocolName'] as String? ?? '',
+      hexId: json['hexId'] as String? ?? '',
+      identification: json['identification'] as String? ?? '',
+      latitude: toD(json['latitude']),
+      longitude: toD(json['longitude']),
+      isTest: json['isTest'] as bool? ?? false,
+      rawHex: json['rawHex'] as String? ?? '',
+      count: json['count'] as int? ?? 1,
+      lastReceivedTime: lastMs is int
+          ? DateTime.fromMillisecondsSinceEpoch(lastMs)
+          : null,
+    );
+  }
+}
+

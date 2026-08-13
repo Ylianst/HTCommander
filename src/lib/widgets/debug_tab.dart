@@ -1,4 +1,5 @@
 import 'dart:io' show File, Platform;
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -170,6 +171,168 @@ class _DebugTabState extends State<DebugTab>
     }
     if (id <= 0 || bt.radioInstance(id) == null) return -1;
     return id;
+  }
+
+  /// Test helper: plays a WAV file into the app as if it were received audio on
+  /// VFO A of the connected radio, so the SSTV / Morse / SARSAT decoders (and
+  /// the UI) process it. Only 32 kHz / 16-bit / mono PCM WAV is accepted, since
+  /// that is the format the receive pipeline uses (no resampling).
+  Future<void> _onPlayWavToVfoA() async {
+    final deviceId = _resolveConnectedRadioId();
+    if (deviceId < 0) {
+      _snack('Connect a radio first — audio is replayed on its VFO A.');
+      return;
+    }
+    final result = await FilePicker.pickFiles(
+      dialogTitle: 'Select a 32 kHz / 16-bit / mono WAV',
+      type: FileType.custom,
+      allowedExtensions: const ['wav'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final path = result.files.single.path;
+    if (path == null) return;
+
+    Uint8List bytes;
+    try {
+      bytes = await File(path).readAsBytes();
+    } catch (e) {
+      _snack('Could not read the file: $e');
+      return;
+    }
+    if (!mounted) return;
+
+    final wav = _parseWav(bytes);
+    if (wav == null) {
+      _snack('Not a valid PCM WAV file.');
+      return;
+    }
+    if (wav.sampleRate != 32000 || wav.channels != 1 || wav.bits != 16) {
+      _snack(
+        'WAV must be 32000 Hz, 16-bit, mono — got '
+        '${wav.sampleRate} Hz, ${wav.channels} ch, ${wav.bits}-bit.',
+      );
+      return;
+    }
+
+    final channelName = _vfoAChannelName(deviceId);
+    final durationMs = (wav.pcm.length / 2 / 32.0).round(); // 32 samples/ms
+    _broker.logInfo(
+      "[Debug] Replaying '${path.split(Platform.pathSeparator).last}' "
+      "(${durationMs}ms) as received audio on device $deviceId VFO A "
+      "channel '${channelName.isEmpty ? '(none)' : channelName}'",
+    );
+    _snack(
+      "Playing ${durationMs}ms to VFO A "
+      "(channel '${channelName.isEmpty ? '(none)' : channelName}')",
+    );
+    await _injectReceivedAudio(deviceId, wav.pcm, channelName);
+  }
+
+  /// Dispatches [pcm] as a received-audio run on [deviceId], mirroring the
+  /// radio's own AudioDataStart / AudioDataAvailable / AudioDataEnd sequence.
+  Future<void> _injectReceivedAudio(
+    int deviceId,
+    Uint8List pcm,
+    String channelName,
+  ) async {
+    final startMs = DateTime.now().millisecondsSinceEpoch;
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'AudioDataStart',
+      data: <String, Object?>{
+        'startTime': startMs,
+        'channelName': channelName,
+        'transmit': false,
+        'muted': false,
+        'usage': null,
+      },
+      store: false,
+    );
+    const chunk = 2048; // bytes (even), ~32 ms at 32 kHz
+    for (int off = 0; off < pcm.length; off += chunk) {
+      final len = (off + chunk <= pcm.length) ? chunk : pcm.length - off;
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: 'AudioDataAvailable',
+        data: <String, Object?>{
+          'data': pcm,
+          'offset': off,
+          'length': len,
+          'channelName': channelName,
+          'transmit': false,
+          'muted': false,
+          'audioRunStartTime': startMs,
+          'usage': null,
+        },
+        store: false,
+      );
+      // Yield so a long file doesn't freeze the UI while decoders run.
+      await Future<void>.delayed(Duration.zero);
+    }
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'AudioDataEnd',
+      data: <String, Object?>{
+        'startTime': startMs,
+        'transmit': false,
+        'usage': null,
+      },
+      store: false,
+    );
+  }
+
+  /// Resolves the VFO A channel name for [deviceId] from the cached radio state.
+  String _vfoAChannelName(int deviceId) {
+    final settings = _broker.getValueDynamic(deviceId, 'Settings');
+    if (settings is! Map) return '';
+    final channelA = settings['channelA'];
+    if (channelA is! int) return '';
+    final channels = _broker.getValueDynamic(deviceId, 'Channels');
+    if (channels is! List) return '';
+    for (final ch in channels) {
+      if (ch is Map && ch['channelId'] == channelA) {
+        final name = ch['name'];
+        if (name is String) return name;
+      }
+    }
+    return '';
+  }
+
+  /// Parses a PCM WAV header, returning its raw sample bytes and format.
+  ({Uint8List pcm, int sampleRate, int channels, int bits})? _parseWav(
+    Uint8List bytes,
+  ) {
+    if (bytes.length < 44) return null;
+    final bd = ByteData.sublistView(bytes);
+    if (String.fromCharCodes(bytes.sublist(0, 4)) != 'RIFF') return null;
+    if (String.fromCharCodes(bytes.sublist(8, 12)) != 'WAVE') return null;
+    int pos = 12;
+    int audioFormat = 0, channels = 0, sampleRate = 0, bits = 0;
+    int dataOffset = -1, dataLen = 0;
+    while (pos + 8 <= bytes.length) {
+      final id = String.fromCharCodes(bytes.sublist(pos, pos + 4));
+      final size = bd.getUint32(pos + 4, Endian.little);
+      if (id == 'fmt ') {
+        audioFormat = bd.getUint16(pos + 8, Endian.little);
+        channels = bd.getUint16(pos + 10, Endian.little);
+        sampleRate = bd.getUint32(pos + 12, Endian.little);
+        bits = bd.getUint16(pos + 22, Endian.little);
+      } else if (id == 'data') {
+        dataOffset = pos + 8;
+        dataLen = size;
+        break;
+      }
+      pos += 8 + size + (size & 1);
+    }
+    if (dataOffset < 0 || audioFormat != 1) return null;
+    if (dataOffset + dataLen > bytes.length) dataLen = bytes.length - dataOffset;
+    final pcm = Uint8List.sublistView(bytes, dataOffset, dataOffset + dataLen);
+    return (pcm: pcm, sampleRate: sampleRate, channels: channels, bits: bits);
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// Opens the raw command test dialog for the currently connected radio.
@@ -446,6 +609,17 @@ class _DebugTabState extends State<DebugTab>
             children: [const SizedBox(width: 20), Text('APRS Symbols...')],
           ),
         ),
+        PopupMenuItem<String>(
+          value: 'playWavRx',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [
+              const SizedBox(width: 20),
+              Text('Play WAV to VFO A (Test RX)...'),
+            ],
+          ),
+        ),
         const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
           value: 'autoScroll',
@@ -536,6 +710,9 @@ class _DebugTabState extends State<DebugTab>
           break;
         case 'aprsSymbols':
           if (context.mounted) showAprsSymbolsDialog(context);
+          break;
+        case 'playWavRx':
+          await _onPlayWavToVfoA();
           break;
         case 'autoScroll':
           setState(() => _autoScroll = !_autoScroll);

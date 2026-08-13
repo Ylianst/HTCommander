@@ -4,9 +4,10 @@
 how HTCommander turns that half-second burst into a country, a beacon ID, and a
 position on a map. This post covers what COSPAS-SARSAT is, what a first-generation
 406 MHz beacon actually transmits (phase-modulated, not FM), why decoding it on a
-Benshi is a strange fit, the coherent demodulator and BCH error-correction we
-built in pure Dart, how we proved it works without a real beacon, and how it
-switches itself on the moment you tune to the band.*
+Benshi is a strange fit, the two demodulators (coherent and FM-demod) and BCH
+error-correction we built in pure Dart, how we proved it works — synthetically and
+then on a real beacon recording — and how it surfaces as its own Comms message
+type and a map marker.*
 
 ---
 
@@ -119,11 +120,18 @@ is a genuine "best-effort" decoder, not a certified receiver.
 
 ---
 
-## The demodulator, step by step
+## The demodulators, step by step
 
-The 406 signal is physically a phase-modulated tone, so we treat it as one. The
+A 406 beacon can reach us in two very different audio *shapes*, so the
 demodulator ([`sarsat_1g_demodulator.dart`](../../src/lib/sarsat/sarsat_1g_demodulator.dart))
-is a coherent chain that turns a buffer of PCM into bits:
+runs **two independent front-ends** and keeps whichever produces a BCH-valid
+frame.
+
+### Path 1 — coherent (phase tone)
+
+Recorded on an SSB/CW receiver — or a discriminator / `rtl_fm` feed that keeps
+the tone intact — the beacon looks like exactly what it physically is: a ±1.1 rad
+phase-modulated carrier. We treat it as one:
 
 1. **DC block.** Remove the mean.
 2. **Carrier estimate.** A ±1.1 rad PSK signal still has a strong *residual
@@ -142,14 +150,26 @@ is a coherent chain that turns a buffer of PCM into bits:
 6. **Biphase-L slice.** At each sync anchor, integrate the phase over each
    half-bit and Manchester-decode to bits, at 400 bps, trying both polarities.
 
-The output is a candidate 144- (or 112-) bit frame, which we hand to the decoder.
-
 The one subtlety worth calling out is **timing**. At a 400 bps symbol rate, even
 a tiny error in the assumed samples-per-bit accumulates over a 144-bit frame and
 *slips* a bit — the front of the frame decodes perfectly and the tail turns to
 mush. Locking the symbol clock precisely (we anchor on the matched-filter sync
 and use the exact samples-per-bit for the file's sample rate) is what makes the
 whole frame land.
+
+### Path 2 — FM-demod (autocorrelation)
+
+Here's the catch that Path 1 alone can't handle: a Benshi (and `rtl_fm -M fm`)
+hands us **FM-demodulated** audio, where the beacon's phase transitions arrive as
+a transition-pulse waveform, not a clean tone — and the coherent chain simply
+can't lock onto it. That's the audio shape that actually matters for real-world
+reception, so we ported the reference `dec406` `capture_trame` slicer: a
+delay-and-multiply **autocorrelation at one-bit lag** that finds the 15-bit sync
+run and reconstructs the frame straight from the transition timing. It decodes
+the FM-demod waveform the coherent path can't — **and self-test beacons fall out
+of it for free**, because it never hard-codes a frame-sync pattern.
+
+Both paths hand their candidate 144- (or 112-) bit frame to the same decoder.
 
 ---
 
@@ -177,11 +197,12 @@ hex ID, and position.
 
 ---
 
-## How we proved it works — without a beacon
+## How we proved it works
 
-We didn't have a 406 transmitter on the bench (and you can't just key one up on a
-protected distress band). So verification had to be self-contained and rigorous.
-Three layers, all in the test suite
+We had no 406 transmitter on the bench (and you can't just key one up on a
+protected distress band), so verification started entirely self-contained \u2014 and
+then, when a real recording turned up, gained a genuine on-air check. Four layers,
+all in the test suite
 ([`sarsat_1g_test.dart`](../../src/test/sarsat_1g_test.dart)):
 
 **1. Golden frames from an oracle encoder.** The reference BCH isn't a textbook
@@ -208,6 +229,14 @@ reproducible with no external files.
 There's even a streaming test that feeds the monitor 256-byte PCM chunks — the
 exact cadence the audio engine delivers — then flushes, to prove the real-time
 buffering path decodes a burst the same way the batch path does.
+
+**4. And then, a real beacon.** Someone supplied a genuine recording of a 406
+self-test beacon (`Sarsat.wav` — FM-demodulated, 32 kHz mono). Dropped straight
+through the production demodulator it decodes cleanly, with **both BCH fields
+valid**: a France (country 227) ELT-DT self-test beacon, hex ID
+`1C72091A2B3FDFF`. It's the case that exercises the FM-demod path *and* self-test
+sync on a real signal — and it's now a committed test fixture, so the real-signal
+path is a permanent regression, not a one-off.
 
 ---
 
@@ -245,10 +274,21 @@ remember, and no assumption about frequency.
 ### It shows up as its own message type
 
 When a beacon decodes, it lands in the Comms tab as a distinct message type — a
-red **SOS** icon and a `SARSAT` label — carrying the hex ID, country, protocol,
-and, when present, the position. Because it flows through the same message model
-as APRS, a beacon that reports coordinates gets the same treatment: the icon is
-tappable to show its location.
+red **SOS** icon and a `SARSAT` label — carrying the hex ID, the country **by
+name** (not just the numeric code), the protocol, and, when present, the
+position. Opening its details breaks the frame down field by field, right down to
+the raw hex.
+
+Because a beacon repeats every ~50 s, a busy channel would otherwise flood the
+tab, so we **coalesce** repeats of the same beacon ID within a minute into a
+single bubble that counts them: the header reads **“SARSAT ×5”** while the bubble
+keeps the latest decode. And because it flows through the same message model as
+APRS, a beacon that reports coordinates gets the same treatment — a tappable
+**“Show Location…”**, and a red **SOS marker dropped on the Map tab**.
+
+There's also a Debug-tab helper to replay a `.wav` into the app as if it were
+received on VFO A, so the whole decode → message → map path can be exercised from
+a file without a radio on the bench.
 
 ---
 
@@ -258,17 +298,22 @@ What works today, and what's still on the bench:
 
 - ✅ **v1g frame decode** — BCH check + up to 3-bit correction, country,
   protocol, 15-hex ID, and position for the common location protocols.
-- ✅ **Coherent demodulation** from audio, verified end-to-end by round-trip.
-- ✅ **Auto-activation** on a channel named `sarsat`, distinct Comms message type.
-- ⚠️ **Real FM audio is the unknown.** All verification is synthetic or from
-  clean recordings. A stock Benshi's SBC-compressed, de-emphasized audio is the
-  weakest link, and real-world reliability there is unproven. A raw discriminator
-  or `rtl_fm` feed would do far better.
-- ⚠️ **Sync search anchors on the *normal* frame sync only** — self-test beacons
-  (a different 9-bit sync) aren't matched by the demodulator yet, though the
-  decoder understands them.
+- ✅ **Two demodulators** — coherent (phase tone) and FM-demod (autocorrelation),
+  verified end-to-end by round-trip *and* on a real FM-demodulated recording.
+- ✅ **Surfaces cleanly** — auto-activates on a channel named `sarsat`, a distinct
+  Comms message type with country name and “×N” coalescing, and an SOS map marker.
+- ⚠️ **Real FM audio, at scale, is still the open question.** One genuine
+  FM-demod recording decodes cleanly, but a stock Benshi's SBC-compressed,
+  de-emphasized audio is the weakest link and its reliability across many
+  real-world bursts is unproven. A raw discriminator or `rtl_fm` feed will
+  always do better.
+- ⚠️ **Self-test beacons** are handled by the FM-demod path (which is the one
+  that matters for real FM audio); the coherent path's matched filter still only
+  anchors on the *normal* frame sync.
 - ⚠️ **Position parsing covers Standard Location and User-Location**; the other
-  location protocols are classified but not fully geo-decoded.
+  location protocols (ELT-DT, National, RLS…) are classified but not yet fully
+  geo-decoded, so an ELT-DT self-test won't plot a pin even though everything
+  else about it decodes.
 - ❌ **Second-generation (SGB) beacons** — DSSS/OQPSK, needs IQ, not attempted.
 
 And the standing rule, worth repeating: this is **receive-only**. 406 MHz is a

@@ -157,6 +157,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// Voice / BSS source-station markers keyed by source callsign (orange).
   final Map<String, _StationMarkerData> _voiceStations = {};
 
+  /// SARSAT 406 distress-beacon markers keyed by 15-hex beacon ID (red SOS).
+  final Map<String, _StationMarkerData> _sarsatBeacons = {};
+
   /// Guards against loading the historical APRS packet list more than once,
   /// mirroring the C# `_historicalPacketsLoaded` flag.
   bool _historicalPacketsLoaded = false;
@@ -659,6 +662,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     for (final entry in data) {
       if (entry is Map) {
         changed = _processVoiceEntry(entry) || changed;
+        changed = _processSarsatEntry(entry) || changed;
       }
     }
     if (changed && mounted) setState(() {});
@@ -671,7 +675,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     // Only process completed entries (matches the C# guard).
     final completed = data['completed'];
     if (completed is bool && !completed) return;
-    if (_processVoiceEntry(data) && mounted) {
+    final voiceChanged = _processVoiceEntry(data);
+    final sarsatChanged = _processSarsatEntry(data);
+    if ((voiceChanged || sarsatChanged) && mounted) {
       setState(() {});
     }
   }
@@ -695,6 +701,32 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     } else {
       _voiceStations[source] = _StationMarkerData(
         callsign: source,
+        position: point,
+        time: time,
+        isSelf: false,
+      );
+    }
+    return true;
+  }
+
+  /// Adds or updates a red "SOS" marker for a decoded SARSAT 406 beacon that
+  /// carries a position, keyed by its 15-hex beacon ID. Returns true when the
+  /// marker set changed.
+  bool _processSarsatEntry(Map<dynamic, dynamic> entry) {
+    if (entry['encoding'] != 'Sarsat') return false;
+    final lat = _toDouble(entry['latitude']);
+    final lng = _toDouble(entry['longitude']);
+    if (lat == 0 && lng == 0) return false;
+    final s = entry['sarsat'];
+    final hexId = (s is Map ? s['hexId'] as String? : null) ?? 'Beacon';
+    final time = _toDateTime(entry['time']);
+    final point = LatLng(lat, lng);
+    final existing = _sarsatBeacons[hexId];
+    if (existing != null) {
+      existing.update(point, time);
+    } else {
+      _sarsatBeacons[hexId] = _StationMarkerData(
+        callsign: hexId,
         position: point,
         time: time,
         isSelf: false,
@@ -1458,6 +1490,23 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       addStation(station, Colors.orange);
     }
 
+    // SARSAT 406 distress beacons: a red "SOS" badge. Always shown (a distress
+    // signal should stay visible regardless of the time filter).
+    for (final beacon in _sarsatBeacons.values) {
+      markers.add(
+        Marker(
+          point: beacon.position,
+          width: size,
+          height: size + spikeHeight,
+          alignment: Alignment.topCenter,
+          child: Tooltip(
+            message: 'SARSAT ${beacon.callsign}\n${_formatTime(beacon.time)}',
+            child: _buildSarsatMarker(size: size, spikeHeight: spikeHeight),
+          ),
+        ),
+      );
+    }
+
     // External serial GPS marker (blue), shown whenever there is a valid fix.
     final gps = _serialGps;
     if (gps != null) {
@@ -1556,6 +1605,55 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
         CustomPaint(
           size: Size(size * 0.5, spikeHeight),
           painter: _MarkerSpikePainter(spikeColor),
+        ),
+      ],
+    );
+  }
+
+  /// Builds a SARSAT distress-beacon marker: a red circular badge with "SOS"
+  /// text on a red spike whose tip marks the exact position.
+  Widget _buildSarsatMarker({
+    required double size,
+    required double spikeHeight,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: Colors.red,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 1.5),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 2,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 2),
+                child: Text(
+                  'SOS',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        CustomPaint(
+          size: Size(size * 0.5, spikeHeight),
+          painter: _MarkerSpikePainter(Colors.red),
         ),
       ],
     );

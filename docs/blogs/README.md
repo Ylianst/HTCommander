@@ -225,12 +225,13 @@ Pulling life-saving signals out of the air — receive-only, on protected bands.
 1. **[Decoding Distress: 406 MHz SARSAT Beacons in HTCommander](sarsat-406-beacon-decoding.md)**
    How a handheld FM radio can pick a satellite distress beacon out of the air:
    what COSPAS-SARSAT is, why a first-generation 406 MHz beacon is
-   phase-modulated (not FM), the coherent demodulator and BCH error-correction
-   we built in pure Dart, how we proved it works with a round-trip modulator and
-   an oracle-built BCH encoder (no real beacon required), and how decoding
-   switches itself on whenever the selected channel is named `sarsat` (so a
-   406 MHz beacon or a 434 MHz trainer both work) — surfacing a country, a
-   15-hex beacon ID, and a position as its own Comms message type.
+   phase-modulated (not FM), the two demodulators (coherent and FM-demod) and BCH
+   error-correction we built in pure Dart, how we proved it works — with a
+   round-trip modulator, an oracle-built BCH encoder, and finally a real beacon
+   recording that decodes with both BCH fields valid — and how decoding activates
+   on a channel named `sarsat` (so a 406 MHz beacon or a 434 MHz trainer both
+   work), surfacing a country, a 15-hex beacon ID, and a position as its own
+   Comms message type with an SOS map marker.
 
 ---
 

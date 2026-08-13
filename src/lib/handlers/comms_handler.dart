@@ -54,6 +54,7 @@ import '../radio/morse_code_engine.dart';
 import '../radio/radio.dart';
 import '../radio/tnc_data_fragment.dart';
 import '../sarsat/sarsat_1g_decoder.dart';
+import '../sarsat/sarsat_country_codes.dart';
 import '../sarsat/sarsat_monitor.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -170,6 +171,9 @@ class DecodedTextEntry {
   /// otherwise).
   String? keyType;
 
+  /// Structured decoded fields for SARSAT beacon entries (null otherwise).
+  Sarsat1gDetails? sarsat;
+
   DecodedTextEntry({
     this.text,
     this.channel,
@@ -184,6 +188,7 @@ class DecodedTextEntry {
     this.duration = 0,
     this.wpm,
     this.keyType,
+    this.sarsat,
   }) : time = time ?? DateTime.now();
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -200,6 +205,7 @@ class DecodedTextEntry {
     'duration': duration,
     'wpm': wpm,
     'keyType': keyType,
+    'sarsat': sarsat?.toJson(),
   };
 
   factory DecodedTextEntry.fromJson(Map<String, dynamic> json) {
@@ -227,6 +233,9 @@ class DecodedTextEntry {
       duration: json['duration'] as int? ?? 0,
       wpm: json['wpm'] as int?,
       keyType: json['keyType'] as String?,
+      sarsat: json['sarsat'] is Map
+          ? Sarsat1gDetails.fromJson(json['sarsat'] as Map)
+          : null,
     );
   }
 }
@@ -1591,33 +1600,116 @@ class CommsHandler {
     _sarsatEmitDeviceId = -1;
   }
 
-  /// Records a decoded 406 MHz distress beacon in the received history.
+  /// Coalescing window: repeated beacons with the same ID within this window of
+  /// the bubble's first beacon are merged into that bubble.
+  static const Duration _sarsatCoalesceWindow = Duration(minutes: 1);
+
+  /// Records a decoded 406 MHz distress beacon in the received history,
+  /// coalescing repeats of the same beacon ID within [_sarsatCoalesceWindow]
+  /// into a single bubble (bumping its count and refreshing its data/location
+  /// but never its original time).
   void _onSarsatDecoded(Sarsat1gFrame f) {
     if (_disposed) return;
     final deviceId =
         _sarsatEmitDeviceId > 0 ? _sarsatEmitDeviceId : _targetDeviceId;
     if (deviceId <= 0) return;
+    final now = DateTime.now();
+    final countryName = sarsatCountryName(f.countryCode);
+    final channel = _getVfoAChannelName(deviceId);
+
+    // Find a recent bubble for the same beacon ID (entries are chronological,
+    // so stop once we pass the window).
+    DecodedTextEntry? bubble;
+    for (int i = _decodedTextHistory.length - 1; i >= 0; i--) {
+      final e = _decodedTextHistory[i];
+      if (now.difference(e.time) >= _sarsatCoalesceWindow) break;
+      if (e.encoding == VoiceTextEncodingType.sarsat &&
+          e.sarsat?.hexId == f.hexId) {
+        bubble = e;
+        break;
+      }
+    }
+
+    final count = (bubble?.sarsat?.count ?? 0) + 1;
+
+    // Effective location: prefer this beacon's fix, else retain the bubble's.
+    double? lat = f.latitude;
+    double? lon = f.longitude;
+    if (lat == null &&
+        bubble != null &&
+        (bubble.latitude != 0 || bubble.longitude != 0)) {
+      lat = bubble.latitude;
+      lon = bubble.longitude;
+    }
+
+    final details = Sarsat1gDetails.fromFrame(
+      f,
+      countryName: countryName,
+      count: count,
+      lastReceivedTime: now,
+      latitude: lat,
+      longitude: lon,
+    );
     final parts = <String>[
-      '406 beacon ${f.hexId}',
-      'Country ${f.countryCode}',
+      'ID: ${f.hexId}',
+      countryName != null ? '$countryName (${f.countryCode})' : '${f.countryCode}',
       f.protocolName,
     ];
-    if (f.hasPosition) {
-      parts.add(
-        '${f.latitude!.toStringAsFixed(5)}, ${f.longitude!.toStringAsFixed(5)}',
+    if (f.isTest) parts.add('Self-test');
+    final text = parts.join(', ');
+
+    final DateTime bubbleTime;
+    if (bubble != null) {
+      // Update in place; keep the original (first-beacon) time.
+      bubbleTime = bubble.time;
+      bubble.text = text;
+      bubble.sarsat = details;
+      bubble.latitude = lat ?? 0;
+      bubble.longitude = lon ?? 0;
+      _broker.logInfo('[CommsHandler] SARSAT 406 x$count: ${f.hexId}');
+    } else {
+      bubbleTime = now;
+      final entry = DecodedTextEntry(
+        text: text,
+        channel: channel,
+        time: now,
+        isReceived: true,
+        encoding: VoiceTextEncodingType.sarsat,
+        latitude: lat ?? 0,
+        longitude: lon ?? 0,
+        sarsat: details,
       );
+      _decodedTextHistory.add(entry);
+      _trimHistory();
+      _broker.logInfo('[CommsHandler] SARSAT 406 decode: $text');
     }
-    if (f.isTest) parts.add('(self-test)');
-    _broker.logInfo('[CommsHandler] SARSAT 406 decode: ${parts.join(' | ')}');
-    _addDataPacketEntry(
+    unawaited(_saveVoiceTextHistory());
+    _dispatchDecodedTextHistory();
+
+    // TextReady with a stable updateKey so the Comms tab appends-or-replaces
+    // the bubble rather than adding a new one on each repeat.
+    _broker.dispatch(
       deviceId: deviceId,
-      text: parts.join(' | '),
-      channel: _getVfoAChannelName(deviceId),
-      time: DateTime.now(),
-      encoding: VoiceTextEncodingType.sarsat,
-      isReceived: true,
-      latitude: f.latitude ?? 0,
-      longitude: f.longitude ?? 0,
+      name: 'TextReady',
+      data: <String, Object?>{
+        'text': text,
+        'channel': channel,
+        'time': bubbleTime.millisecondsSinceEpoch,
+        'completed': true,
+        'isReceived': true,
+        'encoding': _encodingToString(VoiceTextEncodingType.sarsat),
+        'latitude': lat ?? 0,
+        'longitude': lon ?? 0,
+        'source': null,
+        'destination': null,
+        'filename': null,
+        'duration': 0,
+        'wpm': null,
+        'keyType': null,
+        'sarsat': details.toJson(),
+        'updateKey': 'sarsat_${f.hexId}_${bubbleTime.millisecondsSinceEpoch}',
+      },
+      store: false,
     );
   }
 
@@ -2274,6 +2366,7 @@ class CommsHandler {
     double longitude = 0,
     int? wpm,
     String? keyType,
+    Sarsat1gDetails? sarsat,
   }) {
     final entry = DecodedTextEntry(
       text: text,
@@ -2287,6 +2380,7 @@ class CommsHandler {
       longitude: longitude,
       wpm: wpm,
       keyType: keyType,
+      sarsat: sarsat,
     );
     _decodedTextHistory.add(entry);
     _trimHistory();
@@ -2316,6 +2410,7 @@ class CommsHandler {
         'duration': 0,
         'wpm': wpm,
         'keyType': keyType,
+        'sarsat': sarsat?.toJson(),
       },
       store: false,
     );
