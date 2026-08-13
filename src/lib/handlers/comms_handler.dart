@@ -526,16 +526,10 @@ class CommsHandler {
       _initializeCwMonitor();
     }
 
-    // SARSAT 406 beacon receive-decode is opt-in via the Comms tab
-    // "Decode SARSAT 406" setting; start its monitor only while enabled.
-    _broker.subscribe(
-      deviceId: 0,
-      name: 'Sarsat406DecodeEnabled',
-      callback: _onSarsat406DecodeEnabledChanged,
-    );
-    if (_broker.getValue<bool>(0, 'Sarsat406DecodeEnabled', false) ?? false) {
-      _initializeSarsatMonitor();
-    }
+    // SARSAT 406 beacon receive-decode has no manual switch: the monitor is
+    // always allocated but only fed audio while VFO A is tuned to the 406 MHz
+    // distress band (see _isVfoA406Frequency), so it self-activates on tuning.
+    _initializeSarsatMonitor();
 
     // Initialize the speech-to-text engine if speech-to-text is enabled.
     // Speech-to-text is not available on Android (reduces APK size) or web.
@@ -1193,7 +1187,8 @@ class CommsHandler {
       }
     }
 
-    // SARSAT 406 auto-decode: buffer received (non-transmit) audio for the
+    // SARSAT 406 auto-decode: activates automatically while VFO A is tuned to
+    // the 406 MHz beacon band. Buffers received (non-transmit) audio for the
     // burst, locking onto one radio; the monitor decodes on flush (burst end).
     final sarsat = _sarsatMonitor;
     if (sarsat != null && deviceId > 0) {
@@ -1201,7 +1196,10 @@ class CommsHandler {
       final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
       final channelName =
           (data['channelName'] ?? data['ChannelName']) as String? ?? '';
-      if (usage == null && !transmit && channelName != 'APRS') {
+      if (usage == null &&
+          !transmit &&
+          channelName != 'APRS' &&
+          _isVfoA406Frequency(deviceId)) {
         if (_sarsatDeviceId <= 0) _sarsatDeviceId = deviceId;
         if (deviceId == _sarsatDeviceId) {
           _sarsatEmitDeviceId = deviceId;
@@ -1572,21 +1570,6 @@ class CommsHandler {
       isReceived: true,
       wpm: e.wpm,
     );
-  }
-
-  void _onSarsat406DecodeEnabledChanged(
-    int deviceId,
-    String name,
-    Object? data,
-  ) {
-    if (_disposed) return;
-    final enable = data is bool ? data : false;
-    if (enable == (_sarsatMonitor != null)) return;
-    if (enable) {
-      _initializeSarsatMonitor();
-    } else {
-      _cleanupSarsatMonitor();
-    }
   }
 
   void _initializeSarsatMonitor() {
@@ -2702,6 +2685,45 @@ class CommsHandler {
       }
     }
     return '';
+  }
+
+  // 406 MHz distress-beacon band (COSPAS-SARSAT), inclusive, in Hz.
+  static const int _sarsat406LowHz = 406000000;
+  static const int _sarsat406HighHz = 406100000;
+
+  /// True when [deviceId]'s VFO A is currently tuned to the 406 MHz beacon
+  /// band. Frequency mode (direct VFO tuning) takes priority over the stored
+  /// channel. Returns false when the frequency is unknown.
+  bool _isVfoA406Frequency(int deviceId) {
+    final freq = _vfoARxFreqHz(deviceId);
+    return freq != null &&
+        freq >= _sarsat406LowHz &&
+        freq <= _sarsat406HighHz;
+  }
+
+  /// The current VFO A RX frequency in Hz for [deviceId], or null if unknown.
+  int? _vfoARxFreqHz(int deviceId) {
+    // Direct frequency (VFO) mode reports the live tuned frequency.
+    final freqModeActive =
+        _broker.getValue<bool>(deviceId, 'FreqModeActive', false) ?? false;
+    if (freqModeActive) {
+      final f = _broker.getValue<int>(deviceId, 'FreqModeFreq', 0) ?? 0;
+      return f > 0 ? f : null;
+    }
+    // Otherwise resolve the stored VFO A channel's RX frequency.
+    final settings = _broker.getValueDynamic(deviceId, 'Settings');
+    if (settings is! Map) return null;
+    final channelA = settings['channelA'];
+    if (channelA is! int) return null;
+    final channels = _broker.getValueDynamic(deviceId, 'Channels');
+    if (channels is! List) return null;
+    for (final channel in channels) {
+      if (channel is Map && channel['channelId'] == channelA) {
+        final f = channel['rxFreq'];
+        return f is int ? f : null;
+      }
+    }
+    return null;
   }
 
   // ---------------------------------------------------------------------------
