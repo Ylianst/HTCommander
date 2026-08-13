@@ -64,6 +64,24 @@ jobs:
           APP_PATH=$(find src/build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
           echo "Signing $APP_PATH"
 
+          # Some vendored frameworks (e.g. SherpaOnnxC.framework) ship with a
+          # missing/broken Versions/Current symlink, which makes codesign fail with
+          # "bundle format is ambiguous (could be app or framework)". Rebuild the
+          # standard framework symlink structure before signing.
+          for framework in "$APP_PATH/Contents/Frameworks/"*.framework; do
+            [ -d "$framework" ] || continue
+            name=$(basename "$framework" .framework)
+            versions="$framework/Versions"
+            [ -d "$versions" ] || continue
+            ver="A"; [ -d "$versions/$ver" ] || ver=$(ls "$versions" | grep -v '^Current$' | head -1)
+            [ -n "$ver" ] || continue
+            ln -sfn "$ver" "$versions/Current"
+            [ -e "$versions/Current/$name" ] && ln -sfn "Versions/Current/$name" "$framework/$name"
+            for sub in Resources Headers Modules; do
+              [ -e "$versions/Current/$sub" ] && ln -sfn "Versions/Current/$sub" "$framework/$sub"
+            done
+          done
+
           # Sign nested code first (inside-out), then the app bundle itself
           find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" \) -exec \
             codesign --force --timestamp --options runtime --sign "$MACOS_SIGNING_IDENTITY" {} +
