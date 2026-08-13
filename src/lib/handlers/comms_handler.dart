@@ -527,8 +527,8 @@ class CommsHandler {
     }
 
     // SARSAT 406 beacon receive-decode has no manual switch: the monitor is
-    // always allocated but only fed audio while VFO A is tuned to the 406 MHz
-    // distress band (see _isVfoA406Frequency), so it self-activates on tuning.
+    // always allocated but only fed audio from a channel named "sarsat"
+    // (case-insensitive), so it self-activates on that channel.
     _initializeSarsatMonitor();
 
     // Initialize the speech-to-text engine if speech-to-text is enabled.
@@ -1187,9 +1187,10 @@ class CommsHandler {
       }
     }
 
-    // SARSAT 406 auto-decode: activates automatically while VFO A is tuned to
-    // the 406 MHz beacon band. Buffers received (non-transmit) audio for the
-    // burst, locking onto one radio; the monitor decodes on flush (burst end).
+    // SARSAT 406 auto-decode: activates on any channel named "sarsat"
+    // (case-insensitive), so a training beacon on any frequency can be used.
+    // Buffers received (non-transmit) audio for the burst, locking onto one
+    // radio; the monitor decodes on flush (burst end).
     final sarsat = _sarsatMonitor;
     if (sarsat != null && deviceId > 0) {
       final usage = data['usage'] ?? data['Usage'];
@@ -1198,8 +1199,7 @@ class CommsHandler {
           (data['channelName'] ?? data['ChannelName']) as String? ?? '';
       if (usage == null &&
           !transmit &&
-          channelName != 'APRS' &&
-          _isVfoA406Frequency(deviceId)) {
+          channelName.toLowerCase() == 'sarsat') {
         if (_sarsatDeviceId <= 0) _sarsatDeviceId = deviceId;
         if (deviceId == _sarsatDeviceId) {
           _sarsatEmitDeviceId = deviceId;
@@ -2685,45 +2685,6 @@ class CommsHandler {
       }
     }
     return '';
-  }
-
-  // 406 MHz distress-beacon band (COSPAS-SARSAT), inclusive, in Hz.
-  static const int _sarsat406LowHz = 406000000;
-  static const int _sarsat406HighHz = 406100000;
-
-  /// True when [deviceId]'s VFO A is currently tuned to the 406 MHz beacon
-  /// band. Frequency mode (direct VFO tuning) takes priority over the stored
-  /// channel. Returns false when the frequency is unknown.
-  bool _isVfoA406Frequency(int deviceId) {
-    final freq = _vfoARxFreqHz(deviceId);
-    return freq != null &&
-        freq >= _sarsat406LowHz &&
-        freq <= _sarsat406HighHz;
-  }
-
-  /// The current VFO A RX frequency in Hz for [deviceId], or null if unknown.
-  int? _vfoARxFreqHz(int deviceId) {
-    // Direct frequency (VFO) mode reports the live tuned frequency.
-    final freqModeActive =
-        _broker.getValue<bool>(deviceId, 'FreqModeActive', false) ?? false;
-    if (freqModeActive) {
-      final f = _broker.getValue<int>(deviceId, 'FreqModeFreq', 0) ?? 0;
-      return f > 0 ? f : null;
-    }
-    // Otherwise resolve the stored VFO A channel's RX frequency.
-    final settings = _broker.getValueDynamic(deviceId, 'Settings');
-    if (settings is! Map) return null;
-    final channelA = settings['channelA'];
-    if (channelA is! int) return null;
-    final channels = _broker.getValueDynamic(deviceId, 'Channels');
-    if (channels is! List) return null;
-    for (final channel in channels) {
-      if (channel is Map && channel['channelId'] == channelA) {
-        final f = channel['rxFreq'];
-        return f is int ? f : null;
-      }
-    }
-    return null;
   }
 
   // ---------------------------------------------------------------------------
