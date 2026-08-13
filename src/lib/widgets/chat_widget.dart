@@ -24,6 +24,10 @@ class ChatMessage {
   final double? latitude;
   final double? longitude;
   final IconData? icon;
+
+  /// Optional colour for [icon]; falls back to the theme's onSurfaceVariant.
+  /// Used to make distress messages (SARSAT beacons) stand out.
+  final Color? iconColor;
   final Object? tag;
 
   /// Optional widget drawn inside the bubble (to the left of the text), used
@@ -54,6 +58,7 @@ class ChatMessage {
     this.latitude,
     this.longitude,
     this.icon,
+    this.iconColor,
     this.tag,
     this.bubbleSymbol,
     this.bubbleColorOverride,
@@ -372,7 +377,8 @@ class _ChatWidgetState extends State<ChatWidget> {
             Icon(
               message.icon,
               size: 16,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: message.iconColor ??
+                  Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(width: 4),
@@ -463,7 +469,8 @@ class _ChatWidgetState extends State<ChatWidget> {
                 Icon(
                   message.icon,
                   size: 16,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: message.iconColor ??
+                      Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -550,7 +557,8 @@ class _ChatWidgetState extends State<ChatWidget> {
                 Icon(
                   message.icon,
                   size: 16,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: message.iconColor ??
+                      Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),

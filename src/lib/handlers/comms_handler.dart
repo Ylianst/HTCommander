@@ -53,6 +53,8 @@ import '../radio/cw_monitor.dart';
 import '../radio/morse_code_engine.dart';
 import '../radio/radio.dart';
 import '../radio/tnc_data_fragment.dart';
+import '../sarsat/sarsat_1g_decoder.dart';
+import '../sarsat/sarsat_monitor.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/tts_service.dart';
@@ -72,6 +74,7 @@ enum VoiceTextEncodingType {
   ident,
   echolink,
   allStarLink,
+  sarsat,
 }
 
 /// Serializes a [VoiceTextEncodingType] to its C#-compatible name (PascalCase).
@@ -99,6 +102,8 @@ String _encodingToString(VoiceTextEncodingType e) {
       return 'EchoLink';
     case VoiceTextEncodingType.allStarLink:
       return 'AllStarLink';
+    case VoiceTextEncodingType.sarsat:
+      return 'Sarsat';
   }
 }
 
@@ -126,6 +131,8 @@ VoiceTextEncodingType _encodingFromString(Object? value) {
       return VoiceTextEncodingType.echolink;
     case 'allstarlink':
       return VoiceTextEncodingType.allStarLink;
+    case 'sarsat':
+      return VoiceTextEncodingType.sarsat;
     case 'voice':
     default:
       return VoiceTextEncodingType.voice;
@@ -304,6 +311,14 @@ class CommsHandler {
   StreamSubscription<CwDecoded>? _cwDecodedSub;
   int _cwDeviceId = -1; // radio locked for the current receive burst
   int _cwEmitDeviceId = -1; // radio a decoded transmission is attributed to
+
+  // SARSAT 406 v1g beacon receive-decode state. Opt-in via the Comms tab
+  // "Decode SARSAT 406" setting; the monitor only exists while enabled.
+  static const int _sarsatSampleRate = 32000;
+  SarsatMonitor? _sarsatMonitor;
+  StreamSubscription<Sarsat1gFrame>? _sarsatDecodedSub;
+  int _sarsatDeviceId = -1; // radio locked for the current receive burst
+  int _sarsatEmitDeviceId = -1; // radio a decoded beacon is attributed to
 
   /// Whether an SSTV image is currently being received/decoded. Setting this
   /// publishes an `SstvReceiving` flag on the SSTV device so the software modem
@@ -509,6 +524,17 @@ class CommsHandler {
     );
     if (_broker.getValue<bool>(0, 'MorseDecodeEnabled', false) ?? false) {
       _initializeCwMonitor();
+    }
+
+    // SARSAT 406 beacon receive-decode is opt-in via the Comms tab
+    // "Decode SARSAT 406" setting; start its monitor only while enabled.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'Sarsat406DecodeEnabled',
+      callback: _onSarsat406DecodeEnabledChanged,
+    );
+    if (_broker.getValue<bool>(0, 'Sarsat406DecodeEnabled', false) ?? false) {
+      _initializeSarsatMonitor();
     }
 
     // Initialize the speech-to-text engine if speech-to-text is enabled.
@@ -967,6 +993,14 @@ class CommsHandler {
       _cwDeviceId = -1;
     }
 
+    // Decode the buffered SARSAT 406 burst at the end of the receive run, then
+    // release the burst lock so another radio can be picked.
+    if (_sarsatMonitor != null && deviceId == _sarsatDeviceId) {
+      _sarsatEmitDeviceId = deviceId;
+      _sarsatMonitor!.flush();
+      _sarsatDeviceId = -1;
+    }
+
     // Speech-to-text flush (deferred) for the enabled target radio.
     if (deviceId == _targetDeviceId && _enabled) {
       // TODO(stt): flush the current speech segment.
@@ -1154,6 +1188,31 @@ class CommsHandler {
                 _readInt(data['length'] ?? data['Length']) ??
                 (bytes.length - offset);
             cw.processPcm16(bytes, offset, length);
+          }
+        }
+      }
+    }
+
+    // SARSAT 406 auto-decode: buffer received (non-transmit) audio for the
+    // burst, locking onto one radio; the monitor decodes on flush (burst end).
+    final sarsat = _sarsatMonitor;
+    if (sarsat != null && deviceId > 0) {
+      final usage = data['usage'] ?? data['Usage'];
+      final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
+      final channelName =
+          (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+      if (usage == null && !transmit && channelName != 'APRS') {
+        if (_sarsatDeviceId <= 0) _sarsatDeviceId = deviceId;
+        if (deviceId == _sarsatDeviceId) {
+          _sarsatEmitDeviceId = deviceId;
+          if (channelName.isNotEmpty) _currentChannelName = channelName;
+          final bytes = data['data'] ?? data['Data'];
+          if (bytes is Uint8List) {
+            final offset = _readInt(data['offset'] ?? data['Offset']) ?? 0;
+            final length =
+                _readInt(data['length'] ?? data['Length']) ??
+                (bytes.length - offset);
+            sarsat.processPcm16(bytes, offset, length);
           }
         }
       }
@@ -1512,6 +1571,70 @@ class CommsHandler {
       encoding: VoiceTextEncodingType.morse,
       isReceived: true,
       wpm: e.wpm,
+    );
+  }
+
+  void _onSarsat406DecodeEnabledChanged(
+    int deviceId,
+    String name,
+    Object? data,
+  ) {
+    if (_disposed) return;
+    final enable = data is bool ? data : false;
+    if (enable == (_sarsatMonitor != null)) return;
+    if (enable) {
+      _initializeSarsatMonitor();
+    } else {
+      _cleanupSarsatMonitor();
+    }
+  }
+
+  void _initializeSarsatMonitor() {
+    _cleanupSarsatMonitor();
+    final monitor = SarsatMonitor(sampleRate: _sarsatSampleRate);
+    _sarsatDecodedSub = monitor.onDecoded.listen(_onSarsatDecoded);
+    _sarsatMonitor = monitor;
+    _sarsatDeviceId = -1;
+    _sarsatEmitDeviceId = -1;
+    _broker.logInfo('[CommsHandler] SARSAT 406 monitor initialized');
+  }
+
+  void _cleanupSarsatMonitor() {
+    _sarsatDecodedSub?.cancel();
+    _sarsatDecodedSub = null;
+    _sarsatMonitor?.dispose();
+    _sarsatMonitor = null;
+    _sarsatDeviceId = -1;
+    _sarsatEmitDeviceId = -1;
+  }
+
+  /// Records a decoded 406 MHz distress beacon in the received history.
+  void _onSarsatDecoded(Sarsat1gFrame f) {
+    if (_disposed) return;
+    final deviceId =
+        _sarsatEmitDeviceId > 0 ? _sarsatEmitDeviceId : _targetDeviceId;
+    if (deviceId <= 0) return;
+    final parts = <String>[
+      '406 beacon ${f.hexId}',
+      'Country ${f.countryCode}',
+      f.protocolName,
+    ];
+    if (f.hasPosition) {
+      parts.add(
+        '${f.latitude!.toStringAsFixed(5)}, ${f.longitude!.toStringAsFixed(5)}',
+      );
+    }
+    if (f.isTest) parts.add('(self-test)');
+    _broker.logInfo('[CommsHandler] SARSAT 406 decode: ${parts.join(' | ')}');
+    _addDataPacketEntry(
+      deviceId: deviceId,
+      text: parts.join(' | '),
+      channel: _getVfoAChannelName(deviceId),
+      time: DateTime.now(),
+      encoding: VoiceTextEncodingType.sarsat,
+      isReceived: true,
+      latitude: f.latitude ?? 0,
+      longitude: f.longitude ?? 0,
     );
   }
 
@@ -2769,6 +2892,7 @@ class CommsHandler {
     if (_recorder != null) _finalizeRecording();
     _cleanupSstvMonitor();
     _cleanupCwMonitor();
+    _cleanupSarsatMonitor();
     unawaited(_cleanupSpeechEngine());
     if (_enabled) disable();
     _broker.logInfo('[CommsHandler] Voice Handler disposing');

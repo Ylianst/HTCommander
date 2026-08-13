@@ -107,6 +107,7 @@ class _CommsTabState extends State<CommsTab>
   bool _sttModelReady = false;
   bool _recordAudio = false;
   bool _decodeMorse = false;
+  bool _decodeSarsat = false;
   bool _allowTransmit = true;
 
   /// Morse Key mode sub-state (Off/Test/Live), the configured USB key settings,
@@ -339,6 +340,11 @@ class _CommsTabState extends State<CommsTab>
     );
     _broker.subscribe(
       deviceId: 0,
+      name: 'Sarsat406DecodeEnabled',
+      callback: _onSarsat406DecodeEnabledChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
       name: 'MicrophoneGain',
       callback: _onMicGainChanged,
     );
@@ -397,6 +403,8 @@ class _CommsTabState extends State<CommsTab>
     _recordAudio = _broker.getValue<bool>(0, 'RecordingState', false) ?? false;
     _decodeMorse =
         _broker.getValue<bool>(0, 'MorseDecodeEnabled', false) ?? false;
+    _decodeSarsat =
+        _broker.getValue<bool>(0, 'Sarsat406DecodeEnabled', false) ?? false;
     _micGain = (_broker.getValue<double>(0, 'MicrophoneGain', 1.0) ?? 1.0)
         .clamp(1.0, 8.0);
     _inputDeviceId = _broker.getValue<String>(0, 'InputAudioDevice', '') ?? '';
@@ -1140,6 +1148,14 @@ class _CommsTabState extends State<CommsTab>
     if (data is bool) setState(() => _decodeMorse = data);
   }
 
+  void _onSarsat406DecodeEnabledChanged(
+    int deviceId,
+    String name,
+    Object? data,
+  ) {
+    if (data is bool) setState(() => _decodeSarsat = data);
+  }
+
   void _onMicGainChanged(int deviceId, String name, Object? data) {
     final double? gain = data is double
         ? data
@@ -1252,6 +1268,7 @@ class _CommsTabState extends State<CommsTab>
       latitude: hasLocation ? latitude : null,
       longitude: hasLocation ? longitude : null,
       icon: _iconForEncoding(encoding),
+      iconColor: _iconColorForEncoding(encoding),
       filename: filename,
       imagePath: imagePath,
       tag: CommsMessageDetails(
@@ -1359,6 +1376,7 @@ class _CommsTabState extends State<CommsTab>
       latitude: hasLocation ? latitude : null,
       longitude: hasLocation ? longitude : null,
       icon: _iconForEncoding(encoding),
+      iconColor: _iconColorForEncoding(encoding),
       filename: filename,
       imagePath: imagePath,
       tag: CommsMessageDetails(
@@ -1432,6 +1450,8 @@ class _CommsTabState extends State<CommsTab>
         return 'Chat';
       case 'Picture':
         return 'SSTV';
+      case 'Sarsat':
+        return 'SARSAT';
       default:
         return encoding;
     }
@@ -1450,10 +1470,16 @@ class _CommsTabState extends State<CommsTab>
         return Icons.play_circle;
       case 'Picture':
         return Icons.image;
+      case 'Sarsat':
+        return Icons.sos;
       default:
         return null;
     }
   }
+
+  /// Distress colour for SARSAT beacon icons; null uses the default theme tint.
+  Color? _iconColorForEncoding(String encoding) =>
+      encoding == 'Sarsat' ? Colors.red : null;
 
   /// Semi-transparent overlay shown over the chat area while a radio channel is
   /// being dragged onto the tab, hinting that dropping will share the channel.
@@ -2600,6 +2626,22 @@ class _CommsTabState extends State<CommsTab>
               ],
             ),
           ),
+          PopupMenuItem<String>(
+            value: 'decodeSarsat',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _decodeSarsat
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                const Text('Decode SARSAT 406'),
+              ],
+            ),
+          ),
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
             value: 'sendImage',
@@ -2695,6 +2737,14 @@ class _CommsTabState extends State<CommsTab>
             deviceId: 0,
             name: 'MorseDecodeEnabled',
             data: !_decodeMorse,
+            store: true,
+          );
+          break;
+        case 'decodeSarsat':
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'Sarsat406DecodeEnabled',
+            data: !_decodeSarsat,
             store: true,
           );
           break;

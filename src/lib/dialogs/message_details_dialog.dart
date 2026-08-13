@@ -155,6 +155,8 @@ class MessageDetailsDialog extends StatelessWidget {
         return l10n.msgdTypeAx25Packet;
       case 'APRS':
         return 'APRS';
+      case 'Sarsat':
+        return 'SARSAT Beacon';
       default:
         return encoding;
     }
