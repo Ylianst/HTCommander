@@ -105,6 +105,10 @@ class EchoLinkManager {
   // Mirrors the radio's transmit indicator: true while we are sending voice.
   bool _txActive = false;
   Timer? _txTimer;
+  // Per-transmission byte counter, logged at the end so the Debug tab can
+  // confirm voice packets actually reached the EchoLink server.
+  int _txBytesSent = 0;
+  bool _txHadAudio = false;
   // Transmit is considered finished after this much silence (PTT keeps it lit
   // while held; a one-shot spoken/Morse blob lights it briefly).
   static const int _txEndMs = 300;
@@ -784,7 +788,9 @@ class EchoLinkManager {
       if (!hold) {
         _client?.flushAudio();
         _txResampler.reset();
+        _txTimer?.cancel();
         _setTxActive(false);
+        _finishTxLog();
       }
       return;
     }
@@ -793,14 +799,27 @@ class EchoLinkManager {
 
     final Int16List pcm32 = _int16FromBytes(bytes);
     final Int16List pcm8k = _txResampler.process(pcm32);
-    if (pcm8k.isNotEmpty) client.sendAudio(pcm8k);
+    if (pcm8k.isNotEmpty) {
+      _txHadAudio = true;
+      final int sent = client.sendAudio(pcm8k);
+      if (sent > 0 && _txBytesSent == 0) {
+        _broker.logInfo(
+          '[EchoLink] TX started: transmitting voice to '
+          '${client.connectedStation?.callsign ?? '?'}',
+        );
+      }
+      _txBytesSent += sent;
+    }
 
     // Light the transmit indicator; auto-clear shortly after the last frame.
     _setTxActive(true);
     _txTimer?.cancel();
     _txTimer = Timer(
       const Duration(milliseconds: _txEndMs),
-      () => _setTxActive(false),
+      () {
+        _setTxActive(false);
+        _finishTxLog();
+      },
     );
 
     final bool hold = (data['hold'] ?? data['Hold']) as bool? ?? true;
@@ -809,7 +828,21 @@ class EchoLinkManager {
       _txResampler.reset();
       _txTimer?.cancel();
       _setTxActive(false);
+      _finishTxLog();
     }
+  }
+
+  /// Logs a per-transmission summary so the Debug tab can confirm voice packets
+  /// reached the server (or that nothing was sent because we were not in a QSO).
+  void _finishTxLog() {
+    if (!_txHadAudio) return;
+    _broker.logInfo(
+      '[EchoLink] TX ended: sent $_txBytesSent bytes of voice to '
+      '${_client?.connectedStation?.callsign ?? '?'}'
+      '${_txBytesSent == 0 ? ' (not in QSO — nothing transmitted)' : ''}',
+    );
+    _txBytesSent = 0;
+    _txHadAudio = false;
   }
 
   /// Publishes the transmit indicator state (device-200 'TxActive'), only when

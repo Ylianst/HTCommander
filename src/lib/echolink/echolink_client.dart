@@ -260,17 +260,21 @@ class EchoLinkClient {
   void sendInfo([String? info]) => _qso?.sendInfo(info);
 
   /// Queues 8 kHz mono PCM for transmission, emitting 640-sample voice packets.
-  void sendAudio(Int16List pcm8k) {
+  /// Returns the number of bytes actually sent to the server (0 if not in QSO).
+  int sendAudio(Int16List pcm8k) {
     final EchoLinkQso? qso = _qso;
-    if (qso == null || _state != EchoLinkClientState.inQso) return;
+    if (qso == null || _state != EchoLinkClientState.inQso) return 0;
     _txBuffer.addAll(pcm8k);
     const int block = EchoLinkAudioEncoder.samplesPerPacket; // 640
     int off = 0;
+    int bytesSent = 0;
     while (_txBuffer.length - off >= block) {
-      qso.sendAudioFrame(Int16List.fromList(_txBuffer.sublist(off, off + block)));
+      bytesSent +=
+          qso.sendAudioFrame(Int16List.fromList(_txBuffer.sublist(off, off + block)));
       off += block;
     }
     if (off > 0) _txBuffer.removeRange(0, off);
+    return bytesSent;
   }
 
   /// Flushes any partial voice buffer left over at the end of a transmission,

@@ -154,11 +154,13 @@ class EchoLinkQso {
     return true;
   }
 
-  /// Encodes and sends one 640-sample (80 ms) voice packet. No-op unless
-  /// connected.
-  void sendAudioFrame(Int16List pcm640) {
-    if (_state != QsoState.connected) return;
-    sendAudio(_encoder.encodePacket(pcm640));
+  /// Encodes and sends one 640-sample (80 ms) voice packet. Returns the number
+  /// of bytes put on the wire (0 if not connected).
+  int sendAudioFrame(Int16List pcm640) {
+    if (_state != QsoState.connected) return 0;
+    final Uint8List packet = _encoder.encodePacket(pcm640);
+    sendAudio(packet);
+    return packet.length;
   }
 
   /// Sends a station-info message (defaults to [localInfo]). No-op unless

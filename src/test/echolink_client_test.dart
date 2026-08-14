@@ -280,6 +280,20 @@ void main() {
     expect(net.sentAudio.first.$1, '10.0.0.5');
   });
 
+  test('sendAudio returns bytes sent, and 0 when not in a QSO', () async {
+    await client.open();
+    // Not in a QSO yet: nothing is sent.
+    expect(client.sendAudio(Int16List(640)), 0);
+    const StationData station = StationData(callsign: 'W1AW', ip: '10.0.0.5');
+    client.connectTo(station);
+    net.control.add(EchoLinkDatagram(
+        '10.0.0.5', echoLinkControlPort, buildSdes(callsign: 'W1AW')));
+    net.audio.add(EchoLinkDatagram(
+        '10.0.0.5', echoLinkAudioPort, buildInfoPacket('hi')));
+    await _pump();
+    expect(client.sendAudio(Int16List(640 * 2)), greaterThan(0));
+  });
+
   test('flushAudio emits a final padded packet for the trailing partial buffer',
       () async {
     await client.open();

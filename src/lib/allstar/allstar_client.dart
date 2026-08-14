@@ -153,24 +153,32 @@ class AllStarClient {
   }
 
   /// Sends outbound 8 kHz mono PCM to the node, framing it into 20 ms frames.
-  void sendAudio(Int16List pcm8k) {
+  /// Returns the number of compressed payload bytes actually put on the wire (0
+  /// if no call is up), so callers can confirm audio is reaching the node.
+  int sendAudio(Int16List pcm8k) {
     final Iax2Call? call = _call;
-    if (call == null || call.state != Iax2CallState.up) return;
+    if (call == null || call.state != Iax2CallState.up) return 0;
     for (final int s in pcm8k) {
       _txBuffer.add(s);
     }
+    int bytesSent = 0;
     while (_txBuffer.length >= allStarGsmFrameSamples) {
       final Int16List frame = Int16List(allStarGsmFrameSamples);
       for (int i = 0; i < allStarGsmFrameSamples; i++) {
         frame[i] = _txBuffer[i];
       }
       _txBuffer.removeRange(0, allStarGsmFrameSamples);
-      call.sendVoiceFrame(frame);
+      bytesSent += call.sendVoiceFrame(frame);
     }
+    return bytesSent;
   }
 
   /// Drops any partial outbound voice buffer (end of a PTT burst).
   void flushAudio() => _txBuffer.clear();
+
+  /// Sends [text] to the connected node as an IAX2 TEXT frame. No-op unless a
+  /// call is up.
+  void sendText(String text) => _call?.sendText(text);
 
   /// Closes the transport and releases resources.
   Future<void> close() async {

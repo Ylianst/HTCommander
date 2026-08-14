@@ -497,10 +497,19 @@ class Iax2Call {
     onText?.call(text);
   }
 
-  /// Sends one 20 ms (160-sample) frame of outbound 8 kHz PCM. Uses a full voice
-  /// frame to (re)establish the codec, then mini frames.
-  void sendVoiceFrame(Int16List pcm160) {
+  /// Sends [text] to the peer as a reliable IAX2 TEXT frame (null-terminated,
+  /// matching Asterisk). Ignored unless the call is up.
+  void sendText(String text) {
     if (_state != Iax2CallState.up) return;
+    final Uint8List payload = Uint8List.fromList(<int>[...utf8.encode(text), 0]);
+    _sendReliable(Iax2FrameType.text, 0, payload: payload);
+  }
+
+  /// Sends one 20 ms (160-sample) frame of outbound 8 kHz PCM. Uses a full voice
+  /// frame to (re)establish the codec, then mini frames. Returns the number of
+  /// compressed payload bytes actually put on the wire (0 if the call isn't up).
+  int sendVoiceFrame(Int16List pcm160) {
+    if (_state != Iax2CallState.up) return 0;
     final Uint8List payload = _encoder.encodeFrame(pcm160);
     final int ts = _timestamp();
     final bool needFull = !_voiceStreamStarted ||
@@ -530,6 +539,7 @@ class Iax2Call {
       );
       onSend(mini.toBytes());
     }
+    return payload.length;
   }
 
   // --- Keepalive & reliability helpers --------------------------------------

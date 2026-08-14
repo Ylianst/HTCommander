@@ -83,8 +83,20 @@ class AllStarManager {
   // --- Transmit (app -> AllStar) -------------------------------------------
   final LinearResampler _txResampler = LinearResampler.down32kTo8k();
   bool _txActive = false;
-  Timer? _txTimer;
-  static const int _txEndMs = 300;
+  // Outbound audio is paced at one 20 ms frame per tick so pre-rendered buffers
+  // (Morse, spoken text, voice clips) go out in real time with advancing IAX2
+  // timestamps, instead of an instantaneous burst the node cannot play back.
+  static const int _txFrameSamples = 160; // 20 ms at 8 kHz.
+  static const int _txIdleTicksBeforeStop = 15; // ~300 ms tail before stopping.
+  final List<int> _txQueue = <int>[];
+  Timer? _txPaceTimer;
+  int _txIdleTicks = 0;
+  bool _txFlushRequested = false;
+  // Per-transmission counters, logged at the end so the Debug tab can confirm
+  // compressed voice frames actually reached the node.
+  int _txFramesSent = 0;
+  int _txBytesSent = 0;
+  bool _txHadAudio = false;
 
   AllStarNode? _currentNode;
 
@@ -118,6 +130,13 @@ class AllStarManager {
       deviceId: allStarDeviceId,
       name: 'TransmitVoicePCM',
       callback: _onTransmitVoicePcm,
+    );
+
+    // Outgoing text chat typed in the Comms tab while a call is up.
+    _broker.subscribe(
+      deviceId: allStarDeviceId,
+      name: 'Chat',
+      callback: _onChat,
     );
 
     // Re-check when the saved node list changes.
@@ -210,6 +229,7 @@ class AllStarManager {
     _opened = false;
     _currentNode = null;
     _endRxRun();
+    _endTx();
     try {
       await client?.close();
     } catch (_) {}
@@ -347,7 +367,7 @@ class AllStarManager {
     if (state == AllStarClientState.online ||
         state == AllStarClientState.offline) {
       _endRxRun();
-      _setTxActive(false);
+      _endTx();
     }
   }
 
@@ -369,6 +389,30 @@ class AllStarManager {
       data: <String, Object?>{
         'text': trimmed,
         'isReceived': true,
+        'source': source,
+        'time': DateTime.now().millisecondsSinceEpoch,
+      },
+      store: false,
+    );
+  }
+
+  /// Sends a text chat message typed in the Comms tab over the active call and
+  /// echoes it locally (isReceived: false) so the sender sees it in history.
+  void _onChat(int deviceId, String name, Object? data) {
+    final AllStarClient? client = _client;
+    if (client == null) return;
+    final String text = (data is String ? data : '').trim();
+    if (text.isEmpty) return;
+    if (client.state != AllStarClientState.inCall) return;
+    client.sendText(text);
+    final String source =
+        (_broker.getValue<String>(0, 'CallSign', '') ?? '').trim().toUpperCase();
+    _broker.dispatch(
+      deviceId: allStarDeviceId,
+      name: 'AllStarChat',
+      data: <String, Object?>{
+        'text': text,
+        'isReceived': false,
         'source': source,
         'time': DateTime.now().millisecondsSinceEpoch,
       },
@@ -591,35 +635,86 @@ class AllStarManager {
 
   void _onTransmitVoicePcm(int deviceId, String name, Object? data) {
     if (data is! Map) return;
+    final bool hold = (data['hold'] ?? data['Hold']) as bool? ?? true;
     final Object? bytes = data['data'] ?? data['Data'];
     if (bytes is! Uint8List) {
-      final bool hold = (data['hold'] ?? data['Hold']) as bool? ?? true;
-      if (!hold) {
-        _client?.flushAudio();
-        _txResampler.reset();
-        _setTxActive(false);
-      }
+      if (!hold) _txFlushRequested = true; // Drain the queue, then stop.
       return;
     }
-    final AllStarClient? client = _client;
-    if (client == null) return;
+    if (_client == null) return;
 
     final Int16List pcm32 = _int16FromBytes(bytes);
     final Int16List pcm8k = _txResampler.process(pcm32);
-    if (pcm8k.isNotEmpty) client.sendAudio(pcm8k);
-
-    _setTxActive(true);
-    _txTimer?.cancel();
-    _txTimer =
-        Timer(const Duration(milliseconds: _txEndMs), () => _setTxActive(false));
-
-    final bool hold = (data['hold'] ?? data['Hold']) as bool? ?? true;
-    if (!hold) {
-      client.flushAudio();
-      _txResampler.reset();
-      _txTimer?.cancel();
-      _setTxActive(false);
+    if (pcm8k.isNotEmpty) {
+      _txQueue.addAll(pcm8k);
+      _txHadAudio = true;
+      _startTxPacer();
     }
+    if (!hold) _txFlushRequested = true;
+  }
+
+  /// Starts the 20 ms pacing timer that drains [_txQueue] one frame at a time,
+  /// so each IAX2 voice frame gets a real, advancing timestamp.
+  void _startTxPacer() {
+    _txPaceTimer ??=
+        Timer.periodic(const Duration(milliseconds: 20), (_) => _txTick());
+  }
+
+  void _txTick() {
+    final AllStarClient? client = _client;
+    if (client == null) {
+      _endTx();
+      return;
+    }
+    if (_txQueue.length >= _txFrameSamples) {
+      final Int16List frame = Int16List(_txFrameSamples);
+      for (int i = 0; i < _txFrameSamples; i++) {
+        frame[i] = _txQueue[i];
+      }
+      _txQueue.removeRange(0, _txFrameSamples);
+      final int bytes = client.sendAudio(frame);
+      if (bytes > 0) {
+        if (_txFramesSent == 0) {
+          _broker.logInfo(
+            '[AllStar] TX started: transmitting compressed audio to node '
+            '${_currentNode?.nodeNumber ?? '?'}',
+          );
+        }
+        _txFramesSent++;
+        _txBytesSent += bytes;
+      }
+      _setTxActive(true);
+      _txIdleTicks = 0;
+      return;
+    }
+    // Less than a full frame remains: wait for more, or stop after the idle
+    // tail or an explicit end-of-transmission (hold == false).
+    _txIdleTicks++;
+    if (_txFlushRequested || _txIdleTicks >= _txIdleTicksBeforeStop) {
+      _endTx();
+    }
+  }
+
+  void _endTx() {
+    _txPaceTimer?.cancel();
+    _txPaceTimer = null;
+    _txQueue.clear();
+    _txIdleTicks = 0;
+    _txFlushRequested = false;
+    if (_txHadAudio) {
+      _broker.logInfo(
+        '[AllStar] TX ended: sent $_txFramesSent compressed voice frame(s) '
+        '($_txBytesSent bytes, ~${_txFramesSent * 20} ms) to node '
+        '${_currentNode?.nodeNumber ?? '?'}'
+        '${_txFramesSent == 0 ? ' (call not up — nothing transmitted)' : ''}',
+      );
+    }
+    _txFramesSent = 0;
+    _txBytesSent = 0;
+    _txHadAudio = false;
+    _client?.flushAudio();
+    _txResampler.reset();
+    _setTxActive(false);
   }
 
   void _setTxActive(bool active) {
