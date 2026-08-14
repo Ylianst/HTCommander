@@ -2646,11 +2646,16 @@ class CommsHandler {
       final pcm16 = _pcm8ToPcm16(morsePcm8bit);
 
       // Send PCM to the radio for transmission. PlayLocally=true lets the user
-      // hear the morse output locally.
+      // hear the morse output locally. hold:false marks the end of this one-shot
+      // burst so the transmit pipeline flushes its trailing partial frame.
       _broker.dispatch(
         deviceId: transmitDeviceId,
         name: 'TransmitVoicePCM',
-        data: <String, Object?>{'data': pcm16, 'playLocally': true},
+        data: <String, Object?>{
+          'data': pcm16,
+          'playLocally': true,
+          'hold': false,
+        },
         store: false,
       );
       _broker.logInfo(

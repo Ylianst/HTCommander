@@ -184,7 +184,7 @@ void main() {
     expect(net.sentControl.length, 1);
     expect(isSdesPacket(net.sentControl.single.$2), isTrue);
     expect(net.sentControl.single.$1, '10.0.0.5');
-    expect(sched.periodics.length, 1); // keep-alive armed
+    expect(sched.periodics.length, 2); // keep-alive + audio-path priming armed
     expect(sched.oneShots.length, 1); // timeout armed
 
     // Remote answers with SDES from the station's address. The control-port

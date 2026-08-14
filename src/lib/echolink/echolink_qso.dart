@@ -47,6 +47,11 @@ class EchoLinkQso {
   /// SDES keep-alive interval in milliseconds (KEEP_ALIVE_TIME).
   static const int keepAliveMs = 10000;
 
+  /// Fast audio-path priming interval right after connecting, and how long that
+  /// rapid priming lasts before the normal 10 s keep-alive takes over.
+  static const int audioPrimeMs = 1500;
+  static const int audioPrimeWindowMs = 15000;
+
   /// Connection inactivity timeout in milliseconds (CON_TIMEOUT_TIME).
   static const int connectionTimeoutMs = 50000;
 
@@ -237,6 +242,17 @@ class EchoLinkQso {
   void onKeepAliveTick() {
     if (_state == QsoState.connecting || _state == QsoState.connected) {
       sendControl(_sdes);
+      _openAudioPath();
+    }
+  }
+
+  /// Re-sends the audio-port info packet to open/refresh the inbound NAT pinhole
+  /// and re-announce our audio endpoint to the peer. A single connect-time
+  /// packet is often not enough for the far end's audio path to become reachable
+  /// (the EchoTest server, for one, ignores audio for the first ~10-15 s);
+  /// calling this rapidly right after connecting establishes the path sooner.
+  void primeAudioPath() {
+    if (_state == QsoState.connecting || _state == QsoState.connected) {
       _openAudioPath();
     }
   }

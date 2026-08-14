@@ -101,6 +101,8 @@ class EchoLinkClient {
   StationData? _remoteStation;
   String? _remoteHost;
   CancelTimer? _keepAlive;
+  CancelTimer? _audioPrime;
+  int _audioPrimeTicks = 0;
   CancelTimer? _timeout;
   bool _opened = false;
   bool _online = false;
@@ -244,6 +246,22 @@ class EchoLinkClient {
     _keepAlive = scheduler.periodic(
         const Duration(milliseconds: EchoLinkQso.keepAliveMs),
         () => _qso?.onKeepAliveTick());
+    // Rapidly re-announce our audio endpoint for the first several seconds so
+    // the far-end audio path (and any inbound NAT pinhole) is reachable well
+    // before the user transmits, instead of only once per 10 s keep-alive.
+    _audioPrimeTicks = 0;
+    _audioPrime = scheduler.periodic(
+      const Duration(milliseconds: EchoLinkQso.audioPrimeMs),
+      () {
+        _qso?.primeAudioPath();
+        _audioPrimeTicks++;
+        if (_audioPrimeTicks * EchoLinkQso.audioPrimeMs >=
+            EchoLinkQso.audioPrimeWindowMs) {
+          _audioPrime?.call();
+          _audioPrime = null;
+        }
+      },
+    );
     _resetTimeout();
   }
 
@@ -400,8 +418,10 @@ class EchoLinkClient {
 
   void _endConnection() {
     _keepAlive?.call();
+    _audioPrime?.call();
     _timeout?.call();
     _keepAlive = null;
+    _audioPrime = null;
     _timeout = null;
     _qso = null;
     _remoteHost = null;

@@ -104,14 +104,28 @@ class EchoLinkManager {
   final LinearResampler _txResampler = LinearResampler.down32kTo8k();
   // Mirrors the radio's transmit indicator: true while we are sending voice.
   bool _txActive = false;
-  Timer? _txTimer;
+  // Real-time pacing of outgoing voice. Morse/TTS hand us the whole multi-second
+  // PCM blob at once; sending every GSM packet immediately blasts a 4 s stream
+  // in ~1 ms, overflowing the receiver's jitter buffer (the far end -- e.g. the
+  // EchoTest server -- then drops the whole over). Instead we queue the 8 kHz
+  // samples and emit exactly one 640-sample (80 ms) packet per timer tick, so
+  // the stream leaves at real time like a live microphone would.
+  final List<int> _txPaceQueue = <int>[];
+  Timer? _txPaceTimer;
+  // Set once a burst has no more audio coming (PTT release / one-shot end
+  // marker); the pacer flushes the remainder and finalizes when the queue runs
+  // out.
+  bool _txEnding = false;
+  // Consecutive ticks with no full packet available; used to auto-finalize a
+  // blob that never sent an explicit end marker (e.g. spoken text).
+  int _txIdleTicks = 0;
+  static const int _txPacketSamples = 640; // 80 ms at 8 kHz
+  static const int _txPacketMs = 80;
+  static const int _txIdleFinalizeTicks = 13; // ~1 s of silence ends the burst
   // Per-transmission byte counter, logged at the end so the Debug tab can
   // confirm voice packets actually reached the EchoLink server.
   int _txBytesSent = 0;
   bool _txHadAudio = false;
-  // Transmit is considered finished after this much silence (PTT keeps it lit
-  // while held; a one-shot spoken/Morse blob lights it briefly).
-  static const int _txEndMs = 300;
 
   /// Subscribes to settings + UI commands and opens the client if a callsign is
   /// configured. Safe to call once.
@@ -236,7 +250,8 @@ class EchoLinkManager {
         ..onAudio = _onRxAudio
         ..onChat = _onRxChat
         ..onInfo = _onRxInfo
-        ..onDiagnostic = _onDiagnostic;
+        ..onDiagnostic = _onDiagnostic
+        ..onStateChanged = _onClientStateChanged;
 
       _client = client;
       try {
@@ -264,7 +279,7 @@ class EchoLinkManager {
     _client = null;
     _opened = false;
     _endRxRun();
-    _txTimer?.cancel();
+    _stopTxPacing();
     _setTxActive(false);
     try {
       await client?.close();
@@ -620,6 +635,25 @@ class EchoLinkManager {
 
   // --- Received audio ------------------------------------------------------
 
+  /// Pre-warms the playback device as soon as a QSO is connecting/connected so
+  /// the output stream is already running before the first inbound voice packet
+  /// arrives. Opening the device lazily on that first packet (in [_playPcm])
+  /// swallows its start-up ramp, which drops the first received-audio burst --
+  /// e.g. the EchoTest server's first echo is never heard, but the second is.
+  /// Mirrors the warm-microphone approach used for push-to-talk.
+  void _onClientStateChanged(EchoLinkClientState state) {
+    if (state != EchoLinkClientState.connecting &&
+        state != EchoLinkClientState.inQso) {
+      return;
+    }
+    if (_playerReady) return;
+    if (_selectedRadioDeviceId >= 0 &&
+        _selectedRadioDeviceId != echoLinkDeviceId) {
+      return;
+    }
+    unawaited(_initPlayer());
+  }
+
   /// Called with 640 samples (80 ms) of 8 kHz decoded audio for each received
   /// voice packet. Resamples to the app rate, plays it, and re-emits it as an
   /// AudioData* run so the CommsHandler records + transcribes it.
@@ -776,32 +810,57 @@ class EchoLinkManager {
   // --- Transmit audio ------------------------------------------------------
 
   /// Turns outgoing 32 kHz voice PCM (PTT / spoken text / Morse / DTMF) into
-  /// 8 kHz GSM voice frames on the active QSO. `{hold: false}` without data
-  /// marks the end of a push-to-talk burst.
+  /// 8 kHz samples queued for real-time paced transmission. `{hold: false}`
+  /// without data marks the end of a push-to-talk burst.
   void _onTransmitVoicePcm(int deviceId, String name, Object? data) {
     if (data is! Map) return;
+    final bool hold = (data['hold'] ?? data['Hold']) as bool? ?? true;
     final Object? bytes = data['data'] ?? data['Data'];
     if (bytes is! Uint8List) {
-      // End-of-transmission marker: flush any partial voice buffer so the
-      // trailing audio is sent, then reset the resampler phase for the next one.
-      final bool hold = (data['hold'] ?? data['Hold']) as bool? ?? true;
+      // End-of-transmission marker: let the pacer drain the remaining queue,
+      // flush the trailing partial and finalize the burst.
       if (!hold) {
-        _client?.flushAudio();
-        _txResampler.reset();
-        _txTimer?.cancel();
-        _setTxActive(false);
-        _finishTxLog();
+        _txEnding = true;
+        _ensureTxPacing();
       }
       return;
     }
-    final EchoLinkClient? client = _client;
-    if (client == null) return;
+    if (_client == null) return;
 
     final Int16List pcm32 = _int16FromBytes(bytes);
     final Int16List pcm8k = _txResampler.process(pcm32);
     if (pcm8k.isNotEmpty) {
+      _txPaceQueue.addAll(pcm8k);
       _txHadAudio = true;
-      final int sent = client.sendAudio(pcm8k);
+      _setTxActive(true);
+    }
+    if (!hold) _txEnding = true;
+    _ensureTxPacing();
+  }
+
+  /// Starts the real-time send pacer if it is not already running.
+  void _ensureTxPacing() {
+    if (_txPaceTimer != null) return;
+    _txIdleTicks = 0;
+    _txPaceTimer = Timer.periodic(
+      const Duration(milliseconds: _txPacketMs),
+      (_) => _onTxPaceTick(),
+    );
+  }
+
+  /// Emits at most one 640-sample voice packet per tick so the outgoing stream
+  /// leaves at real time instead of in a single burst.
+  void _onTxPaceTick() {
+    final EchoLinkClient? client = _client;
+    if (client == null) {
+      _stopTxPacing();
+      return;
+    }
+    if (_txPaceQueue.length >= _txPacketSamples) {
+      final Int16List packet =
+          Int16List.fromList(_txPaceQueue.sublist(0, _txPacketSamples));
+      _txPaceQueue.removeRange(0, _txPacketSamples);
+      final int sent = client.sendAudio(packet);
       if (sent > 0 && _txBytesSent == 0) {
         _broker.logInfo(
           '[EchoLink] TX started: transmitting voice to '
@@ -809,27 +868,42 @@ class EchoLinkManager {
         );
       }
       _txBytesSent += sent;
+      _txIdleTicks = 0;
+      return;
     }
-
-    // Light the transmit indicator; auto-clear shortly after the last frame.
-    _setTxActive(true);
-    _txTimer?.cancel();
-    _txTimer = Timer(
-      const Duration(milliseconds: _txEndMs),
-      () {
-        _setTxActive(false);
-        _finishTxLog();
-      },
-    );
-
-    final bool hold = (data['hold'] ?? data['Hold']) as bool? ?? true;
-    if (!hold) {
-      client.flushAudio();
-      _txResampler.reset();
-      _txTimer?.cancel();
-      _setTxActive(false);
-      _finishTxLog();
+    // Less than a full packet is queued this tick.
+    if (_txEnding) {
+      _drainPartialAndFinalize(client);
+      return;
     }
+    // No end marker yet (still streaming or a blob that never sent one): wait a
+    // little for more audio, then finalize so the burst does not hang open.
+    _txIdleTicks++;
+    if (_txIdleTicks >= _txIdleFinalizeTicks) {
+      _drainPartialAndFinalize(client);
+    }
+  }
+
+  /// Sends any trailing partial voice buffer (zero-padded) and ends the burst.
+  void _drainPartialAndFinalize(EchoLinkClient client) {
+    if (_txPaceQueue.isNotEmpty) {
+      _txBytesSent += client.sendAudio(Int16List.fromList(_txPaceQueue));
+      _txPaceQueue.clear();
+    }
+    client.flushAudio();
+    _txResampler.reset();
+    _stopTxPacing();
+    _setTxActive(false);
+    _finishTxLog();
+  }
+
+  /// Cancels the send pacer and clears any queued burst state.
+  void _stopTxPacing() {
+    _txPaceTimer?.cancel();
+    _txPaceTimer = null;
+    _txPaceQueue.clear();
+    _txEnding = false;
+    _txIdleTicks = 0;
   }
 
   /// Logs a per-transmission summary so the Debug tab can confirm voice packets
@@ -874,7 +948,7 @@ class EchoLinkManager {
   /// Releases sockets and the audio device.
   Future<void> dispose() async {
     _rxEndTimer?.cancel();
-    _txTimer?.cancel();
+    _stopTxPacing();
     _broker.dispose();
     try {
       await _client?.close();
