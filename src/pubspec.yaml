@@ -163,6 +163,10 @@ flutter:
     # so the satellite feature works offline on first run before an online
     # refresh. See lib/satellite/tle_repository.dart.
     - assets/satellites/
+    # Mozilla CA root bundle (curl.se/docs/caextract.html). Trusted in addition
+    # to the OS store when downloading callsign databases, so an outdated system
+    # trust store doesn't break updates. See services/callsign_lookup_service.dart.
+    - assets/certs/cacert.pem
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

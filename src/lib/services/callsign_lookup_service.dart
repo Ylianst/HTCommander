@@ -11,7 +11,9 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../callsign/callsign_database.dart';
@@ -386,14 +388,36 @@ class CallsignLookupService {
   /// Fetches the hosted [CallsignDbManifest] for [source]. Throws on network /
   /// parse errors.
   Future<CallsignDbManifest> fetchManifest(CallsignDbSource source) async {
-    final response = await http.get(Uri.parse(source.manifestUrl));
-    if (response.statusCode != 200) {
-      throw http.ClientException(
-        'Manifest download failed (${response.statusCode})',
-      );
-    }
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final body = await _getManifestBody(source.manifestUrl);
+    final json = jsonDecode(body) as Map<String, dynamic>;
     return CallsignDbManifest.fromJson(json);
+  }
+
+  /// GETs [url] as text, retrying with the bundled CA roots if the machine's own
+  /// trust store can't verify the TLS chain (see [_bundledRootsContext]).
+  static Future<String> _getManifestBody(String url) async {
+    try {
+      return await _getWith(null, url);
+    } on HandshakeException {
+      final context = await _bundledRootsContext();
+      if (context == null) rethrow;
+      return await _getWith(context, url);
+    }
+  }
+
+  static Future<String> _getWith(SecurityContext? context, String url) async {
+    final client = _clientFor(context);
+    try {
+      final response = await client.get(Uri.parse(url));
+      if (response.statusCode != 200) {
+        throw http.ClientException(
+          'Manifest download failed (${response.statusCode})',
+        );
+      }
+      return response.body;
+    } finally {
+      client.close();
+    }
   }
 
   /// Brings the [source] databases in line with [manifest], downloading only
@@ -482,6 +506,9 @@ class CallsignLookupService {
       progress,
     );
     final path = _filePaths[source] ??= await _resolvePath(source);
+    // Release the open handle first; Windows won't let us replace a file that
+    // is still mapped by the running instance.
+    await _dbs.remove(source)?.close();
     await _writeDbFile(path, dbBytes);
     await _openDatabase(source);
 
@@ -523,6 +550,9 @@ class CallsignLookupService {
     final path = _overlayFilePaths[source] ??= await _resolveOverlayPath(
       source,
     );
+    // Release the open handle first; Windows won't let us replace a file that
+    // is still mapped by the running instance.
+    await _overlays.remove(source)?.close();
     await _writeDbFile(path, dbBytes);
     await _openOverlay(source);
 
@@ -650,7 +680,24 @@ class CallsignLookupService {
     String url,
     CallsignDownloadProgress? progress,
   ) async {
-    final client = http.Client();
+    try {
+      return await _fetchWith(null, url, progress);
+    } on HandshakeException {
+      // The machine's own trust store couldn't verify the chain (outdated OS
+      // roots, etc.); retry trusting the bundled Mozilla CA roots. The handshake
+      // fails before any bytes stream, so no progress is double-counted.
+      final context = await _bundledRootsContext();
+      if (context == null) rethrow;
+      return await _fetchWith(context, url, progress);
+    }
+  }
+
+  static Future<Uint8List> _fetchWith(
+    SecurityContext? context,
+    String url,
+    CallsignDownloadProgress? progress,
+  ) async {
+    final client = _clientFor(context);
     try {
       final request = http.Request('GET', Uri.parse(url));
       final response = await client.send(request);
@@ -671,5 +718,29 @@ class CallsignLookupService {
     } finally {
       client.close();
     }
+  }
+
+  /// A client bound to [context], or the plain default client when null.
+  static http.Client _clientFor(SecurityContext? context) =>
+      context == null ? http.Client() : IOClient(HttpClient(context: context));
+
+  /// Lazily builds a [SecurityContext] that trusts only the bundled Mozilla CA
+  /// roots (`assets/certs/cacert.pem`). Used as a fallback so a stale or broken
+  /// system trust store doesn't block database downloads. Null if the asset
+  /// can't be loaded. Cached across calls (and across success/failure).
+  static SecurityContext? _bundledRoots;
+  static bool _bundledRootsLoaded = false;
+  static Future<SecurityContext?> _bundledRootsContext() async {
+    if (_bundledRootsLoaded) return _bundledRoots;
+    _bundledRootsLoaded = true;
+    try {
+      final pem = await rootBundle.load('assets/certs/cacert.pem');
+      _bundledRoots = SecurityContext(withTrustedRoots: false)
+        ..setTrustedCertificatesBytes(pem.buffer.asUint8List());
+    } catch (e) {
+      debugPrint('CallsignLookupService: CA bundle load failed: $e');
+      _bundledRoots = null;
+    }
+    return _bundledRoots;
   }
 }
