@@ -102,6 +102,10 @@ class Iax2Call {
   Iax2CallState _state = Iax2CallState.idle;
   Iax2CallState get state => _state;
 
+  /// Whether the call is sending its HANGUP and awaiting the peer's ACK. While
+  /// true the owner must keep delivering datagrams so the teardown can finish.
+  bool get isClosing => _hangingUp;
+
   int _srcCall = 0;
   int _dstCall = 0;
   int _oSeqno = 0;
@@ -111,6 +115,7 @@ class Iax2Call {
   final Stopwatch _clock = Stopwatch();
   bool _authSent = false;
   bool _acceptReceived = false;
+  bool _hangingUp = false;
 
   final AllStarAudioEncoder _encoder =
       AllStarAudioEncoder(format: Iax2Format.gsm);
@@ -167,19 +172,36 @@ class Iax2Call {
     });
   }
 
-  /// Ends the call, sending HANGUP if it had progressed past idle.
+  /// Ends the call. If it had progressed past idle, a HANGUP is sent and kept
+  /// retransmitting (like any reliable frame) until the peer ACKs it or the
+  /// retransmit cap is reached, so a lost HANGUP cannot leave a stale session on
+  /// the node. The call reports [Iax2CallState.hungUp] immediately for the UI;
+  /// the owner should keep feeding it datagrams (see [isClosing]) until it stops.
   void disconnect() {
     if (_state == Iax2CallState.connecting || _state == Iax2CallState.up) {
-      final Iax2IeSet ies = Iax2IeSet();
-      ies.addString(Iax2Ie.cause, 'Normal Clearing');
-      ies.addRaw(Iax2Ie.causeCode,
-          Uint8List.fromList(<int>[Iax2Cause.normalClearing]));
+      // Stop our own media and keepalive, but keep the retransmit machinery so
+      // the HANGUP survives packet loss.
+      _pingTimer?.cancel();
+      _pingTimer = null;
+      _connectTimer?.cancel();
+      _connectTimer = null;
+      _voiceStreamStarted = false;
+      _hangingUp = true;
+      final Iax2IeSet ies = Iax2IeSet()
+        ..addString(Iax2Ie.cause, 'Normal Clearing')
+        ..addRaw(Iax2Ie.causeCode,
+            Uint8List.fromList(<int>[Iax2Cause.normalClearing]));
       _sendReliable(Iax2FrameType.iax, Iax2Subclass.hangup, ies: ies);
+      _retransmitTimer ??= Timer.periodic(
+          const Duration(milliseconds: _retransmitMs), (_) => _onRetransmit());
+      _setState(Iax2CallState.hungUp);
+      return;
     }
     _teardown(Iax2CallState.hungUp);
   }
 
   void _teardown(Iax2CallState finalState) {
+    _hangingUp = false;
     _retransmitTimer?.cancel();
     _pingTimer?.cancel();
     _connectTimer?.cancel();
@@ -240,7 +262,9 @@ class Iax2Call {
       onSend(b);
     });
     if (drop.isNotEmpty) {
-      _diag('No ACK after $_maxRetransmits retries; dropping call');
+      if (!_hangingUp) {
+        _diag('No ACK after $_maxRetransmits retries; dropping call');
+      }
       _teardown(Iax2CallState.hungUp);
     }
   }
@@ -249,7 +273,9 @@ class Iax2Call {
 
   /// Processes a datagram received from the node.
   void handleDatagram(Uint8List data) {
-    if (_state == Iax2CallState.idle || _state == Iax2CallState.hungUp) return;
+    if (_state == Iax2CallState.idle) return;
+    // A hung-up call still processes frames while it awaits its HANGUP ACK.
+    if (_state == Iax2CallState.hungUp && !_hangingUp) return;
     if (iax2IsFullFrame(data)) {
       final Iax2FullFrame? f = Iax2FullFrame.parse(data);
       if (f != null) _handleFullFrame(f);
@@ -260,6 +286,15 @@ class Iax2Call {
   }
 
   void _handleFullFrame(Iax2FullFrame f) {
+    // Ignore frames addressed to a different local call number. After an
+    // unclean disconnect (e.g. a lost HANGUP) the node may keep a previous
+    // session alive and keep sending on it; those frames carry our OLD source
+    // call number as their destination. Delivering them through the current
+    // call would duplicate received text/audio, growing by one copy per stale
+    // session on each reconnect. destCallNumber is 0 only before the peer has
+    // learned our call number (its very first reply to our NEW).
+    if (f.destCallNumber != 0 && f.destCallNumber != _srcCall) return;
+
     // Learn the peer's call number from its first reply.
     if (_dstCall == 0 && f.sourceCallNumber != 0) {
       _dstCall = f.sourceCallNumber;
@@ -268,8 +303,23 @@ class Iax2Call {
     // Clear pending frames the peer has acknowledged.
     _ackPendingUpTo(f.iSeqno);
 
+    // While tearing down we only wait for our HANGUP to be acknowledged.
+    if (_hangingUp) {
+      if (_pending.isEmpty) _teardown(Iax2CallState.hungUp);
+      return;
+    }
+
     final bool counts = _frameCountsForSeq(f);
     if (counts) {
+      // Duplicate / retransmitted reliable frame: its sequence number is not the
+      // one we expect next, so it has already been delivered. Acknowledge it so
+      // the peer stops retransmitting, but do not deliver its payload again (a
+      // lost ACK would otherwise double received text/audio). IAX control
+      // signalling is still reprocessed so its handshake responses re-drive.
+      if (f.oSeqno != _iSeqno && f.frameType != Iax2FrameType.iax) {
+        _sendAck(Iax2Subclass.ack, f.timestamp);
+        return;
+      }
       _iSeqno = (f.oSeqno + 1) & 0xFF;
     }
 
@@ -416,6 +466,11 @@ class Iax2Call {
 
   void _handleMiniFrame(Iax2MiniFrame m) {
     if (!_voiceStreamStarted) return; // No full voice frame seen yet.
+    // Ignore audio from a different session. Mini frames carry only the sender's
+    // call number (no destination), so a stale session left by an unclean
+    // disconnect — which uses a different node-side call number — would double
+    // the current audio if not dropped here.
+    if (_dstCall != 0 && m.sourceCallNumber != _dstCall) return;
     _decodeAndEmit(_format, m.payload);
   }
 

@@ -71,6 +71,10 @@ class AllStarClient {
 
   StreamSubscription<Iax2Datagram>? _rxSub;
   Iax2Call? _call;
+  // Calls that have been asked to hang up and are retransmitting their HANGUP
+  // until the node ACKs it. Kept alive (and fed datagrams) so a lost first
+  // HANGUP cannot leave a stale session on the node.
+  final List<Iax2Call> _closingCalls = <Iax2Call>[];
   AllStarNode? _node;
   bool _opened = false;
   final Random _rand = Random();
@@ -171,6 +175,11 @@ class AllStarClient {
   /// Closes the transport and releases resources.
   Future<void> close() async {
     _endCall();
+    // Force any still-closing calls to finish immediately; we are going offline.
+    for (final Iax2Call c in _closingCalls) {
+      c.disconnect();
+    }
+    _closingCalls.clear();
     await _rxSub?.cancel();
     _rxSub = null;
     _opened = false;
@@ -179,9 +188,15 @@ class AllStarClient {
   }
 
   void _endCall() {
-    _call?.disconnect();
+    final Iax2Call? call = _call;
     _call = null;
     _txBuffer.clear();
+    if (call != null) {
+      call.disconnect();
+      // If the HANGUP still needs acknowledging, keep the call so it can
+      // retransmit and receive the ACK before it is discarded.
+      if (call.isClosing) _closingCalls.add(call);
+    }
     if (_node != null) {
       _node = null;
       onConnectedNode?.call(null);
@@ -211,9 +226,15 @@ class AllStarClient {
   }
 
   void _onDatagram(Iax2Datagram dg) {
-    // Single active call: forward everything to it. Media from an unexpected
-    // host is dropped implicitly because the call ignores unknown call numbers
-    // for signaling, but stray audio is harmless with one call in flight.
+    // Deliver to the active call and to any calls still tearing down so their
+    // HANGUP retransmits can be acknowledged. Each call matches frames by call
+    // number, so only the intended one acts on a given datagram.
     _call?.handleDatagram(dg.data);
+    if (_closingCalls.isNotEmpty) {
+      for (final Iax2Call c in List<Iax2Call>.of(_closingCalls)) {
+        c.handleDatagram(dg.data);
+      }
+      _closingCalls.removeWhere((Iax2Call c) => !c.isClosing);
+    }
   }
 }

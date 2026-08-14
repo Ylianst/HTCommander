@@ -356,7 +356,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   void _onAllStarRxLevel(int deviceId, String name, Object? data) {
     if (!mounted) return;
     final double raw = (data is num) ? data.toDouble() : 0.0;
-    final double level = (raw.clamp(0.0, 1.0) * 15).round() / 15.0;
+    double level = (raw.clamp(0.0, 1.0) * 15).round() / 15.0;
+    // Any detected audio shows at least a 1/8 bar so it is clearly visible.
+    if (raw > 0 && level < 0.125) level = 0.125;
     if (level == _allStarRxLevel) return;
     setState(() => _allStarRxLevel = level);
   }

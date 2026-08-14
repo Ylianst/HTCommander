@@ -52,7 +52,13 @@ class AllStarManager {
 
   /// Received-audio run is finished after this much silence, so the recorder /
   /// speech-to-text engine gets discrete transmissions.
-  static const int _rxRunEndMs = 400;
+  static const int _rxRunEndMs = 2000;
+
+  /// Peak level (0..1) a received frame must reach to count as real audio.
+  /// AllStarLink nodes stream continuous frames (silence / comfort noise) even
+  /// when idle; frames below this are treated as silence so the recorder only
+  /// captures actual transmissions and idle audio is not played out.
+  static const double _rxSilenceLevel = 0.02;
 
   final DataBrokerClient _broker = DataBrokerClient();
 
@@ -444,13 +450,17 @@ class AllStarManager {
     final Int16List pcm32 = _rxResampler.process(pcm8k);
     if (pcm32.isEmpty) return;
 
-    unawaited(_playPcm(pcm32));
-    _publishRxLevel(pcm8k);
+    // Voice-operated gate: only frames above the silence level start or extend a
+    // recording run, so the node's continuous idle frames are not recorded or
+    // played out to the output device.
+    final double level = _peakLevel(pcm8k);
+    final bool loud = level >= _rxSilenceLevel;
+    _publishRxLevel(loud ? level : 0.0);
 
-    final int nowMs = DateTime.now().millisecondsSinceEpoch;
     if (!_inRxRun) {
+      if (!loud) return; // Idle: nothing worth playing or recording yet.
       _inRxRun = true;
-      _rxRunStartMs = nowMs;
+      _rxRunStartMs = DateTime.now().millisecondsSinceEpoch;
       _broker.dispatch(
         deviceId: allStarDeviceId,
         name: 'AudioDataStart',
@@ -464,6 +474,10 @@ class AllStarManager {
         store: false,
       );
     }
+
+    // Only feed the output device while a run is active, so no silent audio is
+    // played between transmissions.
+    unawaited(_playPcm(pcm32));
 
     final Uint8List bytes =
         pcm32.buffer.asUint8List(pcm32.offsetInBytes, pcm32.lengthInBytes);
@@ -483,8 +497,12 @@ class AllStarManager {
       store: false,
     );
 
-    _rxEndTimer?.cancel();
-    _rxEndTimer = Timer(const Duration(milliseconds: _rxRunEndMs), _endRxRun);
+    // Extend the run only while real audio arrives; a gap of _rxRunEndMs of
+    // silence lets the timer fire and end the run.
+    if (loud) {
+      _rxEndTimer?.cancel();
+      _rxEndTimer = Timer(const Duration(milliseconds: _rxRunEndMs), _endRxRun);
+    }
   }
 
   void _endRxRun() {
@@ -506,15 +524,18 @@ class AllStarManager {
         deviceId: allStarDeviceId, name: 'RxLevel', data: 0.0, store: false);
   }
 
-  void _publishRxLevel(Int16List pcm) {
+  void _publishRxLevel(double level) {
+    _broker.dispatch(
+        deviceId: allStarDeviceId, name: 'RxLevel', data: level, store: false);
+  }
+
+  double _peakLevel(Int16List pcm) {
     int peak = 0;
     for (final int s in pcm) {
       final int a = s < 0 ? -s : s;
       if (a > peak) peak = a;
     }
-    final double level = (peak / 32768.0).clamp(0.0, 1.0);
-    _broker.dispatch(
-        deviceId: allStarDeviceId, name: 'RxLevel', data: level, store: false);
+    return (peak / 32768.0).clamp(0.0, 1.0);
   }
 
   String _rxChannelName() => _currentNode?.name ?? 'AllStarLink';
