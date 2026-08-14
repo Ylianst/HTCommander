@@ -40,6 +40,7 @@ class _StationMarkerData {
     this.fromAprsIs = false,
     this.symbolTable = '',
     this.symbolCode = '',
+    this.isTest = false,
   }) : track = <LatLng>[position];
 
   final String callsign;
@@ -47,6 +48,10 @@ class _StationMarkerData {
   DateTime time;
   final bool isSelf;
   final List<LatLng> track;
+
+  /// True when this marker is a SARSAT self-test beacon (drawn differently
+  /// from a real distress beacon). Unused for non-SARSAT markers.
+  bool isTest;
 
   /// APRS symbol table identifier (`/`, `\` or an overlay digit/letter) and
   /// symbol code for this station, used to draw the real APRS symbol instead
@@ -62,7 +67,7 @@ class _StationMarkerData {
   /// Appends a new point to the track when the position actually changed,
   /// matching the C# `AddMapMarker` route behaviour.
   void update(LatLng newPosition, DateTime newTime,
-      {bool? fromAprsIs, String? symbolTable, String? symbolCode}) {
+      {bool? fromAprsIs, String? symbolTable, String? symbolCode, bool? isTest}) {
     final last = track.isNotEmpty ? track.last : null;
     if (last == null ||
         last.latitude != newPosition.latitude ||
@@ -71,6 +76,7 @@ class _StationMarkerData {
     }
     position = newPosition;
     time = newTime;
+    if (isTest != null) this.isTest = isTest;
     if (fromAprsIs != null) this.fromAprsIs = fromAprsIs;
     if (symbolTable != null && symbolTable.isNotEmpty) {
       this.symbolTable = symbolTable;
@@ -349,6 +355,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       name: 'TextReady',
       callback: _onTextReady,
     );
+    // The broker does not replay stored values to new subscribers, so load any
+    // decoded-text history that already carries a location. Without this, a
+    // voice/BSS/SARSAT marker decoded before the map tab was first built would
+    // not appear until the next decode.
+    _loadInitialDecodedTextHistory();
 
     // --- External serial GPS marker (mirrors the C# MapTabUserControl) ---
     _broker.subscribe(
@@ -654,6 +665,21 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   // Voice / BSS source marker handlers (orange)
   // ---------------------------------------------------------------------------
 
+  /// Loads the currently-stored decoded-text history and processes any entries
+  /// that carry a location. Used at init because broker subscriptions do not
+  /// replay the last stored value.
+  void _loadInitialDecodedTextHistory() {
+    final data =
+        _broker.getValueDynamic(_aprsDeviceId, 'DecodedTextHistory', null);
+    if (data is! List) return;
+    for (final entry in data) {
+      if (entry is Map) {
+        _processVoiceEntry(entry);
+        _processSarsatEntry(entry);
+      }
+    }
+  }
+
   /// Handles the DecodedTextHistory event - loads historical voice/BSS entries
   /// that carry a location. Mirrors the C# `OnDecodedTextHistory`.
   void _onDecodedTextHistory(int deviceId, String name, Object? data) {
@@ -719,17 +745,19 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     if (lat == 0 && lng == 0) return false;
     final s = entry['sarsat'];
     final hexId = (s is Map ? s['hexId'] as String? : null) ?? 'Beacon';
+    final isTest = s is Map && s['isTest'] == true;
     final time = _toDateTime(entry['time']);
     final point = LatLng(lat, lng);
     final existing = _sarsatBeacons[hexId];
     if (existing != null) {
-      existing.update(point, time);
+      existing.update(point, time, isTest: isTest);
     } else {
       _sarsatBeacons[hexId] = _StationMarkerData(
         callsign: hexId,
         position: point,
         time: time,
         isSelf: false,
+        isTest: isTest,
       );
     }
     return true;
@@ -1490,8 +1518,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       addStation(station, Colors.orange);
     }
 
-    // SARSAT 406 distress beacons: a red "SOS" badge. Always shown (a distress
-    // signal should stay visible regardless of the time filter).
+    // SARSAT 406 distress beacons: a red "SOS" badge for a real distress signal,
+    // an orange "TEST" badge for a self-test. Always shown (a distress signal
+    // should stay visible regardless of the time filter).
     for (final beacon in _sarsatBeacons.values) {
       markers.add(
         Marker(
@@ -1500,8 +1529,14 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
           height: size + spikeHeight,
           alignment: Alignment.topCenter,
           child: Tooltip(
-            message: 'SARSAT ${beacon.callsign}\n${_formatTime(beacon.time)}',
-            child: _buildSarsatMarker(size: size, spikeHeight: spikeHeight),
+            message: 'SARSAT ${beacon.callsign}'
+                '${beacon.isTest ? ' (self-test)' : ''}'
+                '\n${_formatTime(beacon.time)}',
+            child: _buildSarsatMarker(
+              size: size,
+              spikeHeight: spikeHeight,
+              isTest: beacon.isTest,
+            ),
           ),
         ),
       );
@@ -1610,12 +1645,16 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     );
   }
 
-  /// Builds a SARSAT distress-beacon marker: a red circular badge with "SOS"
-  /// text on a red spike whose tip marks the exact position.
+  /// Builds a SARSAT distress-beacon marker: a circular badge on a spike whose
+  /// tip marks the exact position. A real distress beacon is a red "SOS" badge;
+  /// a self-test beacon is an orange "TEST" badge.
   Widget _buildSarsatMarker({
     required double size,
     required double spikeHeight,
+    bool isTest = false,
   }) {
+    final Color color = isTest ? Colors.orange.shade800 : Colors.red;
+    final String label = isTest ? 'TEST' : 'SOS';
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1623,7 +1662,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: Colors.red,
+            color: color,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 1.5),
             boxShadow: const [
@@ -1634,14 +1673,14 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
               ),
             ],
           ),
-          child: const Center(
+          child: Center(
             child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 2),
                 child: Text(
-                  'SOS',
-                  style: TextStyle(
+                  label,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
@@ -1653,7 +1692,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
         ),
         CustomPaint(
           size: Size(size * 0.5, spikeHeight),
-          painter: _MarkerSpikePainter(Colors.red),
+          painter: _MarkerSpikePainter(color),
         ),
       ],
     );

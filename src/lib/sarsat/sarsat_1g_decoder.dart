@@ -342,6 +342,14 @@ class Sarsat1gDecoder {
           return 'ID: ${idData.toRadixString(16).toUpperCase()}';
       }
     }
+    if (proto == Sarsat1gProtocol.emergencyElt) {
+      final idType = _getBits(s, 40, 2); // bits 41-42
+      if (idType == 0) {
+        final addr = _getBits(s, 42, 24); // bits 43-66, aircraft 24-bit address
+        return 'Aircraft ${addr.toRadixString(16).toUpperCase().padLeft(6, '0')}';
+      }
+      return 'ID not available';
+    }
     return '';
   }
 
@@ -375,7 +383,8 @@ class Sarsat1gDecoder {
     return hi + lo;
   }
 
-  // Returns [lat, lon] in degrees, or null. Standard Location + User-Location.
+  // Returns [lat, lon] in degrees, or null. Standard Location, User-Location,
+  // and ELT(DT) Location protocols.
   static List<double>? _position(List<int> s, int len, Sarsat1gProtocol proto) {
     if (proto == Sarsat1gProtocol.standardLocation ||
         proto == Sarsat1gProtocol.shipSecurity) {
@@ -414,6 +423,29 @@ class Sarsat1gDecoder {
       final lonMin4 = _getBits(s, 128, 4); // bits 129-132
       final lat = latSign * (latDeg + (latMin4 * 4.0) / 60.0);
       final lon = lonSign * (lonDeg + (lonMin4 * 4.0) / 60.0);
+      if (!_validCoord(lat, lon)) return null;
+      return [lat, lon];
+    }
+    if (proto == Sarsat1gProtocol.emergencyElt && len == 144) {
+      // ELT(DT) Location Protocol: PDF-1 base position at 0.5 deg resolution,
+      // refined by PDF-2 minute/second offsets when the location is fresh.
+      final nsSouth = s[66] == 1; // bit 67 N/S flag (1 = South)
+      double lat = _getBits(s, 67, 8) * 0.5; // bits 68-75
+      if (nsSouth) lat = -lat;
+      final ewWest = s[75] == 1; // bit 76 E/W flag (1 = West)
+      double lon = _getBits(s, 76, 9) * 0.5; // bits 77-85
+      if (ewWest) lon = -lon;
+      final freshness = _getBits(s, 112, 2); // bits 113-114
+      if (freshness > 0) {
+        final latSign = s[114] == 1 ? 1 : -1; // bit 115
+        final latMin = _getBits(s, 115, 4); // bits 116-119
+        final latSec = _getBits(s, 119, 4) * 4; // bits 120-123
+        lat += latSign * (latMin / 60.0 + latSec / 3600.0);
+        final lonSign = s[123] == 1 ? 1 : -1; // bit 124
+        final lonMin = _getBits(s, 124, 4); // bits 125-128
+        final lonSec = _getBits(s, 128, 4) * 4; // bits 129-132
+        lon += lonSign * (lonMin / 60.0 + lonSec / 3600.0);
+      }
       if (!_validCoord(lat, lon)) return null;
       return [lat, lon];
     }

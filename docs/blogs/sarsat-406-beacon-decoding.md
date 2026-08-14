@@ -11,6 +11,44 @@ type and a map marker.*
 
 ---
 
+## Setting up your radio to receive SARSAT
+
+Before any of the decoding below can run, HTCommander needs to *hear* 406 MHz
+audio on a channel it recognizes as the beacon channel. The rule is simple:
+
+> **Name the channel `SARSAT`.** Case doesn't matter — `SARSAT`, `sarsat`, and
+> `Sarsat` all work. HTCommander watches for audio arriving on a channel whose
+> name is "sarsat" and feeds only that channel into the beacon demodulator.
+
+The channel itself needs a specific radio configuration:
+
+- **Receive frequency 406 MHz** (the distress band).
+- **Narrow band** (12.5 kHz).
+- **No transmit** — 406.0–406.1 MHz is a protected, satellite-monitored distress
+  band. This channel must be receive-only.
+- **No de-emphasis** (flat / bypassed audio) — the decoder wants the raw
+  demodulated signal, not audio shaped for voice.
+- **Mute** — so the beacon bursts don't blast out of the speaker while you work.
+
+### The easy way: copy-paste a channel-share string
+
+Rather than dial all of that in by hand, copy the following
+[channel-share string](channel-share-string.md) and drop it into HTCommander's
+Comm or APRS tab, then drag the resulting yellow channel block onto a channel
+slot in your radio:
+
+```
+HTC:1:SARSAT:406:0:::1R*33
+```
+
+That single token programs the whole channel: named **SARSAT**, receiving on
+**406 MHz**, simplex, no tones, **narrow FM**, **transmit disabled**, **flat
+audio** (de-emphasis bypass), and **muted** — exactly the configuration above.
+Once the radio is on that channel and hearing a beacon burst, everything in the
+rest of this post kicks in automatically.
+
+---
+
 ## What is SARSAT?
 
 **COSPAS-SARSAT** is the international satellite system that finds people in
@@ -234,9 +272,11 @@ buffering path decodes a burst the same way the batch path does.
 self-test beacon (`Sarsat.wav` — FM-demodulated, 32 kHz mono). Dropped straight
 through the production demodulator it decodes cleanly, with **both BCH fields
 valid**: a France (country 227) ELT-DT self-test beacon, hex ID
-`1C72091A2B3FDFF`. It's the case that exercises the FM-demod path *and* self-test
-sync on a real signal — and it's now a committed test fixture, so the real-signal
-path is a permanent regression, not a one-off.
+`1C72091A2B3FDFF`, aircraft address `123456`, at **42.954° N, 1.364° E** — a
+position we cross-checked field-for-field against an independent online T.001
+decoder. It's the case that exercises the FM-demod path *and* self-test sync on a
+real signal — and it's now a committed test fixture, so the real-signal path is a
+permanent regression, not a one-off.
 
 ---
 
@@ -310,10 +350,9 @@ What works today, and what's still on the bench:
 - ⚠️ **Self-test beacons** are handled by the FM-demod path (which is the one
   that matters for real FM audio); the coherent path's matched filter still only
   anchors on the *normal* frame sync.
-- ⚠️ **Position parsing covers Standard Location and User-Location**; the other
-  location protocols (ELT-DT, National, RLS…) are classified but not yet fully
-  geo-decoded, so an ELT-DT self-test won't plot a pin even though everything
-  else about it decodes.
+- ⚠️ **Position parsing covers Standard Location, User-Location, and ELT(DT)**
+  (base position plus the fine minute/second PDF-2 offsets); National and RLS
+  location protocols are classified but not yet geo-decoded.
 - ❌ **Second-generation (SGB) beacons** — DSSS/OQPSK, needs IQ, not attempted.
 
 And the standing rule, worth repeating: this is **receive-only**. 406 MHz is a

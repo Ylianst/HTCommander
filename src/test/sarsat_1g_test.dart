@@ -69,6 +69,11 @@ void main() {
       expect(f.protocolCode, 9);
       expect(f.protocol, Sarsat1gProtocol.emergencyElt);
       expect(f.hexId, '1C72091A2B3FDFF');
+      expect(f.identification, 'Aircraft 123456');
+      // ELT(DT) composite position (matches the online T.001 decoder).
+      expect(f.hasPosition, isTrue);
+      expect(f.latitude, closeTo(42.954, 5e-4));
+      expect(f.longitude, closeTo(1.364, 5e-4));
     });
   });
 
