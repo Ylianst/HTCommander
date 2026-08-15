@@ -11,7 +11,6 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:path_provider/path_provider.dart';
@@ -20,6 +19,7 @@ import '../callsign/callsign_database.dart';
 import '../callsign/callsign_record.dart';
 import 'data_broker.dart';
 import 'data_broker_client.dart';
+import 'tls_ca_bundle.dart';
 
 /// Progress callback for the database download: `(bytesReceived, bytesTotal)`.
 /// [total] may be 0 when the size is not known ahead of time.
@@ -724,23 +724,8 @@ class CallsignLookupService {
   static http.Client _clientFor(SecurityContext? context) =>
       context == null ? http.Client() : IOClient(HttpClient(context: context));
 
-  /// Lazily builds a [SecurityContext] that trusts only the bundled Mozilla CA
-  /// roots (`assets/certs/cacert.pem`). Used as a fallback so a stale or broken
-  /// system trust store doesn't block database downloads. Null if the asset
-  /// can't be loaded. Cached across calls (and across success/failure).
-  static SecurityContext? _bundledRoots;
-  static bool _bundledRootsLoaded = false;
-  static Future<SecurityContext?> _bundledRootsContext() async {
-    if (_bundledRootsLoaded) return _bundledRoots;
-    _bundledRootsLoaded = true;
-    try {
-      final pem = await rootBundle.load('assets/certs/cacert.pem');
-      _bundledRoots = SecurityContext(withTrustedRoots: false)
-        ..setTrustedCertificatesBytes(pem.buffer.asUint8List());
-    } catch (e) {
-      debugPrint('CallsignLookupService: CA bundle load failed: $e');
-      _bundledRoots = null;
-    }
-    return _bundledRoots;
-  }
+  /// Fallback context trusting the bundled Mozilla CA roots (see
+  /// [bundledCaRootsContext]).
+  static Future<SecurityContext?> _bundledRootsContext() =>
+      bundledCaRootsContext();
 }

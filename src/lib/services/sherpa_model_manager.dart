@@ -22,6 +22,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'data_broker.dart';
+import 'tls_ca_bundle.dart';
 
 
 /// Recognizer family a model belongs to; selects the sherpa-onnx config the
@@ -365,12 +366,32 @@ class SherpaModelManager {
   }
 
   /// Streams [url] to [dest] without buffering the whole archive in memory.
+  /// Tries the default trust store first, then retries with the bundled CA
+  /// roots if the machine's own store can't verify the chain.
   static Future<void> _download(
     String url,
     File dest,
     void Function(int received, int total) onProgress,
   ) async {
-    final client = HttpClient();
+    try {
+      await _downloadWith(null, url, dest, onProgress);
+    } on HandshakeException {
+      // The OS trust store couldn't verify the chain; retry with the bundled
+      // Mozilla roots. The handshake fails before any bytes are written, so the
+      // destination file is untouched on this path.
+      final context = await bundledCaRootsContext();
+      if (context == null) rethrow;
+      await _downloadWith(context, url, dest, onProgress);
+    }
+  }
+
+  static Future<void> _downloadWith(
+    SecurityContext? context,
+    String url,
+    File dest,
+    void Function(int received, int total) onProgress,
+  ) async {
+    final client = context == null ? HttpClient() : HttpClient(context: context);
     try {
       final request = await client.getUrl(Uri.parse(url));
       final response = await request.close();

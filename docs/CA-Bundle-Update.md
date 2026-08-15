@@ -10,14 +10,18 @@ server's certificate chain.
 - **Source:** Mozilla CA bundle, extracted by the curl project
   (<https://curl.se/docs/caextract.html>)
 - **Registered in:** `src/pubspec.yaml` (under `flutter: assets:`)
-- **Consumer:** `src/lib/services/callsign_lookup_service.dart`
+- **Loader:** `src/lib/services/tls_ca_bundle.dart` (`bundledCaRootsContext()`)
+- **Consumers:** `src/lib/services/callsign_lookup_service.dart` (callsign DB
+  downloads) and `src/lib/services/sherpa_model_manager.dart` (voice / text
+  model downloads)
 
 ## How the bundle is used
 
-Both the manifest fetch and the database download try the **default** HTTP
-client first — the one that uses the machine's own trust store. Only if that
-raises a `HandshakeException` (i.e. the OS store can't verify the chain) does the
-code retry with a `SecurityContext` that trusts the bundled roots:
+Every runtime download (callsign database manifest, database archives, and the
+voice / text model archives) tries the **default** HTTP client first — the one
+that uses the machine's own trust store. Only if that raises a
+`HandshakeException` (i.e. the OS store can't verify the chain) does the code
+retry with a `SecurityContext` that trusts the bundled roots:
 
 - Normal machines succeed on the first try; the bundle is never touched.
 - Corporate / antivirus TLS-inspection proxies succeed on the first try, because
