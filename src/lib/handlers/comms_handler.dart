@@ -541,8 +541,9 @@ class CommsHandler {
     _initializeSarsatMonitor();
 
     // Initialize the speech-to-text engine if speech-to-text is enabled.
-    // Speech-to-text is not available on Android (reduces APK size) or web.
-    if (_speechToTextEnabled && !kIsWeb && !Platform.isAndroid) {
+    // Web has no PCM-buffer recognizer; every other platform is supported
+    // (Android feeds PCM into the OS on-device recognizer, no model download).
+    if (_speechToTextEnabled && !kIsWeb) {
       unawaited(_initializeSpeechEngine());
     }
 
@@ -666,8 +667,8 @@ class CommsHandler {
     if (_speechToTextEnabled == enabled) return;
     _speechToTextEnabled = enabled;
     _broker.logInfo('[CommsHandler] SpeechToTextEnabled changed to: $enabled');
-    // Speech-to-text is not available on Android or web.
-    if (kIsWeb || Platform.isAndroid) return;
+    // Web has no PCM-buffer recognizer; speech-to-text is disabled there.
+    if (kIsWeb) return;
     if (enabled) {
       unawaited(_initializeSpeechEngine());
     } else {

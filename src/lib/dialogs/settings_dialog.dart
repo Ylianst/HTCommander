@@ -2189,6 +2189,28 @@ class _SettingsDialogState extends State<SettingsDialog>
   /// Speech-to-text setup: model selection, language and on-device management.
   Widget _buildSpeechRecognitionSection() {
     final l10n = AppLocalizations.of(context);
+    // Android transcribes via the OS on-device recognizer, which downloads no
+    // model into the app, so the sherpa model picker/status is not shown.
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: _sectionDecoration(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.settingsSpeechToText,
+              style: _sectionTitleStyle(),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.settingsSpeechToTextInfo,
+              style: DialogStyles.bodyStyle,
+            ),
+          ],
+        ),
+      );
+    }
     final model = SherpaModelManager.modelById(_settings.voiceModel);
     final langCodes = model.languages ?? const <String>[];
     final sttLang = langCodes.contains(_settings.voiceLanguage)
@@ -2444,11 +2466,11 @@ class _SettingsDialogState extends State<SettingsDialog>
             style: DialogStyles.bodyStyle,
           ),
           const SizedBox(height: 16),
-          // Speech Recognition (sherpa-onnx) – not available on Android.
-          if (defaultTargetPlatform != TargetPlatform.android) ...[
-            _buildSpeechRecognitionSection(),
-            const SizedBox(height: 16),
-          ],
+          // Speech Recognition. Desktop uses sherpa-onnx (model download);
+          // Android uses the OS on-device recognizer (no model). The section
+          // renders a platform-appropriate body for each.
+          _buildSpeechRecognitionSection(),
+          const SizedBox(height: 16),
           // Text-to-Speech
           Container(
             padding: const EdgeInsets.all(16),

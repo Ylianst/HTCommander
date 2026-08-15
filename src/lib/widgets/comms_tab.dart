@@ -329,6 +329,11 @@ class _CommsTabState extends State<CommsTab>
       callback: _onVoiceModelChanged,
     );
     _broker.subscribe(
+      deviceId: 1,
+      name: 'CommsHandlerState',
+      callback: _onCommsHandlerStateChanged,
+    );
+    _broker.subscribe(
       deviceId: 0,
       name: 'RecordingState',
       callback: _onRecordingStateChanged,
@@ -1115,6 +1120,19 @@ class _CommsTabState extends State<CommsTab>
   /// Binds (or re-binds) the STT model status listener for the currently
   /// selected model and updates [_sttModelReady].
   void _initSttModelStatus() {
+    // Android feeds PCM into the OS on-device recognizer, which downloads no
+    // model into the app; readiness is the engine's runtime availability
+    // (published by the CommsHandler as `engineReady`), not a sherpa model.
+    if (Platform.isAndroid) {
+      _sttStatusNotifier?.removeListener(_onSttModelStatusChanged);
+      _sttStatusNotifier = null;
+      final state = _broker.getValue<Map<dynamic, dynamic>>(
+        1,
+        'CommsHandlerState',
+      );
+      _sttModelReady = (state?['engineReady'] as bool?) ?? false;
+      return;
+    }
     // Remove previous listener if any.
     _sttStatusNotifier?.removeListener(_onSttModelStatusChanged);
     final modelId = SherpaModelManager.selectedModelId();
@@ -1129,6 +1147,17 @@ class _CommsTabState extends State<CommsTab>
   void _onSttModelStatusChanged() {
     final ready = _sttStatusNotifier?.value.state == SttModelState.ready;
     if (ready != _sttModelReady) setState(() => _sttModelReady = ready);
+  }
+
+  /// Android only: tracks the CommsHandler's on-device recognizer availability
+  /// so the speech-to-text toggle enables only when recognition can actually
+  /// run.
+  void _onCommsHandlerStateChanged(int deviceId, String name, Object? data) {
+    if (!Platform.isAndroid || data is! Map) return;
+    final ready = (data['engineReady'] as bool?) ?? false;
+    if (ready != _sttModelReady && mounted) {
+      setState(() => _sttModelReady = ready);
+    }
   }
 
   ValueNotifier<SttModelStatus>? _sttStatusNotifier;
@@ -2593,30 +2622,28 @@ class _CommsTabState extends State<CommsTab>
         if (_audioChannelSupported) ...[
           // Only draw the separating divider when mode items precede it.
           if (_allowTransmit) const PopupMenuDivider(height: 8),
-          // Speech-to-text is not available on Android.
-          if (!Platform.isAndroid)
-            PopupMenuItem<String>(
-              value: 'speechToText',
-              enabled: _sttModelReady,
-              height: menuItemHeight,
-              padding: menuItemPadding,
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    child: _speechToTextEnabled && _sttModelReady
-                        ? const Text('✓', style: TextStyle(fontSize: 14))
-                        : null,
-                  ),
-                  Text(
-                    AppLocalizations.of(context).settingsSpeechToText,
-                    style: _sttModelReady
-                        ? null
-                        : TextStyle(color: Theme.of(context).disabledColor),
-                  ),
-                ],
-              ),
+          PopupMenuItem<String>(
+            value: 'speechToText',
+            enabled: _sttModelReady,
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _speechToTextEnabled && _sttModelReady
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                Text(
+                  AppLocalizations.of(context).settingsSpeechToText,
+                  style: _sttModelReady
+                      ? null
+                      : TextStyle(color: Theme.of(context).disabledColor),
+                ),
+              ],
             ),
+          ),
           PopupMenuItem<String>(
             value: 'recordAudio',
             height: menuItemHeight,

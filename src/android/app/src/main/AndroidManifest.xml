@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Internet permission required for network access (Winlink/Dump1090) -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Required by SpeechRecognizer even when audio is fed via a file
+         descriptor (EXTRA_AUDIO_SOURCE) rather than the microphone. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     
     <application
         android:label="HTCommander"
@@ -52,6 +55,11 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Required to discover and bind the on-device speech recognizer used
+             by AndroidSpeechToTextPlugin (SpeechRecognizer) on Android 11+. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
         </intent>
     </queries>
 </manifest>

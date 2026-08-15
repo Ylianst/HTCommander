@@ -5,6 +5,7 @@ import io.flutter.embedding.engine.FlutterEngine
 
 class MainActivity : FlutterActivity() {
     private var bluetoothClassicPlugin: BluetoothClassicPlugin? = null
+    private var speechToTextPlugin: AndroidSpeechToTextPlugin? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -14,5 +15,10 @@ class MainActivity : FlutterActivity() {
         )
         plugin.activity = this
         bluetoothClassicPlugin = plugin
+
+        speechToTextPlugin = AndroidSpeechToTextPlugin(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
     }
 }
