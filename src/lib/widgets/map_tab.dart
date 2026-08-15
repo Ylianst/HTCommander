@@ -26,6 +26,7 @@ import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
 import '../utils/map_tile_downloader.dart';
 import '../utils/map_tile_provider.dart';
+import 'sarsat_marker.dart';
 
 /// Holds the latest known position, time and track points for a single
 /// station rendered on the map (APRS red/blue markers or voice/BSS orange
@@ -1532,7 +1533,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             message: 'SARSAT ${beacon.callsign}'
                 '${beacon.isTest ? ' (self-test)' : ''}'
                 '\n${_formatTime(beacon.time)}',
-            child: _buildSarsatMarker(
+            child: SarsatMarker(
               size: size,
               spikeHeight: spikeHeight,
               isTest: beacon.isTest,
@@ -1640,59 +1641,6 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
         CustomPaint(
           size: Size(size * 0.5, spikeHeight),
           painter: _MarkerSpikePainter(spikeColor),
-        ),
-      ],
-    );
-  }
-
-  /// Builds a SARSAT distress-beacon marker: a circular badge on a spike whose
-  /// tip marks the exact position. A real distress beacon is a red "SOS" badge;
-  /// a self-test beacon is an orange "TEST" badge.
-  Widget _buildSarsatMarker({
-    required double size,
-    required double spikeHeight,
-    bool isTest = false,
-  }) {
-    final Color color = isTest ? Colors.orange.shade800 : Colors.red;
-    final String label = isTest ? 'TEST' : 'SOS';
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 1.5),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 2,
-                offset: Offset(0, 1),
-              ),
-            ],
-          ),
-          child: Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        CustomPaint(
-          size: Size(size * 0.5, spikeHeight),
-          painter: _MarkerSpikePainter(color),
         ),
       ],
     );

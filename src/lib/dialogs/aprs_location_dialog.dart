@@ -25,6 +25,9 @@ Future<void> showAprsLocationDialog(
   String zoomStorageKey = 'AprsLocationZoom',
   double defaultZoom = 14.0,
   ValueListenable<LatLng>? livePosition,
+  Widget? centerMarker,
+  double centerMarkerWidth = 30,
+  double centerMarkerHeight = 30,
 }) {
   return showDialog<void>(
     context: context,
@@ -35,6 +38,9 @@ Future<void> showAprsLocationDialog(
       zoomStorageKey: zoomStorageKey,
       defaultZoom: defaultZoom,
       livePosition: livePosition,
+      centerMarker: centerMarker,
+      centerMarkerWidth: centerMarkerWidth,
+      centerMarkerHeight: centerMarkerHeight,
     ),
   );
 }
@@ -51,6 +57,9 @@ class AprsLocationDialog extends StatefulWidget {
     this.zoomStorageKey = 'AprsLocationZoom',
     this.defaultZoom = 14.0,
     this.livePosition,
+    this.centerMarker,
+    this.centerMarkerWidth = 30,
+    this.centerMarkerHeight = 30,
   });
 
   final double latitude;
@@ -67,6 +76,13 @@ class AprsLocationDialog extends StatefulWidget {
   /// When set, the marker and map follow this live position as it changes
   /// (e.g. a moving satellite) instead of staying on the fixed coordinates.
   final ValueListenable<LatLng>? livePosition;
+
+  /// Custom marker widget drawn at the center; when null a red location pin is
+  /// used. Its [centerMarkerWidth]/[centerMarkerHeight] size the enclosing
+  /// Marker so the widget is not clipped.
+  final Widget? centerMarker;
+  final double centerMarkerWidth;
+  final double centerMarkerHeight;
 
   @override
   State<AprsLocationDialog> createState() => _AprsLocationDialogState();
@@ -221,14 +237,19 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
                         markers: [
                           Marker(
                             point: _center,
-                            width: 30,
-                            height: 30,
+                            width: widget.centerMarker != null
+                                ? widget.centerMarkerWidth
+                                : 30,
+                            height: widget.centerMarker != null
+                                ? widget.centerMarkerHeight
+                                : 30,
                             alignment: Alignment.topCenter,
-                            child: const Icon(
-                              Icons.location_pin,
-                              color: Colors.red,
-                              size: 30,
-                            ),
+                            child: widget.centerMarker ??
+                                const Icon(
+                                  Icons.location_pin,
+                                  color: Colors.red,
+                                  size: 30,
+                                ),
                           ),
                         ],
                       ),

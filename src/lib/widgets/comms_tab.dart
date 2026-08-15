@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'package:path_provider/path_provider.dart';
 import 'chat_widget.dart';
+import 'sarsat_marker.dart';
 import '../dialogs/aprs_location_dialog.dart';
 import '../dialogs/edit_ident_settings_dialog.dart';
 import '../dialogs/image_view_dialog.dart';
@@ -2242,16 +2243,23 @@ class _CommsTabState extends State<CommsTab>
         break;
       case 'location':
         final tag = message.tag;
-        final title = (tag is CommsMessageDetails && tag.sarsat != null)
-            ? 'SARSAT ${tag.sarsat!.hexId}'
+        final sarsat =
+            tag is CommsMessageDetails ? tag.sarsat : null;
+        final title = sarsat != null
+            ? 'SARSAT ${sarsat.hexId}'
             : (message.senderCallsign.isNotEmpty
                   ? message.senderCallsign
                   : null);
+        final sarsatMarker =
+            sarsat != null ? SarsatMarker(isTest: sarsat.isTest) : null;
         showAprsLocationDialog(
           context,
           latitude: message.latitude!,
           longitude: message.longitude!,
           title: title,
+          centerMarker: sarsatMarker,
+          centerMarkerWidth: sarsatMarker?.size ?? 30,
+          centerMarkerHeight: sarsatMarker?.totalHeight ?? 30,
         );
         break;
       case 'copyMessage':
