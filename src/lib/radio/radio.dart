@@ -612,6 +612,12 @@ class Radio {
           writeSettings(settings!.toByteArrayWith(scan: data));
         }
         break;
+      case 'WeatherMode':
+        if (_lockState != null || settings == null) return;
+        if (data is int) {
+          writeSettings(settings!.toByteArrayWith(wxMode: data));
+        }
+        break;
     }
   }
 

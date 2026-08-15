@@ -82,6 +82,7 @@ class _RadioSettingsDialogState extends State<RadioSettingsDialog> {
   bool _signalingEccEn = false;
   bool _leadingSyncBitEn = false;
   bool _chDataLock = false;
+  int _wxMode = 0; // 0=off, 1=monitor, 2=alert
 
   @override
   void initState() {
@@ -140,6 +141,7 @@ class _RadioSettingsDialogState extends State<RadioSettingsDialog> {
     _signalingEccEn = s.signalingEccEn;
     _leadingSyncBitEn = s.leadingSyncBitEn;
     _chDataLock = s.chDataLock;
+    _wxMode = s.wxMode;
 
     setState(() => _loaded = true);
   }
@@ -198,8 +200,9 @@ class _RadioSettingsDialogState extends State<RadioSettingsDialog> {
     setBits(8, 0x06, (_vfoX & 0x03) << 1);
     setBits(8, 0x01, _imperialUnit ? 0x01 : 0);
 
-    // Byte 15 (index 10): VFO1 TX power.
+    // Byte 15 (index 10): VFO1 TX power, weather mode (Off/Monitor/Alert).
     setBits(10, 0x03, _vfo1TxPower & 0x03);
+    setBits(10, 0xC0, (_wxMode & 0x03) << 6);
 
     // Byte 16 (index 11): VFO2 TX power, digital mute, signaling ECC, ch lock.
     setBits(11, 0xC0, (_vfo2TxPower & 0x03) << 6);
@@ -399,6 +402,11 @@ class _RadioSettingsDialogState extends State<RadioSettingsDialog> {
           (v) => setState(() => _doubleChannel = v)),
       _boolRow('Auto Cross-band Repeat', _autoRelayEn,
           (v) => setState(() => _autoRelayEn = v)),
+      _choiceRow('Weather Mode', _wxMode, const {
+        0: 'Off',
+        1: 'Monitor',
+        2: 'Alert',
+      }, (v) => setState(() => _wxMode = v)),
       _intRow('Positioning System', _positioningSystem, 0, 15,
           (v) => setState(() => _positioningSystem = v)),
       _boolRow('Use Frequency Range 2', _useFreqRange2,
@@ -423,6 +431,36 @@ class _RadioSettingsDialogState extends State<RadioSettingsDialog> {
         children: [
           Expanded(child: Text(label)),
           Switch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+
+  Widget _choiceRow(
+    String label,
+    int value,
+    Map<int, String> options,
+    ValueChanged<int> onChanged,
+  ) {
+    final selected = options.containsKey(value) ? value : options.keys.first;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(child: Text(label)),
+          DropdownButton<int>(
+            value: selected,
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
+            items: [
+              for (final entry in options.entries)
+                DropdownMenuItem<int>(
+                  value: entry.key,
+                  child: Text(entry.value),
+                ),
+            ],
+          ),
         ],
       ),
     );

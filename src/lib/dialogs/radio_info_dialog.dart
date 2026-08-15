@@ -467,7 +467,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
       _row('Screen Timeout', '${s.screenTimeout}'),
       _row('VFO x', '${s.vfoX}'),
       _row('Imperial Units', _boolStr(s.imperialUnit)),
-      _row('Weather Mode', '${s.wxMode}'),
+      _row('Weather Mode', _weatherModeStr(s.wxMode)),
       _row('NOAA Channel', '${s.noaaCh}'),
       _row('VFOl tx power', '${s.vfolTxPowerX}'),
       _row('VFO2 tx power', '${s.vfo2TxPowerX}'),
@@ -531,6 +531,17 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
 
   String _boolStr(bool v) =>
       v ? AppLocalizations.of(context).riTrue : AppLocalizations.of(context).riFalse;
+
+  String _weatherModeStr(int mode) {
+    switch (mode) {
+      case 1:
+        return 'Monitor';
+      case 2:
+        return 'Alert';
+      default:
+        return 'Off';
+    }
+  }
 
   String _presentStr(bool v) => v
       ? AppLocalizations.of(context).riPresent

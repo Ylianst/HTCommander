@@ -383,14 +383,21 @@ class RadioSettings {
     int? doubleChannel,
     bool? scan,
     int? squelchLevel,
+    int? wxMode,
   }) {
-    return toByteArray(
+    final data = toByteArray(
       channelA ?? this.channelA,
       channelB ?? this.channelB,
       doubleChannel ?? this.doubleChannel,
       scan ?? this.scan,
       squelchLevel ?? this.squelchLevel,
     );
+    // Weather mode (0=off, 1=monitor, 2=alert) is the top 2 bits of raw byte
+    // 15, i.e. index 10 of the header-stripped write buffer.
+    if (wxMode != null && data.length > 10) {
+      data[10] = (data[10] & 0x3F) | ((wxMode & 0x03) << 6);
+    }
+    return data;
   }
 }
 

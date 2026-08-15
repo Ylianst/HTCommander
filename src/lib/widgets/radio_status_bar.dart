@@ -388,8 +388,12 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
   /// on VFO B, so this keeps VFO A on its normal channel.
   bool get _isFmBroadcast => _fmRadioStatus?.isOn ?? false;
 
-  /// True when the radio is on the NOAA weather sub-band.
-  bool get _isWeatherMode => (_currentSettings?.wxMode ?? 0) != 0;
+  /// True when the radio is currently tuned to a NOAA weather channel. This is
+  /// driven by the live HT status channel id (NOAA channels report ids >= 254),
+  /// not the persisted `wxMode` setting: `wxMode` is a stored preference that
+  /// stays non-zero even while the radio is on a normal channel, so using it
+  /// here would wrongly force VFO A into the weather/frequency display.
+  bool get _isWeatherMode => (_currentHtStatus?.currChId ?? 0) >= 254;
 
   /// True when VFO A should show a live frequency instead of a channel name.
   /// FM broadcast (shown on VFO B) can be active at the same time as frequency

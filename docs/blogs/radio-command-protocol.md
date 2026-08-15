@@ -388,6 +388,7 @@ split across byte boundaries. A few representative examples (see
 | `micGain` | `(byte7 & 0x0E)>>1` |
 | `txTimeLimit` | `byte8 & 0x1F` |
 | `autoShareLocCh` | `(byte10 & 0x1F)` \| `((byte16 & 0x07)<<5)` |
+| `wxMode` | `byte15 >> 6` (NOAA weather-alert mode: `0`=off, `1`=monitor, `2`=alert) |
 | `vfo1ModFreqX` | `getInt(17)` (BE `uint32`) |
 | `vfo2ModFreqX` | `getInt(21)` (BE `uint32`) |
 
@@ -398,6 +399,32 @@ the 4-byte header + status byte) and overwrites only the bytes it needs to chang
 copy-on-write wrapper the app calls. This preserves every field the app does not
 model. After a write, the radio may or may not push a `htSettingsChanged`
 notification, so the app re-reads settings to be safe.
+
+#### Weather mode (`wxMode`) — a *preference*, not a live state
+
+`wxMode` occupies the top 2 bits of raw byte 15 and selects the radio's NOAA
+weather-alert behaviour. It is **mutually exclusive** — only one mode can be on:
+
+| `wxMode` | byte 15 example | Meaning |
+| --- | --- | --- |
+| `0` | `0x0C` | Off |
+| `1` | `0x4C` | Monitor |
+| `2` | `0x8C` | Alert |
+
+The critical subtlety: `wxMode` is a **persisted preference**, *not* an
+indication that the radio is currently tuned to a weather channel. A radio can
+sit on a normal channel with Alert/Monitor enabled, keeping `wxMode` non-zero
+indefinitely. Deciding "am I displaying weather right now?" from `wxMode` is
+therefore a bug — the VFO display would show a bogus tuned frequency and hide
+VFO B. The reliable *live* indicator is the HT status current channel id
+(`currChId >= 254`, the NOAA sub-band), or the `freqModeStatusChanged`
+notification.
+
+To change the mode, `toByteArrayWith(wxMode: …)` overlays the top 2 bits of the
+copied byte 15 (write-buffer index 10), preserving `noaaCh` and VFO1 TX power in
+the lower bits. The `htSettingsChanged` notification re-parses cleanly because
+its notification-type byte (`0x06`) lands at the same frame offset as a read
+reply's status byte, so the settings payload (byte 5 onward) stays aligned.
 
 ### GET_POSITION (76) / SET_POSITION (32) → `RadioPosition`
 
