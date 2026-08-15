@@ -2236,25 +2236,7 @@ class _CommsTabState extends State<CommsTab>
         _showMessageDetails(message);
         break;
       case 'location':
-        final tag = message.tag;
-        final sarsat =
-            tag is CommsMessageDetails ? tag.sarsat : null;
-        final title = sarsat != null
-            ? 'SARSAT ${sarsat.hexId}'
-            : (message.senderCallsign.isNotEmpty
-                  ? message.senderCallsign
-                  : null);
-        final sarsatMarker =
-            sarsat != null ? SarsatMarker(isTest: sarsat.isTest) : null;
-        showAprsLocationDialog(
-          context,
-          latitude: message.latitude!,
-          longitude: message.longitude!,
-          title: title,
-          centerMarker: sarsatMarker,
-          centerMarkerWidth: sarsatMarker?.size ?? 30,
-          centerMarkerHeight: sarsatMarker?.totalHeight ?? 30,
-        );
+        _showMessageLocation(message);
         break;
       case 'copyMessage':
         _copyMessage(message);
@@ -2284,7 +2266,36 @@ class _CommsTabState extends State<CommsTab>
   void _showMessageDetails(ChatMessage message) {
     final details = message.tag;
     if (details is! CommsMessageDetails) return;
-    MessageDetailsDialog.show(context, details: details);
+    final hasLocation =
+        message.latitude != null &&
+        message.longitude != null &&
+        (message.latitude != 0 || message.longitude != 0);
+    MessageDetailsDialog.show(
+      context,
+      details: details,
+      onShowLocation: hasLocation ? () => _showMessageLocation(message) : null,
+    );
+  }
+
+  /// Opens the location map dialog for a message, dropping a SARSAT marker for
+  /// beacon messages. Shared by the message context menu and details dialog.
+  void _showMessageLocation(ChatMessage message) {
+    final tag = message.tag;
+    final sarsat = tag is CommsMessageDetails ? tag.sarsat : null;
+    final title = sarsat != null
+        ? 'SARSAT ${sarsat.hexId}'
+        : (message.senderCallsign.isNotEmpty ? message.senderCallsign : null);
+    final sarsatMarker =
+        sarsat != null ? SarsatMarker(isTest: sarsat.isTest) : null;
+    showAprsLocationDialog(
+      context,
+      latitude: message.latitude!,
+      longitude: message.longitude!,
+      title: title,
+      centerMarker: sarsatMarker,
+      centerMarkerWidth: sarsatMarker?.size ?? 30,
+      centerMarkerHeight: sarsatMarker?.totalHeight ?? 30,
+    );
   }
 
   /// Prompts the user for a destination and saves the message's image or

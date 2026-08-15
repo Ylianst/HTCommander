@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/data_broker.dart';
@@ -252,6 +253,38 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
                                 ),
                           ),
                         ],
+                      ),
+                      // Required OpenStreetMap licence attribution (OSM Tile
+                      // Usage Policy §2), always visible bottom-right.
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: GestureDetector(
+                              onTap: () => launchUrl(
+                                Uri.parse(
+                                  'https://www.openstreetmap.org/copyright',
+                                ),
+                                mode: LaunchMode.externalApplication,
+                              ),
+                              child: const Text(
+                                '© OpenStreetMap contributors',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.black87,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 2,
+                                      color: Colors.white,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),

@@ -74,18 +74,31 @@ class MessageDetailItem {
 class MessageDetailsDialog extends StatelessWidget {
   final List<MessageDetailItem> items;
 
-  const MessageDetailsDialog({super.key, required this.items});
+  /// Optional callback that opens the message's location on a map. When
+  /// non-null, a "Show Location..." button is shown at the bottom left,
+  /// mirroring the [AprsDetailsDialog].
+  final VoidCallback? onShowLocation;
 
-  /// Shows the dialog for the given [details].
+  const MessageDetailsDialog({
+    super.key,
+    required this.items,
+    this.onShowLocation,
+  });
+
+  /// Shows the dialog for the given [details]. When [onShowLocation] is
+  /// provided, a "Show Location..." button opens the location map dialog.
   static Future<void> show(
     BuildContext context, {
     required CommsMessageDetails details,
+    VoidCallback? onShowLocation,
   }) {
     final l10n = AppLocalizations.of(context);
     return showDialog<void>(
       context: context,
-      builder: (context) =>
-          MessageDetailsDialog(items: _buildItems(l10n, details)),
+      builder: (context) => MessageDetailsDialog(
+        items: _buildItems(l10n, details),
+        onShowLocation: onShowLocation,
+      ),
     );
   }
 
@@ -364,21 +377,48 @@ class MessageDetailsDialog extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               // Buttons.
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => _copyAll(context),
-                    style: DialogStyles.secondaryButtonStyle(context),
-                    child: Text(l10n.apdCopyAll),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: DialogStyles.primaryButtonStyle(context),
-                    child: Text(l10n.commonClose),
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  // On narrow (mobile) layouts, show only the marker icon for
+                  // the location button instead of the icon plus label.
+                  final compact = constraints.maxWidth < 360;
+                  return Row(
+                    children: [
+                      if (onShowLocation != null)
+                        if (compact)
+                          IconButton(
+                            tooltip: l10n.apdShowLocation,
+                            onPressed: onShowLocation,
+                            icon: Icon(
+                              Icons.location_pin,
+                              color: scheme.onSurface,
+                            ),
+                          )
+                        else
+                          ElevatedButton.icon(
+                            onPressed: onShowLocation,
+                            icon: const Icon(Icons.location_pin, size: 18),
+                            label: Text(l10n.apdShowLocation),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: scheme.surfaceContainerHighest,
+                              foregroundColor: scheme.onSurface,
+                            ),
+                          ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => _copyAll(context),
+                        style: DialogStyles.secondaryButtonStyle(context),
+                        child: Text(l10n.apdCopyAll),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: DialogStyles.primaryButtonStyle(context),
+                        child: Text(l10n.commonClose),
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

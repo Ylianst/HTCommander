@@ -74,7 +74,7 @@ Future<int> downloadTilesInBounds({
             final response = await client.get(
               Uri.parse(url),
               headers: {
-                'User-Agent': 'HTCommander/1.0 (com.htcommander.app)',
+                'User-Agent': kOsmTileUserAgent,
               },
             );
             if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {

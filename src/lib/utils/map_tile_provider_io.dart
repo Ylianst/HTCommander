@@ -25,6 +25,14 @@ import 'package:path_provider/path_provider.dart';
 TileProvider createMapTileProvider({required bool offline}) =>
     CachedMapTileProvider(offline: offline);
 
+/// User-Agent sent on every OpenStreetMap tile request.
+///
+/// The OSM Tile Usage Policy requires a stable, identifiable User-Agent that
+/// names the application and provides a contact URL; relying on a library
+/// default (e.g. "flutter_map (...)") is explicitly not permitted.
+const String kOsmTileUserAgent =
+    'HTCommander/1.0 (+https://github.com/Ylianst/HTCommander)';
+
 /// See [createMapTileProvider].
 class CachedMapTileProvider extends TileProvider {
   CachedMapTileProvider({required this.offline});
@@ -54,7 +62,9 @@ class CachedMapTileProvider extends TileProvider {
     return _CachedTileImage(
       url: getTileUrl(coordinates, options),
       coordinates: coordinates,
-      headers: headers,
+      // Force our own identifiable User-Agent (OSM policy §3.1/§3.4), replacing
+      // any library-default header flutter_map may have injected.
+      headers: {...headers, 'User-Agent': kOsmTileUserAgent},
       offline: offline,
       client: _client,
     );

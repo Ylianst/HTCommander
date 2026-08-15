@@ -13,6 +13,7 @@ import 'tab_visibility.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../aprs/aprs_symbols.dart';
@@ -1863,6 +1864,44 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                     if (_satellites.isNotEmpty)
                       MarkerLayer(markers: _buildSatelliteMarkers()),
                   ],
+                  // Required OpenStreetMap licence attribution (OSM Tile Usage
+                  // Policy §2). Kept always-visible in the bottom-right corner.
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () => launchUrl(
+                            Uri.parse(
+                              'https://www.openstreetmap.org/copyright',
+                            ),
+                            mode: LaunchMode.externalApplication,
+                          ),
+                          child: Builder(
+                            builder: (context) {
+                              final dark = Theme.of(context).brightness ==
+                                  Brightness.dark;
+                              return Text(
+                                '© OpenStreetMap contributors',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: dark ? Colors.white : Colors.black87,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 2,
+                                      color: dark ? Colors.black : Colors.white,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
               // Zoom buttons overlay (top-left, below header)
