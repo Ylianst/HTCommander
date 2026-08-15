@@ -39,12 +39,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get menuRegions => '分区';
 
   @override
-  String get menuTrustedDevices => '受信任的设备...';
-
-  @override
-  String get menuButtons => '按键...';
-
-  @override
   String get menuFmRadio => '调频广播...';
 
   @override

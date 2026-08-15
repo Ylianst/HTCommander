@@ -170,18 +170,6 @@ abstract class AppLocalizations {
   /// **'Regions'**
   String get menuRegions;
 
-  /// No description provided for @menuTrustedDevices.
-  ///
-  /// In en, this message translates to:
-  /// **'Trusted Devices...'**
-  String get menuTrustedDevices;
-
-  /// No description provided for @menuButtons.
-  ///
-  /// In en, this message translates to:
-  /// **'Buttons...'**
-  String get menuButtons;
-
   /// File/Radio menu item that opens the FM broadcast radio control dialog.
   ///
   /// In en, this message translates to:

@@ -3,11 +3,13 @@ Copyright 2026 Ylian Saint-Hilaire
 Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 
-Shows the list of Bluetooth trusted (paired) devices stored on the radio. The
+Panel listing the Bluetooth trusted (paired) devices stored on the radio. The
 list is read from the radio one entry at a time (GET_TRUSTED_DEVICE) by the
 Radio handler and published through the DataBroker as `TrustedDevices`. Each row
 shows the device name above its MAC address (matching the Radio Connection
 form) with a delete button to remove it from the radio.
+
+Embedded as the "Paired Devices" tab of the hardware Radio Settings dialog.
 */
 
 import 'package:flutter/material.dart';
@@ -23,18 +25,6 @@ class _TrustedDevice {
   final String mac;
   final String name;
   _TrustedDevice({required this.index, required this.mac, required this.name});
-}
-
-/// Shows the Trusted Devices dialog for [deviceId] (the currently selected
-/// radio).
-Future<void> showTrustedDevicesDialog(
-  BuildContext context, {
-  required int deviceId,
-}) {
-  return showDialog<void>(
-    context: context,
-    builder: (context) => _TrustedDevicesDialog(deviceId: deviceId),
-  );
 }
 
 /// Live list of the radio's Bluetooth trusted (paired) devices. Entries can be
@@ -214,30 +204,6 @@ class TrustedDevicesPanelState extends State<TrustedDevicesPanel>
           ),
         );
       },
-    );
-  }
-}
-
-/// Stand-alone Trusted Devices dialog wrapping [TrustedDevicesPanel].
-class _TrustedDevicesDialog extends StatelessWidget {
-  final int deviceId;
-  const _TrustedDevicesDialog({required this.deviceId});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return HTDialog(
-      title: l10n.trustedDevicesTitle,
-      maxWidth: 500,
-      maxHeight: 450,
-      content: TrustedDevicesPanel(deviceId: deviceId),
-      actions: [
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(),
-          style: DialogStyles.primaryButtonStyle(context),
-          child: Text(l10n.commonClose),
-        ),
-      ],
     );
   }
 }

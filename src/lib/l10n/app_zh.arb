@@ -28,8 +28,6 @@
   "menuDualWatch": "双频监听",
   "menuScan": "扫描",
   "menuRegions": "分区",
-  "menuTrustedDevices": "受信任的设备...",
-  "menuButtons": "按键...",
   "menuFmRadio": "调频广播...",
   "menuExportChannels": "导出信道...",
   "menuImportChannels": "导入信道...",

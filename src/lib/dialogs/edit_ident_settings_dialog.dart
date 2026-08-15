@@ -8,6 +8,10 @@ PTT-release ident: a callsign / station ID string plus toggles to send the
 callsign and/or position each time the PTT is released on the transmitting
 channel. Values are read from and written to the radio's BSS settings via the
 DataBroker (per-device `BssSettings` value and `SetBssSettings` event).
+
+The editing UI lives in [IdentSettingsPanel] so it can be embedded both by the
+stand-alone dialog below and as a tab inside the combined hardware Radio
+Settings dialog.
 */
 
 import 'package:flutter/material.dart';
@@ -17,6 +21,7 @@ import '../l10n/app_localizations.dart';
 import '../radio/radio_models.dart';
 import '../services/data_broker_client.dart';
 import 'dialog_utils.dart';
+import 'radio_settings_panel.dart';
 
 /// Shows the PTT Release (ident) Settings dialog. [initialDeviceId] selects
 /// which radio is shown first; when omitted the first connected radio is used.
@@ -31,16 +36,19 @@ Future<void> showEditIdentSettingsDialog(
   );
 }
 
-class _EditIdentSettingsDialog extends StatefulWidget {
+/// Editable PTT-release ident panel. Owns its own DataBroker subscription and
+/// exposes [save] via the [RadioSettingsPanel] contract so it can be driven by
+/// a host dialog's shared Save button.
+class IdentSettingsPanel extends StatefulWidget {
   final int? initialDeviceId;
-  const _EditIdentSettingsDialog({this.initialDeviceId});
+  const IdentSettingsPanel({super.key, this.initialDeviceId});
 
   @override
-  State<_EditIdentSettingsDialog> createState() =>
-      _EditIdentSettingsDialogState();
+  State<IdentSettingsPanel> createState() => IdentSettingsPanelState();
 }
 
-class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
+class IdentSettingsPanelState extends State<IdentSettingsPanel>
+    with RadioSettingsPanel {
   final DataBrokerClient _broker = DataBrokerClient();
   final TextEditingController _callsignController = TextEditingController();
 
@@ -110,9 +118,16 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
     _sendPosition = bss.pttReleaseSendLocation;
   }
 
-  bool get _canSave => _deviceId > 0 && _bssSettings != null;
+  /// Whether the panel has loaded settings it can write back.
+  bool get isLoaded => _deviceId > 0 && _bssSettings != null;
 
-  void _onOk() {
+  // Ident has no invalid states (the callsign is optional), so it never blocks
+  // a shared Save.
+  @override
+  bool get canSave => true;
+
+  @override
+  void save() {
     final current = _bssSettings;
     if (_deviceId <= 0 || current == null) return;
 
@@ -130,94 +145,52 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
       data: current,
       store: false,
     );
-
-    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    return Dialog(
-      backgroundColor: scheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Description
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+              Expanded(
                 child: Text(
-                  l10n.identTitle,
+                  l10n.identDescription,
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: scheme.onSurface,
+                    fontSize: 13,
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
               ),
-              // Description
               Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        l10n.identDescription,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: Icon(
-                        Icons.location_on,
-                        size: 40,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                padding: const EdgeInsets.only(left: 12),
+                child: Icon(
+                  Icons.location_on,
+                  size: 40,
+                  color: scheme.onSurfaceVariant,
                 ),
-              ),
-              // Editable fields
-              _buildForm(),
-              const SizedBox(height: 16),
-              // Action buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: DialogStyles.secondaryButtonStyle(context),
-                    child: Text(l10n.commonCancel),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _canSave ? _onOk : null,
-                    style: DialogStyles.primaryButtonStyle(context),
-                    child: Text(l10n.commonOk),
-                  ),
-                ],
               ),
             ],
           ),
         ),
-      ),
+        // Editable fields
+        _buildForm(),
+      ],
     );
   }
 
   Widget _buildForm() {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final enabled = _canSave;
+    final enabled = isLoaded;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -280,3 +253,79 @@ class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
     );
   }
 }
+
+class _EditIdentSettingsDialog extends StatefulWidget {
+  final int? initialDeviceId;
+  const _EditIdentSettingsDialog({this.initialDeviceId});
+
+  @override
+  State<_EditIdentSettingsDialog> createState() =>
+      _EditIdentSettingsDialogState();
+}
+
+class _EditIdentSettingsDialogState extends State<_EditIdentSettingsDialog> {
+  final GlobalKey<IdentSettingsPanelState> _panelKey =
+      GlobalKey<IdentSettingsPanelState>();
+
+  void _onOk() {
+    _panelKey.currentState?.save();
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return Dialog(
+      backgroundColor: scheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Title
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  l10n.identTitle,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: scheme.onSurface,
+                  ),
+                ),
+              ),
+              IdentSettingsPanel(
+                key: _panelKey,
+                initialDeviceId: widget.initialDeviceId,
+              ),
+              const SizedBox(height: 16),
+              // Action buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: DialogStyles.secondaryButtonStyle(context),
+                    child: Text(l10n.commonCancel),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _onOk,
+                    style: DialogStyles.primaryButtonStyle(context),
+                    child: Text(l10n.commonOk),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

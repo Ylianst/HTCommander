@@ -3,18 +3,19 @@ Copyright 2026 Ylian Saint-Hilaire
 Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 
-Dialog to configure the radio's programmable (PF) buttons. On open it requests
+Panel to configure the radio's programmable (PF) buttons. On open it requests
 the current button table (GET_PF) via the DataBroker, groups the entries by
 physical button, and shows a dropdown per button/press-type so the operator can
 choose which effect it performs. Saving writes the whole table back (SET_PF),
 preserving the button/action of each slot and only changing the effect.
+
+Embedded as the "Buttons" tab of the hardware Radio Settings dialog.
 */
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
-import 'dialog_utils.dart';
 import 'radio_settings_panel.dart';
 import '../radio/gaia_protocol.dart';
 import '../services/data_broker_client.dart';
@@ -97,30 +98,13 @@ String _effectLabel(AppLocalizations l10n, int effect) {
   return labels[e] ?? e.name;
 }
 
-/// Shows the Configure Buttons dialog for [initialDeviceId] (the currently
-/// selected radio).
-Future<void> showConfigureButtonsDialog(
-  BuildContext context, {
-  int? initialDeviceId,
-}) {
-  return showDialog<void>(
-    context: context,
-    builder: (context) =>
-        _ConfigureButtonsDialog(initialDeviceId: initialDeviceId),
-  );
-}
-
 /// Editable programmable-button (PF) panel. Owns its own DataBroker
 /// subscription and exposes [save] via the [RadioSettingsPanel] contract so it
 /// can be driven by a host dialog's shared Save button.
 class ButtonsSettingsPanel extends StatefulWidget {
   final int? initialDeviceId;
 
-  /// Invoked whenever the loaded button table changes, so a host dialog can
-  /// refresh its Save button.
-  final VoidCallback? onChanged;
-
-  const ButtonsSettingsPanel({super.key, this.initialDeviceId, this.onChanged});
+  const ButtonsSettingsPanel({super.key, this.initialDeviceId});
 
   @override
   State<ButtonsSettingsPanel> createState() => ButtonsSettingsPanelState();
@@ -167,7 +151,6 @@ class ButtonsSettingsPanelState extends State<ButtonsSettingsPanel>
   void _onPfTable(int deviceId, String name, Object? data) {
     if (!mounted) return;
     setState(() => _applyTable(data));
-    widget.onChanged?.call();
   }
 
   void _applyTable(Object? data) {
@@ -186,9 +169,6 @@ class ButtonsSettingsPanelState extends State<ButtonsSettingsPanel>
     }
     _slots = slots;
   }
-
-  /// Whether there is a loaded button table to write back.
-  bool get hasSlots => _slots != null && _slots!.isNotEmpty;
 
   // The button table has no invalid states, so it never blocks a shared Save.
   @override
@@ -309,56 +289,6 @@ class ButtonsSettingsPanelState extends State<ButtonsSettingsPanel>
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Stand-alone Configure Buttons dialog wrapping [ButtonsSettingsPanel] with a
-/// title and Save/Cancel buttons.
-class _ConfigureButtonsDialog extends StatefulWidget {
-  final int? initialDeviceId;
-  const _ConfigureButtonsDialog({this.initialDeviceId});
-
-  @override
-  State<_ConfigureButtonsDialog> createState() =>
-      _ConfigureButtonsDialogState();
-}
-
-class _ConfigureButtonsDialogState extends State<_ConfigureButtonsDialog> {
-  final GlobalKey<ButtonsSettingsPanelState> _panelKey =
-      GlobalKey<ButtonsSettingsPanelState>();
-
-  void _onSave() {
-    _panelKey.currentState?.save();
-    Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final hasSlots = _panelKey.currentState?.hasSlots ?? false;
-    return AlertDialog(
-      title: Text(l10n.pfConfigTitle),
-      content: SizedBox(
-        width: 460,
-        child: ButtonsSettingsPanel(
-          key: _panelKey,
-          initialDeviceId: widget.initialDeviceId,
-          onChanged: () => setState(() {}),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          style: DialogStyles.secondaryButtonStyle(context),
-          child: Text(l10n.commonCancel),
-        ),
-        ElevatedButton(
-          onPressed: hasSlots ? _onSave : null,
-          style: DialogStyles.primaryButtonStyle(context),
-          child: Text(l10n.pfSaveToRadio),
-        ),
-      ],
     );
   }
 }

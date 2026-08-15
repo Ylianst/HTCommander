@@ -18,6 +18,7 @@ import '../services/data_broker_client.dart';
 import '../l10n/app_localizations.dart';
 import 'aprs_symbol_picker_dialog.dart';
 import 'dialog_utils.dart';
+import 'radio_settings_panel.dart';
 
 /// Shows the beacon settings dialog used to configure a connected radio's
 /// beacon/BSS settings (callsign, message, interval, packet format, channel and
@@ -27,7 +28,7 @@ import 'dialog_utils.dart';
 Future<void> showEditBeaconSettingsDialog(BuildContext context) {
   return showDialog<void>(
     context: context,
-    builder: (context) => const EditBeaconSettingsDialog(),
+    builder: (context) => const _EditBeaconSettingsDialog(),
   );
 }
 
@@ -68,15 +69,22 @@ const List<String> _commonAprsPaths = [
   'WIDE1-1,WIDE2-2',
 ];
 
-class EditBeaconSettingsDialog extends StatefulWidget {
-  const EditBeaconSettingsDialog({super.key});
+/// Editable beacon/BSS settings panel. Owns its own DataBroker subscription
+/// and exposes [save] via the [RadioSettingsPanel] contract so it can be
+/// driven by a host dialog's shared Save button.
+class BeaconSettingsPanel extends StatefulWidget {
+  /// Invoked whenever the panel's savable state may have changed, so a host
+  /// dialog can refresh its Save button.
+  final VoidCallback? onChanged;
+
+  const BeaconSettingsPanel({super.key, this.onChanged});
 
   @override
-  State<EditBeaconSettingsDialog> createState() =>
-      _EditBeaconSettingsDialogState();
+  State<BeaconSettingsPanel> createState() => BeaconSettingsPanelState();
 }
 
-class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
+class BeaconSettingsPanelState extends State<BeaconSettingsPanel>
+    with RadioSettingsPanel {
   final DataBrokerClient _broker = DataBrokerClient();
   final BluetoothService _bluetooth = BluetoothService();
 
@@ -122,11 +130,11 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
 
     final deviceId = _resolveCurrentRadioId();
 
-    // If no radio is connected, close after the first frame.
+    // With no radio connected there is nothing to configure; leave the controls
+    // disabled. (The stand-alone dialog is only reachable while a radio is
+    // connected, and as an embedded tab the panel must not close its host.)
     if (deviceId <= 0) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.of(context).pop();
-      });
+      _selectedDeviceId = deviceId;
       return;
     }
 
@@ -147,13 +155,14 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
   void _onConnectedRadiosChanged(int deviceId, String name, Object? data) {
     if (!mounted) return;
 
-    // The dialog is bound to the currently selected radio; if it is no longer
-    // connected there is nothing to configure, so close.
+    // The panel is bound to the currently selected radio; if it is no longer
+    // connected there is nothing left to configure, so disable the controls.
     final connectedIds = _radioIds(
       _broker.getValueDynamic(1, 'ConnectedRadios'),
     );
     if (!connectedIds.contains(_selectedDeviceId)) {
-      Navigator.of(context).pop();
+      setState(() => _controlsEnabled = false);
+      widget.onChanged?.call();
     }
   }
 
@@ -278,10 +287,12 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
     // Rebuild unconditionally: acceptability can change even when validity does
     // not (e.g. clearing the field while beaconing is off).
     setState(() => _callsignValid = valid);
+    widget.onChanged?.call();
   }
 
   void _onAprsPathChanged() {
     setState(() => _aprsPathValid = _isAprsPathValid(_aprsPathController.text));
+    widget.onChanged?.call();
   }
 
   /// Validates the APRS route/path: one, or two comma-separated stations, each
@@ -313,16 +324,25 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
     return !_beaconingEnabled && _callsignController.text.trim().isEmpty;
   }
 
-  bool get _canSave =>
+  /// Whether the standalone dialog's Save button should be enabled: a radio is
+  /// loaded and its current input is valid.
+  bool get isReady =>
       _controlsEnabled &&
       _callsignAcceptable &&
       _aprsPathValid &&
       _selectedDeviceId > 0;
 
-  void _onSave() {
+  // Blocks a shared Save only for genuinely invalid input; when no radio is
+  // loaded there is nothing to validate and [save] simply no-ops.
+  @override
+  bool get canSave => !_controlsEnabled || (_callsignAcceptable && _aprsPathValid);
+
+  @override
+  void save() {
     final radio = _bluetooth.radioInstance(_selectedDeviceId);
     final current = radio?.bssSettings;
     if (radio == null || current == null) return;
+    if (!isReady) return;
 
     final addr = AX25Address.parse(_callsignController.text);
     // A missing callsign is only allowed while beaconing is off.
@@ -390,80 +410,33 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
         );
       }
     }
-
-    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Dialog(
-      backgroundColor: scheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 650),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Title
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8, left: 4),
-                child: Text(
-                  AppLocalizations.of(context).aprsBeaconSettings,
-                  style: DialogStyles.titleStyle,
-                ),
-              ),
-              // Content
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        AppLocalizations.of(context).beaconIntro,
-                        style: DialogStyles.bodyStyle,
-                      ),
-                      if (_radioName.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          AppLocalizations.of(context).beaconRadio(_radioName),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: scheme.onSurface,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      _buildBeaconSection(),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: DialogStyles.secondaryButtonStyle(context),
-                    child: Text(AppLocalizations.of(context).commonCancel),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _canSave ? _onSave : null,
-                    style: DialogStyles.primaryButtonStyle(context),
-                    child: Text(AppLocalizations.of(context).commonOk),
-                  ),
-                ],
-              ),
-            ],
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppLocalizations.of(context).beaconIntro,
+            style: DialogStyles.bodyStyle,
           ),
-        ),
+          if (_radioName.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              AppLocalizations.of(context).beaconRadio(_radioName),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: scheme.onSurface,
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          _buildBeaconSection(),
+        ],
       ),
     );
   }
@@ -499,7 +472,10 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
           _buildCheckbox(
             AppLocalizations.of(context).beaconShareLocation,
             _shareLocation,
-            (v) => setState(() => _shareLocation = v),
+            (v) {
+              setState(() => _shareLocation = v);
+              widget.onChanged?.call();
+            },
           ),
           _buildCheckbox(
             AppLocalizations.of(context).beaconSendVoltage,
@@ -590,7 +566,10 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
         ],
         onChanged: _controlsEnabled
             ? (value) {
-                if (value != null) setState(() => _intervalIndex = value);
+                if (value != null) {
+                  setState(() => _intervalIndex = value);
+                  widget.onChanged?.call();
+                }
               }
             : null,
       ),
@@ -880,3 +859,79 @@ class _EditBeaconSettingsDialogState extends State<EditBeaconSettingsDialog> {
     );
   }
 }
+
+/// Stand-alone beacon settings dialog wrapping [BeaconSettingsPanel] with a
+/// title and Save/Cancel buttons.
+class _EditBeaconSettingsDialog extends StatefulWidget {
+  const _EditBeaconSettingsDialog();
+
+  @override
+  State<_EditBeaconSettingsDialog> createState() =>
+      _EditBeaconSettingsDialogState();
+}
+
+class _EditBeaconSettingsDialogState extends State<_EditBeaconSettingsDialog> {
+  final GlobalKey<BeaconSettingsPanelState> _panelKey =
+      GlobalKey<BeaconSettingsPanelState>();
+
+  void _onSave() {
+    _panelKey.currentState?.save();
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final ready = _panelKey.currentState?.isReady ?? false;
+    return Dialog(
+      backgroundColor: scheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 650),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Title
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8, left: 4),
+                child: Text(
+                  AppLocalizations.of(context).aprsBeaconSettings,
+                  style: DialogStyles.titleStyle,
+                ),
+              ),
+              // Content
+              Flexible(
+                child: BeaconSettingsPanel(
+                  key: _panelKey,
+                  onChanged: () => setState(() {}),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: DialogStyles.secondaryButtonStyle(context),
+                    child: Text(AppLocalizations.of(context).commonCancel),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: ready ? _onSave : null,
+                    style: DialogStyles.primaryButtonStyle(context),
+                    child: Text(AppLocalizations.of(context).commonOk),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

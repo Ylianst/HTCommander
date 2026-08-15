@@ -12,17 +12,16 @@ import 'package:window_manager/window_manager.dart';
 
 import 'dialogs/about_dialog.dart';
 import 'dialogs/callsign_lookup_dialog.dart';
-import 'dialogs/configure_buttons_dialog.dart';
 import 'dialogs/firmware_update_dialog.dart';
 import 'dialogs/fm_radio_dialog.dart';
 import 'dialogs/gps_serial_info_dialog.dart';import 'dialogs/import_channels_dialog.dart';
+import 'dialogs/hardware_radio_settings_dialog.dart';
 import 'dialogs/radio_connection_dialog.dart';
 import 'dialogs/radio_info_dialog.dart';
 import 'dialogs/region_storage_dialog.dart';
 import 'dialogs/rename_regions_dialog.dart';
 import 'dialogs/app_settings.dart';
 import 'dialogs/settings_dialog.dart';
-import 'dialogs/trusted_devices_dialog.dart';
 import 'handlers/frame_deduplicator.dart';
 import 'handlers/packet_store.dart';
 import 'handlers/aprs_handler.dart';
@@ -2457,6 +2456,15 @@ class _MainFormState extends State<MainForm>
           // the radio currently displayed.
           if (!_isEchoLink && _hasConnectedRadio) ...[
             AppMenuAction(
+              label: 'Radio Settings...',
+              onPressed: () => showHardwareRadioSettingsDialog(
+                context,
+                deviceId: _currentRadioDeviceId,
+                radioName: _radioMenuLabel(_currentRadioDeviceId),
+              ),
+            ),
+            const AppMenuDivider(),
+            AppMenuAction(
               label: l10n.menuDualWatch,
               onPressed: _radioLocked ? null : _onToggleDualWatch,
               checked: _dualWatchEnabled,
@@ -2484,13 +2492,6 @@ class _MainFormState extends State<MainForm>
             else
               AppMenuAction(label: l10n.menuRegions, onPressed: null),
             AppMenuAction(
-              label: l10n.menuTrustedDevices,
-              onPressed: () => showTrustedDevicesDialog(
-                context,
-                deviceId: _currentRadioDeviceId,
-              ),
-            ),
-            AppMenuAction(
               label: l10n.menuFmRadio,
               onPressed: (_supportRadio && !_radioLocked)
                   ? () => showFmRadioDialog(
@@ -2498,13 +2499,6 @@ class _MainFormState extends State<MainForm>
                       deviceId: _currentRadioDeviceId,
                     )
                   : null,
-            ),
-            AppMenuAction(
-              label: l10n.menuButtons,
-              onPressed: () => showConfigureButtonsDialog(
-                context,
-                initialDeviceId: _currentRadioDeviceId,
-              ),
             ),
             const AppMenuDivider(),
             AppMenuAction(

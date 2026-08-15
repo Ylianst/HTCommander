@@ -39,12 +39,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get menuRegions => 'リージョン';
 
   @override
-  String get menuTrustedDevices => '信頼できるデバイス...';
-
-  @override
-  String get menuButtons => 'ボタン...';
-
-  @override
   String get menuFmRadio => 'FMラジオ...';
 
   @override

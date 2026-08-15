@@ -39,12 +39,6 @@ class AppLocalizationsPl extends AppLocalizations {
   String get menuRegions => 'Regiony';
 
   @override
-  String get menuTrustedDevices => 'Zaufane urządzenia...';
-
-  @override
-  String get menuButtons => 'Przyciski...';
-
-  @override
   String get menuFmRadio => 'Radio FM...';
 
   @override

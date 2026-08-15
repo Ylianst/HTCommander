@@ -39,12 +39,6 @@ class AppLocalizationsHi extends AppLocalizations {
   String get menuRegions => 'क्षेत्र';
 
   @override
-  String get menuTrustedDevices => 'विश्वसनीय डिवाइस...';
-
-  @override
-  String get menuButtons => 'बटन...';
-
-  @override
   String get menuFmRadio => 'FM रेडियो...';
 
   @override

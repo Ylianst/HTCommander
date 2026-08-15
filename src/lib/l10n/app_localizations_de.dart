@@ -39,12 +39,6 @@ class AppLocalizationsDe extends AppLocalizations {
   String get menuRegions => 'Regionen';
 
   @override
-  String get menuTrustedDevices => 'Vertrauenswürdige Geräte...';
-
-  @override
-  String get menuButtons => 'Tasten...';
-
-  @override
   String get menuFmRadio => 'UKW-Radio...';
 
   @override

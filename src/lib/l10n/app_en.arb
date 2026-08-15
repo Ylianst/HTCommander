@@ -33,8 +33,6 @@
   "menuDualWatch": "Dual-Watch",
   "menuScan": "Scan",
   "menuRegions": "Regions",
-  "menuTrustedDevices": "Trusted Devices...",
-  "menuButtons": "Buttons...",
   "menuFmRadio": "FM Radio...",
   "@menuFmRadio": {
     "description": "File/Radio menu item that opens the FM broadcast radio control dialog."
