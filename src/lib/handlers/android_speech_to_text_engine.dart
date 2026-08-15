@@ -38,6 +38,24 @@ class AndroidSpeechToTextEngine implements SpeechToTextEngine {
     'com.htcommander/android_speech_to_text_events',
   );
 
+  /// Whether this device can transcribe PCM with the OS on-device recognizer
+  /// (Android 13 / API 33 or newer with an on-device recognizer installed).
+  ///
+  /// This is a stable capability probe that creates no recognizer, so it is
+  /// safe to call regardless of whether speech-to-text is currently enabled.
+  /// The native plugin is registered for the whole app lifetime, so this works
+  /// even when no [AndroidSpeechToTextEngine] instance exists.
+  static Future<bool> isDeviceSupported() async {
+    try {
+      final supported = await _channel.invokeMethod<bool>('isSupported');
+      return supported ?? false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
   /// Fixed sample rate the native recognizer expects (matches the
   /// `EXTRA_AUDIO_SOURCE_SAMPLING_RATE` default).
   static const int _targetSampleRate = 16000;

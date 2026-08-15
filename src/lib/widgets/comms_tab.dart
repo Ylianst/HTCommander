@@ -31,6 +31,7 @@ import '../services/data_broker_client.dart';
 import '../services/microphone_capture.dart';
 import '../services/shared_microphone.dart';
 import '../services/sherpa_model_manager.dart';
+import '../handlers/android_speech_to_text_engine.dart';
 import '../models/radio_models.dart';
 import '../radio/radio_models.dart' as radio;
 import '../utils/channel_share.dart';
@@ -327,11 +328,6 @@ class _CommsTabState extends State<CommsTab>
       deviceId: 0,
       name: 'VoiceModel',
       callback: _onVoiceModelChanged,
-    );
-    _broker.subscribe(
-      deviceId: 1,
-      name: 'CommsHandlerState',
-      callback: _onCommsHandlerStateChanged,
     );
     _broker.subscribe(
       deviceId: 0,
@@ -1121,16 +1117,18 @@ class _CommsTabState extends State<CommsTab>
   /// selected model and updates [_sttModelReady].
   void _initSttModelStatus() {
     // Android feeds PCM into the OS on-device recognizer, which downloads no
-    // model into the app; readiness is the engine's runtime availability
-    // (published by the CommsHandler as `engineReady`), not a sherpa model.
+    // model into the app; readiness is a stable device capability (Android 13+
+    // with an on-device recognizer), independent of whether speech-to-text is
+    // currently enabled, so the toggle can always be re-enabled.
     if (Platform.isAndroid) {
       _sttStatusNotifier?.removeListener(_onSttModelStatusChanged);
       _sttStatusNotifier = null;
-      final state = _broker.getValue<Map<dynamic, dynamic>>(
-        1,
-        'CommsHandlerState',
-      );
-      _sttModelReady = (state?['engineReady'] as bool?) ?? false;
+      AndroidSpeechToTextEngine.isDeviceSupported().then((supported) {
+        if (!mounted) return;
+        if (supported != _sttModelReady) {
+          setState(() => _sttModelReady = supported);
+        }
+      });
       return;
     }
     // Remove previous listener if any.
@@ -1147,17 +1145,6 @@ class _CommsTabState extends State<CommsTab>
   void _onSttModelStatusChanged() {
     final ready = _sttStatusNotifier?.value.state == SttModelState.ready;
     if (ready != _sttModelReady) setState(() => _sttModelReady = ready);
-  }
-
-  /// Android only: tracks the CommsHandler's on-device recognizer availability
-  /// so the speech-to-text toggle enables only when recognition can actually
-  /// run.
-  void _onCommsHandlerStateChanged(int deviceId, String name, Object? data) {
-    if (!Platform.isAndroid || data is! Map) return;
-    final ready = (data['engineReady'] as bool?) ?? false;
-    if (ready != _sttModelReady && mounted) {
-      setState(() => _sttModelReady = ready);
-    }
   }
 
   ValueNotifier<SttModelStatus>? _sttStatusNotifier;

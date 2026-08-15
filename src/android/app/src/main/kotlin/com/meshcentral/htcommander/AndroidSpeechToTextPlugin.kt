@@ -90,6 +90,9 @@ class AndroidSpeechToTextPlugin(
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
+            "isSupported" -> {
+                result.success(isDeviceSupported())
+            }
             "initialize" -> {
                 localeId = call.argument<String>("localeId") ?: ""
                 result.success(initialize())
@@ -120,14 +123,24 @@ class AndroidSpeechToTextPlugin(
     }
 
     /**
+     * Whether the device can feed PCM to an on-device recognizer. Stable across
+     * the engine's enable/disable lifecycle (no recognizer is created), so the
+     * UI can keep the speech-to-text toggle enabled whenever recognition is
+     * possible. False below API 33 or without an on-device recognition service.
+     */
+    private fun isDeviceSupported(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+        return SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
+    }
+
+    /**
      * Verifies the platform can feed PCM to an on-device recognizer and creates
      * the (reused) recognizer instance. Returns false when the device is below
      * API 33 or has no on-device recognition service, so the Dart engine reports
      * itself unsupported and speech-to-text stays disabled.
      */
     private fun initialize(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
-        if (!SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) return false
+        if (!isDeviceSupported()) return false
         if (recognizer != null) return true
         return try {
             recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(context).apply {
