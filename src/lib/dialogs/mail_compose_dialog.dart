@@ -472,25 +472,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
 
   // Helper for consistent input decoration (matches settings_dialog).
   InputDecoration _inputDecoration({Color? fillColor}) {
-    final scheme = Theme.of(context).colorScheme;
-    return InputDecoration(
-      filled: true,
-      fillColor: fillColor ?? scheme.surfaceContainerHighest,
-      isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: scheme.primary, width: 2),
-      ),
-    );
+    return DialogStyles.inputDecoration(context, fillColor: fillColor);
   }
 
   // Helper for section card styling (matches settings_dialog).

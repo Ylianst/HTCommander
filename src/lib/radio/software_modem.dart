@@ -35,6 +35,7 @@ import '../hamlib/multi_modem.dart';
 import '../models/radio_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../utils/num_parsing.dart';
 import 'modem_tx_encoder.dart';
 import 'radio_models.dart' as radio;
 import 'tnc_data_fragment.dart';
@@ -1786,12 +1787,7 @@ class SoftwareModem {
     return sb.toString().toUpperCase();
   }
 
-  static int? _readInt(Object? v) {
-    if (v is int) return v;
-    if (v is double) return v.toInt();
-    if (v is String) return int.tryParse(v);
-    return null;
-  }
+  static int? _readInt(Object? v) => asIntOrNull(v);
 }
 
 /// Wrapper for MultiModem to process FX.25 frames.

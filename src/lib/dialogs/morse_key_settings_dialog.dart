@@ -158,28 +158,7 @@ class _MorseKeySettingsDialogState extends State<_MorseKeySettingsDialog> {
 
   // Input decoration matching the main Settings dialog dropdowns.
   InputDecoration _inputDecoration({String? labelText}) {
-    final scheme = Theme.of(context).colorScheme;
-    return InputDecoration(
-      filled: true,
-      fillColor: scheme.surfaceContainerHighest,
-      labelText: labelText,
-      isDense: true,
-      contentPadding: labelText != null
-          ? const EdgeInsets.fromLTRB(12, 20, 12, 12)
-          : const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: scheme.primary, width: 2),
-      ),
-    );
+    return DialogStyles.inputDecoration(context, labelText: labelText);
   }
 
   @override

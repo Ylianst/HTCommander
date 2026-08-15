@@ -4,6 +4,8 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import '../utils/num_parsing.dart';
+
 /// Configuration for the APRS digipeater ([DigipeaterHandler]).
 ///
 /// Persisted as a JSON string in the [DataBroker] at device 0 under the key
@@ -91,13 +93,6 @@ class DigipeaterConfig {
         if (a is String && a.trim().isNotEmpty) aliases.add(a.trim());
       }
     }
-    int asInt(Object? v, int fallback) {
-      if (v is int) return v;
-      if (v is num) return v.toInt();
-      if (v is String) return int.tryParse(v) ?? fallback;
-      return fallback;
-    }
-
     bool asBool(Object? v, bool fallback) {
       if (v is bool) return v;
       if (v is num) return v != 0;

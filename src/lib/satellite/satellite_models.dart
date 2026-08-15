@@ -189,16 +189,14 @@ class SatelliteTransponder {
   };
 
   factory SatelliteTransponder.fromJson(Map<String, dynamic> json) {
-    int? toIntOrNull(Object? v) =>
-        v is num ? v.toInt() : (v is String ? int.tryParse(v) : null);
     return SatelliteTransponder(
-      noradId: toIntOrNull(json['noradId']) ?? 0,
+      noradId: asIntOrNull(json['noradId']) ?? 0,
       name: (json['name'] as String?) ?? '',
       usage: (json['usage'] as String?)?.trim().isNotEmpty == true
           ? (json['usage'] as String).trim()
           : 'Repeater',
-      uplinkHz: toIntOrNull(json['uplinkHz']),
-      downlinkHz: toIntOrNull(json['downlinkHz']),
+      uplinkHz: asIntOrNull(json['uplinkHz']),
+      downlinkHz: asIntOrNull(json['downlinkHz']),
       mode: (json['mode'] as String?) ?? '',
       ctcssHz: asDoubleOrNull(json['ctcssHz']),
       inverting: json['inverting'] == true,

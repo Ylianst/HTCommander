@@ -14,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import 'satellite_models.dart';
+import '../utils/num_parsing.dart';
 
 /// Loads and refreshes the FM transponder catalog for amateur satellites.
 ///
@@ -224,15 +225,13 @@ class TransponderRepository {
   }
 
   static SatelliteTransponder? _fromSatnogs(Map<String, dynamic> json) {
-    int? toIntOrNull(Object? v) =>
-        v is num ? v.toInt() : (v is String ? int.tryParse(v) : null);
-    final noradId = toIntOrNull(json['norad_cat_id']);
+    final noradId = asIntOrNull(json['norad_cat_id']);
     if (noradId == null) return null;
     return SatelliteTransponder(
       noradId: noradId,
       name: (json['description'] as String?) ?? '',
-      uplinkHz: toIntOrNull(json['uplink_low']),
-      downlinkHz: toIntOrNull(json['downlink_low']),
+      uplinkHz: asIntOrNull(json['uplink_low']),
+      downlinkHz: asIntOrNull(json['downlink_low']),
       mode: (json['mode'] as String?) ?? '',
       ctcssHz: null,
       inverting: json['invert'] == true,

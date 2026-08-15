@@ -1887,9 +1887,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                       child: CustomPaint(
                         painter: _RectSelectionPainter(
                           start: _mapController.camera
-                              .latLngToScreenPoint(_cacheSelectionStart!),
+                              .latLngToScreenOffset(_cacheSelectionStart!),
                           end: _mapController.camera
-                              .latLngToScreenPoint(_cacheSelectionEnd!),
+                              .latLngToScreenOffset(_cacheSelectionEnd!),
                         ),
                       ),
                     ),
@@ -1900,10 +1900,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                     behavior: HitTestBehavior.opaque,
                     onPanStart: (details) {
                       final latlng = _mapController.camera
-                          .pointToLatLng(math.Point(
-                            details.localPosition.dx,
-                            details.localPosition.dy,
-                          ));
+                          .screenOffsetToLatLng(details.localPosition);
                       setState(() {
                         _cacheSelectionStart = latlng;
                         _cacheSelectionEnd = latlng;
@@ -1911,10 +1908,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                     },
                     onPanUpdate: (details) {
                       final latlng = _mapController.camera
-                          .pointToLatLng(math.Point(
-                            details.localPosition.dx,
-                            details.localPosition.dy,
-                          ));
+                          .screenOffsetToLatLng(details.localPosition);
                       setState(() => _cacheSelectionEnd = latlng);
                     },
                     onPanEnd: (_) => _finishCacheAreaSelection(),
@@ -2060,14 +2054,14 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 class _RectSelectionPainter extends CustomPainter {
   _RectSelectionPainter({required this.start, required this.end});
 
-  final math.Point<double> start;
-  final math.Point<double> end;
+  final Offset start;
+  final Offset end;
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Rect.fromPoints(
-      Offset(start.x, start.y),
-      Offset(end.x, end.y),
+      start,
+      end,
     );
     canvas.drawRect(
       rect,

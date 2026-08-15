@@ -75,17 +75,14 @@ class GpsData {
       return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
     }
 
-    int toInt(Object? v) =>
-        v is num ? v.toInt() : (v is String ? int.tryParse(v) ?? 0 : 0);
-
     return GpsData(
       latitude: asDouble(json['Latitude']),
       longitude: asDouble(json['Longitude']),
       altitude: asDouble(json['Altitude']),
       speed: asDouble(json['Speed']),
       heading: asDouble(json['Heading']),
-      fixQuality: toInt(json['FixQuality']),
-      satellites: toInt(json['Satellites']),
+      fixQuality: asInt(json['FixQuality']),
+      satellites: asInt(json['Satellites']),
       isFixed: json['IsFixed'] == true,
       gpsTime: parseTime(json['GpsTime']),
     );

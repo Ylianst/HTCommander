@@ -340,29 +340,12 @@ class _StationDialogState extends State<_StationDialog> {
     String? hintText,
     String? errorText,
   }) {
-    final scheme = Theme.of(context).colorScheme;
-    return InputDecoration(
-      filled: true,
-      fillColor: scheme.surfaceContainerHighest,
+    return DialogStyles.inputDecoration(
+      context,
       labelText: labelText,
       hintText: hintText,
       errorText: errorText,
-      isDense: true,
-      contentPadding: labelText != null
-          ? const EdgeInsets.fromLTRB(12, 20, 12, 12)
-          : const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
-      ),
+      focusColor: Colors.blue,
     );
   }
 

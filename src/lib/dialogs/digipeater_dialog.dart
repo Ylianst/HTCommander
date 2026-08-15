@@ -501,26 +501,11 @@ class _DigipeaterDialogState extends State<DigipeaterDialog> {
     String? hintText,
     bool invalid = false,
   }) {
-    final scheme = Theme.of(context).colorScheme;
-    return InputDecoration(
-      filled: true,
-      fillColor:
-          invalid ? scheme.errorContainer : scheme.surfaceContainerHighest,
+    return DialogStyles.inputDecoration(
+      context,
       hintText: hintText,
-      isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
-      ),
+      invalid: invalid,
+      focusColor: Colors.blue,
     );
   }
 

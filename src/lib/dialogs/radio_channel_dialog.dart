@@ -723,26 +723,7 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
   }
 
   InputDecoration _inputDecoration({String? hintText}) {
-    final scheme = Theme.of(context).colorScheme;
-    return InputDecoration(
-      filled: true,
-      fillColor: scheme.surfaceContainerHighest,
-      hintText: hintText,
-      isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: scheme.primary, width: 2),
-      ),
-    );
+    return DialogStyles.inputDecoration(context, hintText: hintText);
   }
 }
 

@@ -40,6 +40,53 @@ class DialogStyles {
     color: Colors.blue,
     decoration: TextDecoration.underline,
   );
+
+  /// Standard rounded, filled text-field decoration used across dialogs.
+  ///
+  /// [focusColor] defaults to the theme primary; some dialogs pass
+  /// [Colors.blue] to match the app accent. [invalid] swaps the fill to the
+  /// error container unless an explicit [fillColor] is supplied. Content
+  /// padding widens at the top when a [labelText] is present so the floating
+  /// label has room.
+  static InputDecoration inputDecoration(
+    BuildContext context, {
+    String? hintText,
+    String? labelText,
+    String? errorText,
+    String? helperText,
+    String? counterText,
+    Color? fillColor,
+    Color? focusColor,
+    bool invalid = false,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return InputDecoration(
+      filled: true,
+      fillColor: fillColor ??
+          (invalid ? scheme.errorContainer : scheme.surfaceContainerHighest),
+      hintText: hintText,
+      labelText: labelText,
+      errorText: errorText,
+      helperText: helperText,
+      counterText: counterText,
+      isDense: true,
+      contentPadding: labelText != null
+          ? const EdgeInsets.fromLTRB(12, 20, 12, 12)
+          : const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: focusColor ?? scheme.primary, width: 2),
+      ),
+    );
+  }
 }
 
 /// Base dialog widget that provides consistent styling

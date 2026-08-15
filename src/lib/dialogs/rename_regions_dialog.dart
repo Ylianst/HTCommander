@@ -133,26 +133,11 @@ class _RenameRegionsDialogState extends State<_RenameRegionsDialog> {
   // --- Styling helpers (mirrors SettingsDialog) --------------------------
 
   InputDecoration _inputDecoration({String? hintText}) {
-    final scheme = Theme.of(context).colorScheme;
-    return InputDecoration(
-      filled: true,
-      fillColor: scheme.surfaceContainerHighest,
+    return DialogStyles.inputDecoration(
+      context,
       hintText: hintText,
-      isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       counterText: '',
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
-      ),
+      focusColor: Colors.blue,
     );
   }
 

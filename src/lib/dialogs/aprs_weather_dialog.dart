@@ -260,26 +260,11 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
     required String labelText,
     String? helperText,
   }) {
-    final scheme = Theme.of(context).colorScheme;
-    return InputDecoration(
-      filled: true,
-      fillColor: scheme.surfaceContainerHighest,
+    return DialogStyles.inputDecoration(
+      context,
       labelText: labelText,
       helperText: helperText,
-      isDense: true,
-      contentPadding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
-      ),
+      focusColor: Colors.blue,
     );
   }
 }

@@ -86,12 +86,6 @@ class Aircraft {
     this.emergency,
   });
 
-  static int? _toInt(Object? v) {
-    if (v is num) return v.toInt();
-    if (v is String) return int.tryParse(v);
-    return null;
-  }
-
   factory Aircraft.fromJson(Map<String, dynamic> json) {
     return Aircraft(
       hex: json['hex'] as String?,
@@ -99,15 +93,15 @@ class Aircraft {
       latitude: asDoubleOrNull(json['lat']),
       longitude: asDoubleOrNull(json['lon']),
       altitude: json['altitude'],
-      altitudeGeometric: _toInt(json['alt_geom']),
+      altitudeGeometric: asIntOrNull(json['alt_geom']),
       altitudeBaro: json['alt_baro'],
       speed: asDoubleOrNull(json['speed']),
       groundSpeed: asDoubleOrNull(json['gs']),
       track: asDoubleOrNull(json['track']),
       squawk: json['squawk'] as String?,
-      verticalRate: _toInt(json['vert_rate']),
-      baroRate: _toInt(json['baro_rate']),
-      messages: _toInt(json['messages']),
+      verticalRate: asIntOrNull(json['vert_rate']),
+      baroRate: asIntOrNull(json['baro_rate']),
+      messages: asIntOrNull(json['messages']),
       seen: asDoubleOrNull(json['seen']),
       seenPos: asDoubleOrNull(json['seen_pos']),
       rssi: asDoubleOrNull(json['rssi']),

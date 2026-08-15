@@ -37,14 +37,14 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   url_launcher: ^6.3.2
-  flutter_map: ^7.0.2
-  latlong2: ^0.9.1
+  flutter_map: ^8.3.1
+  latlong2: ^0.10.1
   desktop_multi_window: ^0.3.0
-  window_manager: ^0.4.3
+  window_manager: ^0.5.2
   file_picker: ^11.0.2
   shared_preferences: ^2.2.3
   flutter_blue_plus: ^1.35.2
-  permission_handler: ^11.3.1
+  permission_handler: ^13.0.1
   path_provider: ^2.1.4
   crypto: ^3.0.0
   es_compression: ^2.0.13
@@ -56,14 +56,13 @@ dependencies:
   libserialport: ^0.3.0+1
   ffi: ^2.0.0
   flutter_tts: ^4.2.5
-  record: ^6.1.1
-  flutter_map_cancellable_tile_provider: ^3.0.2
+  record: ^7.1.1
   sherpa_onnx: ^1.13.3
   archive: ^4.0.9
-  pasteboard: ^0.4.0
+  pasteboard: ^0.5.0
   desktop_updater: ^2.4.2
-  package_info_plus: ^8.0.0
-  grpc: ^4.0.1
+  package_info_plus: ^9.0.1
+  grpc: ^5.1.0
   mqtt_client: ^10.9.0
   satellite_observer: ^1.0.1
   flutter_compass: ^0.8.1
