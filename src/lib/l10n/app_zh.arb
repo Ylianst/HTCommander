@@ -972,6 +972,7 @@
   "identTitle": "PTT 释放设置",
   "identDescription": "如果启用，每当您在发送所在的信道上释放 PTT 时，都会发送您的呼号和/或位置信息。",
   "identCallsignHint": "输入呼号 - 台站 ID",
+  "identCallsignDisplayNote": "此处输入的呼号将显示在电台的屏幕上。",
   "identSendCallsign": "发送呼号",
   "identSendPosition": "发送位置",
 

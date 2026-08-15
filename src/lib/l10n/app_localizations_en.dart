@@ -3034,6 +3034,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get identCallsignHint => 'Enter Callsign - Station ID';
 
   @override
+  String get identCallsignDisplayNote =>
+      'The callsign entered here is shown on the radio\'s display.';
+
+  @override
   String get identSendCallsign => 'Send Callsign';
 
   @override

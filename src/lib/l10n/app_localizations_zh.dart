@@ -2967,6 +2967,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get identCallsignHint => '输入呼号 - 台站 ID';
 
   @override
+  String get identCallsignDisplayNote => '此处输入的呼号将显示在电台的屏幕上。';
+
+  @override
   String get identSendCallsign => '发送呼号';
 
   @override

@@ -228,6 +228,20 @@ class IdentSettingsPanelState extends State<IdentSettingsPanel>
             ),
           ),
         ),
+        const SizedBox(height: 6),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline, size: 16, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                l10n.identCallsignDisplayNote,
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
         CheckboxListTile(
           value: _sendCallsign,

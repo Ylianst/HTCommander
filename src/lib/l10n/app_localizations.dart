@@ -5576,6 +5576,12 @@ abstract class AppLocalizations {
   /// **'Enter Callsign - Station ID'**
   String get identCallsignHint;
 
+  /// No description provided for @identCallsignDisplayNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The callsign entered here is shown on the radio\'s display.'**
+  String get identCallsignDisplayNote;
+
   /// No description provided for @identSendCallsign.
   ///
   /// In en, this message translates to:

@@ -3045,6 +3045,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get identCallsignHint => 'कॉल साइन - स्टेशन ID दर्ज करें';
 
   @override
+  String get identCallsignDisplayNote =>
+      'यहाँ दर्ज किया गया कॉलसाइन रेडियो की स्क्रीन पर दिखाया जाता है।';
+
+  @override
   String get identSendCallsign => 'कॉल साइन भेजें';
 
   @override

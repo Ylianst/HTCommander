@@ -972,6 +972,7 @@
   "identTitle": "PTT-Loslass-Einstellungen",
   "identDescription": "Wenn aktiviert, sendet es Ihr Rufzeichen und/oder Ihre Positionsinformationen jedes Mal, wenn Sie die PTT-Taste auf dem Kanal loslassen, auf dem Sie senden.",
   "identCallsignHint": "Rufzeichen - Stations-ID eingeben",
+  "identCallsignDisplayNote": "Das hier eingegebene Rufzeichen wird auf dem Display des Funkgeräts angezeigt.",
   "identSendCallsign": "Rufzeichen senden",
   "identSendPosition": "Position senden",
 

@@ -2992,6 +2992,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get identCallsignHint => 'コールサイン - 局 ID を入力';
 
   @override
+  String get identCallsignDisplayNote => 'ここで入力したコールサインは無線機のディスプレイに表示されます。';
+
+  @override
   String get identSendCallsign => 'コールサインを送信';
 
   @override

@@ -3058,6 +3058,10 @@ class AppLocalizationsPl extends AppLocalizations {
   String get identCallsignHint => 'Wprowadź znak wywoławczy - ID stacji';
 
   @override
+  String get identCallsignDisplayNote =>
+      'Wprowadzony tutaj znak wywoławczy jest wyświetlany na ekranie radia.';
+
+  @override
   String get identSendCallsign => 'Wyślij znak wywoławczy';
 
   @override

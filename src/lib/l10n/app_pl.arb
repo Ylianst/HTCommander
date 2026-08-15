@@ -972,6 +972,7 @@
   "identTitle": "Ustawienia zwolnienia PTT",
   "identDescription": "Gdy włączone, wysyła Twój znak wywoławczy i/lub informacje o pozycji za każdym razem, gdy zwolnisz przycisk PTT na kanale, na którym nadajesz.",
   "identCallsignHint": "Wprowadź znak wywoławczy - ID stacji",
+  "identCallsignDisplayNote": "Wprowadzony tutaj znak wywoławczy jest wyświetlany na ekranie radia.",
   "identSendCallsign": "Wyślij znak wywoławczy",
   "identSendPosition": "Wyślij pozycję",
 

@@ -972,6 +972,7 @@
   "identTitle": "Configuración de liberación de PTT",
   "identDescription": "Si está activado, envía su indicativo o su información de ubicación cada vez que suelta el PTT en el canal en el que está transmitiendo.",
   "identCallsignHint": "Introducir el indicativo - ID de estación",
+  "identCallsignDisplayNote": "El indicativo introducido aquí se muestra en la pantalla de la radio.",
   "identSendCallsign": "Enviar el indicativo",
   "identSendPosition": "Enviar la posición",
 

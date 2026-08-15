@@ -3063,6 +3063,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get identCallsignHint => 'Saisir l\'indicatif - ID de station';
 
   @override
+  String get identCallsignDisplayNote =>
+      'L\'indicatif saisi ici s\'affiche sur l\'écran de la radio.';
+
+  @override
   String get identSendCallsign => 'Envoyer l\'indicatif';
 
   @override

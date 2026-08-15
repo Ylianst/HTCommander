@@ -972,6 +972,7 @@
   "identTitle": "PTT リリース設定",
   "identDescription": "有効にすると、送信中のチャンネルで PTT を離すたびに、コールサインや位置情報を送信します。",
   "identCallsignHint": "コールサイン - 局 ID を入力",
+  "identCallsignDisplayNote": "ここで入力したコールサインは無線機のディスプレイに表示されます。",
   "identSendCallsign": "コールサインを送信",
   "identSendPosition": "位置を送信",
 

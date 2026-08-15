@@ -3065,6 +3065,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get identCallsignHint => 'Rufzeichen - Stations-ID eingeben';
 
   @override
+  String get identCallsignDisplayNote =>
+      'Das hier eingegebene Rufzeichen wird auf dem Display des Funkgeräts angezeigt.';
+
+  @override
   String get identSendCallsign => 'Rufzeichen senden';
 
   @override

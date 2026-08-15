@@ -972,6 +972,7 @@
   "identTitle": "Paramètres de relâchement PTT",
   "identDescription": "Si activé, envoie votre indicatif et/ou vos informations de localisation chaque fois que vous relâchez le PTT sur le canal sur lequel vous transmettez.",
   "identCallsignHint": "Saisir l'indicatif - ID de station",
+  "identCallsignDisplayNote": "L'indicatif saisi ici s'affiche sur l'écran de la radio.",
   "identSendCallsign": "Envoyer l'indicatif",
   "identSendPosition": "Envoyer la position",
 

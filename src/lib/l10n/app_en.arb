@@ -1824,6 +1824,7 @@
   "identTitle": "PTT Release Settings",
   "identDescription": "If enabled, sends your callsign and/or location information each time you release the PTT on the channel you are transmitting on.",
   "identCallsignHint": "Enter Callsign - Station ID",
+  "identCallsignDisplayNote": "The callsign entered here is shown on the radio's display.",
   "identSendCallsign": "Send Callsign",
   "identSendPosition": "Send Position",
 

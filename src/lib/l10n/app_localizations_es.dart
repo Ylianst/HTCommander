@@ -3064,6 +3064,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get identCallsignHint => 'Introducir el indicativo - ID de estación';
 
   @override
+  String get identCallsignDisplayNote =>
+      'El indicativo introducido aquí se muestra en la pantalla de la radio.';
+
+  @override
   String get identSendCallsign => 'Enviar el indicativo';
 
   @override
