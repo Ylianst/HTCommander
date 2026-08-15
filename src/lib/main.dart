@@ -20,6 +20,7 @@ import 'dialogs/radio_connection_dialog.dart';
 import 'dialogs/radio_info_dialog.dart';
 import 'dialogs/region_storage_dialog.dart';
 import 'dialogs/rename_regions_dialog.dart';
+import 'dialogs/app_settings.dart';
 import 'dialogs/settings_dialog.dart';
 import 'dialogs/trusted_devices_dialog.dart';
 import 'handlers/frame_deduplicator.dart';

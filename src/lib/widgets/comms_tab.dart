@@ -36,6 +36,7 @@ import '../handlers/android_speech_to_text_engine.dart';
 import '../models/radio_models.dart';
 import '../radio/radio_models.dart' as radio;
 import '../utils/channel_share.dart';
+import '../utils/format_utils.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../allstar/allstar_client.dart' show allStarDeviceId;
 import '../allstar/allstar_node.dart'
@@ -1445,7 +1446,7 @@ class _CommsTabState extends State<CommsTab>
     }
     if (encoding == 'Recording') {
       encodingStr = duration > 0
-          ? 'Recording ${_formatDuration(duration)}'
+          ? 'Recording ${formatDurationCompact(Duration(seconds: duration))}'
           : 'Recording';
       // Recordings show the channel name before the encoding, e.g.
       // "[MyHomeChannel] Recording 10s".
@@ -1484,13 +1485,6 @@ class _CommsTabState extends State<CommsTab>
       default:
         return encoding;
     }
-  }
-
-  String _formatDuration(int totalSeconds) {
-    if (totalSeconds < 60) return '${totalSeconds}s';
-    final minutes = totalSeconds ~/ 60;
-    final seconds = totalSeconds % 60;
-    return seconds > 0 ? '${minutes}m ${seconds}s' : '${minutes}m';
   }
 
   IconData? _iconForEncoding(String encoding) {

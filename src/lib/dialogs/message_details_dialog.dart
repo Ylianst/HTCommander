@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
 import '../sarsat/sarsat_1g_decoder.dart';
+import '../utils/format_utils.dart';
 import 'dialog_utils.dart';
 
 /// All the metadata known about a single Comms tab message. Attached as the
@@ -171,8 +172,8 @@ class MessageDetailsDialog extends StatelessWidget {
       items.add(MessageDetailItem(l10n.msgdFieldReceiver, destination));
     }
     if (d.duration > 0) {
-      items.add(MessageDetailItem(
-          l10n.msgdFieldDuration, _formatDuration(d.duration)));
+      items.add(MessageDetailItem(l10n.msgdFieldDuration,
+          formatDurationCompact(Duration(seconds: d.duration))));
     }
     final keyType = d.keyType;
     if (keyType != null && keyType.isNotEmpty) {
@@ -229,13 +230,6 @@ class MessageDetailsDialog extends StatelessWidget {
     String two(int v) => v.toString().padLeft(2, '0');
     return '${time.year}-${two(time.month)}-${two(time.day)} '
         '${two(time.hour)}:${two(time.minute)}:${two(time.second)}';
-  }
-
-  static String _formatDuration(int totalSeconds) {
-    if (totalSeconds < 60) return '${totalSeconds}s';
-    final minutes = totalSeconds ~/ 60;
-    final seconds = totalSeconds % 60;
-    return seconds > 0 ? '${minutes}m ${seconds}s' : '${minutes}m';
   }
 
   void _copyValue(BuildContext context, MessageDetailItem item) {

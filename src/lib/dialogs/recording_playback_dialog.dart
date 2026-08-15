@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../utils/format_utils.dart';
 import 'dialog_utils.dart';
 
 /// Playback dialog for an audio recording, ported from the C#
@@ -206,16 +207,6 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     }
   }
 
-  String _formatDuration(Duration d) {
-    final totalSeconds = d.inSeconds;
-    final hours = totalSeconds ~/ 3600;
-    final minutes = (totalSeconds % 3600) ~/ 60;
-    final seconds = totalSeconds % 60;
-    final mm = minutes.toString().padLeft(2, '0');
-    final ss = seconds.toString().padLeft(2, '0');
-    return hours >= 1 ? '$hours:$mm:$ss' : '$mm:$ss';
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -304,11 +295,11 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    _formatDuration(displayPosition),
+                    formatDurationClock(displayPosition),
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   Text(
-                    _formatDuration(_duration),
+                    formatDurationClock(_duration),
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],

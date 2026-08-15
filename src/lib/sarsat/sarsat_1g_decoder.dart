@@ -15,6 +15,8 @@ http://www.apache.org/licenses/LICENSE-2.0
 /// layout and BCH polynomials match bit-for-bit.
 library;
 
+import '../utils/num_parsing.dart';
+
 /// First-generation beacon protocol classification.
 enum Sarsat1gProtocol {
   unknown,
@@ -564,7 +566,6 @@ class Sarsat1gDetails {
   };
 
   factory Sarsat1gDetails.fromJson(Map<dynamic, dynamic> json) {
-    double? toD(Object? v) => v is num ? v.toDouble() : null;
     final lastMs = json['lastReceivedTime'];
     return Sarsat1gDetails(
       lengthBits: json['lengthBits'] as int? ?? 0,
@@ -576,8 +577,8 @@ class Sarsat1gDetails {
       protocolName: json['protocolName'] as String? ?? '',
       hexId: json['hexId'] as String? ?? '',
       identification: json['identification'] as String? ?? '',
-      latitude: toD(json['latitude']),
-      longitude: toD(json['longitude']),
+      latitude: asDoubleOrNull(json['latitude']),
+      longitude: asDoubleOrNull(json['longitude']),
       isTest: json['isTest'] as bool? ?? false,
       rawHex: json['rawHex'] as String? ?? '',
       count: json['count'] as int? ?? 1,

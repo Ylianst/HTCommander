@@ -26,6 +26,7 @@ import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
 import '../utils/map_tile_downloader.dart';
 import '../utils/map_tile_provider.dart';
+import '../utils/num_parsing.dart';
 import 'sarsat_marker.dart';
 
 /// Holds the latest known position, time and track points for a single
@@ -715,8 +716,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     final source = entry['source'];
     if (source is! String || source.isEmpty) return false;
 
-    final lat = _toDouble(entry['latitude']);
-    final lng = _toDouble(entry['longitude']);
+    final lat = asDouble(entry['latitude']);
+    final lng = asDouble(entry['longitude']);
     if (lat == 0 && lng == 0) return false;
 
     final time = _toDateTime(entry['time']);
@@ -741,8 +742,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// marker set changed.
   bool _processSarsatEntry(Map<dynamic, dynamic> entry) {
     if (entry['encoding'] != 'Sarsat') return false;
-    final lat = _toDouble(entry['latitude']);
-    final lng = _toDouble(entry['longitude']);
+    final lat = asDouble(entry['latitude']);
+    final lng = asDouble(entry['longitude']);
     if (lat == 0 && lng == 0) return false;
     final s = entry['sarsat'];
     final hexId = (s is Map ? s['hexId'] as String? : null) ?? 'Beacon';
@@ -763,8 +764,6 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     }
     return true;
   }
-
-  static double _toDouble(Object? v) => v is num ? v.toDouble() : 0.0;
 
   static DateTime _toDateTime(Object? v) {
     if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);

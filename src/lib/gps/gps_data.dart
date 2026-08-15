@@ -6,6 +6,8 @@ See http://www.apache.org/licenses/LICENSE-2.0
 Ported from the C# `HTCommander.Gps.GpsData` class.
 */
 
+import '../utils/num_parsing.dart';
+
 /// Represents a decoded GPS position fix, combining data from NMEA sentences
 /// (RMC and GGA). Dispatched on the Data Broker as device 1, key `GpsData`.
 class GpsData {
@@ -73,18 +75,15 @@ class GpsData {
       return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
     }
 
-    double toDouble(Object? v) => v is num
-        ? v.toDouble()
-        : (v is String ? double.tryParse(v) ?? 0.0 : 0.0);
     int toInt(Object? v) =>
         v is num ? v.toInt() : (v is String ? int.tryParse(v) ?? 0 : 0);
 
     return GpsData(
-      latitude: toDouble(json['Latitude']),
-      longitude: toDouble(json['Longitude']),
-      altitude: toDouble(json['Altitude']),
-      speed: toDouble(json['Speed']),
-      heading: toDouble(json['Heading']),
+      latitude: asDouble(json['Latitude']),
+      longitude: asDouble(json['Longitude']),
+      altitude: asDouble(json['Altitude']),
+      speed: asDouble(json['Speed']),
+      heading: asDouble(json['Heading']),
       fixQuality: toInt(json['FixQuality']),
       satellites: toInt(json['Satellites']),
       isFixed: json['IsFixed'] == true,

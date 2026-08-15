@@ -4,6 +4,8 @@
 /// endpoint. Field names mirror the JSON keys used by Dump1090.
 library;
 
+import '../utils/num_parsing.dart';
+
 class Aircraft {
   /// ICAO 24-bit hex identifier.
   final String? hex;
@@ -84,12 +86,6 @@ class Aircraft {
     this.emergency,
   });
 
-  static double? _toDouble(Object? v) {
-    if (v is num) return v.toDouble();
-    if (v is String) return double.tryParse(v);
-    return null;
-  }
-
   static int? _toInt(Object? v) {
     if (v is num) return v.toInt();
     if (v is String) return int.tryParse(v);
@@ -100,21 +96,21 @@ class Aircraft {
     return Aircraft(
       hex: json['hex'] as String?,
       flight: (json['flight'] as String?)?.trim(),
-      latitude: _toDouble(json['lat']),
-      longitude: _toDouble(json['lon']),
+      latitude: asDoubleOrNull(json['lat']),
+      longitude: asDoubleOrNull(json['lon']),
       altitude: json['altitude'],
       altitudeGeometric: _toInt(json['alt_geom']),
       altitudeBaro: json['alt_baro'],
-      speed: _toDouble(json['speed']),
-      groundSpeed: _toDouble(json['gs']),
-      track: _toDouble(json['track']),
+      speed: asDoubleOrNull(json['speed']),
+      groundSpeed: asDoubleOrNull(json['gs']),
+      track: asDoubleOrNull(json['track']),
       squawk: json['squawk'] as String?,
       verticalRate: _toInt(json['vert_rate']),
       baroRate: _toInt(json['baro_rate']),
       messages: _toInt(json['messages']),
-      seen: _toDouble(json['seen']),
-      seenPos: _toDouble(json['seen_pos']),
-      rssi: _toDouble(json['rssi']),
+      seen: asDoubleOrNull(json['seen']),
+      seenPos: asDoubleOrNull(json['seen_pos']),
+      rssi: asDoubleOrNull(json['rssi']),
       category: json['category'] as String?,
       emergency: json['emergency'] as String?,
     );

@@ -20,6 +20,7 @@ import '../radio/radio_models.dart';
 import '../satellite/orientation_service.dart';
 import '../satellite/satellite_models.dart';
 import '../services/data_broker.dart';
+import '../utils/format_utils.dart';
 import 'antenna_pointer_page.dart';
 import 'satellite_aim_indicators.dart';
 import '../services/data_broker_client.dart';
@@ -827,7 +828,7 @@ class _SatelliteTabState extends State<SatelliteTab> {
     final next = _nextPass[sat.noradId];
     if (next == null) return _observerKnown ? 'No pass in 48 h' : '';
     final delta = next.aos.difference(DateTime.now().toUtc());
-    return 'AOS in ${_formatDuration(delta)} \u2022 max '
+    return 'AOS in ${formatDurationCompact(delta)} \u2022 max '
         '${next.maxElevationDeg.round()}\u00b0';
   }
 
@@ -1363,8 +1364,8 @@ class _SatelliteTabState extends State<SatelliteTab> {
       final upcoming = p.aos.isAfter(now);
       final inPass = !upcoming && p.los.isAfter(now);
       final when = inPass
-          ? 'now \u2022 LOS in ${_formatDuration(p.los.difference(now))}'
-          : 'in ${_formatDuration(p.aos.difference(now))}';
+          ? 'now \u2022 LOS in ${formatDurationCompact(p.los.difference(now))}'
+          : 'in ${formatDurationCompact(p.aos.difference(now))}';
       return ListTile(
         dense: true,
         contentPadding: EdgeInsets.zero,
@@ -1410,16 +1411,6 @@ class _SatelliteTabState extends State<SatelliteTab> {
   // --- Formatting -----------------------------------------------------------
 
   String _mhz(int hz) => '${(hz / 1e6).toStringAsFixed(4)} MHz';
-
-  String _formatDuration(Duration d) {
-    if (d.isNegative) return '0s';
-    final h = d.inHours;
-    final m = d.inMinutes % 60;
-    final s = d.inSeconds % 60;
-    if (h > 0) return '${h}h ${m}m';
-    if (m > 0) return '${m}m ${s}s';
-    return '${s}s';
-  }
 
   String _formatLocal(DateTime utc) {
     final local = utc.toLocal();

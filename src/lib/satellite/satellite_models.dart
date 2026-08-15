@@ -10,6 +10,8 @@ http://www.apache.org/licenses/LICENSE-2.0
 /// Broker for the satellite tab and map overlay.
 library;
 
+import '../utils/num_parsing.dart';
+
 /// Speed of light in kilometres per second, used for Doppler correction.
 const double _cKmPerS = 299792.458;
 
@@ -189,8 +191,6 @@ class SatelliteTransponder {
   factory SatelliteTransponder.fromJson(Map<String, dynamic> json) {
     int? toIntOrNull(Object? v) =>
         v is num ? v.toInt() : (v is String ? int.tryParse(v) : null);
-    double? toDoubleOrNull(Object? v) =>
-        v is num ? v.toDouble() : (v is String ? double.tryParse(v) : null);
     return SatelliteTransponder(
       noradId: toIntOrNull(json['noradId']) ?? 0,
       name: (json['name'] as String?) ?? '',
@@ -200,7 +200,7 @@ class SatelliteTransponder {
       uplinkHz: toIntOrNull(json['uplinkHz']),
       downlinkHz: toIntOrNull(json['downlinkHz']),
       mode: (json['mode'] as String?) ?? '',
-      ctcssHz: toDoubleOrNull(json['ctcssHz']),
+      ctcssHz: asDoubleOrNull(json['ctcssHz']),
       inverting: json['inverting'] == true,
       status: (json['status'] as String?) ?? '',
       infoUrl: (json['infoUrl'] as String?)?.trim().isNotEmpty == true
@@ -336,18 +336,16 @@ class SatellitePosition {
   };
 
   factory SatellitePosition.fromJson(Map<String, dynamic> json) {
-    double toDouble(Object? v) =>
-        v is num ? v.toDouble() : (v is String ? double.tryParse(v) ?? 0.0 : 0.0);
     return SatellitePosition(
       noradId: (json['noradId'] as num?)?.toInt() ?? 0,
       name: (json['name'] as String?) ?? '',
-      latitudeDeg: toDouble(json['latitudeDeg']),
-      longitudeDeg: toDouble(json['longitudeDeg']),
-      altitudeKm: toDouble(json['altitudeKm']),
-      azimuthDeg: toDouble(json['azimuthDeg']),
-      elevationDeg: toDouble(json['elevationDeg']),
-      rangeKm: toDouble(json['rangeKm']),
-      rangeRateKmS: toDouble(json['rangeRateKmS']),
+      latitudeDeg: asDouble(json['latitudeDeg']),
+      longitudeDeg: asDouble(json['longitudeDeg']),
+      altitudeKm: asDouble(json['altitudeKm']),
+      azimuthDeg: asDouble(json['azimuthDeg']),
+      elevationDeg: asDouble(json['elevationDeg']),
+      rangeKm: asDouble(json['rangeKm']),
+      rangeRateKmS: asDouble(json['rangeRateKmS']),
       utc: DateTime.tryParse((json['utc'] as String?) ?? '')?.toUtc() ??
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
     );
@@ -398,19 +396,16 @@ class SatellitePass {
   };
 
   factory SatellitePass.fromJson(Map<String, dynamic> json) {
-    double toDouble(Object? v) =>
-        v is num ? v.toDouble() : (v is String ? double.tryParse(v) ?? 0.0 : 0.0);
     DateTime toUtc(Object? v) =>
-        DateTime.tryParse((v as String?) ?? '')?.toUtc() ??
         DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
     return SatellitePass(
       noradId: (json['noradId'] as num?)?.toInt() ?? 0,
       name: (json['name'] as String?) ?? '',
       aos: toUtc(json['aos']),
       los: toUtc(json['los']),
-      maxElevationDeg: toDouble(json['maxElevationDeg']),
-      aosAzimuthDeg: toDouble(json['aosAzimuthDeg']),
-      losAzimuthDeg: toDouble(json['losAzimuthDeg']),
+      maxElevationDeg: asDouble(json['maxElevationDeg']),
+      aosAzimuthDeg: asDouble(json['aosAzimuthDeg']),
+      losAzimuthDeg: asDouble(json['losAzimuthDeg']),
     );
   }
 }

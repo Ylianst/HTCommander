@@ -60,6 +60,7 @@ import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/tts_service.dart';
 import '../sstv/sstv_monitor.dart';
+import '../utils/num_parsing.dart';
 import 'speech_to_text_engine.dart';
 
 /// Encoding type for voice text entries. Mirrors the C# `VoiceTextEncodingType`.
@@ -218,7 +219,6 @@ class DecodedTextEntry {
     } else {
       time = DateTime.now();
     }
-    double toDouble(Object? v) => v is num ? v.toDouble() : 0.0;
     return DecodedTextEntry(
       text: json['text'] as String?,
       channel: json['channel'] as String?,
@@ -227,8 +227,8 @@ class DecodedTextEntry {
       encoding: _encodingFromString(json['encoding']),
       source: json['source'] as String?,
       destination: json['destination'] as String?,
-      latitude: toDouble(json['latitude']),
-      longitude: toDouble(json['longitude']),
+      latitude: asDouble(json['latitude']),
+      longitude: asDouble(json['longitude']),
       filename: json['filename'] as String?,
       duration: json['duration'] as int? ?? 0,
       wpm: json['wpm'] as int?,
