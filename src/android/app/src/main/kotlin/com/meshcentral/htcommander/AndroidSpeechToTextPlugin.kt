@@ -75,6 +75,16 @@ class AndroidSpeechToTextPlugin(
     /** Read end handed to the recognizer; closed only on teardown. */
     private var audioIn: ParcelFileDescriptor? = null
 
+    /**
+     * Text finalized so far within the current segmented session. The on-device
+     * recognizer endpoints on short pauses and emits an `onSegmentResults` per
+     * utterance, but the app wants one bubble per radio transmission (like the
+     * desktop models). Each utterance is appended here and reported as
+     * in-progress; the accumulated text is only emitted as final when the
+     * session ends (the audio pipe closes on completeSegment / split).
+     */
+    private var sessionText: String = ""
+
     init {
         methodChannel.setMethodCallHandler(this)
         eventChannel.setStreamHandler(object : EventChannel.StreamHandler {
@@ -158,6 +168,7 @@ class AndroidSpeechToTextPlugin(
         // Discard any session still in flight before opening a new one.
         closeAudio()
         rec.cancel()
+        sessionText = ""
 
         val pipe = ParcelFileDescriptor.createPipe()
         val readSide = pipe[0]
@@ -228,6 +239,7 @@ class AndroidSpeechToTextPlugin(
 
     private fun resetSegment() {
         closeAudio()
+        sessionText = ""
         mainHandler.post {
             try {
                 recognizer?.cancel()
@@ -274,9 +286,16 @@ class AndroidSpeechToTextPlugin(
         mainHandler.post { eventSink?.success(map) }
     }
 
-    private fun emitResults(bundle: Bundle?, isFinal: Boolean) {
-        val matches = bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-        val text = matches?.firstOrNull() ?: return
+    /** First recognition hypothesis in [bundle], or null if there is none. */
+    private fun firstMatch(bundle: Bundle?): String? =
+        bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+
+    /** Concatenates [sessionText] with [tail], inserting a single space. */
+    private fun combine(tail: String): String =
+        if (sessionText.isEmpty()) tail else "$sessionText $tail"
+
+    private fun sendResult(text: String, isFinal: Boolean) {
+        if (text.isEmpty()) return
         sendEvent(mapOf("event" to "result", "text" to text, "isFinal" to isFinal))
     }
 
@@ -299,19 +318,33 @@ class AndroidSpeechToTextPlugin(
         }
 
         override fun onResults(results: Bundle?) {
-            emitResults(results, isFinal = true)
+            // Non-segmented fallback: fold this result into the session and
+            // finalize, since no onEndOfSegmentedSession will follow.
+            firstMatch(results)?.let { sessionText = combine(it) }
+            sendResult(sessionText, isFinal = true)
+            sessionText = ""
             sendEvent(mapOf("event" to "processing", "active" to false))
         }
 
         override fun onPartialResults(partialResults: Bundle?) {
-            emitResults(partialResults, isFinal = false)
+            val text = firstMatch(partialResults) ?: return
+            // Show the whole session so far plus the live (uncommitted) tail.
+            sendResult(combine(text), isFinal = false)
         }
 
         override fun onSegmentResults(segmentResults: Bundle) {
-            emitResults(segmentResults, isFinal = true)
+            // The recognizer endpointed on a pause. Append the utterance to the
+            // session but keep the bubble open (in-progress), so a short pause
+            // does not split it. The final is emitted on session end.
+            firstMatch(segmentResults)?.let { sessionText = combine(it) }
+            sendResult(sessionText, isFinal = false)
         }
 
         override fun onEndOfSegmentedSession() {
+            // Audio pipe closed (radio stopped or length-limit split): commit
+            // the accumulated text as the single final result for this bubble.
+            sendResult(sessionText, isFinal = true)
+            sessionText = ""
             sendEvent(mapOf("event" to "processing", "active" to false))
         }
 
