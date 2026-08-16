@@ -21,7 +21,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart' hide Radio;
 
 import '../radio/radio.dart';
-import '../radio/radio_models.dart';
 import '../services/bluetooth_service.dart';
 import '../services/data_broker_client.dart';
 
