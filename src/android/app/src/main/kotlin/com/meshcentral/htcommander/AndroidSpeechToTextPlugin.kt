@@ -262,7 +262,12 @@ class AndroidSpeechToTextPlugin(
             }
             recognizer = null
         }
-        ioExecutor.shutdown()
+        // Do NOT shut down ioExecutor here: this plugin instance lives for the
+        // whole app lifetime and is reused. `dispose` is an engine-level
+        // teardown (speech-to-text toggled off), not plugin removal. Shutting
+        // the executor down permanently would make every later appendAudio /
+        // completeSegment throw RejectedExecutionException after the feature is
+        // re-enabled, so no PCM would ever reach the recognizer again.
     }
 
     private fun sendEvent(map: Map<String, Any?>) {
