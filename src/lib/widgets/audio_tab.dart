@@ -989,7 +989,7 @@ class _AudioTabState extends State<AudioTab>
           ],
           onChanged: _onInputDeviceChanged,
         ),
-      const SizedBox(height: 12),
+      const SizedBox(height: 16),
     ];
   }
 
@@ -1039,7 +1039,7 @@ class _AudioTabState extends State<AudioTab>
                 // audio channel for application/microphone/computer audio or
                 // the spectrograph, so those sections are hidden there.
                 if (_audioChannelSupported) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   _buildSectionTitle(AppLocalizations.of(context).audioSectionComputer),
                   _buildSliderRow(
                     label: AppLocalizations.of(context).audioApplication,
@@ -1093,7 +1093,7 @@ class _AudioTabState extends State<AudioTab>
                       ),
                     ),
                   if (_showSpectrogram) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     _buildSectionTitle(_spectrogramTitle()),
                     ClipRect(
                       child: SizedBox(
@@ -1116,7 +1116,7 @@ class _AudioTabState extends State<AudioTab>
                       ),
                   ],
                   if (_isDartModem && _dartAnalysisEnabled) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     _buildSectionTitle(AppLocalizations.of(context).audioDartQuality),
                     DartAnalysisSection(analysis: _dartAnalysis),
                   ],
@@ -1143,7 +1143,7 @@ class _AudioTabState extends State<AudioTab>
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
       child: Text(
         title,
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
@@ -1170,7 +1170,7 @@ class _AudioTabState extends State<AudioTab>
     final bool present = allItems.any((item) => item.value == value);
     final String effectiveValue = present ? value : '';
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1.5),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           SizedBox(
@@ -1206,7 +1206,7 @@ class _AudioTabState extends State<AudioTab>
     ValueChanged<double>? onChangeEnd,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final theme = Theme.of(context);

@@ -158,30 +158,14 @@ class _ChatWidgetState extends State<ChatWidget> {
   void initState() {
     super.initState();
     _lastMessageCount = widget.messages.length;
-    // When the conversation is initially populated, jump to the bottom so the
-    // latest messages are visible right away.
-    _jumpToBottom();
+    // The list is rendered reversed (see build), so it opens already pinned to
+    // the newest message at scroll offset 0 with no jump-to-bottom needed.
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
-  }
-
-  /// Jumps to the bottom of the list, re-pinning across several frames. The
-  /// ListView builds its items lazily, so its reported maxScrollExtent grows
-  /// as off-screen bubbles lay out; a single jump would land short of the true
-  /// bottom. Re-jumping until the extent stabilizes guarantees we end up fully
-  /// scrolled down.
-  void _jumpToBottom([int attemptsRemaining = 6]) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      if (attemptsRemaining > 0) {
-        _jumpToBottom(attemptsRemaining - 1);
-      }
-    });
   }
 
   @override
@@ -194,29 +178,25 @@ class _ChatWidgetState extends State<ChatWidget> {
       return;
     }
 
-    final wasEmpty = _lastMessageCount == 0;
-    // Capture whether the view was at the bottom BEFORE the new bubbles lay
-    // out (the scroll position here still reflects the previous content).
+    // The list is reversed, so the newest message lives at scroll offset 0 (the
+    // visual bottom). Capture whether the view is currently pinned there before
+    // the new bubbles lay out.
     var atBottom = true;
     if (_scrollController.hasClients) {
       final pos = _scrollController.position;
-      atBottom = pos.pixels >= pos.maxScrollExtent - _autoScrollThreshold;
+      atBottom = pos.pixels <= pos.minScrollExtent + _autoScrollThreshold;
     }
     _lastMessageCount = newCount;
 
-    if (!wasEmpty && !atBottom) return;
+    if (!atBottom) return;
 
-    if (wasEmpty) {
-      // Initial fill: pin to the bottom across frames as the lazy list lays out.
-      _jumpToBottom();
-      return;
-    }
-
-    // Auto-scroll to bottom when new messages are added.
+    // Re-pin to the newest message. A reversed list already keeps offset 0
+    // showing the latest bubble as items are appended; the short animation only
+    // smooths the case where the view was slightly above the bottom.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        _scrollController.position.minScrollExtent,
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
       );
@@ -226,7 +206,7 @@ class _ChatWidgetState extends State<ChatWidget> {
   void scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        _scrollController.position.minScrollExtent,
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
       );
@@ -282,6 +262,12 @@ class _ChatWidgetState extends State<ChatWidget> {
       color: Theme.of(context).colorScheme.surface,
       child: ListView.builder(
         controller: _scrollController,
+        // Rendering reversed opens the list already pinned to the newest
+        // message (scroll offset 0 = visual bottom), so no post-layout
+        // jump-to-bottom cascade is needed. That cascade forced several extra
+        // layout passes on the first frame the tab became visible, which
+        // stalled the tab-switch animation on large histories.
+        reverse: true,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         // Bubbles are stateless, so there is no per-item state worth retaining
         // off-screen; disabling keep-alives avoids holding built elements for
@@ -289,13 +275,17 @@ class _ChatWidgetState extends State<ChatWidget> {
         addAutomaticKeepAlives: false,
         itemCount: widget.messages.length,
         itemBuilder: (context, index) {
-          final message = widget.messages[index];
+          // The list is reversed: map the reversed position back to the
+          // chronological message index so the timestamp/route grouping logic
+          // (which compares against the previous message) stays correct.
+          final messageIndex = widget.messages.length - 1 - index;
+          final message = widget.messages[messageIndex];
           // A stable key lets Flutter match elements to the right message when
           // the list changes (new bubble appended, filter toggled) instead of
           // rebuilding mismatched items.
           return KeyedSubtree(
             key: ValueKey(message.id),
-            child: _buildMessageItem(message, index),
+            child: _buildMessageItem(message, messageIndex),
           );
         },
       ),
