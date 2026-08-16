@@ -165,10 +165,20 @@ class AndroidSpeechToTextPlugin(
 
     private fun startSegment() {
         val rec = recognizer ?: return
+        // A length-limit split completes the previous session and immediately
+        // starts a new one, so the recognizer's own end-of-session final may
+        // not have been delivered before rec.cancel() below discards it. Commit
+        // whatever text was accumulated as final first, so the finished bubble
+        // lands in history and the next bubble starts fresh. (After a normal
+        // transmission end, onEndOfSegmentedSession already cleared sessionText,
+        // so this is a no-op.)
+        if (sessionText.isNotEmpty()) {
+            sendResult(sessionText, isFinal = true)
+            sessionText = ""
+        }
         // Discard any session still in flight before opening a new one.
         closeAudio()
         rec.cancel()
-        sessionText = ""
 
         val pipe = ParcelFileDescriptor.createPipe()
         val readSide = pipe[0]

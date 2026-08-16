@@ -714,6 +714,10 @@ class CommsHandler {
 
   /// Tears down the speech-to-text engine and any in-progress segment.
   Future<void> _cleanupSpeechEngine() async {
+    // Commit any in-progress bubble to history before disposing the engine so
+    // its text isn't lost and the next segment (e.g. after re-enabling) always
+    // starts a fresh bubble.
+    _finalizeSttBubble();
     final engine = _sttEngine;
     _sttEngine = null;
     _sttReady = false;
@@ -732,6 +736,37 @@ class CommsHandler {
         _broker.logError('[CommsHandler] Error disposing speech engine: $e');
       }
     }
+  }
+
+  /// Commits the in-progress speech-to-text bubble to history as a final entry
+  /// and clears the current-entry slot, so the next segment starts a new
+  /// bubble. Used when the engine is torn down (speech-to-text disabled) with
+  /// unfinalized text that would otherwise be lost or reused.
+  void _finalizeSttBubble() {
+    final entry = _sttCurrentEntry;
+    _sttCurrentEntry = null;
+    _currentEntry = null;
+    if (entry != null) {
+      final text = (entry.text ?? '').trim();
+      final channel = entry.channel ?? '';
+      final time = entry.time;
+      if (text.isNotEmpty && _sttHasContent(text)) {
+        _decodedTextHistory.add(
+          DecodedTextEntry(
+            text: text,
+            channel: channel,
+            time: time,
+            isReceived: true,
+            encoding: VoiceTextEncodingType.voice,
+          ),
+        );
+        _trimHistory();
+        unawaited(_saveVoiceTextHistory());
+        _dispatchDecodedTextHistory();
+        _dispatchSttTextReady(text, channel, time, true);
+      }
+    }
+    _dispatchCurrentEntry();
   }
 
   /// Handles a partial or final recognition result from the speech engine.
