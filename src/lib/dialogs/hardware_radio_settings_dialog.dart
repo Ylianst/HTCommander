@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'buttons_settings_panel.dart';
 import 'edit_beacon_settings_dialog.dart';
 import 'edit_ident_settings_dialog.dart';
+import 'radio_bitfield_settings_panels.dart';
 import 'radio_settings_panel.dart';
 import 'trusted_devices_panel.dart';
 
@@ -56,6 +57,7 @@ class _HardwareRadioSettingsDialogState
     extends State<HardwareRadioSettingsDialog>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late final RadioBitfieldSettingsController _bitfieldController;
 
   final GlobalKey<IdentSettingsPanelState> _pttKey =
       GlobalKey<IdentSettingsPanelState>();
@@ -71,16 +73,23 @@ class _HardwareRadioSettingsDialogState
     'Beacon',
     'Buttons',
     'Paired Devices',
+    'Audio',
+    'Power',
+    'Transmit',
+    'Display',
+    'Advanced',
   ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabTitles.length, vsync: this);
+    _bitfieldController = RadioBitfieldSettingsController(widget.deviceId);
   }
 
   @override
   void dispose() {
+    _bitfieldController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -113,6 +122,9 @@ class _HardwareRadioSettingsDialogState
     for (final panel in panels) {
       panel?.save();
     }
+    // The Audio/Power/Transmit/Display/Advanced tabs all edit one shared
+    // settings buffer, so write it back to the radio exactly once.
+    _bitfieldController.write();
     Navigator.of(context).pop();
   }
 
@@ -181,6 +193,26 @@ class _HardwareRadioSettingsDialogState
                     _padded(TrustedDevicesPanel(
                       key: _trustedKey,
                       deviceId: widget.deviceId,
+                    )),
+                    _padded(RadioBitfieldPanel(
+                      controller: _bitfieldController,
+                      tab: RadioBitfieldTab.audio,
+                    )),
+                    _padded(RadioBitfieldPanel(
+                      controller: _bitfieldController,
+                      tab: RadioBitfieldTab.power,
+                    )),
+                    _padded(RadioBitfieldPanel(
+                      controller: _bitfieldController,
+                      tab: RadioBitfieldTab.transmit,
+                    )),
+                    _padded(RadioBitfieldPanel(
+                      controller: _bitfieldController,
+                      tab: RadioBitfieldTab.display,
+                    )),
+                    _padded(RadioBitfieldPanel(
+                      controller: _bitfieldController,
+                      tab: RadioBitfieldTab.advanced,
                     )),
                   ],
                 ),
