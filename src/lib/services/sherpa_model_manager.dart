@@ -27,7 +27,7 @@ import 'tls_ca_bundle.dart';
 
 /// Recognizer family a model belongs to; selects the sherpa-onnx config the
 /// recognition isolate builds.
-enum SttModelFamily { senseVoice, whisper }
+enum SttModelFamily { senseVoice, whisper, streamingZipformer }
 
 /// A speech-to-text model the user can download and use.
 class SttModel {
@@ -156,6 +156,26 @@ class SherpaModelManager {
         'tokens.txt': 'base.en-tokens.txt',
       },
       primaryFile: 'decoder.int8.onnx',
+    ),
+    SttModel(
+      id: 'streaming-zipformer-en',
+      name: 'Zipformer — English (real-time)',
+      description:
+          'English only. Low-latency streaming recognition: text appears live '
+          'as audio arrives. Lower accuracy than SenseVoice or Whisper, but '
+          'minimal delay.',
+      downloadLabel: '~42 MB download',
+      family: SttModelFamily.streamingZipformer,
+      archiveUrl:
+          '${_releaseBase}sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2',
+      dirName: 'streaming-zipformer-en-20M',
+      files: {
+        'encoder.int8.onnx': 'encoder-epoch-99-avg-1.int8.onnx',
+        'decoder.onnx': 'decoder-epoch-99-avg-1.onnx',
+        'joiner.int8.onnx': 'joiner-epoch-99-avg-1.int8.onnx',
+        'tokens.txt': 'tokens.txt',
+      },
+      primaryFile: 'encoder.int8.onnx',
     ),
   ];
 

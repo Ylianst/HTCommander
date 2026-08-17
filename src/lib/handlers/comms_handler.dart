@@ -303,6 +303,7 @@ class CommsHandler {
   int _sttSegmentBytes = 0;
   String _sttChannel = '';
   DecodedTextEntry? _sttCurrentEntry;
+  bool _sttBoundaryFinalPending = false;
 
   // SSTV auto-decode state.
   static const String _sstvFolderName = 'SSTV';
@@ -719,6 +720,7 @@ class CommsHandler {
     // starts a fresh bubble.
     _finalizeSttBubble();
     final engine = _sttEngine;
+    _commitCurrentSttEntry();
     _sttEngine = null;
     _sttReady = false;
     _sttSegmentActive = false;
@@ -736,6 +738,28 @@ class CommsHandler {
         _broker.logError('[CommsHandler] Error disposing speech engine: $e');
       }
     }
+    _sttBoundaryFinalPending = false;
+  }
+
+  /// Commits the latest visible transcript at an app-owned segment boundary.
+  /// This happens synchronously so a following segment cannot reuse the UI's
+  /// in-progress bubble while the platform recognizer is still finalizing.
+  void _commitCurrentSttEntry() {
+    final entry = _sttCurrentEntry;
+    final text = entry?.text ?? '';
+    final channel = entry?.channel ?? '';
+    if (entry == null || !_sttHasContent(text)) return;
+    final now = DateTime.now();
+    entry.time = now;
+    _decodedTextHistory.add(entry);
+    _trimHistory();
+    unawaited(_saveVoiceTextHistory());
+    _dispatchDecodedTextHistory();
+    _dispatchSttTextReady(text, channel, now, true);
+    _sttBoundaryFinalPending = true;
+    _sttCurrentEntry = null;
+    _currentEntry = null;
+    _dispatchCurrentEntry();
   }
 
   /// Commits the in-progress speech-to-text bubble to history as a final entry
@@ -790,24 +814,30 @@ class CommsHandler {
       _dispatchCurrentEntry();
       _dispatchSttTextReady(text, channel, now, false);
     } else {
-      // Final text: commit a non-empty result to history.
-      _sttCurrentEntry = null;
-      _currentEntry = null;
-      if (text.isNotEmpty && _sttHasContent(text)) {
-        final entry = DecodedTextEntry(
-          text: text,
-          channel: channel,
-          time: now,
-          isReceived: true,
-          encoding: VoiceTextEncodingType.voice,
-        );
-        _decodedTextHistory.add(entry);
-        _trimHistory();
-        unawaited(_saveVoiceTextHistory());
-        _dispatchDecodedTextHistory();
-        _dispatchSttTextReady(text, channel, now, true);
+      if (text.isEmpty || !_sttHasContent(text)) return;
+
+      // FM end, length splitting, and disabling STT commit the visible entry
+      // immediately. Consume the corresponding delayed platform final so it
+      // cannot create a duplicate or clear a newer partial bubble.
+      if (_sttBoundaryFinalPending) {
+        _sttBoundaryFinalPending = false;
+        return;
       }
-      _dispatchCurrentEntry();
+
+      // A backend can emit a final without a preceding partial. Preserve it as
+      // a standalone completed entry, but never clear a newer active segment.
+      final entry = DecodedTextEntry(
+        text: text,
+        channel: channel,
+        time: now,
+        isReceived: true,
+        encoding: VoiceTextEncodingType.voice,
+      );
+      _decodedTextHistory.add(entry);
+      _trimHistory();
+      unawaited(_saveVoiceTextHistory());
+      _dispatchDecodedTextHistory();
+      _dispatchSttTextReady(text, channel, now, true);
     }
   }
 
@@ -819,6 +849,9 @@ class CommsHandler {
   /// Handles the engine's processing (listening/recognizing) indicator.
   void _onSpeechProcessing(bool active) {
     if (_disposed) return;
+    if (!active && !_sttSegmentActive) {
+      _sttBoundaryFinalPending = false;
+    }
     // When the model is actively decoding, show red (processing=true).
     // When decoding finishes and no segment is active, hide the indicator.
     // When decoding finishes but a segment is still active (split), show green.
@@ -1056,6 +1089,7 @@ class CommsHandler {
   /// correct radio.
   void _handleSttEnd() {
     final engine = _sttEngine;
+    _commitCurrentSttEntry();
     _sttSegmentActive = false;
     _sttSegmentBytes = 0;
     if (engine != null) unawaited(engine.completeSegment());
@@ -1126,6 +1160,7 @@ class CommsHandler {
       _broker.logInfo(
         '[CommsHandler] Speech segment split due to length limit',
       );
+      _commitCurrentSttEntry();
       unawaited(engine.splitSegment());
       _sttSegmentBytes = 0;
       _sttCurrentEntry = null;
