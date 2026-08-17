@@ -6,10 +6,11 @@ http://www.apache.org/licenses/LICENSE-2.0
 sherpa-onnx (SenseVoice) speech-to-text engine.
 
 This implements the shared [SpeechToTextEngine] contract used by the
-CommsHandler. SenseVoice is a non-streaming model — audio is accumulated in
-memory during the active segment and decoded once when the segment ends (or
-when the 30-second length cap forces a split). This batch approach avoids the
-high CPU cost of repeatedly re-decoding a growing buffer.
+CommsHandler. Two model families are supported: batch models (SenseVoice,
+Whisper) accumulate a segment's audio and decode it once at the segment
+boundary, while streaming Zipformer transducer models feed audio into a
+persistent online stream and emit live partial results as words arrive. Each
+sample is processed exactly once in both modes.
 
 All heavy recognition work runs in a dedicated background isolate so the main
 isolate (UI + Bluetooth) never blocks. Audio is resampled from the radio rate
@@ -289,13 +290,19 @@ void _sherpaWorkerEntry(SendPort mainSend) {
   final commands = ReceivePort();
   mainSend.send(<String, Object?>{'event': 'port', 'port': commands.sendPort});
 
-  sherpa.OfflineRecognizer? recognizer;
-  // Accumulated 16 kHz mono float samples for the active segment.
+  // Batch (offline) recognizer + its accumulated segment buffer.
+  sherpa.OfflineRecognizer? offlineRecognizer;
   final List<double> buffer = <double>[];
+  // Streaming (online) recognizer + the current segment's live stream.
+  sherpa.OnlineRecognizer? onlineRecognizer;
+  sherpa.OnlineStream? onlineStream;
   const sampleRate = 16000;
+  // Last cumulative hypothesis emitted for the active streaming segment, used
+  // to skip duplicate partials when no new tokens were decoded.
+  var lastStreamingText = '';
 
-  String decode() {
-    final rec = recognizer;
+  String decodeOffline() {
+    final rec = offlineRecognizer;
     if (rec == null || buffer.isEmpty) return '';
     final stream = rec.createStream();
     try {
@@ -310,6 +317,48 @@ void _sherpaWorkerEntry(SendPort mainSend) {
     }
   }
 
+  // Runs the streaming decode loop over the audio already in the stream and
+  // returns the current cumulative hypothesis.
+  String drainStreaming() {
+    final rec = onlineRecognizer;
+    final stream = onlineStream;
+    if (rec == null || stream == null) return lastStreamingText;
+    while (rec.isReady(stream)) {
+      rec.decode(stream);
+    }
+    return rec.getResult(stream).text;
+  }
+
+  void startStreamingSegment() {
+    final rec = onlineRecognizer;
+    if (rec == null) return;
+    onlineStream?.free();
+    onlineStream = rec.createStream();
+    lastStreamingText = '';
+  }
+
+  // Flushes trailing context and emits the streaming segment's final result.
+  void finalizeStreaming() {
+    final stream = onlineStream;
+    if (onlineRecognizer == null || stream == null) return;
+    mainSend.send(<String, Object?>{'event': 'processing', 'active': true});
+    try {
+      stream.inputFinished();
+      final text = drainStreaming();
+      mainSend.send(<String, Object?>{
+        'event': 'result',
+        'text': text,
+        'isFinal': true,
+      });
+    } catch (e) {
+      mainSend.send(<String, Object?>{
+        'event': 'error',
+        'message': 'streaming final decode failed: $e',
+      });
+    }
+    mainSend.send(<String, Object?>{'event': 'processing', 'active': false});
+  }
+
   commands.listen((message) {
     if (message is! Map) return;
     final cmd = message['cmd'] as String?;
@@ -322,6 +371,29 @@ void _sherpaWorkerEntry(SendPort mainSend) {
           final lang = (message['language'] as String?) ?? 'auto';
           final threads = (message['numThreads'] as int?) ?? 2;
           final tokens = files['tokens.txt'] ?? '';
+
+          if (family == 'streamingZipformer') {
+            onlineRecognizer = sherpa.OnlineRecognizer(
+              sherpa.OnlineRecognizerConfig(
+                model: sherpa.OnlineModelConfig(
+                  transducer: sherpa.OnlineTransducerModelConfig(
+                    encoder: files['encoder.int8.onnx'] ?? '',
+                    decoder: files['decoder.onnx'] ?? '',
+                    joiner: files['joiner.int8.onnx'] ?? '',
+                  ),
+                  tokens: tokens,
+                  numThreads: threads,
+                  provider: 'cpu',
+                  debug: false,
+                ),
+                // Segment boundaries are driven by the app (FM end / length
+                // cap / toggle off), not the recognizer's silence endpointer.
+                enableEndpoint: false,
+              ),
+            );
+            mainSend.send(<String, Object?>{'event': 'ready', 'ok': true});
+            break;
+          }
 
           final sherpa.OfflineModelConfig modelConfig;
           if (family == 'whisper') {
@@ -351,7 +423,7 @@ void _sherpaWorkerEntry(SendPort mainSend) {
               debug: false,
             );
           }
-          recognizer = sherpa.OfflineRecognizer(
+          offlineRecognizer = sherpa.OfflineRecognizer(
             sherpa.OfflineRecognizerConfig(model: modelConfig),
           );
           mainSend.send(<String, Object?>{'event': 'ready', 'ok': true});
@@ -365,20 +437,53 @@ void _sherpaWorkerEntry(SendPort mainSend) {
         break;
 
       case 'start':
-        buffer.clear();
+        if (onlineRecognizer != null) {
+          startStreamingSegment();
+        } else {
+          buffer.clear();
+        }
         break;
 
       case 'audio':
         final samples = message['samples'];
-        if (samples is Float32List && samples.isNotEmpty) {
+        if (samples is! Float32List || samples.isEmpty) break;
+        if (onlineRecognizer != null) {
+          if (onlineStream == null) startStreamingSegment();
+          final stream = onlineStream;
+          if (stream == null) break;
+          try {
+            stream.acceptWaveform(samples: samples, sampleRate: sampleRate);
+            final text = drainStreaming();
+            if (text != lastStreamingText) {
+              lastStreamingText = text;
+              mainSend.send(<String, Object?>{
+                'event': 'result',
+                'text': text,
+                'isFinal': false,
+              });
+            }
+          } catch (e) {
+            mainSend.send(<String, Object?>{
+              'event': 'error',
+              'message': 'streaming decode failed: $e',
+            });
+          }
+        } else {
           buffer.addAll(samples);
         }
         break;
 
       case 'complete':
+        if (onlineRecognizer != null) {
+          finalizeStreaming();
+          onlineStream?.free();
+          onlineStream = null;
+          lastStreamingText = '';
+          break;
+        }
         mainSend.send(<String, Object?>{'event': 'processing', 'active': true});
         try {
-          final text = decode();
+          final text = decodeOffline();
           // Always emit a final (even empty) so the UI clears any partial.
           mainSend.send(<String, Object?>{
             'event': 'result',
@@ -399,11 +504,19 @@ void _sherpaWorkerEntry(SendPort mainSend) {
         break;
 
       case 'split':
+        if (onlineRecognizer != null) {
+          // Length-cap boundary: finalize the current bubble and open a fresh
+          // stream. Streaming already consumed each sample once, so there is
+          // no overlap tail to carry over.
+          finalizeStreaming();
+          startStreamingSegment();
+          break;
+        }
         // Decode current buffer, emit final result, then keep a 2-second tail
         // as overlap for the next segment to avoid losing boundary words.
         mainSend.send(<String, Object?>{'event': 'processing', 'active': true});
         try {
-          final text = decode();
+          final text = decodeOffline();
           mainSend.send(<String, Object?>{
             'event': 'result',
             'text': text,
@@ -427,7 +540,13 @@ void _sherpaWorkerEntry(SendPort mainSend) {
         break;
 
       case 'reset':
-        buffer.clear();
+        if (onlineRecognizer != null) {
+          onlineStream?.free();
+          onlineStream = null;
+          lastStreamingText = '';
+        } else {
+          buffer.clear();
+        }
         mainSend.send(<String, Object?>{
           'event': 'processing',
           'active': false,
@@ -436,9 +555,17 @@ void _sherpaWorkerEntry(SendPort mainSend) {
 
       case 'dispose':
         try {
-          recognizer?.free();
+          offlineRecognizer?.free();
         } catch (_) {}
-        recognizer = null;
+        try {
+          onlineStream?.free();
+        } catch (_) {}
+        try {
+          onlineRecognizer?.free();
+        } catch (_) {}
+        offlineRecognizer = null;
+        onlineRecognizer = null;
+        onlineStream = null;
         commands.close();
         Isolate.exit();
     }

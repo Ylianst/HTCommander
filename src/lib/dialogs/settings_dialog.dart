@@ -1739,10 +1739,18 @@ class _SettingsDialogState extends State<SettingsDialog>
             decoration: _inputDecoration(),
             items: SherpaModelManager.models
                 .map(
-                  (m) => DropdownMenuItem(
-                    value: m.id,
-                    child: Text('${m.name}  (${m.downloadLabel})'),
-                  ),
+                  (m) {
+                    final size = m.downloadLabel.replaceAll(' download', '');
+                    // Merge the size into a trailing "(...)" in the name so a
+                    // model like "Zipformer (real-time)" shows one parenthesis.
+                    final label = m.name.endsWith(')')
+                        ? '${m.name.substring(0, m.name.length - 1)}, $size)'
+                        : '${m.name}  ($size)';
+                    return DropdownMenuItem(
+                      value: m.id,
+                      child: Text(label),
+                    );
+                  },
                 )
                 .toList(),
             onChanged: (value) {
