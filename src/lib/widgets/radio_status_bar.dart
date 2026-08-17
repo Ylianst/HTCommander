@@ -565,7 +565,6 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
 
   int get _rssi => _currentHtStatus?.rssi ?? 0;
   bool get _isTransmitting => _currentHtStatus?.isInTx ?? false;
-  bool get _isReceiving => _currentHtStatus?.isInRx ?? false;
 
   /// Summary of the radio state for the 3rd area (e.g. "Scanning", lock usage).
   /// When the radio is both scanning and has a usage, both are shown combined
