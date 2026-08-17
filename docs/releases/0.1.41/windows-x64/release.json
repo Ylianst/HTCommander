@@ -9,12 +9,12 @@
   "artifact": {
     "kind": "zip",
     "url": "https://github.com/Ylianst/HTCommander/releases/download/v0.1.41/htcommander-0.1.41-windows-x64.zip",
-    "sha256": "85fb785ac45ef1b2ea27857a723ee672cd0e97d3ecd6aded4bd872d9f2ad1f9f",
-    "length": 32850084
+    "sha256": "37597b1cc251df6b071ba3bc0e8f837dbc670e596f2c4ed431fd6aeee4e77ffc",
+    "length": 32850076
   },
   "install": {
     "strategy": "wholeDirectoryReplace"
   },
   "minimumUpdaterVersion": "2.0.0",
-  "generatedAt": "2026-08-17T23:40:25.875818Z"
+  "generatedAt": "2026-08-17T23:43:02.951937Z"
 }
