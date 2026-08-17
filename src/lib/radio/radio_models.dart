@@ -7,7 +7,9 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'package:flutter/foundation.dart';
 import 'utils.dart';
 
-/// Radio channel type for dual-channel mode
+/// Radio channel type for dual-channel mode. Also used by the HT status and the
+/// settings `doubleChannel` field to report the selected VFO: off = single
+/// channel, a/b/c = dual-channel with that VFO selected.
 enum RadioChannelType { off, a, b, c }
 
 /// Radio modulation type
@@ -208,6 +210,7 @@ class RadioSettings {
   final int channelB;
   final bool scan;
   final bool aghfpCallMode;
+  // Encodes the selected VFO: 0 = off, 1 = dual/VFO A, 2 = dual/VFO B, 3 = VFO C.
   final int doubleChannel;
   final int squelchLevel;
   final bool tailElim;

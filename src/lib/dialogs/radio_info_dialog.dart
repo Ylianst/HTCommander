@@ -417,7 +417,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
       _row(l10n.riInTx, _boolStr(s.isInTx)),
       _row('is_sq', _boolStr(s.isSq)),
       _row(l10n.riInRx, _boolStr(s.isInRx)),
-      _row(l10n.riDoubleChannelLabel, s.doubleChannel.name.toUpperCase()),
+      _row(l10n.riDoubleChannelLabel, _doubleChannelStr(s.doubleChannel.index)),
       _row(l10n.riScanning, _boolStr(s.isScan)),
       _row(l10n.riRadioLabel, _boolStr(s.isRadio)),
       _row(l10n.riCurrentChannelId, '${s.currChId + 1}'),
@@ -441,7 +441,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
       _row('VFO B', l10n.riChannelValue(s.channelB + 1)),
       _row('Scan', _boolStr(s.scan)),
       _row('AGHFP Call Mode', _boolStr(s.aghfpCallMode)),
-      _row('Double Channel', '${s.doubleChannel}'),
+      _row('Double Channel', _doubleChannelStr(s.doubleChannel)),
       _row('Squelch Level', '${s.squelchLevel}'),
       _row('Tail elim', _boolStr(s.tailElim)),
       _row('Auto relay en', _boolStr(s.autoRelayEn)),
@@ -540,6 +540,24 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
         return 'Alert';
       default:
         return 'Off';
+    }
+  }
+
+  /// Formats the `doubleChannel` field (both HT status and settings). It is not
+  /// a simple on/off flag: the radio encodes the currently selected VFO in it —
+  /// 0 = off (single channel), 1 = dual / VFO A, 2 = dual / VFO B, 3 = VFO C.
+  String _doubleChannelStr(int value) {
+    switch (value) {
+      case 0:
+        return 'Off';
+      case 1:
+        return 'VFO A';
+      case 2:
+        return 'VFO B';
+      case 3:
+        return 'VFO C';
+      default:
+        return '$value';
     }
   }
 

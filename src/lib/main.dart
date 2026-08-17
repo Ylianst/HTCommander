@@ -1561,8 +1561,8 @@ class _MainFormState extends State<MainForm>
         _dualWatchEnabled =
             (data['doubleChannel'] as int? ??
                 data['double_channel'] as int? ??
-                0) ==
-            1;
+                0) !=
+            0;
         _scanEnabled = data['scan'] as bool? ?? false;
       });
     }
@@ -1861,8 +1861,8 @@ class _MainFormState extends State<MainForm>
         _dualWatchEnabled =
             (settings['doubleChannel'] as int? ??
                 settings['double_channel'] as int? ??
-                0) ==
-            1;
+                0) !=
+            0;
         _scanEnabled = settings['scan'] as bool? ?? false;
         return;
       }

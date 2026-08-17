@@ -931,6 +931,22 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     );
   }
 
+  /// Requests the radio switch its selected VFO to [vfoIndex] (1 = A, 2 = B)
+  /// while in dual-channel mode. Sends the target VFO so the radio's
+  /// `doubleChannel` value is set to exactly that VFO (no blind toggle); a no-op
+  /// when that VFO is already selected.
+  void _switchToVfo(int vfoIndex) {
+    if (widget.deviceId <= 0) return;
+    if (!_isDualChannel) return;
+    if (_selectedVfo == vfoIndex) return;
+    _broker.dispatch(
+      deviceId: widget.deviceId,
+      name: 'SwitchVfo',
+      data: vfoIndex,
+      store: false,
+    );
+  }
+
   // Computed properties based on broker state
   bool get _isConnected => _currentState == 'Connected';
   bool get _isConnecting => _currentState == 'Connecting';
@@ -1036,7 +1052,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     return '';
   }
 
-  bool get _isDualChannel => _currentSettings?.doubleChannel == 1;
+  // Settings `doubleChannel` is not a simple 0/1: the radio encodes the active
+  // VFO in it (0 = off, 1 = dual/VFO A, 2 = dual/VFO B), so any non-zero value
+  // means dual-channel is on.
+  bool get _isDualChannel => (_currentSettings?.doubleChannel ?? 0) != 0;
   bool get _isScanning => _currentSettings?.scan ?? false;
 
   /// True while the radio is locked in a satellite tracking mode (Satellite or
@@ -1224,21 +1243,28 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   int get _rssi => _currentHtStatus?.rssi ?? 0;
   bool get _isTransmitting => _currentHtStatus?.isInTx ?? false;
 
-  /// True when VFO B is the active receiver: the radio's current channel ID
-  /// matches VFO B's channel and there is signal (RSSI > 0).
+  /// The VFO the radio reports as currently selected, taken from the live HT
+  /// status `doubleChannel` field: 0 = off (not dual-channel), 1 = VFO A,
+  /// 2 = VFO B, 3 = VFO C. The index round-trips the raw wire value regardless
+  /// of enum naming.
+  int get _selectedVfo => _currentHtStatus?.doubleChannel.index ?? 0;
+
+  /// True when VFO B is the currently selected VFO in dual-channel mode. The
+  /// radio reports the selected VFO in its live status, so VFO B is highlighted
+  /// whenever the radio has switched to it.
   bool get _isVfo2Active {
     if (!_isConnected) return false;
     if (_channelB == null || !_isDualChannel || _currentHtStatus == null) {
       return false;
     }
-    return _rssi > 0 && _currentHtStatus!.currChId == _channelB!.channelId;
+    return _selectedVfo == 2;
   }
 
   Color get _vfo1Color {
     if (!_isConnected) return _inactiveColor;
     // In frequency mode only VFO A is active.
     if (_showFrequencyMode) return _activeVfoColor;
-    // When VFO B is active, VFO A goes white (inactive).
+    // When VFO B is the selected VFO, VFO A goes white (inactive).
     if (_isVfo2Active) return _inactiveColor;
     return _activeVfoColor;
   }
@@ -1247,7 +1273,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     if (!_isConnected || _vfo2Label.isEmpty) return _inactiveColor;
     // In frequency mode VFO B is inactive.
     if (_showFrequencyMode) return _inactiveColor;
-    // VFO B turns yellow only while it is the active receiver.
+    // VFO B turns yellow only while it is the selected VFO.
     if (_isVfo2Active) return _activeVfoColor;
     return _inactiveColor;
   }
@@ -2825,29 +2851,56 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     );
   }
 
-  Widget _buildVfo1Row() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // VFO1 main label (channel name) - large font
-        SizedBox(
-          height: 32,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                _vfo1Label.isEmpty ? '' : _vfo1Label,
-                style: TextStyle(
-                  color: _vfo1Color,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w400,
+  /// The large VFO channel-name label. In dual-channel mode a fixed leading
+  /// slot is reserved so both VFO labels stay aligned, and a small red
+  /// right-pointing triangle is painted in that slot for the currently selected
+  /// VFO ([vfoIndex]: 1 = A, 2 = B).
+  Widget _buildVfoLabel(int vfoIndex, String label, Color color) {
+    final showMarker =
+        _isDualChannel && !_showFrequencyMode && _selectedVfo == vfoIndex;
+    return SizedBox(
+      height: 32,
+      child: Row(
+        children: [
+          if (_isDualChannel && !_showFrequencyMode)
+            SizedBox(
+              width: 7,
+              child: showMarker
+                  ? const Center(
+                      child: CustomPaint(
+                        size: Size(3, 7),
+                        painter: _RightTrianglePainter(Colors.red),
+                      ),
+                    )
+                  : null,
+            ),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        // Frequency and status row
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVfo1Row() {
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // VFO1 main label (channel name) - large font
+        _buildVfoLabel(1, _vfo1Label, _vfo1Color),        // Frequency and status row
         Row(
           children: [
             Expanded(
@@ -2861,6 +2914,19 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         ),
       ],
     );
+
+    // In dual-channel mode, tapping VFO A selects it (switches away from B).
+    if (_isDualChannel && !_showFrequencyMode) {
+      return MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _switchToVfo(1),
+          child: content,
+        ),
+      );
+    }
+    return content;
   }
 
   /// Builds the VFO1 status text (lock usage). When the radio is locked for the
@@ -2897,23 +2963,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // VFO2 main label (channel name) - large font
-        SizedBox(
-          height: 32,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                _vfo2Label.isEmpty ? '' : _vfo2Label,
-                style: TextStyle(
-                  color: _vfo2Color,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ),
-          ),
-        ),
+        _buildVfoLabel(2, _vfo2Label, _vfo2Color),
         // Frequency and status row
         Row(
           children: [
@@ -2941,6 +2991,17 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         behavior: HitTestBehavior.opaque,
         onTap: () => showFmRadioDialog(context, deviceId: widget.deviceId),
         child: content,
+      );
+    }
+    // In dual-channel mode, tapping VFO B selects it (switches away from A).
+    if (_isDualChannel && !_showFrequencyMode) {
+      return MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _switchToVfo(2),
+          child: content,
+        ),
       );
     }
     return content;
@@ -3417,4 +3478,28 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           : radio.RadioBandwidthType.narrow,
     );
   }
+}
+
+/// Paints a small solid right-pointing triangle that fills the given size. Used
+/// as the "selected VFO" marker next to the active VFO in dual-channel mode.
+class _RightTrianglePainter extends CustomPainter {
+  final Color color;
+  const _RightTrianglePainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, size.height / 2)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_RightTrianglePainter oldDelegate) =>
+      oldDelegate.color != color;
 }

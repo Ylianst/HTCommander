@@ -274,7 +274,7 @@ radio sends it unsolicited; a reply always mirrors the request opcode with
 | 63 | `READ_ADVANCED_SETTINGS2` | R | |
 | 64 | `WRITE_ADVANCED_SETTINGS2` | R | |
 | 65 | `UNLOCK` | R | |
-| 66 | `DO_PROG_FUNC` | R | Trigger a PF effect remotely |
+| 66 | `DO_PROG_FUNC` | R | Trigger a PF effect remotely. Payload = one effect byte (a `PFEffectType`); e.g. `TOGGLE_AB_CH` (18) switches the selected VFO |
 | 67 | `SET_MSG` | R | |
 | 68 | `GET_MSG` | R | |
 | 69 | `BLE_CONN_PARAM` | R | |
@@ -351,6 +351,13 @@ a recurring theme in this protocol.
 a direct `GET_HT_STATUS` reply and inline inside the `htStatusChanged`
 notification.
 
+`doubleChannel` is more than an on/off flag: it reports the **currently selected
+VFO** in dual-channel mode — `0` = off (single channel), `1` = VFO A, `2` =
+VFO B, `3` = VFO C. It updates live as the radio switches VFOs (a `Toggle A/B`
+button press, or the remote `DO_PROG_FUNC`/`TOGGLE_AB_CH` below), so it is the
+reliable source for "which VFO is the operator on right now?". `currChId` is a
+different thing — the channel id the radio is *receiving* on this instant.
+
 ### READ_RF_CH (13) / WRITE_RF_CH (14) → `RadioChannelInfo`
 
 A channel is a 25-byte record (offset 5 onward in a reply; offset 0 onward in a
@@ -384,6 +391,7 @@ split across byte boundaries. A few representative examples (see
 | `channelA` | `(byte5 & 0xF0)>>4` + `(byte14 & 0xF0)` |
 | `channelB` | `(byte5 & 0x0F)` + `((byte14 & 0x0F)<<4)` |
 | `scan` | `byte6 & 0x80` |
+| `doubleChannel` | `(byte6 & 0x30)>>4` (selected VFO: `0`=off, `1`=A, `2`=B, `3`=C) |
 | `squelchLevel` | `byte6 & 0x0F` |
 | `micGain` | `(byte7 & 0x0E)>>1` |
 | `txTimeLimit` | `byte8 & 0x1F` |
@@ -425,6 +433,34 @@ copied byte 15 (write-buffer index 10), preserving `noaaCh` and VFO1 TX power in
 the lower bits. The `htSettingsChanged` notification re-parses cleanly because
 its notification-type byte (`0x06`) lands at the same frame offset as a read
 reply's status byte, so the settings payload (byte 5 onward) stays aligned.
+
+#### Dual channel (`doubleChannel`) — encodes the *selected VFO*, not on/off
+
+Like the HT status field of the same name, the settings `doubleChannel`
+(`(byte6 & 0x30)>>4`) is **not** a plain on/off boolean. It carries the selected
+VFO:
+
+| `doubleChannel` | byte 6 example | Meaning |
+| --- | --- | --- |
+| `0` | `0x04` | Off (single channel) |
+| `1` | `0x54` | Dual channel, VFO A selected |
+| `2` | `0x64` | Dual channel, VFO B selected |
+| `3` | — | Dual channel, VFO C selected |
+
+The critical subtlety: treating `doubleChannel == 1` as "dual channel is on" is a
+bug. The moment the operator selects VFO B the field becomes `2`, so an `== 1`
+test wrongly reports single-channel and the UI hides VFO B. Test **`!= 0`**
+instead. Confirmed from live captures: switching A→B flipped settings byte 6
+`0x54`→`0x64` and the HT status flags byte `0x84`→`0x88` in lock-step.
+
+Because the field is writable, this doubles as a **"select VFO"** control:
+writing settings with `doubleChannel` set to `1` (or `2`) selects VFO A (or B)
+directly — a deterministic alternative to the `TOGGLE_AB_CH` toggle. HTCommander
+uses exactly this for tapping a VFO in the radio panel: `selectVfo(vfoIndex)`
+calls `toByteArrayWith(doubleChannel: vfoIndex)`, so the requested VFO is always
+the one that ends up selected regardless of the current state. The
+`TOGGLE_AB_CH` programmable-function effect (via `DO_PROG_FUNC`, see below)
+remains available as a blind A↔B flip.
 
 ### GET_POSITION (76) / SET_POSITION (32) → `RadioPosition`
 
@@ -511,6 +547,14 @@ byte1 = effectType
 `sendLocation`, …). `SET_PF` sends one effect byte per slot in the same order.
 Because the radio commits the write asynchronously, the app waits ~800 ms before
 re-reading so the cached table reflects the settled state.
+
+The same `PFEffectType` codes can be triggered *remotely* — as if the button had
+been pressed — with `DO_PROG_FUNC` (66), whose payload is a single effect byte.
+`switchVfo()` uses this to blind-toggle the selected VFO with `TOGGLE_AB_CH` (18).
+For tapping a specific VFO, though, HTCommander prefers the deterministic path:
+`selectVfo(vfoIndex)` writes the settings `doubleChannel` field to the target VFO
+(see the dual-channel note above), so the requested VFO is always the one that
+ends up selected — no dependence on the app's view of the current selection.
 
 ### Region names: READ_REGION_NAME (73) / WRITE_REGION_NAME (59) / SET_REGION (60)
 

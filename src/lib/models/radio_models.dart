@@ -123,7 +123,8 @@ class RadioSettings {
   final int channelB;
   final bool scan;
   final bool aghfpCallMode;
-  final int doubleChannel; // 0 = off, 1 = on
+  // Encodes the selected VFO: 0 = off, 1 = dual/VFO A, 2 = dual/VFO B, 3 = VFO C.
+  final int doubleChannel;
   final int squelchLevel;
   final bool tailElim;
   final bool autoRelayEn;

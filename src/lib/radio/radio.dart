@@ -423,6 +423,14 @@ class Radio {
       callback: _onSetProgFunctionsEvent,
     );
 
+    // Switch the selected VFO in dual-channel mode. Data is the target VFO
+    // (1 = A, 2 = B) for a deterministic select, or null to just toggle A/B.
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'SwitchVfo',
+      callback: _onSwitchVfoEvent,
+    );
+
     // Subscribe to trusted (Bluetooth paired) device list requests and delete
     // requests from the Trusted Devices dialog.
     _broker.subscribe(
@@ -494,6 +502,15 @@ class Radio {
       writeProgFunctions(data);
     } else if (data is List<int>) {
       writeProgFunctions(Uint8List.fromList(data));
+    }
+  }
+
+  void _onSwitchVfoEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    if (data is int) {
+      selectVfo(data);
+    } else {
+      switchVfo();
     }
   }
 
@@ -1371,6 +1388,41 @@ class Radio {
     Future.delayed(const Duration(milliseconds: 800), () {
       if (_state == RadioState.connected) queryProgFunctions();
     });
+  }
+
+  /// Triggers a programmable-function effect remotely (DO_PROG_FUNC). This is
+  /// the same effect a physical button would produce; the payload is a single
+  /// effect byte (a [PFEffectType] value).
+  void doProgFunc(PFEffectType effect) {
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.doProgFunc,
+      Uint8List.fromList([effect.value]),
+    );
+  }
+
+  /// Switches the selected VFO in dual-channel mode by toggling A/B. This fires
+  /// the TOGGLE_AB_CH effect; the live HT status (`doubleChannel`) reflects the
+  /// newly selected VFO. Does nothing while the radio is locked. Prefer
+  /// [selectVfo] when the target VFO is known, since a toggle can land on the
+  /// wrong VFO if the app's view of the current selection is stale.
+  void switchVfo() {
+    if (_lockState?.isLocked == true) return;
+    doProgFunc(PFEffectType.toggleAbCh);
+  }
+
+  /// Selects VFO [vfoIndex] (1 = A, 2 = B) in dual-channel mode by writing the
+  /// settings `doubleChannel` field directly, so the requested VFO is always
+  /// the one selected (unlike [switchVfo], which only toggles). No-op when the
+  /// radio is locked, when settings are unknown, when not in dual-channel mode,
+  /// or when that VFO is already selected.
+  void selectVfo(int vfoIndex) {
+    if (_lockState?.isLocked == true) return;
+    if (settings == null) return;
+    if (settings!.doubleChannel == 0) return;
+    if (vfoIndex != 1 && vfoIndex != 2) return;
+    if (settings!.doubleChannel == vfoIndex) return;
+    writeSettings(settings!.toByteArrayWith(doubleChannel: vfoIndex));
   }
 
   // ---------------------------------------------------------------------------
