@@ -2640,7 +2640,14 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
             leftMargin +
             (_kFixedImageWidth * _kDisplayLeft) +
             _kDisplayLeftOffset,
-        top: scaledImageHeight * _kDisplayTop - topCrop,
+        // Raise the panel's top by the VFO 1 upward shift so the VFO A large
+        // label (translated up 20px in _buildDisplayPanel) stays inside the
+        // panel's hit-test bounds and remains tappable. Extra top padding in
+        // the connected panel keeps its on-screen position unchanged.
+        top:
+            scaledImageHeight * _kDisplayTop -
+            topCrop -
+            (_isConnected ? 20 : 0),
         width: _kFixedImageWidth * _kDisplayWidth,
         child: _buildDisplayPanel(),
       ),
@@ -2814,7 +2821,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
     // Connected panel with VFO info
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      // The 20px top padding offsets the panel's raised Positioned top (see
+      // _buildRadioLayers): the VFO 1 row is translated up 20px, so this keeps
+      // its rendered position unchanged while the label stays within bounds.
+      padding: const EdgeInsets.fromLTRB(4, 22, 4, 2),
       decoration: BoxDecoration(
         color: _displayBgColor,
         borderRadius: BorderRadius.circular(2),

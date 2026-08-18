@@ -693,7 +693,8 @@ class Radio {
       );
     } else if (txData.bssPacket != null) {
       // BSS packets carry no channel name; an empty name plus channelId -1
-      // makes transmitTncData fall back to the current VFO A channel.
+      // makes transmitTncData fall back to the current VFO channel (VFO B when
+      // it is the selected VFO in dual-channel mode, otherwise VFO A).
       final outboundData = txData.bssPacket!.encode();
       transmitTncData(
         outboundData,
@@ -1977,11 +1978,13 @@ class Radio {
     // FREQ_MODE_SET_PAR instead of a stored channel; the radio uses this VFO as
     // channel 254. Force transmits onto 254 so data goes out on the satellite
     // uplink rather than a memory channel (e.g. channel 0).
+    bool defaultedFromSettings = false;
     if (kSatelliteLockUsages.contains(_lockState?.usage)) {
       channelId = kSatelliteTransmitChannelId;
     } else if (channelId == -1 && settings != null) {
       // Fill defaults from current settings
       channelId = settings!.channelA;
+      defaultedFromSettings = true;
     }
     if (regionId == -1 && htStatus != null) regionId = htStatus!.currRegion;
 
@@ -2004,6 +2007,8 @@ class Radio {
       fragmentChannelName,
     );
 
+    final String softwareMode = _activeSoftwareModemModeFor(fragment);
+
     if (_loopbackMode) {
       _transmitLoopback(
         fragment,
@@ -2013,16 +2018,35 @@ class Radio {
         t,
         fragmentChannelName,
       );
-    } else if (_activeSoftwareModemModeFor(fragment).isNotEmpty) {
+    } else if (softwareMode.isNotEmpty) {
       // The audio channel is enabled and a software modem mode applies to this
       // frame's channel, so encode the frame with the software modem and send
       // it as PCM audio rather than handing it to the radio's hardware TNC.
-      _transmitSoftwareModem(fragment, _activeSoftwareModemModeFor(fragment));
+      _transmitSoftwareModem(fragment, softwareMode);
     } else if (hardwareModemEnabled) {
+      // In dual-channel (dual-watch) mode with VFO B selected, send on VFO B via
+      // the hardware TNC so the message goes out on the VFO the user has active.
+      // Only applies when the channel defaulted from settings; the software
+      // modem above always transmits on VFO A.
+      int hwChannelId = channelId;
+      TncDataFragment hwFragment = fragment;
+      if (defaultedFromSettings &&
+          settings!.doubleChannel != 0 &&
+          htStatus?.doubleChannel == RadioChannelType.b) {
+        hwChannelId = settings!.channelB;
+        final hwChannelName = _getFragmentChannelName(hwChannelId, channelName);
+        hwFragment = _createOutboundFragment(
+          outboundData,
+          hwChannelId,
+          regionId,
+          t,
+          hwChannelName,
+        );
+      }
       _transmitHardwareModem(
-        fragment,
+        hwFragment,
         outboundData,
-        channelId,
+        hwChannelId,
         regionId,
         tag,
         deadline ?? DateTime(9999),
