@@ -173,6 +173,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get languagePolish => 'Polaco';
 
   @override
+  String get languageItalian => 'Italiano';
+
+  @override
   String get menuAudio => 'Audio';
 
   @override

@@ -173,6 +173,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get languagePolish => 'ポーランド語';
 
   @override
+  String get languageItalian => 'イタリア語';
+
+  @override
   String get menuAudio => 'オーディオ';
 
   @override

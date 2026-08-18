@@ -173,6 +173,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get languagePolish => 'पोलिश';
 
   @override
+  String get languageItalian => 'इतालवी';
+
+  @override
   String get menuAudio => 'ऑडियो';
 
   @override

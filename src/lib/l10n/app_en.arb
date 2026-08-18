@@ -209,6 +209,10 @@
   "@languagePolish": {
     "description": "Polish language option."
   },
+  "languageItalian": "Italian",
+  "@languageItalian": {
+    "description": "Italian language option."
+  },
 
   "menuAudio": "Audio",
   "@menuAudio": {

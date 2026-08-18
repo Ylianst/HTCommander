@@ -576,6 +576,8 @@ class _SubWindowAppState extends State<SubWindowApp> with WindowListener {
               locale: locale,
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
+              localeListResolutionCallback:
+                  LocaleController.localeListResolutionCallback,
               builder: (context, child) =>
                   _wrapWithResponsiveDialogTheme(context, child),
               theme: _buildAppTheme(Brightness.light),
@@ -613,6 +615,8 @@ class HTCommanderApp extends StatelessWidget {
               locale: locale,
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
+              localeListResolutionCallback:
+                  LocaleController.localeListResolutionCallback,
               navigatorObservers: [_unfocusOnPushObserver],
               builder: (context, child) =>
                   _wrapWithResponsiveDialogTheme(context, child),

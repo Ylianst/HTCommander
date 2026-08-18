@@ -173,6 +173,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get languagePolish => 'Polski';
 
   @override
+  String get languageItalian => 'Włoski';
+
+  @override
   String get menuAudio => 'Dźwięk';
 
   @override

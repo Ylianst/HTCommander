@@ -63,3 +63,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Enables per-app language selection (autoStoreLocales) on Android 12 and below.
+    implementation("androidx.appcompat:appcompat:1.7.0")
+}

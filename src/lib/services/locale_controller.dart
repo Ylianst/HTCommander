@@ -22,7 +22,7 @@ class LocaleController {
   static const String systemTag = 'system';
 
   /// Language tags the application ships translations for.
-  static const List<String> supportedLanguageTags = ['en', 'fr', 'es', 'zh', 'ja', 'hi', 'de', 'pl'];
+  static const List<String> supportedLanguageTags = ['en', 'fr', 'es', 'zh', 'ja', 'hi', 'de', 'pl', 'it'];
 
   /// The active locale, or `null` to follow the operating system locale.
   final ValueNotifier<Locale?> locale = ValueNotifier<Locale?>(null);
@@ -54,5 +54,28 @@ class LocaleController {
     if (supportedLanguageTags.contains(tag)) return Locale(tag);
     // Unknown tag: fall back to following the system locale.
     return null;
+  }
+
+  /// Resolves the active locale against the app's [supportedLocales], defaulting
+  /// to English for any unsupported system locale.
+  ///
+  /// Flutter's default resolution falls back to the *first* supported locale
+  /// when none match the device, which would show German for e.g. an Italian
+  /// device. This callback forces English as the neutral fallback instead.
+  static Locale localeListResolutionCallback(
+    List<Locale>? locales,
+    Iterable<Locale> supportedLocales,
+  ) {
+    if (locales != null) {
+      for (final locale in locales) {
+        for (final supported in supportedLocales) {
+          if (supported.languageCode == locale.languageCode) return supported;
+        }
+      }
+    }
+    return supportedLocales.firstWhere(
+      (locale) => locale.languageCode == 'en',
+      orElse: () => supportedLocales.first,
+    );
   }
 }
