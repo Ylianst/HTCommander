@@ -235,6 +235,23 @@ Pulling life-saving signals out of the air — receive-only, on protected bands.
 
 ---
 
+## Weather Balloons
+
+Turning a handheld into an upper-air receiver — decoding the radiosondes that
+launch worldwide twice a day.
+
+1. **[Catching Weather Balloons: Radiosonde Decoding in HTCommander](radiosonde-decoding.md)**
+   How HTCommander decodes six different radiosonde families from one channel —
+   Vaisala **RS41**, Graw **DFM**, Meteomodem **M10/M20**, InterMet **iMet**, and
+   Lockheed Martin **LMS6** — each with its own modem (GFSK, Manchester,
+   differential Manchester, Bell-202 AFSK, convolutional-coded NRZ) and
+   error-correction (Reed–Solomon, Hamming, CRC, a custom checksum) ported to pure
+   Dart; why the older **RS92** can't be positioned offline; how it's proved with
+   synthetic round-trip tests; and how decoding self-activates on a channel named
+   `Radiosonde`, plotting each balloon's climb and descent on the map.
+
+---
+
 ## Data & Storage
 
 How HTCommander packs large datasets into small, fast, self-contained files.

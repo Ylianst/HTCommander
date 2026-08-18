@@ -13,6 +13,7 @@ import 'package:pasteboard/pasteboard.dart';
 import 'package:path_provider/path_provider.dart';
 import 'chat_widget.dart';
 import 'sarsat_marker.dart';
+import 'radiosonde_marker.dart';
 import '../dialogs/aprs_location_dialog.dart';
 import '../dialogs/edit_ident_settings_dialog.dart';
 import '../dialogs/image_view_dialog.dart';
@@ -25,6 +26,7 @@ import '../l10n/app_localizations.dart';
 import '../sstv/encoder.dart';
 import '../radio/dtmf_engine.dart';
 import '../radio/morse_keyer.dart';
+import '../radiosonde/radiosonde_fix.dart';
 import '../sarsat/sarsat_1g_decoder.dart';
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
@@ -1230,6 +1232,9 @@ class _CommsTabState extends State<CommsTab>
       sarsat: data['sarsat'] is Map
           ? Sarsat1gDetails.fromJson(data['sarsat'] as Map)
           : null,
+      radiosonde: data['radiosonde'] is Map
+          ? RadiosondeDetails.fromJson(data['radiosonde'] as Map)
+          : null,
       updateKey: data['updateKey'] as String?,
     );
   }
@@ -1251,10 +1256,10 @@ class _CommsTabState extends State<CommsTab>
     int? wpm,
     String? keyType,
     Sarsat1gDetails? sarsat,
+    RadiosondeDetails? radiosonde,
     String? updateKey,
   }) {
-    final hasLocation = latitude != 0 || longitude != 0;
-    final imagePath = _sstvImagePath(encoding, filename);
+    final hasLocation = latitude != 0 || longitude != 0;    final imagePath = _sstvImagePath(encoding, filename);
     // SSTV pictures show the mode/progress label in the header above the
     // bubble; the bubble itself contains only the image.
     final isPicture = encoding == 'Picture' && imagePath != null;
@@ -1272,6 +1277,7 @@ class _CommsTabState extends State<CommsTab>
         duration: duration,
         pictureLabel: isPicture ? text : null,
         sarsatCount: sarsat?.count ?? 1,
+        radiosondeCount: radiosonde?.count ?? 1,
       ),
       senderCallsign: source ?? '',
       message: isPicture ? '' : text,
@@ -1299,6 +1305,7 @@ class _CommsTabState extends State<CommsTab>
         wpm: wpm,
         keyType: keyType,
         sarsat: sarsat,
+        radiosonde: radiosonde,
       ),
     );
     setState(() {
@@ -1374,15 +1381,20 @@ class _CommsTabState extends State<CommsTab>
     final sarsat = raw['sarsat'] is Map
         ? Sarsat1gDetails.fromJson(raw['sarsat'] as Map)
         : null;
+    final radiosonde = raw['radiosonde'] is Map
+        ? RadiosondeDetails.fromJson(raw['radiosonde'] as Map)
+        : null;
     final imagePath = _sstvImagePath(encoding, filename);
     // SSTV pictures show the mode label in the header; the bubble is image-only.
     final isPicture = encoding == 'Picture' && imagePath != null;
 
     final id = sarsat != null
         ? 'sarsat_${sarsat.hexId}_${time.millisecondsSinceEpoch}'
-        : (completed
-              ? '${time.millisecondsSinceEpoch}_$index'
-              : _partialMessageId);
+        : radiosonde != null
+              ? 'radiosonde_${radiosonde.sondeId}_${time.millisecondsSinceEpoch}'
+              : (completed
+                    ? '${time.millisecondsSinceEpoch}_$index'
+                    : _partialMessageId);
     return ChatMessage(
       id: id,
       route: _formatRoute(
@@ -1393,6 +1405,7 @@ class _CommsTabState extends State<CommsTab>
         duration: duration,
         pictureLabel: isPicture ? text : null,
         sarsatCount: sarsat?.count ?? 1,
+        radiosondeCount: radiosonde?.count ?? 1,
       ),
       senderCallsign: source ?? '',
       message: isPicture ? '' : text,
@@ -1420,6 +1433,7 @@ class _CommsTabState extends State<CommsTab>
         wpm: wpm,
         keyType: keyType,
         sarsat: sarsat,
+        radiosonde: radiosonde,
       ),
     );
   }
@@ -1439,10 +1453,14 @@ class _CommsTabState extends State<CommsTab>
     int duration = 0,
     String? pictureLabel,
     int sarsatCount = 1,
+    int radiosondeCount = 1,
   }) {
     var encodingStr = _encodingDisplayName(encoding);
     if (encoding == 'Sarsat' && sarsatCount >= 2) {
       encodingStr = 'SARSAT x$sarsatCount';
+    }
+    if (encoding == 'Radiosonde' && radiosondeCount >= 2) {
+      encodingStr = 'Radiosonde x$radiosondeCount';
     }
     if (encoding == 'Recording') {
       encodingStr = duration > 0
@@ -1495,14 +1513,19 @@ class _CommsTabState extends State<CommsTab>
         return Icons.image;
       case 'Sarsat':
         return Icons.sos;
+      case 'Radiosonde':
+        return Icons.close; // treasure-map style "X"
       default:
         return null;
     }
   }
 
   /// Distress colour for SARSAT beacon icons; null uses the default theme tint.
-  Color? _iconColorForEncoding(String encoding) =>
-      encoding == 'Sarsat' ? Colors.red : null;
+  Color? _iconColorForEncoding(String encoding) => encoding == 'Sarsat'
+      ? Colors.red
+      : encoding == 'Radiosonde'
+          ? Colors.lightBlue
+          : null;
 
   /// Semi-transparent overlay shown over the chat area while a radio channel is
   /// being dragged onto the tab, hinting that dropping will share the channel.
@@ -2282,19 +2305,32 @@ class _CommsTabState extends State<CommsTab>
   void _showMessageLocation(ChatMessage message) {
     final tag = message.tag;
     final sarsat = tag is CommsMessageDetails ? tag.sarsat : null;
+    final radiosonde = tag is CommsMessageDetails ? tag.radiosonde : null;
     final title = sarsat != null
         ? 'SARSAT ${sarsat.hexId}'
-        : (message.senderCallsign.isNotEmpty ? message.senderCallsign : null);
+        : radiosonde != null
+              ? (radiosonde.sondeId.isNotEmpty
+                    ? radiosonde.sondeId
+                    : 'Radiosonde')
+              : (message.senderCallsign.isNotEmpty
+                    ? message.senderCallsign
+                    : null);
     final sarsatMarker =
         sarsat != null ? SarsatMarker(isTest: sarsat.isTest) : null;
+    final Widget? centerMarker = sarsatMarker ??
+        (radiosonde != null ? const RadiosondeMarker() : null);
+    final double markerWidth = sarsatMarker?.size ??
+        (radiosonde != null ? const RadiosondeMarker().size : 30);
+    final double markerHeight = sarsatMarker?.totalHeight ??
+        (radiosonde != null ? const RadiosondeMarker().totalHeight : 30);
     showAprsLocationDialog(
       context,
       latitude: message.latitude!,
       longitude: message.longitude!,
       title: title,
-      centerMarker: sarsatMarker,
-      centerMarkerWidth: sarsatMarker?.size ?? 30,
-      centerMarkerHeight: sarsatMarker?.totalHeight ?? 30,
+      centerMarker: centerMarker,
+      centerMarkerWidth: markerWidth,
+      centerMarkerHeight: markerHeight,
     );
   }
 

@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
+import '../radiosonde/radiosonde_fix.dart';
 import '../sarsat/sarsat_1g_decoder.dart';
 import '../utils/format_utils.dart';
 import 'dialog_utils.dart';
@@ -41,6 +42,9 @@ class CommsMessageDetails {
   /// Structured decoded fields for SARSAT beacon entries (null otherwise).
   final Sarsat1gDetails? sarsat;
 
+  /// Structured decoded fields for DFM radiosonde entries (null otherwise).
+  final RadiosondeDetails? radiosonde;
+
   const CommsMessageDetails({
     required this.encoding,
     required this.time,
@@ -57,6 +61,7 @@ class CommsMessageDetails {
     this.wpm,
     this.keyType,
     this.sarsat,
+    this.radiosonde,
   });
 }
 
@@ -176,6 +181,57 @@ class MessageDetailsDialog extends StatelessWidget {
       }
       return items;
     }
+    // DFM radiosonde: render the structured telemetry fields.
+    if (d.encoding == 'Radiosonde') {
+      final r = d.radiosonde;
+      if (r != null) {
+        if (r.sondeId.isNotEmpty) {
+          items.add(MessageDetailItem('Sonde ID', r.sondeId));
+        }
+        if (r.sondeType.isNotEmpty) {
+          items.add(MessageDetailItem('Sonde type', r.sondeType));
+        }
+        items.add(MessageDetailItem(
+            l10n.msgdFieldLatitude, r.latitude.toStringAsFixed(6)));
+        items.add(MessageDetailItem(
+            l10n.msgdFieldLongitude, r.longitude.toStringAsFixed(6)));
+        items.add(
+            MessageDetailItem('Altitude', '${r.altitude.toStringAsFixed(1)} m'));
+        items.add(MessageDetailItem(
+            'Horizontal speed', '${r.horizontalSpeed.toStringAsFixed(1)} m/s'));
+        items.add(MessageDetailItem(
+            'Vertical speed', '${r.verticalSpeed.toStringAsFixed(1)} m/s'));
+        items.add(
+            MessageDetailItem('Heading', '${r.heading.toStringAsFixed(1)}\u00B0'));
+        items.add(MessageDetailItem('Satellites', '${r.satellites}'));
+        final t = r.temperatureC;
+        if (t != null) {
+          items.add(
+              MessageDetailItem('Temperature', '${t.toStringAsFixed(1)}\u00B0C'));
+        }
+        items.add(MessageDetailItem(
+            'Sonde time (UTC)', _formatTime(r.dateTimeUtc.toLocal())));
+        if (r.count >= 2) {
+          items.add(MessageDetailItem('Fixes received', '${r.count}'));
+          final last = r.lastReceivedTime;
+          if (last != null) {
+            items.add(MessageDetailItem('Last received', _formatTime(last)));
+          }
+        }
+      } else {
+        for (final seg in d.text.split(', ')) {
+          final i = seg.indexOf(': ');
+          if (i > 0) {
+            items.add(
+              MessageDetailItem(seg.substring(0, i), seg.substring(i + 2)),
+            );
+          } else if (seg.trim().isNotEmpty) {
+            items.add(MessageDetailItem(l10n.msgdFieldMessage, seg.trim()));
+          }
+        }
+      }
+      return items;
+    }
     final source = d.source;
     if (source != null && source.isNotEmpty) {
       items.add(MessageDetailItem(l10n.msgdFieldSource, source));
@@ -234,6 +290,8 @@ class MessageDetailsDialog extends StatelessWidget {
         return 'APRS';
       case 'Sarsat':
         return 'SARSAT Beacon';
+      case 'Radiosonde':
+        return 'Radiosonde';
       default:
         return encoding;
     }

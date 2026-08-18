@@ -53,6 +53,8 @@ import '../radio/cw_monitor.dart';
 import '../radio/morse_code_engine.dart';
 import '../radio/radio.dart';
 import '../radio/tnc_data_fragment.dart';
+import '../radiosonde/radiosonde_fix.dart';
+import '../radiosonde/radiosonde_monitor.dart';
 import '../sarsat/sarsat_1g_decoder.dart';
 import '../sarsat/sarsat_country_codes.dart';
 import '../sarsat/sarsat_monitor.dart';
@@ -77,6 +79,7 @@ enum VoiceTextEncodingType {
   echolink,
   allStarLink,
   sarsat,
+  radiosonde,
 }
 
 /// Serializes a [VoiceTextEncodingType] to its C#-compatible name (PascalCase).
@@ -106,6 +109,8 @@ String _encodingToString(VoiceTextEncodingType e) {
       return 'AllStarLink';
     case VoiceTextEncodingType.sarsat:
       return 'Sarsat';
+    case VoiceTextEncodingType.radiosonde:
+      return 'Radiosonde';
   }
 }
 
@@ -135,6 +140,8 @@ VoiceTextEncodingType _encodingFromString(Object? value) {
       return VoiceTextEncodingType.allStarLink;
     case 'sarsat':
       return VoiceTextEncodingType.sarsat;
+    case 'radiosonde':
+      return VoiceTextEncodingType.radiosonde;
     case 'voice':
     default:
       return VoiceTextEncodingType.voice;
@@ -175,7 +182,8 @@ class DecodedTextEntry {
   /// Structured decoded fields for SARSAT beacon entries (null otherwise).
   Sarsat1gDetails? sarsat;
 
-  DecodedTextEntry({
+  /// Structured decoded fields for DFM radiosonde entries (null otherwise).
+  RadiosondeDetails? radiosonde;  DecodedTextEntry({
     this.text,
     this.channel,
     DateTime? time,
@@ -190,6 +198,7 @@ class DecodedTextEntry {
     this.wpm,
     this.keyType,
     this.sarsat,
+    this.radiosonde,
   }) : time = time ?? DateTime.now();
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -207,6 +216,7 @@ class DecodedTextEntry {
     'wpm': wpm,
     'keyType': keyType,
     'sarsat': sarsat?.toJson(),
+    'radiosonde': radiosonde?.toJson(),
   };
 
   factory DecodedTextEntry.fromJson(Map<String, dynamic> json) {
@@ -235,6 +245,9 @@ class DecodedTextEntry {
       keyType: json['keyType'] as String?,
       sarsat: json['sarsat'] is Map
           ? Sarsat1gDetails.fromJson(json['sarsat'] as Map)
+          : null,
+      radiosonde: json['radiosonde'] is Map
+          ? RadiosondeDetails.fromJson(json['radiosonde'] as Map)
           : null,
     );
   }
@@ -329,6 +342,15 @@ class CommsHandler {
   StreamSubscription<Sarsat1gFrame>? _sarsatDecodedSub;
   int _sarsatDeviceId = -1; // radio locked for the current receive burst
   int _sarsatEmitDeviceId = -1; // radio a decoded beacon is attributed to
+
+  // DFM radiosonde receive-decode state. Like SARSAT it has no manual switch:
+  // the monitor is always allocated but only fed audio from a channel named
+  // "radiosonde" (case-insensitive). The radio audio pipeline is 32 kHz.
+  static const int _radiosondeSampleRate = 32000;
+  RadiosondeMonitor? _radiosondeMonitor;
+  StreamSubscription<RadiosondeFix>? _radiosondeDecodedSub;
+  int _radiosondeDeviceId = -1; // radio locked for the current receive run
+  int _radiosondeEmitDeviceId = -1; // radio a decoded fix is attributed to
 
   /// Whether an SSTV image is currently being received/decoded. Setting this
   /// publishes an `SstvReceiving` flag on the SSTV device so the software modem
@@ -540,6 +562,10 @@ class CommsHandler {
     // always allocated but only fed audio from a channel named "sarsat"
     // (case-insensitive), so it self-activates on that channel.
     _initializeSarsatMonitor();
+
+    // DFM radiosonde receive-decode likewise self-activates on a channel named
+    // "radiosonde" (case-insensitive); the monitor is always allocated.
+    _initializeRadiosondeMonitor();
 
     // Initialize the speech-to-text engine if speech-to-text is enabled.
     // Web has no PCM-buffer recognizer; every other platform is supported
@@ -1073,6 +1099,14 @@ class CommsHandler {
       _sarsatDeviceId = -1;
     }
 
+    // Decode the buffered DFM radiosonde run at the end of the receive run,
+    // then release the run lock so another radio can be picked.
+    if (_radiosondeMonitor != null && deviceId == _radiosondeDeviceId) {
+      _radiosondeEmitDeviceId = deviceId;
+      _radiosondeMonitor!.flush();
+      _radiosondeDeviceId = -1;
+    }
+
     // Speech-to-text flush (deferred) for the enabled target radio.
     if (deviceId == _targetDeviceId && _enabled) {
       // TODO(stt): flush the current speech segment.
@@ -1291,6 +1325,34 @@ class CommsHandler {
                 _readInt(data['length'] ?? data['Length']) ??
                 (bytes.length - offset);
             sarsat.processPcm16(bytes, offset, length);
+          }
+        }
+      }
+    }
+
+    // DFM radiosonde auto-decode: activates on any channel named "radiosonde"
+    // (case-insensitive). Buffers received (non-transmit) audio for the run,
+    // locking onto one radio; the monitor decodes on flush (run end).
+    final radiosonde = _radiosondeMonitor;
+    if (radiosonde != null && deviceId > 0) {
+      final usage = data['usage'] ?? data['Usage'];
+      final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
+      final channelName =
+          (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+      if (usage == null &&
+          !transmit &&
+          channelName.toLowerCase() == 'radiosonde') {
+        if (_radiosondeDeviceId <= 0) _radiosondeDeviceId = deviceId;
+        if (deviceId == _radiosondeDeviceId) {
+          _radiosondeEmitDeviceId = deviceId;
+          if (channelName.isNotEmpty) _currentChannelName = channelName;
+          final bytes = data['data'] ?? data['Data'];
+          if (bytes is Uint8List) {
+            final offset = _readInt(data['offset'] ?? data['Offset']) ?? 0;
+            final length =
+                _readInt(data['length'] ?? data['Length']) ??
+                (bytes.length - offset);
+            radiosonde.processPcm16(bytes, offset, length);
           }
         }
       }
@@ -1669,6 +1731,127 @@ class CommsHandler {
     _sarsatMonitor = null;
     _sarsatDeviceId = -1;
     _sarsatEmitDeviceId = -1;
+  }
+
+  void _initializeRadiosondeMonitor() {
+    _cleanupRadiosondeMonitor();
+    final monitor = RadiosondeMonitor(sampleRate: _radiosondeSampleRate);
+    _radiosondeDecodedSub = monitor.onDecoded.listen(_onRadiosondeDecoded);
+    _radiosondeMonitor = monitor;
+    _radiosondeDeviceId = -1;
+    _radiosondeEmitDeviceId = -1;
+    _broker.logInfo('[CommsHandler] DFM radiosonde monitor initialized');
+  }
+
+  void _cleanupRadiosondeMonitor() {
+    _radiosondeDecodedSub?.cancel();
+    _radiosondeDecodedSub = null;
+    _radiosondeMonitor?.dispose();
+    _radiosondeMonitor = null;
+    _radiosondeDeviceId = -1;
+    _radiosondeEmitDeviceId = -1;
+  }
+
+  /// Coalescing window: repeated fixes for the same sonde within this window of
+  /// the bubble's first fix are merged into that bubble.
+  static const Duration _radiosondeCoalesceWindow = Duration(minutes: 2);
+
+  /// Records a decoded DFM radiosonde fix in the received history, coalescing
+  /// repeats for the same sonde within [_radiosondeCoalesceWindow] into a
+  /// single bubble (bumping its count and refreshing its data/location but
+  /// never its original time).
+  void _onRadiosondeDecoded(RadiosondeFix f) {
+    if (_disposed) return;
+    final deviceId =
+        _radiosondeEmitDeviceId > 0 ? _radiosondeEmitDeviceId : _targetDeviceId;
+    if (deviceId <= 0) return;
+    final now = DateTime.now();
+    final channel = _getVfoAChannelName(deviceId);
+    final sondeKey = f.id.isNotEmpty ? f.id : f.sondeType;
+
+    // Find a recent bubble for the same sonde (entries are chronological).
+    DecodedTextEntry? bubble;
+    for (int i = _decodedTextHistory.length - 1; i >= 0; i--) {
+      final e = _decodedTextHistory[i];
+      if (now.difference(e.time) >= _radiosondeCoalesceWindow) break;
+      if (e.encoding == VoiceTextEncodingType.radiosonde &&
+          (e.radiosonde?.sondeId ?? '') == sondeKey) {
+        bubble = e;
+        break;
+      }
+    }
+
+    final count = (bubble?.radiosonde?.count ?? 0) + 1;
+    final details = RadiosondeDetails.fromFix(
+      f,
+      count: count,
+      lastReceivedTime: now,
+    );
+
+    final label = f.sondeType.isNotEmpty ? f.sondeType : 'DFM';
+    final idPart = f.id.isNotEmpty ? f.id : label;
+    final parts = <String>[
+      idPart,
+      'lat: ${f.latitude.toStringAsFixed(5)}',
+      'lon: ${f.longitude.toStringAsFixed(5)}',
+      'alt: ${f.altitude.toStringAsFixed(0)} m',
+    ];
+    if (f.temperatureC != null) {
+      parts.add('T: ${f.temperatureC!.toStringAsFixed(1)}\u00B0C');
+    }
+    final text = parts.join(', ');
+
+    final DateTime bubbleTime;
+    if (bubble != null) {
+      bubbleTime = bubble.time;
+      bubble.text = text;
+      bubble.radiosonde = details;
+      bubble.latitude = f.latitude;
+      bubble.longitude = f.longitude;
+      _broker.logInfo('[CommsHandler] DFM radiosonde x$count: $sondeKey');
+    } else {
+      bubbleTime = now;
+      final entry = DecodedTextEntry(
+        text: text,
+        channel: channel,
+        time: now,
+        isReceived: true,
+        encoding: VoiceTextEncodingType.radiosonde,
+        latitude: f.latitude,
+        longitude: f.longitude,
+        radiosonde: details,
+      );
+      _decodedTextHistory.add(entry);
+      _trimHistory();
+      _broker.logInfo('[CommsHandler] DFM radiosonde decode: $text');
+    }
+    unawaited(_saveVoiceTextHistory());
+    _dispatchDecodedTextHistory();
+
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'TextReady',
+      data: <String, Object?>{
+        'text': text,
+        'channel': channel,
+        'time': bubbleTime.millisecondsSinceEpoch,
+        'completed': true,
+        'isReceived': true,
+        'encoding': _encodingToString(VoiceTextEncodingType.radiosonde),
+        'latitude': f.latitude,
+        'longitude': f.longitude,
+        'source': null,
+        'destination': null,
+        'filename': null,
+        'duration': 0,
+        'wpm': null,
+        'keyType': null,
+        'radiosonde': details.toJson(),
+        'updateKey':
+            'radiosonde_${sondeKey}_${bubbleTime.millisecondsSinceEpoch}',
+      },
+      store: false,
+    );
   }
 
   /// Coalescing window: repeated beacons with the same ID within this window of
@@ -3047,6 +3230,7 @@ class CommsHandler {
     _cleanupSstvMonitor();
     _cleanupCwMonitor();
     _cleanupSarsatMonitor();
+    _cleanupRadiosondeMonitor();
     unawaited(_cleanupSpeechEngine());
     if (_enabled) disable();
     _broker.logInfo('[CommsHandler] Voice Handler disposing');

@@ -28,6 +28,7 @@ import '../services/window_service.dart';
 import '../utils/map_tile_downloader.dart';
 import '../utils/map_tile_provider.dart';
 import '../utils/num_parsing.dart';
+import 'radiosonde_marker.dart';
 import 'sarsat_marker.dart';
 
 /// Holds the latest known position, time and track points for a single
@@ -168,6 +169,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 
   /// SARSAT 406 distress-beacon markers keyed by 15-hex beacon ID (red SOS).
   final Map<String, _StationMarkerData> _sarsatBeacons = {};
+
+  /// DFM radiosonde markers keyed by sonde ID (light-blue balloon).
+  final Map<String, _StationMarkerData> _radiosondeBeacons = {};
 
   /// Guards against loading the historical APRS packet list more than once,
   /// mirroring the C# `_historicalPacketsLoaded` flag.
@@ -679,6 +683,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       if (entry is Map) {
         _processVoiceEntry(entry);
         _processSarsatEntry(entry);
+        _processRadiosondeEntry(entry);
       }
     }
   }
@@ -692,6 +697,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       if (entry is Map) {
         changed = _processVoiceEntry(entry) || changed;
         changed = _processSarsatEntry(entry) || changed;
+        changed = _processRadiosondeEntry(entry) || changed;
       }
     }
     if (changed && mounted) setState(() {});
@@ -706,7 +712,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     if (completed is bool && !completed) return;
     final voiceChanged = _processVoiceEntry(data);
     final sarsatChanged = _processSarsatEntry(data);
-    if ((voiceChanged || sarsatChanged) && mounted) {
+    final radiosondeChanged = _processRadiosondeEntry(data);
+    if ((voiceChanged || sarsatChanged || radiosondeChanged) && mounted) {
       setState(() {});
     }
   }
@@ -766,12 +773,38 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     return true;
   }
 
+  /// Adds or updates a light-blue marker for a decoded DFM radiosonde that
+  /// carries a position, keyed by its sonde ID. Returns true when the marker
+  /// set changed.
+  bool _processRadiosondeEntry(Map<dynamic, dynamic> entry) {
+    if (entry['encoding'] != 'Radiosonde') return false;
+    final lat = asDouble(entry['latitude']);
+    final lng = asDouble(entry['longitude']);
+    if (lat == 0 && lng == 0) return false;
+    final r = entry['radiosonde'];
+    final id = (r is Map ? r['sondeId'] as String? : null);
+    final key = (id != null && id.isNotEmpty) ? id : 'Radiosonde';
+    final time = _toDateTime(entry['time']);
+    final point = LatLng(lat, lng);
+    final existing = _radiosondeBeacons[key];
+    if (existing != null) {
+      existing.update(point, time);
+    } else {
+      _radiosondeBeacons[key] = _StationMarkerData(
+        callsign: key,
+        position: point,
+        time: time,
+        isSelf: false,
+      );
+    }
+    return true;
+  }
+
   static DateTime _toDateTime(Object? v) {
     if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
     if (v is String) return DateTime.tryParse(v) ?? DateTime.now();
     return DateTime.now();
   }
-
   /// Starts or stops the periodic refresh timer depending on whether a time
   /// filter is active. When a filter is set, the timer fires every 60 seconds
   /// to remove markers that have aged past the threshold.
@@ -1538,6 +1571,22 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
               spikeHeight: spikeHeight,
               isTest: beacon.isTest,
             ),
+          ),
+        ),
+      );
+    }
+
+    // Radiosonde markers: a light-blue "X" badge on a spike. Always shown.
+    for (final beacon in _radiosondeBeacons.values) {
+      markers.add(
+        Marker(
+          point: beacon.position,
+          width: size,
+          height: size + spikeHeight,
+          alignment: Alignment.topCenter,
+          child: Tooltip(
+            message: '${beacon.callsign}\n${_formatTime(beacon.time)}',
+            child: RadiosondeMarker(size: size, spikeHeight: spikeHeight),
           ),
         ),
       );
