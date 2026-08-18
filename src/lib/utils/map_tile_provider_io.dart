@@ -12,7 +12,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:path_provider/path_provider.dart';
+
+import '../services/data_broker.dart';
+import '../services/tls_ca_bundle.dart';
 
 /// Native (desktop/mobile) tile provider that caches OpenStreetMap tiles to
 /// disk so the map keeps working without an internet connection.
@@ -40,7 +44,20 @@ class CachedMapTileProvider extends TileProvider {
   /// When true, no network requests are made; only cached tiles are returned.
   final bool offline;
 
-  final http.Client _client = http.Client();
+  // Primary client uses the operating-system trust store (honoring any
+  // corporate/antivirus proxy roots). Created lazily so offline providers,
+  // which never touch the network, don't allocate one.
+  http.Client? _client;
+
+  // Fallback client bound to the bundled Mozilla CA roots, created only after
+  // the primary client hits a TLS handshake failure (i.e. an outdated or broken
+  // OS trust store). Mirrors the fallback used by CallsignLookupService.
+  http.Client? _fallbackClient;
+
+  // Reports tile-loading health to the Debug tab. Shared across provider
+  // instances so toggling offline/online or rebuilding the Map tab does not
+  // reset the reported state.
+  static final _TileLoadLogger _logger = _TileLoadLogger();
 
   // Resolved once per process; the cache directory is shared by every provider
   // instance regardless of online/offline state.
@@ -66,13 +83,85 @@ class CachedMapTileProvider extends TileProvider {
       // any library-default header flutter_map may have injected.
       headers: {...headers, 'User-Agent': kOsmTileUserAgent},
       offline: offline,
-      client: _client,
+      provider: this,
     );
+  }
+
+  /// Downloads a single tile, transparently retrying with the bundled Mozilla
+  /// CA roots on a TLS handshake failure (an OS trust store that can't verify
+  /// the OpenStreetMap certificate chain). Returns the PNG bytes, or null when
+  /// the tile could not be fetched. Every outcome is reported to the Debug tab
+  /// (deduplicated) so tile-loading problems can be diagnosed from user reports.
+  Future<Uint8List?> fetchTile(String url, Map<String, String> headers) async {
+    final client = _client ??= http.Client();
+    try {
+      final bytes = await _download(client, url, headers);
+      if (bytes.isEmpty) {
+        _logger.onNetworkError('empty tile response');
+        return null;
+      }
+      _logger.onSuccess();
+      return bytes;
+    } on _TileHttpException catch (e) {
+      // A definite HTTP-level rejection (e.g. 403/429): a different CA would
+      // not help, so don't attempt the TLS fallback.
+      _logger.onHttpError(e.statusCode);
+      return null;
+    } on HandshakeException catch (e) {
+      return _fetchViaFallback(url, headers, e);
+    } catch (e) {
+      _logger.onNetworkError(e);
+      return null;
+    }
+  }
+
+  /// Retries a tile download using the bundled CA roots after the OS trust
+  /// store rejected the certificate chain. Returns null when the fallback is
+  /// unavailable or also fails.
+  Future<Uint8List?> _fetchViaFallback(
+    String url,
+    Map<String, String> headers,
+    Object cause,
+  ) async {
+    final context = await bundledCaRootsContext();
+    if (context == null) {
+      _logger.onTlsFailure(cause, bundledRootsAvailable: false);
+      return null;
+    }
+    try {
+      final client = _fallbackClient ??= IOClient(HttpClient(context: context));
+      final bytes = await _download(client, url, headers);
+      if (bytes.isEmpty) {
+        _logger.onNetworkError('empty tile response');
+        return null;
+      }
+      _logger.onFallbackSuccess();
+      return bytes;
+    } on _TileHttpException catch (e) {
+      _logger.onHttpError(e.statusCode);
+      return null;
+    } catch (e) {
+      _logger.onTlsFailure(e, bundledRootsAvailable: true);
+      return null;
+    }
+  }
+
+  static Future<Uint8List> _download(
+    http.Client client,
+    String url,
+    Map<String, String> headers,
+  ) async {
+    final response = await client.get(Uri.parse(url), headers: headers);
+    if (response.statusCode != 200) {
+      throw _TileHttpException(response.statusCode);
+    }
+    return response.bodyBytes;
   }
 
   @override
   void dispose() {
-    _client.close();
+    _client?.close();
+    _fallbackClient?.close();
     super.dispose();
   }
 }
@@ -84,14 +173,14 @@ class _CachedTileImage extends ImageProvider<_CachedTileImage> {
     required this.coordinates,
     required this.headers,
     required this.offline,
-    required this.client,
+    required this.provider,
   });
 
   final String url;
   final TileCoordinates coordinates;
   final Map<String, String> headers;
   final bool offline;
-  final http.Client client;
+  final CachedMapTileProvider provider;
 
   @override
   SynchronousFuture<_CachedTileImage> obtainKey(
@@ -141,14 +230,13 @@ class _CachedTileImage extends ImageProvider<_CachedTileImage> {
     }
 
     // Online: fetch from the network and populate the cache for offline use.
-    try {
-      final response = await client.get(Uri.parse(url), headers: headers);
-      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
-        unawaited(_writeCache(file, response.bodyBytes));
-        return response.bodyBytes;
-      }
-    } catch (_) {
-      // Network failure (e.g. connectivity lost): fall back to transparent.
+    // Network/TLS failures (and their logging) are handled by the provider,
+    // which falls back to the bundled CA roots when the OS trust store can't
+    // verify the certificate chain.
+    final bytes = await provider.fetchTile(url, headers);
+    if (bytes != null) {
+      unawaited(_writeCache(file, bytes));
+      return bytes;
     }
     return TileProvider.transparentImage;
   }
@@ -236,4 +324,101 @@ class _CachedTileImage extends ImageProvider<_CachedTileImage> {
 
   @override
   int get hashCode => Object.hash(url, offline);
+}
+
+/// A tile request that returned a non-200 HTTP status.
+class _TileHttpException implements Exception {
+  const _TileHttpException(this.statusCode);
+  final int statusCode;
+}
+
+/// Reports map tile-loading health to the Debug tab (device 1 `LogInfo` /
+/// `LogError`) so users can diagnose and report tiles not loading.
+///
+/// Deduplicated on purpose: with many tiles fetched per pan/zoom, only state
+/// transitions and distinct error conditions are logged rather than one line
+/// per tile. A steady healthy or failing state produces a single entry.
+class _TileLoadLogger {
+  // null = unknown, true = tiles loading, false = tiles failing.
+  bool? _healthy;
+
+  // Signature of the last failure, so a persistent error is logged only once.
+  String? _lastErrorSignature;
+
+  // True once tiles are being served via the bundled-CA fallback client.
+  bool _fallbackActive = false;
+
+  /// A tile downloaded successfully over the primary (OS trust store) client.
+  void onSuccess() {
+    if (_healthy == true && !_fallbackActive) return;
+    final recovering = _healthy == false;
+    _healthy = true;
+    _fallbackActive = false;
+    _lastErrorSignature = null;
+    _log(
+      recovering
+          ? 'Map: OpenStreetMap tiles are loading again.'
+          : 'Map: OpenStreetMap tiles are loading normally.',
+      isError: false,
+    );
+  }
+
+  /// A tile downloaded successfully, but only via the bundled CA roots because
+  /// the OS trust store rejected the certificate chain.
+  void onFallbackSuccess() {
+    _healthy = true;
+    _lastErrorSignature = null;
+    if (_fallbackActive) return;
+    _fallbackActive = true;
+    _log(
+      'Map: the operating system could not verify the OpenStreetMap '
+      'certificate; tiles are now loading using the app\'s bundled CA roots.',
+      isError: false,
+    );
+  }
+
+  void onHttpError(int statusCode) {
+    _fail(
+      'http:$statusCode',
+      'Map: OpenStreetMap returned HTTP $statusCode for a tile request; '
+      'tiles cannot be shown.',
+    );
+  }
+
+  void onNetworkError(Object error) {
+    _fail(
+      'net:$error',
+      'Map: unable to download OpenStreetMap tiles ($error). Check the '
+      'internet connection or firewall.',
+    );
+  }
+
+  void onTlsFailure(Object cause, {required bool bundledRootsAvailable}) {
+    _fail(
+      'tls:$bundledRootsAvailable',
+      bundledRootsAvailable
+          ? 'Map: TLS verification of the OpenStreetMap certificate failed '
+              'even with the bundled CA roots ($cause); tiles cannot be shown.'
+          : 'Map: TLS verification of the OpenStreetMap certificate failed and '
+              'no bundled CA roots are available ($cause); tiles cannot be '
+              'shown.',
+    );
+  }
+
+  void _fail(String signature, String message) {
+    _healthy = false;
+    _fallbackActive = false;
+    if (_lastErrorSignature == signature) return;
+    _lastErrorSignature = signature;
+    _log(message, isError: true);
+  }
+
+  void _log(String message, {required bool isError}) {
+    DataBroker.dispatch(
+      deviceId: 1,
+      name: isError ? 'LogError' : 'LogInfo',
+      data: message,
+      store: false,
+    );
+  }
 }
