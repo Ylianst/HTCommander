@@ -16,6 +16,7 @@ import 'ax25_packet.dart';
 import 'bss_packet.dart';
 import 'gaia_protocol.dart';
 import 'firmware_vm_protocol.dart';
+import 'firmware_updater.dart';
 import 'utils.dart';
 import '../satellite/satellite_models.dart';
 
@@ -117,7 +118,7 @@ class SetUnlockData {
 }
 
 /// Main Radio class for managing radio connections and communication
-class Radio {
+class Radio implements FirmwareRadio {
   final int deviceId;
   final String macAddress;
   String _friendlyName = '';
@@ -221,6 +222,7 @@ class Radio {
 
   /// Stream of GAIA VM firmware-update events (VMU packets and VM command
   /// replies). Used by the firmware updater.
+  @override
   Stream<RadioVmEvent> get vmEvents => _vmEventController.stream;
 
   // Public state
@@ -2444,6 +2446,7 @@ class Radio {
   /// `VM_CONTROL` and `VM_DISCONNECT`. The command is wrapped in GAIA serial
   /// framing for Bluetooth Classic transports (the only transports firmware
   /// update supports).
+  @override
   void sendVmCommand(RadioExtendedCommand cmd, [Uint8List? body]) {
     if (_transport == null) return;
     final cmdData = GaiaProtocol.buildRawCommand(

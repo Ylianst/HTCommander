@@ -20,6 +20,19 @@ class FirmwareUpdateException implements Exception {
   String toString() => 'FirmwareUpdateException: $message';
 }
 
+/// The slice of [Radio] behaviour the firmware updater relies on.
+///
+/// Declaring it as an interface lets the update state machine be driven against
+/// a simulated radio in tests, exactly the way it drives a real [Radio].
+abstract class FirmwareRadio {
+  /// Stream of GAIA VM firmware-update events (VMU packets and VM command
+  /// replies).
+  Stream<RadioVmEvent> get vmEvents;
+
+  /// Sends a GAIA extended (VM) command to the radio.
+  void sendVmCommand(RadioExtendedCommand cmd, [Uint8List? body]);
+}
+
 /// GAIA VM firmware-delivery state machine (Layer 3).
 ///
 /// Dart port of the `benlink` reference `firmware_updater.py`. The update is
@@ -34,7 +47,7 @@ class FirmwareUpdateException implements Exception {
 /// UPDATE_START_REQ (GOTO_NEXT_STATE) → UPDATE_IN_PROGRESS_RES →
 /// UPDATE_COMPLETE_IND → VM_DISCONNECT`.
 class FirmwareUpdater {
-  final Radio radio;
+  final FirmwareRadio radio;
   final FirmwareBundle bundle;
   final FirmwareProgress? progress;
 
@@ -138,7 +151,7 @@ class FirmwareUpdater {
   /// Call on a radio that has been reconnected post-reboot. The radio expects
   /// `UPDATE_START_CFM` to return `GOTO_NEXT_STATE`, indicating it is ready to
   /// finalise the update.
-  static Future<void> confirm(Radio radio, FirmwareBundle bundle) async {
+  static Future<void> confirm(FirmwareRadio radio, FirmwareBundle bundle) async {
     final updater = FirmwareUpdater(radio, bundle);
     final inbox = _VmEventInbox(radio.vmEvents);
 
@@ -158,11 +171,16 @@ class FirmwareUpdater {
         );
       }
 
+      // The reboot itself is proven by update_state == IN_PROGRESS above. The
+      // post-reboot UPDATE_START_CFM code is only a sanity check: a real UV-Pro
+      // (firmware 9.0.x) answers OK here, while the benlink reference documents
+      // GOTO_NEXT_STATE. Accept either; reject only unexpected/error codes.
       final cfmCode = await updater._start(inbox);
-      if (cfmCode != UpdateStartCfmCode.gotoNextState) {
+      if (cfmCode != UpdateStartCfmCode.ok &&
+          cfmCode != UpdateStartCfmCode.gotoNextState) {
         throw FirmwareUpdateException(
-          'Expected GOTO_NEXT_STATE in post-reboot UPDATE_START_CFM, got '
-          '${cfmCode.name}. The radio may not have rebooted yet.',
+          'Post-reboot UPDATE_START_CFM returned ${cfmCode.name}; expected OK '
+          'or GOTO_NEXT_STATE. The radio may not have rebooted yet.',
         );
       }
 
