@@ -19,6 +19,9 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Required by flutter_local_notifications (v10+) even when only
+        // immediate notifications are used.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -67,4 +70,6 @@ flutter {
 dependencies {
     // Enables per-app language selection (autoStoreLocales) on Android 12 and below.
     implementation("androidx.appcompat:appcompat:1.7.0")
+    // Core-library desugaring support for flutter_local_notifications.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

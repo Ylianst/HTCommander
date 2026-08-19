@@ -16,6 +16,7 @@ import '../radio/radio.dart';
 import '../radio/utils.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/notification_service.dart';
 import 'mail_store.dart';
 import 'winlink_mail.dart';
 import 'winlink_utils.dart';
@@ -1315,6 +1316,16 @@ class WinlinkClient {
 
     // Add the received mail to the persistent store using broker event
     _broker.dispatch(deviceId: 0, name: 'MailAdd', data: mail, store: false);
+
+    NotificationService.instance.showMessage(
+      title: (mail.from != null && mail.from!.isNotEmpty)
+          ? 'Winlink mail from ${mail.from}'
+          : 'New Winlink mail',
+      body: (mail.subject != null && mail.subject!.isNotEmpty)
+          ? mail.subject!
+          : 'You have new mail.',
+      payload: 'mail',
+    );
 
     _stateMessage('Got mail for ${mail.to}.');
 

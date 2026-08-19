@@ -18,6 +18,7 @@ import '../radio/radio.dart';
 import '../radio/tnc_data_fragment.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/notification_service.dart';
 
 /// A data handler that processes APRS packets from the "APRS" channel.
 ///
@@ -441,6 +442,42 @@ class AprsHandler {
     );
 
     _sendAckIfNeeded(aprsPacket, ax25Packet, frame, deviceId);
+    _notifyIncomingAprsMessage(aprsPacket, ax25Packet);
+  }
+
+  /// Raises a system notification when an APRS message addressed to our station
+  /// arrives. [NotificationService] itself suppresses the pop-up while the app
+  /// is in the foreground.
+  void _notifyIncomingAprsMessage(
+    AprsPacket aprsPacket,
+    AX25Packet ax25Packet,
+  ) {
+    if (aprsPacket.dataType != PacketDataType.message) return;
+    final messageData = aprsPacket.messageData;
+    if (messageData.msgType == MessageType.mtAck) return;
+    if (messageData.msgType == MessageType.mtRej) return;
+    if (messageData.msgText.isEmpty) return;
+
+    final addressee = messageData.addressee;
+    if (addressee.isEmpty) return;
+
+    final localCallsign = _localCallsignWithId;
+    final callsignOnly = _broker.getValue<String>(0, 'CallSign', '') ?? '';
+    final isForUs =
+        (localCallsign != null &&
+            addressee.toLowerCase() == localCallsign.toLowerCase()) ||
+        (callsignOnly.isNotEmpty &&
+            addressee.toLowerCase() == callsignOnly.toLowerCase());
+    if (!isForUs) return;
+
+    final from = ax25Packet.addresses.length >= 2
+        ? ax25Packet.addresses[1].callSignWithId
+        : '';
+    NotificationService.instance.showMessage(
+      title: from.isNotEmpty ? 'APRS message from $from' : 'APRS message',
+      body: messageData.msgText,
+      payload: 'aprs',
+    );
   }
 
   void _sendAckIfNeeded(

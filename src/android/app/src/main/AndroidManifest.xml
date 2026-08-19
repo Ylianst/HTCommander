@@ -13,6 +13,8 @@
     <!-- Required by SpeechRecognizer even when audio is fed via a file
          descriptor (EXTRA_AUDIO_SOURCE) rather than the microphone. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Show pop-up notifications for incoming messages (Android 13+). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
     <application
         android:label="HTCommander"

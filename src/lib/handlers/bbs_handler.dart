@@ -26,6 +26,7 @@ import '../radio/radio.dart';
 import '../radio/tnc_data_fragment.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/notification_service.dart';
 import '../winlink/mail_store.dart';
 import '../winlink/winlink_gateway_relay.dart';
 import '../winlink/winlink_mail.dart';
@@ -1010,6 +1011,17 @@ class Bbs {
     mail.mailbox = isForUs ? 'Inbox' : 'Outbox';
 
     _broker.dispatch(deviceId: 0, name: 'MailAdd', data: mail, store: false);
+    if (isForUs) {
+      NotificationService.instance.showMessage(
+        title: (mail.from != null && mail.from!.isNotEmpty)
+            ? 'Winlink mail from ${mail.from}'
+            : 'New Winlink mail',
+        body: (mail.subject != null && mail.subject!.isNotEmpty)
+            ? mail.subject!
+            : 'You have new mail.',
+        payload: 'mail',
+      );
+    }
     _dispatchControl('Got mail for ${mail.to}.');
     _broker.logInfo(
       '[BBS/$_deviceId] Received mail ${mail.mid} for ${mail.to}',

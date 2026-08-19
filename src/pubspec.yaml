@@ -67,6 +67,7 @@ dependencies:
   satellite_observer: ^1.0.1
   flutter_compass: ^0.8.1
   sensors_plus: ^7.1.0
+  flutter_local_notifications: ^22.3.0
 
 dev_dependencies:
   flutter_test:

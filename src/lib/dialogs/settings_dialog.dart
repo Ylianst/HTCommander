@@ -1033,6 +1033,27 @@ class _SettingsDialogState extends State<SettingsDialog>
                     ),
                   ],
                 ),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _settings.messageNotifications,
+                      onChanged: (value) {
+                        setState(
+                          () => _settings.messageNotifications = value ?? false,
+                        );
+                      },
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(
+                          () => _settings.messageNotifications =
+                              !_settings.messageNotifications,
+                        ),
+                        child: const Text('Message Notifications'),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

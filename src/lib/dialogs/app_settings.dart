@@ -61,6 +61,7 @@ class AppSettings {
 
   // Application tab
   bool satelliteSupport;
+  bool messageNotifications;
 
   // Limits tab (0 = unlimited)
   int maxAprsMessages;
@@ -140,6 +141,7 @@ class AppSettings {
     this.shareSerialGpsLocation = false,
     this.airplaneServerUrl = '',
     this.satelliteSupport = false,
+    this.messageNotifications = true,
     this.maxAprsMessages = 0,
     this.maxPackets = 0,
     this.maxSstvImages = 0,
@@ -181,6 +183,7 @@ class AppSettings {
     bool? shareSerialGpsLocation,
     String? airplaneServerUrl,
     bool? satelliteSupport,
+    bool? messageNotifications,
     int? maxAprsMessages,
     int? maxPackets,
     int? maxSstvImages,
@@ -222,6 +225,8 @@ class AppSettings {
           shareSerialGpsLocation ?? this.shareSerialGpsLocation,
       airplaneServerUrl: airplaneServerUrl ?? this.airplaneServerUrl,
       satelliteSupport: satelliteSupport ?? this.satelliteSupport,
+      messageNotifications:
+          messageNotifications ?? this.messageNotifications,
       maxAprsMessages: maxAprsMessages ?? this.maxAprsMessages,
       maxPackets: maxPackets ?? this.maxPackets,
       maxSstvImages: maxSstvImages ?? this.maxSstvImages,
@@ -301,6 +306,8 @@ class AppSettings {
           DataBroker.getValue<String>(0, 'AirplaneServer', '') ?? '',
       satelliteSupport:
           (DataBroker.getValue<int>(0, 'SatelliteSupport', 0) ?? 0) == 1,
+      messageNotifications:
+          (DataBroker.getValue<int>(0, 'MessageNotifications', 1) ?? 1) == 1,
       maxAprsMessages:
           DataBroker.getValue<int>(0, 'MaxAprsMessages', 0) ?? 0,
       maxPackets: DataBroker.getValue<int>(0, 'MaxPackets', 0) ?? 0,
@@ -438,6 +445,11 @@ class AppSettings {
       deviceId: 0,
       name: 'SatelliteSupport',
       data: satelliteSupport ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'MessageNotifications',
+      data: messageNotifications ? 1 : 0,
     );
     DataBroker.dispatch(
       deviceId: 0,

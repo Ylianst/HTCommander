@@ -66,6 +66,7 @@ import 'services/data_broker_client.dart';
 import 'services/data_broker_serializers.dart';
 import 'services/history_limiter.dart';
 import 'services/locale_controller.dart';
+import 'services/notification_service.dart';
 import 'services/theme_controller.dart';
 import 'services/window_service.dart';
 import 'l10n/app_localizations.dart';
@@ -367,6 +368,11 @@ Future<void> _startApp(List<String> args) async {
   // the window opens at (or close to) the correct size. The window is visible
   // at launch on all desktop platforms, so this is a best-effort resize.
   await _restoreMainWindowSize();
+
+  // Initialize cross-platform local notifications (main window only) so that
+  // messages addressed to this station pop up when the app is backgrounded or
+  // its window is unfocused.
+  await NotificationService.instance.init();
 
   runApp(const HTCommanderApp());
 }
@@ -2142,6 +2148,26 @@ class _MainFormState extends State<MainForm>
   void onWindowResized() {
     // Fired when the user finishes resizing the window (macOS/Windows).
     _saveMainWindowSize();
+  }
+
+  @override
+  void onWindowFocus() {
+    NotificationService.instance.setWindowFocused(true);
+  }
+
+  @override
+  void onWindowBlur() {
+    NotificationService.instance.setWindowFocused(false);
+  }
+
+  @override
+  void onWindowMinimize() {
+    NotificationService.instance.setWindowFocused(false);
+  }
+
+  @override
+  void onWindowRestore() {
+    NotificationService.instance.setWindowFocused(true);
   }
 
   /// Persists the current main window size so it can be restored on the next

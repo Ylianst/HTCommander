@@ -60,6 +60,7 @@ import '../sarsat/sarsat_country_codes.dart';
 import '../sarsat/sarsat_monitor.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/notification_service.dart';
 import '../services/tts_service.dart';
 import '../sstv/sstv_monitor.dart';
 import '../utils/num_parsing.dart';
@@ -2641,6 +2642,13 @@ class CommsHandler {
     unawaited(_saveVoiceTextHistory());
     _dispatchDecodedTextHistory();
 
+    _notifyIncomingChatMessage(
+      isReceived: isReceived,
+      text: text,
+      source: source,
+      destination: destination,
+    );
+
     // Dispatch a TextReady event for the radio device. Unlike
     // _dispatchTextReady (which targets the enabled voice device), data
     // packets are surfaced regardless of whether the voice handler is enabled,
@@ -2667,6 +2675,43 @@ class CommsHandler {
         'sarsat': sarsat?.toJson(),
       },
       store: false,
+    );
+  }
+
+  /// Raises a system notification for a received data-packet (chat) message
+  /// that is directed to our station. [NotificationService] suppresses the
+  /// pop-up while the app is in the foreground. Broadcast messages (no
+  /// destination) are ignored so only messages addressed to us notify.
+  void _notifyIncomingChatMessage({
+    required bool isReceived,
+    required String? text,
+    required String? source,
+    required String? destination,
+  }) {
+    if (!isReceived) return;
+    final body = text?.trim() ?? '';
+    if (body.isEmpty) return;
+    final dest = destination?.trim() ?? '';
+    if (dest.isEmpty) return;
+
+    final callsign = _broker.getValue<String>(0, 'CallSign', '') ?? '';
+    if (callsign.isEmpty) return;
+    final stationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
+    final fullCallsign = stationId == 0 ? callsign : '$callsign-$stationId';
+
+    final destLower = dest.toLowerCase();
+    final destBase = destLower.split('-').first;
+    final callBase = callsign.toLowerCase().split('-').first;
+    final isForUs = destLower == fullCallsign.toLowerCase() ||
+        destLower == callsign.toLowerCase() ||
+        destBase == callBase;
+    if (!isForUs) return;
+
+    final from = source?.trim() ?? '';
+    NotificationService.instance.showMessage(
+      title: from.isNotEmpty ? 'Message from $from' : 'New message',
+      body: body,
+      payload: 'comms',
     );
   }
 
