@@ -15,8 +15,8 @@ touches the raw audio — it only ever sees the packets the radio already decode
 
 ![In normal apps, only the radio's hardware modem decodes APRS](images/normal-aprs-decode-path.png)
 
-That works, but the radio's TNC isn't a great modem. It has two real
-limitations:
+That works, but the radio's TNC is a modest modem — and for good reason: it runs
+on a handheld's limited compute. It has two real limitations:
 
 - **No forward error correction.** It doesn't understand FX.25, so a packet sent
   with FEC is decoded as if the FEC bytes were just noise — and if the payload
@@ -29,6 +29,19 @@ On top of that, a small hardware modem simply *misses* packets — weak signals,
 timing edges, a bit of fading — and every miss is a position report or message
 you never see. Over an afternoon of listening, the lost-packet count adds up
 fast.
+
+**This isn't a bug in the radio.** It's easy to look at the dropped packets and
+conclude the radio's modem is broken, but that's not what's going on. A handheld
+simply doesn't have the processing power or memory to throw at the AX.25/APRS
+problem that a mobile or desktop device does, and there's no reason to expect
+that to change. The heavy lifting that recovers marginal packets — FX.25 forward
+error correction, or brute-forcing a failed CRC by flipping bits until the frame
+checks out — is a big compute ask on both the send and receive side, and that's a
+lot to demand of a small radio. In reality the radio decodes AFSK 1200 packets
+just fine within its capacity; expecting a Direwolf-class modem to run inside a
+handheld would not be a fair ask. The point of the software modem isn't to fix
+the radio — it's to let a device that *does* have the compute pick up the packets
+the radio couldn't.
 
 ## The idea: decode the same signal twice
 
