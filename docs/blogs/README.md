@@ -115,6 +115,21 @@ Making HTCommander features portable between operators and radios.
 
 ---
 
+## APRS
+
+Getting more out of APRS on a handheld — hearing packets the radio's own modem
+would have thrown away.
+
+1. **[Two Modems Are Better Than One: Running a Software APRS Modem Alongside the Radio's](aprs-dual-modem.md)**
+   How HTCommander decodes APRS twice — once with the radio's built-in hardware
+   TNC and once with a software AFSK 1200 modem on the SBC audio stream that adds
+   FX.25 forward error correction and CRC-based bit recovery, the deduplicator
+   that merges both sources without doubles, how to turn it on from the Audio
+   menu, and how the single- vs. double-arrow marks in the Packets tab show which
+   modem caught each packet.
+
+---
+
 ## Messaging & Security
 
 Trusting what comes off the air — proving who sent a message, without breaking
