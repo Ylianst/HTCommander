@@ -1138,6 +1138,66 @@ abstract class AppLocalizations {
   /// **'Enter a valid call sign (at least 3 characters) to enable transmit'**
   String get settingsCallSignHelp;
 
+  /// No description provided for @settingsLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get settingsLocation;
+
+  /// No description provided for @settingsLocationInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose where your current location comes from. It is sent to the radio and used for APRS-IS and satellite tracking.'**
+  String get settingsLocationInfo;
+
+  /// No description provided for @settingsLocationSourceGps.
+  ///
+  /// In en, this message translates to:
+  /// **'From GPS (radio or serial GPS)'**
+  String get settingsLocationSourceGps;
+
+  /// No description provided for @settingsLocationSourceManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Set manually'**
+  String get settingsLocationSourceManual;
+
+  /// No description provided for @settingsLocationLatitude.
+  ///
+  /// In en, this message translates to:
+  /// **'Latitude'**
+  String get settingsLocationLatitude;
+
+  /// No description provided for @settingsLocationLongitude.
+  ///
+  /// In en, this message translates to:
+  /// **'Longitude'**
+  String get settingsLocationLongitude;
+
+  /// No description provided for @settingsLocationSelectOnMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Select on map…'**
+  String get settingsLocationSelectOnMap;
+
+  /// No description provided for @settingsLocationNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'No location set. Select a location on the map.'**
+  String get settingsLocationNotSet;
+
+  /// No description provided for @locationPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Location'**
+  String get locationPickerTitle;
+
+  /// No description provided for @locationPickerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pan and zoom the map so the marker is on your location, then press OK.'**
+  String get locationPickerHint;
+
   /// No description provided for @settingsAprsIntro.
   ///
   /// In en, this message translates to:

@@ -35,6 +35,7 @@ import 'handlers/agwpe_handler.dart';
 import 'handlers/web_server_handler.dart';
 import 'handlers/home_assistant_handler.dart';
 import 'handlers/debug_log_handler.dart';
+import 'handlers/location_handler.dart';
 import 'gps/gps_serial_handler.dart';
 import 'torrent/torrent_handler.dart';
 import 'torrent/torrent_store.dart';
@@ -284,6 +285,13 @@ Future<void> _startApp(List<String> args) async {
   final gpsSerialHandler = GpsSerialHandler();
   gpsSerialHandler.init();
   DataBroker.addDataHandler('GpsSerialHandler', gpsSerialHandler);
+
+  // Register the location handler so that a manually chosen location (License
+  // tab) is published as a GpsData fix on device 1, feeding the radio position
+  // beacon, APRS-IS range filter and satellite tracker.
+  final locationHandler = LocationHandler();
+  locationHandler.init();
+  DataBroker.addDataHandler('LocationHandler', locationHandler);
 
   // Register the BBS handler so that the BBS tab can activate a bulletin-board /
   // Winlink server on a radio. It creates per-radio BBS instances on CreateBbs,

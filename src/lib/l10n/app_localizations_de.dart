@@ -559,6 +559,40 @@ class AppLocalizationsDe extends AppLocalizations {
       'Geben Sie ein gültiges Rufzeichen (mindestens 3 Zeichen) ein, um das Senden zu aktivieren';
 
   @override
+  String get settingsLocation => 'Standort';
+
+  @override
+  String get settingsLocationInfo =>
+      'Wählen Sie, woher Ihr aktueller Standort stammt. Er wird an das Funkgerät gesendet und für APRS-IS und die Satellitenverfolgung verwendet.';
+
+  @override
+  String get settingsLocationSourceGps =>
+      'Vom GPS (Funkgerät oder serielles GPS)';
+
+  @override
+  String get settingsLocationSourceManual => 'Manuell festlegen';
+
+  @override
+  String get settingsLocationLatitude => 'Breitengrad';
+
+  @override
+  String get settingsLocationLongitude => 'Längengrad';
+
+  @override
+  String get settingsLocationSelectOnMap => 'Auf Karte auswählen…';
+
+  @override
+  String get settingsLocationNotSet =>
+      'Kein Standort festgelegt. Wählen Sie einen Standort auf der Karte aus.';
+
+  @override
+  String get locationPickerTitle => 'Standort auswählen';
+
+  @override
+  String get locationPickerHint =>
+      'Verschieben und zoomen Sie die Karte, sodass die Markierung auf Ihrem Standort liegt, und drücken Sie dann OK.';
+
+  @override
   String get settingsAprsIntro =>
       'Konfigurieren Sie die APRS-Routing-Pfade für die Paketübertragung.';
 

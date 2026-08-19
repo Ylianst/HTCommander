@@ -553,6 +553,37 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsCallSignHelp => '送信を有効にするには有効なコールサイン（3 文字以上）を入力してください';
 
   @override
+  String get settingsLocation => '位置';
+
+  @override
+  String get settingsLocationInfo =>
+      '現在の位置の取得元を選択します。無線機に送信され、APRS-IS と衛星追跡に使用されます。';
+
+  @override
+  String get settingsLocationSourceGps => 'GPS から（無線機またはシリアル GPS）';
+
+  @override
+  String get settingsLocationSourceManual => '手動で設定';
+
+  @override
+  String get settingsLocationLatitude => '緯度';
+
+  @override
+  String get settingsLocationLongitude => '経度';
+
+  @override
+  String get settingsLocationSelectOnMap => '地図上で選択…';
+
+  @override
+  String get settingsLocationNotSet => '位置が設定されていません。地図上で位置を選択してください。';
+
+  @override
+  String get locationPickerTitle => '位置を選択';
+
+  @override
+  String get locationPickerHint => 'マーカーが現在地に来るように地図をパン・ズームしてから OK を押してください。';
+
+  @override
   String get settingsAprsIntro => 'パケット送信用の APRS ルーティングパスを設定します。';
 
   @override

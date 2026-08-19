@@ -191,6 +191,17 @@
   "settingsAllowTransmit": "Autoriser cette application à émettre",
   "settingsCallSignHelp": "Saisissez un indicatif valide (au moins 3 caractères) pour activer l'émission",
 
+  "settingsLocation": "Position",
+  "settingsLocationInfo": "Choisissez la provenance de votre position actuelle. Elle est envoyée à la radio et utilisée pour l'APRS-IS et le suivi des satellites.",
+  "settingsLocationSourceGps": "Depuis le GPS (radio ou GPS série)",
+  "settingsLocationSourceManual": "Définir manuellement",
+  "settingsLocationLatitude": "Latitude",
+  "settingsLocationLongitude": "Longitude",
+  "settingsLocationSelectOnMap": "Sélectionner sur la carte…",
+  "settingsLocationNotSet": "Aucune position définie. Sélectionnez une position sur la carte.",
+  "locationPickerTitle": "Sélectionner une position",
+  "locationPickerHint": "Déplacez et zoomez la carte pour que le marqueur soit sur votre position, puis appuyez sur OK.",
+
   "settingsAprsIntro": "Configurez les chemins de routage APRS pour la transmission de paquets.",
   "settingsAprsRoutes": "Routes APRS",
   "settingsAprsIsTitle": "Passerelle Internet",

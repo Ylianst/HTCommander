@@ -559,6 +559,39 @@ class AppLocalizationsPl extends AppLocalizations {
       'Wprowadź prawidłowy znak wywoławczy (co najmniej 3 znaki), aby włączyć nadawanie';
 
   @override
+  String get settingsLocation => 'Lokalizacja';
+
+  @override
+  String get settingsLocationInfo =>
+      'Wybierz źródło swojej bieżącej lokalizacji. Jest ona wysyłana do radia i używana w APRS-IS oraz do śledzenia satelitów.';
+
+  @override
+  String get settingsLocationSourceGps => 'Z GPS (radio lub GPS szeregowy)';
+
+  @override
+  String get settingsLocationSourceManual => 'Ustaw ręcznie';
+
+  @override
+  String get settingsLocationLatitude => 'Szerokość geograficzna';
+
+  @override
+  String get settingsLocationLongitude => 'Długość geograficzna';
+
+  @override
+  String get settingsLocationSelectOnMap => 'Wybierz na mapie…';
+
+  @override
+  String get settingsLocationNotSet =>
+      'Nie ustawiono lokalizacji. Wybierz lokalizację na mapie.';
+
+  @override
+  String get locationPickerTitle => 'Wybierz lokalizację';
+
+  @override
+  String get locationPickerHint =>
+      'Przesuń i przybliż mapę tak, aby znacznik znalazł się na Twojej lokalizacji, a następnie naciśnij OK.';
+
+  @override
   String get settingsAprsIntro =>
       'Skonfiguruj ścieżki routingu APRS do transmisji pakietów.';
 

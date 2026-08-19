@@ -187,6 +187,17 @@
   "settingsAllowTransmit": "Consenti a questa applicazione di trasmettere",
   "settingsCallSignHelp": "Inserisci un nominativo valido (almeno 3 caratteri) per abilitare la trasmissione",
 
+  "settingsLocation": "Posizione",
+  "settingsLocationInfo": "Scegli da dove proviene la tua posizione attuale. Viene inviata alla radio e usata per APRS-IS e il tracciamento dei satelliti.",
+  "settingsLocationSourceGps": "Dal GPS (radio o GPS seriale)",
+  "settingsLocationSourceManual": "Imposta manualmente",
+  "settingsLocationLatitude": "Latitudine",
+  "settingsLocationLongitude": "Longitudine",
+  "settingsLocationSelectOnMap": "Seleziona sulla mappa…",
+  "settingsLocationNotSet": "Nessuna posizione impostata. Seleziona una posizione sulla mappa.",
+  "locationPickerTitle": "Seleziona posizione",
+  "locationPickerHint": "Sposta e ingrandisci la mappa in modo che l'indicatore sia sulla tua posizione, poi premi OK.",
+
   "settingsAprsIntro": "Configura i percorsi di instradamento APRS per la trasmissione dei pacchetti.",
   "settingsAprsRoutes": "Percorsi APRS",
   "settingsAprsIsTitle": "Gateway internet",

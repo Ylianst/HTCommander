@@ -548,6 +548,36 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsCallSignHelp => '输入有效的呼号（至少 3 个字符）以启用发射';
 
   @override
+  String get settingsLocation => '位置';
+
+  @override
+  String get settingsLocationInfo => '选择当前位置的来源。它会发送到电台，并用于 APRS-IS 和卫星跟踪。';
+
+  @override
+  String get settingsLocationSourceGps => '来自 GPS（电台或串行 GPS）';
+
+  @override
+  String get settingsLocationSourceManual => '手动设置';
+
+  @override
+  String get settingsLocationLatitude => '纬度';
+
+  @override
+  String get settingsLocationLongitude => '经度';
+
+  @override
+  String get settingsLocationSelectOnMap => '在地图上选择…';
+
+  @override
+  String get settingsLocationNotSet => '未设置位置。请在地图上选择一个位置。';
+
+  @override
+  String get locationPickerTitle => '选择位置';
+
+  @override
+  String get locationPickerHint => '平移并缩放地图，使标记位于您的位置上，然后按“确定”。';
+
+  @override
   String get settingsAprsIntro => '配置用于数据包发送的 APRS 路由路径。';
 
   @override

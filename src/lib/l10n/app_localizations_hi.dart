@@ -558,6 +558,39 @@ class AppLocalizationsHi extends AppLocalizations {
       'ट्रांसमिट सक्षम करने के लिए एक मान्य कॉल साइन (कम से कम 3 अक्षर) दर्ज करें';
 
   @override
+  String get settingsLocation => 'स्थान';
+
+  @override
+  String get settingsLocationInfo =>
+      'चुनें कि आपका वर्तमान स्थान कहाँ से आता है। इसे रेडियो को भेजा जाता है और APRS-IS तथा उपग्रह ट्रैकिंग के लिए उपयोग किया जाता है।';
+
+  @override
+  String get settingsLocationSourceGps => 'GPS से (रेडियो या सीरियल GPS)';
+
+  @override
+  String get settingsLocationSourceManual => 'मैन्युअल रूप से सेट करें';
+
+  @override
+  String get settingsLocationLatitude => 'अक्षांश';
+
+  @override
+  String get settingsLocationLongitude => 'देशांतर';
+
+  @override
+  String get settingsLocationSelectOnMap => 'मानचित्र पर चुनें…';
+
+  @override
+  String get settingsLocationNotSet =>
+      'कोई स्थान सेट नहीं है। मानचित्र पर एक स्थान चुनें।';
+
+  @override
+  String get locationPickerTitle => 'स्थान चुनें';
+
+  @override
+  String get locationPickerHint =>
+      'मानचित्र को पैन और ज़ूम करें ताकि मार्कर आपके स्थान पर हो, फिर ठीक है दबाएँ।';
+
+  @override
   String get settingsAprsIntro =>
       'पैकेट ट्रांसमिशन के लिए APRS रूटिंग पथ कॉन्फ़िगर करें।';
 

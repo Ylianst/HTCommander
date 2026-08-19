@@ -191,6 +191,17 @@
   "settingsAllowTransmit": "Dieser Anwendung das Senden erlauben",
   "settingsCallSignHelp": "Geben Sie ein gültiges Rufzeichen (mindestens 3 Zeichen) ein, um das Senden zu aktivieren",
 
+  "settingsLocation": "Standort",
+  "settingsLocationInfo": "Wählen Sie, woher Ihr aktueller Standort stammt. Er wird an das Funkgerät gesendet und für APRS-IS und die Satellitenverfolgung verwendet.",
+  "settingsLocationSourceGps": "Vom GPS (Funkgerät oder serielles GPS)",
+  "settingsLocationSourceManual": "Manuell festlegen",
+  "settingsLocationLatitude": "Breitengrad",
+  "settingsLocationLongitude": "Längengrad",
+  "settingsLocationSelectOnMap": "Auf Karte auswählen…",
+  "settingsLocationNotSet": "Kein Standort festgelegt. Wählen Sie einen Standort auf der Karte aus.",
+  "locationPickerTitle": "Standort auswählen",
+  "locationPickerHint": "Verschieben und zoomen Sie die Karte, sodass die Markierung auf Ihrem Standort liegt, und drücken Sie dann OK.",
+
   "settingsAprsIntro": "Konfigurieren Sie die APRS-Routing-Pfade für die Paketübertragung.",
   "settingsAprsRoutes": "APRS-Routen",
   "settingsAprsIsTitle": "Internet-Gateway",

@@ -512,6 +512,17 @@
   "settingsAllowTransmit": "Allow this application to transmit",
   "settingsCallSignHelp": "Enter a valid call sign (at least 3 characters) to enable transmit",
 
+  "settingsLocation": "Location",
+  "settingsLocationInfo": "Choose where your current location comes from. It is sent to the radio and used for APRS-IS and satellite tracking.",
+  "settingsLocationSourceGps": "From GPS (radio or serial GPS)",
+  "settingsLocationSourceManual": "Set manually",
+  "settingsLocationLatitude": "Latitude",
+  "settingsLocationLongitude": "Longitude",
+  "settingsLocationSelectOnMap": "Select on map…",
+  "settingsLocationNotSet": "No location set. Select a location on the map.",
+  "locationPickerTitle": "Select Location",
+  "locationPickerHint": "Pan and zoom the map so the marker is on your location, then press OK.",
+
   "settingsAprsIntro": "Configure APRS routing paths for packet transmission.",
   "settingsAprsRoutes": "APRS Routes",
   "settingsAprsIsTitle": "Internet Gateway",

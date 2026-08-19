@@ -47,6 +47,13 @@ class GpsSerialHandler {
   bool _isCommunicating = false;
   bool _disposed = false;
 
+  /// True while the user has selected a manual location (License tab). The
+  /// serial port stays closed so the manual fix is the only source of `GpsData`.
+  bool get _manualLocationActive =>
+      (_broker.getValue<int>(_settingsDeviceId, 'ManualLocationEnabled', 0) ??
+          0) ==
+      1;
+
   /// Whether serial port access is available on the current platform.
   static bool get _serialSupported =>
       !kIsWeb &&
@@ -80,13 +87,23 @@ class GpsSerialHandler {
       callback: _onSettingChanged,
     );
 
+    // A manual location overrides the serial GPS entirely: keep the port closed
+    // while manual mode is on so the two do not fight over the `GpsData` fix.
+    _broker.subscribe(
+      deviceId: _settingsDeviceId,
+      name: 'ManualLocationEnabled',
+      callback: _onManualLocationChanged,
+    );
+
     // Read current settings and open port if already configured.
     _currentPortName =
         _broker.getValue<String>(_settingsDeviceId, 'GpsSerialPort', 'None') ??
         'None';
     _currentBaudRate =
         _broker.getValue<int>(_settingsDeviceId, 'GpsBaudRate', 4800) ?? 4800;
-    _startPort(_currentPortName, _currentBaudRate);
+    if (!_manualLocationActive) {
+      _startPort(_currentPortName, _currentBaudRate);
+    }
   }
 
   // ------------------------------------------------------------------
@@ -105,6 +122,10 @@ class GpsSerialHandler {
 
     _currentPortName = newPort;
     _currentBaudRate = newBaud;
+
+    // While manual location is active the serial GPS stays closed; just record
+    // the new settings so they apply once manual mode is turned off.
+    if (_manualLocationActive) return;
 
     // Close previous port (dispatches "Disconnected").
     _stopPort();
@@ -127,6 +148,27 @@ class GpsSerialHandler {
         data: 'Disabled',
         store: true,
       );
+    }
+  }
+
+  /// Reacts to the manual-location toggle: closes the serial port while manual
+  /// mode is on (the LocationHandler owns `GpsData` then) and reopens the
+  /// configured port when manual mode is turned back off.
+  void _onManualLocationChanged(int deviceId, String name, Object? value) {
+    if (_manualLocationActive) {
+      _stopPort();
+    } else {
+      final portConfigured =
+          _currentPortName.isNotEmpty && _currentPortName != 'None';
+      if (portConfigured) {
+        _broker.dispatch(
+          deviceId: _gpsDeviceId,
+          name: 'GpsStatus',
+          data: 'Connecting',
+          store: true,
+        );
+        _startPort(_currentPortName, _currentBaudRate);
+      }
     }
   }
 

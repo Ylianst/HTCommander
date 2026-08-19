@@ -558,6 +558,39 @@ class AppLocalizationsFr extends AppLocalizations {
       'Saisissez un indicatif valide (au moins 3 caractères) pour activer l\'émission';
 
   @override
+  String get settingsLocation => 'Position';
+
+  @override
+  String get settingsLocationInfo =>
+      'Choisissez la provenance de votre position actuelle. Elle est envoyée à la radio et utilisée pour l\'APRS-IS et le suivi des satellites.';
+
+  @override
+  String get settingsLocationSourceGps => 'Depuis le GPS (radio ou GPS série)';
+
+  @override
+  String get settingsLocationSourceManual => 'Définir manuellement';
+
+  @override
+  String get settingsLocationLatitude => 'Latitude';
+
+  @override
+  String get settingsLocationLongitude => 'Longitude';
+
+  @override
+  String get settingsLocationSelectOnMap => 'Sélectionner sur la carte…';
+
+  @override
+  String get settingsLocationNotSet =>
+      'Aucune position définie. Sélectionnez une position sur la carte.';
+
+  @override
+  String get locationPickerTitle => 'Sélectionner une position';
+
+  @override
+  String get locationPickerHint =>
+      'Déplacez et zoomez la carte pour que le marqueur soit sur votre position, puis appuyez sur OK.';
+
+  @override
   String get settingsAprsIntro =>
       'Configurez les chemins de routage APRS pour la transmission de paquets.';
 

@@ -59,6 +59,14 @@ class AppSettings {
   bool shareSerialGpsLocation;
   String airplaneServerUrl;
 
+  // Location source (License tab). When [manualLocationEnabled] is true the
+  // current location comes from [manualLatitude]/[manualLongitude] instead of
+  // the radio or serial GPS. Used for the radio position beacon, APRS-IS and
+  // satellite tracking.
+  bool manualLocationEnabled;
+  double manualLatitude;
+  double manualLongitude;
+
   // Application tab
   bool satelliteSupport;
   bool messageNotifications;
@@ -140,6 +148,9 @@ class AppSettings {
     this.gpsBaudRate = 4800,
     this.shareSerialGpsLocation = false,
     this.airplaneServerUrl = '',
+    this.manualLocationEnabled = false,
+    this.manualLatitude = 0.0,
+    this.manualLongitude = 0.0,
     this.satelliteSupport = false,
     this.messageNotifications = true,
     this.maxAprsMessages = 0,
@@ -182,6 +193,9 @@ class AppSettings {
     int? gpsBaudRate,
     bool? shareSerialGpsLocation,
     String? airplaneServerUrl,
+    bool? manualLocationEnabled,
+    double? manualLatitude,
+    double? manualLongitude,
     bool? satelliteSupport,
     bool? messageNotifications,
     int? maxAprsMessages,
@@ -224,6 +238,10 @@ class AppSettings {
       shareSerialGpsLocation:
           shareSerialGpsLocation ?? this.shareSerialGpsLocation,
       airplaneServerUrl: airplaneServerUrl ?? this.airplaneServerUrl,
+      manualLocationEnabled:
+          manualLocationEnabled ?? this.manualLocationEnabled,
+      manualLatitude: manualLatitude ?? this.manualLatitude,
+      manualLongitude: manualLongitude ?? this.manualLongitude,
       satelliteSupport: satelliteSupport ?? this.satelliteSupport,
       messageNotifications:
           messageNotifications ?? this.messageNotifications,
@@ -304,6 +322,12 @@ class AppSettings {
           (DataBroker.getValue<int>(0, 'ShareSerialGpsLocation', 0) ?? 0) == 1,
       airplaneServerUrl:
           DataBroker.getValue<String>(0, 'AirplaneServer', '') ?? '',
+      manualLocationEnabled:
+          (DataBroker.getValue<int>(0, 'ManualLocationEnabled', 0) ?? 0) == 1,
+      manualLatitude:
+          DataBroker.getValue<double>(0, 'ManualLatitude', 0.0) ?? 0.0,
+      manualLongitude:
+          DataBroker.getValue<double>(0, 'ManualLongitude', 0.0) ?? 0.0,
       satelliteSupport:
           (DataBroker.getValue<int>(0, 'SatelliteSupport', 0) ?? 0) == 1,
       messageNotifications:
@@ -440,6 +464,21 @@ class AppSettings {
       deviceId: 0,
       name: 'AirplaneServer',
       data: airplaneServerUrl,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'ManualLocationEnabled',
+      data: manualLocationEnabled ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'ManualLatitude',
+      data: manualLatitude,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'ManualLongitude',
+      data: manualLongitude,
     );
     DataBroker.dispatch(
       deviceId: 0,

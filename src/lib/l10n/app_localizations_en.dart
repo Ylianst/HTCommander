@@ -556,6 +556,39 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enter a valid call sign (at least 3 characters) to enable transmit';
 
   @override
+  String get settingsLocation => 'Location';
+
+  @override
+  String get settingsLocationInfo =>
+      'Choose where your current location comes from. It is sent to the radio and used for APRS-IS and satellite tracking.';
+
+  @override
+  String get settingsLocationSourceGps => 'From GPS (radio or serial GPS)';
+
+  @override
+  String get settingsLocationSourceManual => 'Set manually';
+
+  @override
+  String get settingsLocationLatitude => 'Latitude';
+
+  @override
+  String get settingsLocationLongitude => 'Longitude';
+
+  @override
+  String get settingsLocationSelectOnMap => 'Select on map…';
+
+  @override
+  String get settingsLocationNotSet =>
+      'No location set. Select a location on the map.';
+
+  @override
+  String get locationPickerTitle => 'Select Location';
+
+  @override
+  String get locationPickerHint =>
+      'Pan and zoom the map so the marker is on your location, then press OK.';
+
+  @override
   String get settingsAprsIntro =>
       'Configure APRS routing paths for packet transmission.';
 

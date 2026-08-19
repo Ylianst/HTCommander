@@ -558,6 +558,39 @@ class AppLocalizationsIt extends AppLocalizations {
       'Inserisci un nominativo valido (almeno 3 caratteri) per abilitare la trasmissione';
 
   @override
+  String get settingsLocation => 'Posizione';
+
+  @override
+  String get settingsLocationInfo =>
+      'Scegli da dove proviene la tua posizione attuale. Viene inviata alla radio e usata per APRS-IS e il tracciamento dei satelliti.';
+
+  @override
+  String get settingsLocationSourceGps => 'Dal GPS (radio o GPS seriale)';
+
+  @override
+  String get settingsLocationSourceManual => 'Imposta manualmente';
+
+  @override
+  String get settingsLocationLatitude => 'Latitudine';
+
+  @override
+  String get settingsLocationLongitude => 'Longitudine';
+
+  @override
+  String get settingsLocationSelectOnMap => 'Seleziona sulla mappa…';
+
+  @override
+  String get settingsLocationNotSet =>
+      'Nessuna posizione impostata. Seleziona una posizione sulla mappa.';
+
+  @override
+  String get locationPickerTitle => 'Seleziona posizione';
+
+  @override
+  String get locationPickerHint =>
+      'Sposta e ingrandisci la mappa in modo che l\'indicatore sia sulla tua posizione, poi premi OK.';
+
+  @override
   String get settingsAprsIntro =>
       'Configura i percorsi di instradamento APRS per la trasmissione dei pacchetti.';
 

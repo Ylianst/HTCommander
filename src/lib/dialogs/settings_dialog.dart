@@ -24,6 +24,7 @@ import '../services/sherpa_model_manager.dart';
 import 'app_settings.dart';
 import 'aprs_route_dialog.dart';
 import 'echolink_create_account_dialog.dart';
+import 'location_picker_dialog.dart';
 
 /// Settings dialog with tabbed interface
 class SettingsDialog extends StatefulWidget {
@@ -1203,9 +1204,115 @@ class _SettingsDialogState extends State<SettingsDialog>
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          _buildLocationSection(),
         ],
       ),
     );
+  }
+
+  /// Location source section on the License tab: choose between the live GPS
+  /// (radio or serial GPS) and a manually picked location. The manual location
+  /// is sent to the radio and used for APRS-IS and satellite tracking.
+  Widget _buildLocationSection() {
+    final l10n = AppLocalizations.of(context);
+    final manual = _settings.manualLocationEnabled;
+    final hasCoords =
+        _settings.manualLatitude != 0 || _settings.manualLongitude != 0;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _sectionDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.settingsLocation, style: _sectionTitleStyle()),
+          const SizedBox(height: 8),
+          Text(l10n.settingsLocationInfo, style: _secondaryStyle()),
+          const SizedBox(height: 8),
+          RadioGroup<bool>(
+            groupValue: manual,
+            onChanged: (value) => setState(
+              () => _settings.manualLocationEnabled = value ?? false,
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RadioListTile<bool>(
+                    value: false,
+                    title: Text(l10n.settingsLocationSourceGps),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                  RadioListTile<bool>(
+                    value: true,
+                    title: Text(l10n.settingsLocationSourceManual),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (manual) ...[
+            const SizedBox(height: 8),
+            if (hasCoords)
+              Row(
+                children: [
+                  Expanded(
+                    child: _coordDisplay(
+                      l10n.settingsLocationLatitude,
+                      _settings.manualLatitude.toStringAsFixed(5),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _coordDisplay(
+                      l10n.settingsLocationLongitude,
+                      _settings.manualLongitude.toStringAsFixed(5),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Text(l10n.settingsLocationNotSet, style: _hintStyle()),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: _pickManualLocation,
+              icon: const Icon(Icons.map, size: 18),
+              label: Text(l10n.settingsLocationSelectOnMap),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Small labelled read-only coordinate display used by the Location section.
+  Widget _coordDisplay(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: DialogStyles.labelStyle),
+        const SizedBox(height: 4),
+        Text(value, style: DialogStyles.bodyStyle),
+      ],
+    );
+  }
+
+  /// Opens the map picker and stores the chosen coordinates in the settings.
+  Future<void> _pickManualLocation() async {
+    final result = await showLocationPickerDialog(
+      context,
+      latitude: _settings.manualLatitude,
+      longitude: _settings.manualLongitude,
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _settings.manualLatitude = result.latitude;
+      _settings.manualLongitude = result.longitude;
+    });
   }
 
   Widget _buildAprsTab() {

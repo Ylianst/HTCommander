@@ -191,6 +191,17 @@
   "settingsAllowTransmit": "Zezwól tej aplikacji na nadawanie",
   "settingsCallSignHelp": "Wprowadź prawidłowy znak wywoławczy (co najmniej 3 znaki), aby włączyć nadawanie",
 
+  "settingsLocation": "Lokalizacja",
+  "settingsLocationInfo": "Wybierz źródło swojej bieżącej lokalizacji. Jest ona wysyłana do radia i używana w APRS-IS oraz do śledzenia satelitów.",
+  "settingsLocationSourceGps": "Z GPS (radio lub GPS szeregowy)",
+  "settingsLocationSourceManual": "Ustaw ręcznie",
+  "settingsLocationLatitude": "Szerokość geograficzna",
+  "settingsLocationLongitude": "Długość geograficzna",
+  "settingsLocationSelectOnMap": "Wybierz na mapie…",
+  "settingsLocationNotSet": "Nie ustawiono lokalizacji. Wybierz lokalizację na mapie.",
+  "locationPickerTitle": "Wybierz lokalizację",
+  "locationPickerHint": "Przesuń i przybliż mapę tak, aby znacznik znalazł się na Twojej lokalizacji, a następnie naciśnij OK.",
+
   "settingsAprsIntro": "Skonfiguruj ścieżki routingu APRS do transmisji pakietów.",
   "settingsAprsRoutes": "Trasy APRS",
   "settingsAprsIsTitle": "Brama internetowa",
