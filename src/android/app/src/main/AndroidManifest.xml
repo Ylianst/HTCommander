@@ -15,7 +15,13 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Show pop-up notifications for incoming messages (Android 13+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    
+
+    <!-- Declares that the app hosts an Android for Cars App Library (Android
+         Auto) experience. Optional so phones without a car host still install. -->
+    <uses-feature
+        android:name="android.software.car.templates_host"
+        android:required="false" />
+
     <application
         android:label="HTCommander"
         android:name="${applicationName}"
@@ -48,6 +54,23 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Android for Cars App Library: minimum car API level required. -->
+        <meta-data
+            android:name="androidx.car.app.minCarApiLevel"
+            android:value="1" />
+
+        <!-- Android Auto car UI entry point (templated). The IOT category lets
+             the app appear on phone-projected Android Auto as a device control
+             app. See RadioCarAppService / RadioChannelsScreen. -->
+        <service
+            android:name=".RadioCarAppService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <category android:name="androidx.car.app.category.IOT" />
+            </intent-filter>
+        </service>
 
         <!-- Enables androidx.appcompat locale persistence so the per-app language
              picker works on Android 12 and below (API < 33). -->

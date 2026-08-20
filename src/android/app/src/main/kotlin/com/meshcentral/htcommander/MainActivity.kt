@@ -20,5 +20,9 @@ class MainActivity : FlutterActivity() {
             applicationContext,
             flutterEngine.dartExecutor.binaryMessenger,
         )
+
+        // Bind the Android Auto bridge so the car UI can mirror channel/APRS
+        // state and request channel changes from the Dart side.
+        AndroidAutoBridge.attach(flutterEngine.dartExecutor.binaryMessenger)
     }
 }
