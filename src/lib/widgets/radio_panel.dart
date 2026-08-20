@@ -3058,7 +3058,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         width: double.infinity,
         height: 44,
         child: ElevatedButton(
-          onPressed: _isConnecting ? null : _onConnect,
+          onPressed: _onConnect,
           style: ElevatedButton.styleFrom(
             backgroundColor: scheme.surface,
             foregroundColor: scheme.onSurface,
@@ -3066,7 +3066,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
               borderRadius: BorderRadius.circular(4),
             ),
           ),
-          child: Text(_isConnecting ? l10n.stateConnecting : l10n.commonConnect),
+          child: Text(
+            _isConnecting ? l10n.commonDisconnect : l10n.commonConnect,
+          ),
         ),
       ),
     );

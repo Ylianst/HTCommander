@@ -693,12 +693,14 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
         SizedBox(
           height: 30,
           child: ElevatedButton(
-            onPressed: isConnecting ? null : _onConnect,
+            onPressed: _onConnect,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               visualDensity: VisualDensity.compact,
             ),
-            child: Text(isConnecting ? l10n.stateConnecting : l10n.commonConnect),
+            child: Text(
+              isConnecting ? l10n.commonDisconnect : l10n.commonConnect,
+            ),
           ),
         ),
       ],

@@ -2095,7 +2095,18 @@ class _MainFormState extends State<MainForm>
 
   /// Called when the connect button is pressed in RadioPanelControl.
   void _onRadioConnect() {
-    _onConnect();
+    final state = _currentRadioDeviceId > 0
+        ? _broker.getValue<String>(
+            _currentRadioDeviceId,
+            'State',
+            'Disconnected',
+          )
+        : null;
+    if (state == 'Connecting') {
+      _onDisconnect();
+    } else {
+      _onConnect();
+    }
   }
 
   /// Called when tab selection changes.
