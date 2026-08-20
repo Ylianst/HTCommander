@@ -140,6 +140,8 @@ class Radio implements FirmwareRadio {
   // GPS serial SmartBeaconing tracking
   DateTime? _lastGpsSentTime;
   double _lastGpsSentHeading = double.nan;
+  double _lastGpsSentLat = double.nan;
+  double _lastGpsSentLon = double.nan;
 
   // Tracks the last serial-GPS diagnostic reason we logged, so repeated
   // identical messages (a GPS emits several sentences per second) don't flood
@@ -967,11 +969,26 @@ class Radio implements FirmwareRadio {
     final speedKnots = gps.speed;
     final now = DateTime.now();
 
-    if (!_shouldBeaconPosition(
-      heading: heading,
-      speedKnots: speedKnots,
-      now: now,
-    )) {
+    // A manual location is a deliberate, static user setting reported with zero
+    // speed. SmartBeaconing would file it under the 30-minute "stationary" rate,
+    // so a changed manual location (or a reconnect) could be held back for up to
+    // half an hour and never reach the radio. Send it as soon as the
+    // coordinates differ from the last position we sent; only fall back to the
+    // throttle for an unchanged manual fix (the 15s re-publish) to avoid
+    // flooding the radio with identical positions.
+    final positionChanged =
+        _lastGpsSentLat.isNaN ||
+        _lastGpsSentLon.isNaN ||
+        lat != _lastGpsSentLat ||
+        lon != _lastGpsSentLon;
+    final forceSend = manualEnabled && positionChanged;
+
+    if (!forceSend &&
+        !_shouldBeaconPosition(
+          heading: heading,
+          speedKnots: speedKnots,
+          now: now,
+        )) {
       _debugGpsReason(
         'throttled',
         'Serial GPS: holding fix - SmartBeaconing throttle '
@@ -1004,6 +1021,8 @@ class Radio implements FirmwareRadio {
     );
 
     _lastGpsSentHeading = heading;
+    _lastGpsSentLat = lat;
+    _lastGpsSentLon = lon;
     _lastGpsSentTime = now;
   }
 
