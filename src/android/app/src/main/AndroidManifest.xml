@@ -59,6 +59,9 @@
         <meta-data
             android:name="androidx.car.app.minCarApiLevel"
             android:value="1" />
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
 
         <!-- Android Auto car UI entry point (templated). The IOT category lets
              the app appear on phone-projected Android Auto as a device control

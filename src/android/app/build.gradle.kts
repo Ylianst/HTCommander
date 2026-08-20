@@ -71,7 +71,7 @@ dependencies {
     // Enables per-app language selection (autoStoreLocales) on Android 12 and below.
     implementation("androidx.appcompat:appcompat:1.7.0")
     // Android for Cars App Library: templated Android Auto UI (RadioCarAppService).
-    implementation("androidx.car.app:app:1.4.0")
+    implementation("androidx.car.app:app:1.7.0")
     // Core-library desugaring support for flutter_local_notifications.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
