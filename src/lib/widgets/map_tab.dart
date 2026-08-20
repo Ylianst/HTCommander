@@ -99,6 +99,20 @@ class MapTab extends StatefulWidget {
   State<MapTab> createState() => _MapTabState();
 }
 
+/// Returns true when [lat]/[lng] are finite and within valid WGS-84 ranges.
+///
+/// Markers or track points with non-finite (NaN/Infinity) or out-of-range
+/// coordinates make flutter_map's Web Mercator projection produce infinite
+/// pixel values, which freezes the map ("Not responding", issue #19). Such
+/// positions are rejected before a marker/track is ever created.
+bool _isValidLatLng(double lat, double lng) =>
+    lat.isFinite &&
+    lng.isFinite &&
+    lat >= -90.0 &&
+    lat <= 90.0 &&
+    lng >= -180.0 &&
+    lng <= 180.0;
+
 /// Luminance-inverting grayscale filter that turns the light OpenStreetMap
 /// tiles into a dark-themed map. Colored markers and tracks are drawn above
 /// the filtered tile layer so they keep their own colors.
@@ -639,6 +653,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     final lat = aprsPacket.position.coordinateSet.latitude.value;
     final lng = aprsPacket.position.coordinateSet.longitude.value;
     if (lat == 0 && lng == 0) return false;
+    if (!_isValidLatLng(lat, lng)) return false;
 
     // The sender callsign is the second AX.25 address (index 1).
     if (packet.addresses.length < 2) return false;
@@ -727,6 +742,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     final lat = asDouble(entry['latitude']);
     final lng = asDouble(entry['longitude']);
     if (lat == 0 && lng == 0) return false;
+    if (!_isValidLatLng(lat, lng)) return false;
 
     final time = _toDateTime(entry['time']);
     final point = LatLng(lat, lng);
@@ -753,6 +769,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     final lat = asDouble(entry['latitude']);
     final lng = asDouble(entry['longitude']);
     if (lat == 0 && lng == 0) return false;
+    if (!_isValidLatLng(lat, lng)) return false;
     final s = entry['sarsat'];
     final hexId = (s is Map ? s['hexId'] as String? : null) ?? 'Beacon';
     final isTest = s is Map && s['isTest'] == true;
@@ -781,6 +798,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     final lat = asDouble(entry['latitude']);
     final lng = asDouble(entry['longitude']);
     if (lat == 0 && lng == 0) return false;
+    if (!_isValidLatLng(lat, lng)) return false;
     final r = entry['radiosonde'];
     final id = (r is Map ? r['sondeId'] as String? : null);
     final key = (id != null && id.isNotEmpty) ? id : 'Radiosonde';
@@ -1326,6 +1344,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     final markers = <Marker>[];
     for (final aircraft in _airplanes) {
       if (!aircraft.hasPosition) continue;
+      if (!_isValidLatLng(aircraft.latitude!, aircraft.longitude!)) continue;
       markers.add(
         Marker(
           point: LatLng(aircraft.latitude!, aircraft.longitude!),
@@ -1594,7 +1613,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 
     // External serial GPS marker (blue), shown whenever there is a valid fix.
     final gps = _serialGps;
-    if (gps != null) {
+    if (gps != null && _isValidLatLng(gps.latitude, gps.longitude)) {
       markers.add(
         Marker(
           point: LatLng(gps.latitude, gps.longitude),
@@ -1613,6 +1632,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 
     // Connected radio GPS markers (blue), one per radio with a valid GPS lock.
     _radioPositions.forEach((deviceId, pos) {
+      if (!_isValidLatLng(pos.latitude, pos.longitude)) return;
       final friendlyName =
           _broker.getValue<String>(deviceId, 'FriendlyName') ??
           'Radio $deviceId';
