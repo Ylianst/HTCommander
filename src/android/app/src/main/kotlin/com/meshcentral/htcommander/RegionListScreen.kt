@@ -1,6 +1,7 @@
 package com.meshcentral.htcommander
 
 import androidx.car.app.CarContext
+import androidx.car.app.CarToast
 import androidx.car.app.Screen
 import androidx.car.app.constraints.ConstraintManager
 import androidx.car.app.model.Action
@@ -10,19 +11,14 @@ import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
- * Car screen listing recent APRS text messages addressed to our station,
- * newest first. Read-only; mirrors [AndroidAutoBridge] state and re-renders as
- * new messages arrive.
+ * Region picker: lists the preferred radio's regions and switches to the tapped
+ * one. The current region is marked. Mirrors [AndroidAutoBridge] state.
  */
-class AprsMessagesScreen(carContext: CarContext) :
+class RegionListScreen(carContext: CarContext) :
     Screen(carContext), DefaultLifecycleObserver {
 
-    private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     private val stateListener: () -> Unit = { invalidate() }
 
     init {
@@ -39,31 +35,34 @@ class AprsMessagesScreen(carContext: CarContext) :
 
     override fun onGetTemplate(): Template {
         val listBuilder = ItemList.Builder()
-        val messages = AndroidAutoBridge.messages
+        val regions = AndroidAutoBridge.regions
+        val currentIndex = AndroidAutoBridge.regionIndex
 
-        if (messages.isEmpty()) {
-            listBuilder.setNoItemsMessage("No APRS messages")
+        if (regions.isEmpty()) {
+            listBuilder.setNoItemsMessage("No regions available")
         } else {
             val limit = carContext.getCarService(ConstraintManager::class.java)
                 .getContentLimit(ConstraintManager.CONTENT_LIMIT_TYPE_LIST)
-            for (message in messages.take(limit)) {
-                val time = timeFormat.format(Date(message.time))
-                val header = if (message.from.isBlank()) {
-                    time
-                } else {
-                    "${message.from} · $time"
+            for (region in regions.take(limit)) {
+                val row = Row.Builder().setTitle(region.name.ifBlank { "Region ${region.index + 1}" })
+                if (region.index == currentIndex) {
+                    row.addText("Current")
                 }
-                listBuilder.addItem(
-                    Row.Builder()
-                        .setTitle(header)
-                        .addText(message.text)
-                        .build(),
-                )
+                row.setOnClickListener {
+                    AndroidAutoBridge.requestRegion(region.index)
+                    CarToast.makeText(
+                        carContext,
+                        "Switching to ${region.name}",
+                        CarToast.LENGTH_SHORT,
+                    ).show()
+                    screenManager.pop()
+                }
+                listBuilder.addItem(row.build())
             }
         }
 
         return ListTemplate.Builder()
-            .setTitle("APRS Messages")
+            .setTitle("Region")
             .setHeaderAction(Action.BACK)
             .setSingleList(listBuilder.build())
             .build()

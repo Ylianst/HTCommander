@@ -5,7 +5,6 @@ import androidx.car.app.CarToast
 import androidx.car.app.Screen
 import androidx.car.app.constraints.ConstraintManager
 import androidx.car.app.model.Action
-import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.Row
@@ -14,14 +13,11 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 
 /**
- * Root car screen: lists the preferred radio's channels and lets the driver
- * switch the active channel with a single tap. A header action opens the
- * [AprsMessagesScreen].
- *
- * The screen mirrors [AndroidAutoBridge] state and re-renders whenever that
- * state changes by registering a listener for the duration of its lifecycle.
+ * Channel picker for a single VFO ("A" or "B"): lists the preferred radio's
+ * channels and assigns the tapped one to that VFO. The channel currently on the
+ * VFO is marked. Mirrors [AndroidAutoBridge] state.
  */
-class RadioChannelsScreen(carContext: CarContext) :
+class ChannelListScreen(carContext: CarContext, private val vfo: String) :
     Screen(carContext), DefaultLifecycleObserver {
 
     private val stateListener: () -> Unit = { invalidate() }
@@ -41,56 +37,39 @@ class RadioChannelsScreen(carContext: CarContext) :
     override fun onGetTemplate(): Template {
         val listBuilder = ItemList.Builder()
         val channels = AndroidAutoBridge.channels
-        val currentId = AndroidAutoBridge.currentChannelId
+        val currentId = if (vfo == "B") {
+            AndroidAutoBridge.vfoB.channelId
+        } else {
+            AndroidAutoBridge.vfoA.channelId
+        }
 
         if (channels.isEmpty()) {
-            listBuilder.setNoItemsMessage(
-                if (AndroidAutoBridge.connected) {
-                    "No channels available"
-                } else {
-                    "Open HTCommander and connect a radio"
-                },
-            )
+            listBuilder.setNoItemsMessage("No channels available")
         } else {
-            // The host caps how many rows a list may contain; never exceed it or
-            // the template is rejected at runtime.
             val limit = carContext.getCarService(ConstraintManager::class.java)
                 .getContentLimit(ConstraintManager.CONTENT_LIMIT_TYPE_LIST)
             for (channel in channels.take(limit)) {
-                val title = channel.name.ifBlank { "Channel ${channel.id + 1}" }
-                val row = Row.Builder().setTitle(title)
+                val name = channel.name.ifBlank { "Channel ${channel.id + 1}" }
+                val row = Row.Builder().setTitle(name)
                 if (channel.id == currentId) {
                     row.addText("Current")
                 }
                 row.setOnClickListener {
-                    AndroidAutoBridge.requestChannel(channel.id)
+                    AndroidAutoBridge.requestChannel(channel.id, vfo)
                     CarToast.makeText(
                         carContext,
-                        "Switching to $title",
+                        "VFO $vfo → $name",
                         CarToast.LENGTH_SHORT,
                     ).show()
+                    screenManager.pop()
                 }
                 listBuilder.addItem(row.build())
             }
         }
 
-        val title = AndroidAutoBridge.radioName.ifBlank { "HTCommander" }
-
         return ListTemplate.Builder()
-            .setTitle(title)
-            .setHeaderAction(Action.APP_ICON)
-            .setActionStrip(
-                ActionStrip.Builder()
-                    .addAction(
-                        Action.Builder()
-                            .setTitle("Messages")
-                            .setOnClickListener {
-                                screenManager.push(AprsMessagesScreen(carContext))
-                            }
-                            .build(),
-                    )
-                    .build(),
-            )
+            .setTitle("VFO $vfo")
+            .setHeaderAction(Action.BACK)
             .setSingleList(listBuilder.build())
             .build()
     }

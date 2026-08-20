@@ -17,9 +17,11 @@ import java.util.concurrent.CopyOnWriteArraySet
  * lets the car screens both read that state and request a channel change.
  *
  * Data flow:
- *   - Dart -> native: `updateState` refreshes [channels], [currentChannelId]
- *     and [messages]; registered [listeners] are then notified to invalidate.
- *   - native -> Dart: [requestChannel] invokes `setChannel` back on Dart.
+ *   - Dart -> native: `updateState` refreshes the mirrored radio state
+ *     ([regionName], [vfoA]/[vfoB], [scan], [dualWatch], [regions], [channels]
+ *     and [messages]); registered [listeners] are then notified to invalidate.
+ *   - native -> Dart: [requestChannel], [requestRegion], [requestScan] and
+ *     [requestDualWatch] invoke the matching setters back on Dart.
  */
 object AndroidAutoBridge : MethodChannel.MethodCallHandler {
     private const val CHANNEL = "com.htcommander/android_auto"
@@ -28,7 +30,14 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
     private var methodChannel: MethodChannel? = null
 
     data class CarChannel(val id: Int, val name: String)
-    data class CarMessage(val from: String, val text: String, val time: Long)
+    data class CarRegion(val index: Int, val name: String)
+    data class CarVfo(val channelId: Int, val name: String)
+    data class CarMessage(
+        val kind: String,
+        val from: String,
+        val text: String,
+        val time: Long,
+    )
 
     @Volatile
     var connected: Boolean = false
@@ -39,7 +48,31 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
         private set
 
     @Volatile
-    var currentChannelId: Int = -1
+    var regionName: String = ""
+        private set
+
+    @Volatile
+    var regionIndex: Int = -1
+        private set
+
+    @Volatile
+    var regions: List<CarRegion> = emptyList()
+        private set
+
+    @Volatile
+    var vfoA: CarVfo = CarVfo(-1, "")
+        private set
+
+    @Volatile
+    var vfoB: CarVfo = CarVfo(-1, "")
+        private set
+
+    @Volatile
+    var scan: Boolean = false
+        private set
+
+    @Volatile
+    var dualWatch: Boolean = false
         private set
 
     @Volatile
@@ -80,9 +113,30 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
         listeners.remove(listener)
     }
 
-    /** Requests that the preferred radio switch VFO A to [channelId]. */
-    fun requestChannel(channelId: Int) {
-        mainHandler.post { methodChannel?.invokeMethod("setChannel", channelId) }
+    /** Requests that the preferred radio switch VFO [vfo] ("A" or "B") to
+     *  [channelId]. */
+    fun requestChannel(channelId: Int, vfo: String) {
+        mainHandler.post {
+            methodChannel?.invokeMethod(
+                "setChannel",
+                mapOf("channelId" to channelId, "vfo" to vfo),
+            )
+        }
+    }
+
+    /** Requests that the preferred radio switch to region [index]. */
+    fun requestRegion(index: Int) {
+        mainHandler.post { methodChannel?.invokeMethod("setRegion", index) }
+    }
+
+    /** Requests that the preferred radio enable or disable channel scan. */
+    fun requestScan(on: Boolean) {
+        mainHandler.post { methodChannel?.invokeMethod("setScan", on) }
+    }
+
+    /** Requests that the preferred radio enable or disable dual-watch. */
+    fun requestDualWatch(on: Boolean) {
+        mainHandler.post { methodChannel?.invokeMethod("setDualWatch", on) }
     }
 
     /** Notifies Dart whether a car (Android Auto) session is projecting, so it
@@ -106,7 +160,17 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
     private fun applyState(map: Map<String, Any?>) {
         connected = map["connected"] as? Boolean ?: false
         radioName = map["radioName"] as? String ?: ""
-        currentChannelId = (map["currentChannelId"] as? Number)?.toInt() ?: -1
+        regionName = map["regionName"] as? String ?: ""
+        regionIndex = (map["regionIndex"] as? Number)?.toInt() ?: -1
+        scan = map["scan"] as? Boolean ?: false
+        dualWatch = map["dualWatch"] as? Boolean ?: false
+        vfoA = parseVfo(map["vfoA"])
+        vfoB = parseVfo(map["vfoB"])
+        regions = (map["regions"] as? List<*>).orEmpty().mapNotNull { item ->
+            val m = item as? Map<*, *> ?: return@mapNotNull null
+            val index = (m["index"] as? Number)?.toInt() ?: return@mapNotNull null
+            CarRegion(index, m["name"] as? String ?: "")
+        }
         channels = (map["channels"] as? List<*>).orEmpty().mapNotNull { item ->
             val m = item as? Map<*, *> ?: return@mapNotNull null
             val id = (m["id"] as? Number)?.toInt() ?: return@mapNotNull null
@@ -115,12 +179,21 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
         messages = (map["messages"] as? List<*>).orEmpty().mapNotNull { item ->
             val m = item as? Map<*, *> ?: return@mapNotNull null
             CarMessage(
+                kind = m["kind"] as? String ?: "",
                 from = m["from"] as? String ?: "",
                 text = m["text"] as? String ?: "",
                 time = (m["time"] as? Number)?.toLong() ?: 0L,
             )
         }
         notifyListeners()
+    }
+
+    private fun parseVfo(value: Any?): CarVfo {
+        val m = value as? Map<*, *> ?: return CarVfo(-1, "")
+        return CarVfo(
+            channelId = (m["channelId"] as? Number)?.toInt() ?: -1,
+            name = m["name"] as? String ?: "",
+        )
     }
 
     private fun notifyListeners() {

@@ -65,7 +65,7 @@
 
         <!-- Android Auto car UI entry point (templated). The IOT category lets
              the app appear on phone-projected Android Auto as a device control
-             app. See RadioCarAppService / RadioChannelsScreen. -->
+             app. See RadioCarAppService / RadioStatusScreen. -->
         <service
             android:name=".RadioCarAppService"
             android:exported="true">

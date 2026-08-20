@@ -25,5 +25,5 @@ class RadioSession : Session(), DefaultLifecycleObserver {
     }
 
     override fun onCreateScreen(intent: Intent): Screen =
-        RadioChannelsScreen(carContext)
+        RadioStatusScreen(carContext)
 }

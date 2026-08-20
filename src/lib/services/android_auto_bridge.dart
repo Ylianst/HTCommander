@@ -10,10 +10,8 @@ import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
-import '../aprs/aprs_events.dart';
-import '../aprs/message_data.dart';
-import '../aprs/packet_data_type.dart';
 import '../models/radio_models.dart';
+import '../winlink/winlink_mail.dart';
 import 'data_broker.dart';
 import 'data_broker_client.dart';
 
@@ -23,19 +21,23 @@ import 'data_broker_client.dart';
 /// cannot see the Dart isolate directly, so this class mirrors a small,
 /// car-safe slice of state over the `com.htcommander/android_auto`
 /// [MethodChannel]:
-///   - the channel list and currently selected channel of the preferred radio,
-///   - recent APRS messages addressed to our station.
+///   - the preferred radio's current region, VFO A / VFO B channels, scan and
+///     dual-watch state, plus the region and channel lists used by the pickers,
+///   - a merged list of recent messages addressed to our station (APRS and
+///     other on-air chat via the comms history, plus Winlink Inbox mail).
 ///
-/// State flows Dart -> native via `updateState`; channel-change requests flow
-/// native -> Dart via `setChannel`. Only active on Android; a no-op elsewhere.
+/// State flows Dart -> native via `updateState`. The car requests changes back
+/// via `setChannel` (VFO A/B), `setRegion`, `setScan` and `setDualWatch`. Only
+/// active on Android; a no-op elsewhere.
 class AndroidAutoBridge {
   static const MethodChannel _channel =
       MethodChannel('com.htcommander/android_auto');
 
-  /// Broker device id APRS events are published under (see [AprsHandler]).
-  static const int _aprsDeviceId = 1;
+  /// Broker device id the decoded-text history is published under (device 1,
+  /// see [CommsHandler]).
+  static const int _commsDeviceId = 1;
 
-  /// Maximum number of APRS messages mirrored to the car screen.
+  /// Maximum number of messages mirrored to the car screen.
   static const int _maxMessages = 25;
 
   final DataBrokerClient _broker = DataBrokerClient();
@@ -47,11 +49,19 @@ class AndroidAutoBridge {
   /// messages are only read aloud while this is true.
   bool _carConnected = false;
 
+  /// Last region index pushed to the car, used to suppress the continuous
+  /// (RSSI-carrying) `HtStatus` updates that don't change the region.
+  int _lastPushedRegion = -1000;
+
   /// Lazily created text-to-speech engine used to read incoming messages aloud
   /// through the car speaker. Null until the first message is spoken.
   FlutterTts? _tts;
 
-  final List<Map<String, Object?>> _messages = [];
+  /// On-air chat messages addressed to us, derived from the comms history.
+  List<Map<String, Object?>> _textMessages = const [];
+
+  /// Winlink Inbox mail addressed to us.
+  List<Map<String, Object?>> _mailMessages = const [];
 
   /// Initializes the bridge. Safe to call on every platform; only wires up the
   /// native channel and broker subscriptions on Android.
@@ -80,15 +90,64 @@ class AndroidAutoBridge {
       callback: _onRadioStateChanged,
     );
     _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'Info',
+      callback: _onRadioStateChanged,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'RegionNames',
+      callback: _onRadioStateChanged,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'HtStatus',
+      callback: _onHtStatusChanged,
+    );
+    _broker.subscribe(
       deviceId: 1,
       name: 'ConnectedRadios',
       callback: _onRadioStateChanged,
     );
     _broker.subscribe(
-      deviceId: _aprsDeviceId,
-      name: 'AprsFrame',
-      callback: _onAprsFrame,
+      deviceId: DataBroker.allDevices,
+      name: 'FriendlyName',
+      callback: _onRadioStateChanged,
     );
+
+    // On-air chat messages (APRS + other) directed to us, from the unified
+    // comms history. The full snapshot is re-dispatched after every new entry.
+    _broker.subscribe(
+      deviceId: _commsDeviceId,
+      name: 'DecodedTextHistory',
+      callback: _onDecodedTextHistory,
+    );
+    // Real-time single entry, used only to read a new message aloud.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'TextReady',
+      callback: _onTextReady,
+    );
+
+    // Winlink Inbox mail addressed to us.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MailsChanged',
+      callback: _onMailsChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MailStoreReady',
+      callback: _onMailsChanged,
+    );
+    _broker.subscribe(deviceId: 0, name: 'MailList', callback: _onMailList);
+
+    // The broker does not replay stored values to new subscribers, so seed the
+    // message list from what is already stored, then ask for the mail list.
+    final history =
+        _broker.getValueDynamic(_commsDeviceId, 'DecodedTextHistory');
+    if (history is List) _rebuildTextMessages(history);
+    _requestMailList();
 
     _pushState();
   }
@@ -110,12 +169,49 @@ class AndroidAutoBridge {
         if (!_carConnected) _tts?.stop();
         return null;
       case 'setChannel':
-        final channelId = call.arguments as int?;
-        if (channelId != null && _preferredRadioId > 0) {
+        final args = call.arguments;
+        if (args is Map && _preferredRadioId > 0) {
+          final channelId = (args['channelId'] as num?)?.toInt();
+          final vfo = args['vfo'] as String? ?? 'A';
+          if (channelId != null) {
+            _broker.dispatch(
+              deviceId: _preferredRadioId,
+              name: vfo == 'B' ? 'ChannelChangeVfoB' : 'ChannelChangeVfoA',
+              data: channelId,
+              store: false,
+            );
+          }
+        }
+        return null;
+      case 'setRegion':
+        final index = (call.arguments as num?)?.toInt();
+        if (index != null && _preferredRadioId > 0) {
           _broker.dispatch(
             deviceId: _preferredRadioId,
-            name: 'ChannelChangeVfoA',
-            data: channelId,
+            name: 'Region',
+            data: index,
+            store: false,
+          );
+        }
+        return null;
+      case 'setScan':
+        final scanOn = call.arguments as bool?;
+        if (scanOn != null && _preferredRadioId > 0) {
+          _broker.dispatch(
+            deviceId: _preferredRadioId,
+            name: 'Scan',
+            data: scanOn,
+            store: false,
+          );
+        }
+        return null;
+      case 'setDualWatch':
+        final dualOn = call.arguments as bool?;
+        if (dualOn != null && _preferredRadioId > 0) {
+          _broker.dispatch(
+            deviceId: _preferredRadioId,
+            name: 'DualWatch',
+            data: dualOn,
             store: false,
           );
         }
@@ -127,6 +223,7 @@ class AndroidAutoBridge {
 
   void _onPreferredRadioChanged(int deviceId, String name, Object? data) {
     if (data is int) _preferredRadioId = data;
+    _lastPushedRegion = -1000;
     _pushState();
   }
 
@@ -134,24 +231,110 @@ class AndroidAutoBridge {
     _pushState();
   }
 
-  void _onAprsFrame(int deviceId, String name, Object? data) {
-    if (data is! AprsFrameEventArgs) return;
-    final entry = _incomingMessageForUs(data);
-    if (entry == null) return;
-    _messages.insert(0, entry);
-    while (_messages.length > _maxMessages) {
-      _messages.removeLast();
-    }
+  /// `HtStatus` updates arrive continuously (RSSI etc.). Only push when the
+  /// current region actually changes so the car screen doesn't churn.
+  void _onHtStatusChanged(int deviceId, String name, Object? data) {
+    if (_preferredRadioId > 0 && deviceId != _preferredRadioId) return;
+    final region = _currRegion();
+    if (region == _lastPushedRegion) return;
+    _lastPushedRegion = region;
     _pushState();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Messages (on-air chat + Winlink mail) addressed to us
+  // ---------------------------------------------------------------------------
+
+  void _onDecodedTextHistory(int deviceId, String name, Object? data) {
+    if (data is! List) return;
+    _rebuildTextMessages(data);
+    _pushState();
+  }
+
+  /// Rebuilds [_textMessages] from a full decoded-text history snapshot, keeping
+  /// only received text messages directed to our station.
+  void _rebuildTextMessages(List<dynamic> history) {
+    final out = <Map<String, Object?>>[];
+    for (final item in history) {
+      if (item is! Map) continue;
+      final isReceived = item['isReceived'] as bool? ?? true;
+      if (!isReceived) continue;
+      final text = (item['text'] as String?)?.trim() ?? '';
+      if (text.isEmpty) continue;
+      if (!_isDirectedToUs(item['destination'] as String?)) continue;
+      final encoding = item['encoding'] as String? ?? '';
+      final time = item['time'];
+      out.add({
+        'kind': encoding == 'APRS' ? 'APRS' : 'Comm',
+        'from': (item['source'] as String?)?.trim() ?? '',
+        'text': text,
+        'time': time is int ? time : DateTime.now().millisecondsSinceEpoch,
+      });
+    }
+    _textMessages = out;
+  }
+
+  /// Reads a newly arrived directed message aloud (car only). The list itself
+  /// is built from [_onDecodedTextHistory]; this only handles the announcement.
+  void _onTextReady(int deviceId, String name, Object? data) {
+    if (data is! Map) return;
+    final completed = data['completed'];
+    if (completed is bool && !completed) return;
+    final isReceived = data['isReceived'] as bool? ?? true;
+    if (!isReceived) return;
+    final text = (data['text'] as String?)?.trim() ?? '';
+    if (text.isEmpty) return;
+    if (!_isDirectedToUs(data['destination'] as String?)) return;
     if (_carConnected) {
-      _speakMessage(
-        entry['from'] as String? ?? '',
-        entry['text'] as String? ?? '',
-      );
+      _speakMessage((data['source'] as String?)?.trim() ?? '', text);
     }
   }
 
-  /// Reads an incoming APRS message aloud through the car speaker. Announces the
+  void _onMailsChanged(int deviceId, String name, Object? data) {
+    _requestMailList();
+  }
+
+  void _requestMailList() {
+    if (!_active) return;
+    _broker.dispatch(deviceId: 0, name: 'MailGetAll', data: null, store: false);
+  }
+
+  void _onMailList(int deviceId, String name, Object? data) {
+    if (data is! List) return;
+    final out = <Map<String, Object?>>[];
+    for (final item in data) {
+      if (item is! WinLinkMail) continue;
+      if (item.mailbox != 'Inbox') continue;
+      final subject = item.subject?.trim() ?? '';
+      out.add({
+        'kind': 'Mail',
+        'from': item.from?.trim() ?? '',
+        'text': subject.isNotEmpty ? subject : '(no subject)',
+        'time': item.dateTime.millisecondsSinceEpoch,
+      });
+    }
+    _mailMessages = out;
+    _pushState();
+  }
+
+  /// Returns true when [destination] is addressed to our station. Mirrors the
+  /// "for us" filter used by [CommsHandler] for incoming-message notifications.
+  bool _isDirectedToUs(String? destination) {
+    final dest = destination?.trim() ?? '';
+    if (dest.isEmpty) return false;
+    final callsign = _broker.getValue<String>(0, 'CallSign', '') ?? '';
+    if (callsign.isEmpty) return false;
+    final stationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
+    final full = stationId == 0 ? callsign : '$callsign-$stationId';
+    final destLower = dest.toLowerCase();
+    final destBase = destLower.split('-').first;
+    final callBase = callsign.toLowerCase().split('-').first;
+    return destLower == full.toLowerCase() ||
+        destLower == callsign.toLowerCase() ||
+        destBase == callBase;
+  }
+
+  /// Reads an incoming message aloud through the car speaker. Announces the
   /// sender (when known) followed by the message text; queues rather than
   /// interrupts so back-to-back messages are all read.
   Future<void> _speakMessage(String from, String text) async {
@@ -175,48 +358,9 @@ class AndroidAutoBridge {
     return tts;
   }
 
-  /// Returns a `{from, text, time}` map when [args] is an APRS text message
-  /// addressed to our station, otherwise null. Mirrors the filter used by
-  /// [AprsHandler] to raise incoming-message notifications.
-  Map<String, Object?>? _incomingMessageForUs(AprsFrameEventArgs args) {
-    final aprs = args.aprsPacket;
-    if (aprs.dataType != PacketDataType.message) return null;
-    final msg = aprs.messageData;
-    if (msg.msgType == MessageType.mtAck) return null;
-    if (msg.msgType == MessageType.mtRej) return null;
-    if (msg.msgText.isEmpty) return null;
-
-    final addressee = msg.addressee;
-    if (addressee.isEmpty) return null;
-
-    final callsign = _broker.getValue<String>(0, 'CallSign', '') ?? '';
-    final localWithId = _localCallsignWithId();
-    final isForUs =
-        (localWithId != null &&
-            addressee.toLowerCase() == localWithId.toLowerCase()) ||
-        (callsign.isNotEmpty &&
-            addressee.toLowerCase() == callsign.toLowerCase());
-    if (!isForUs) return null;
-
-    final ax = args.ax25Packet;
-    String from = '';
-    if (ax.addresses.length >= 2) {
-      final addr = ax.addresses[1];
-      from = addr.ssid > 0 ? '${addr.address}-${addr.ssid}' : addr.address;
-    }
-    return {
-      'from': from,
-      'text': msg.msgText,
-      'time': DateTime.now().millisecondsSinceEpoch,
-    };
-  }
-
-  String? _localCallsignWithId() {
-    final callsign = _broker.getValue<String>(0, 'CallSign', '') ?? '';
-    if (callsign.isEmpty) return null;
-    final stationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
-    return stationId > 0 ? '$callsign-$stationId' : callsign;
-  }
+  // ---------------------------------------------------------------------------
+  // Preferred-radio state reads
+  // ---------------------------------------------------------------------------
 
   List<RadioChannelInfo> _channelsForPreferred() {
     if (_preferredRadioId <= 0) return const [];
@@ -228,18 +372,82 @@ class AndroidAutoBridge {
         const [];
   }
 
-  int _currentChannelId() {
-    if (_preferredRadioId <= 0) return -1;
-    final settings = _broker.getJsonValue<RadioSettings>(
+  RadioSettings? _settings() {
+    if (_preferredRadioId <= 0) return null;
+    return _broker.getJsonValue<RadioSettings>(
       _preferredRadioId,
       'Settings',
       (json) => RadioSettings.fromJson(json),
     );
-    return settings?.channelA ?? -1;
+  }
+
+  int _regionCount() {
+    if (_preferredRadioId <= 0) return 0;
+    final info = _broker.getValueDynamic(_preferredRadioId, 'Info');
+    if (info is RadioDevInfo) return info.regionCount;
+    if (info is Map) return (info['regionCount'] as int?) ?? 0;
+    return 0;
+  }
+
+  int _currRegion() {
+    if (_preferredRadioId <= 0) return 0;
+    final status = _broker.getValueDynamic(_preferredRadioId, 'HtStatus');
+    if (status is RadioHtStatus) return status.currRegion;
+    if (status is Map) return (status['currRegion'] as int?) ?? 0;
+    return 0;
+  }
+
+  List<String?> _regionNames() {
+    if (_preferredRadioId <= 0) return const [];
+    final names = _broker.getValueDynamic(_preferredRadioId, 'RegionNames');
+    if (names is List) {
+      return names.map((e) => e is String ? e : null).toList();
+    }
+    return const [];
+  }
+
+  List<Map<String, Object?>> _regions() {
+    final names = _regionNames();
+    final count = _regionCount();
+    final total = count > 0 ? count : names.length;
+    final out = <Map<String, Object?>>[];
+    for (var i = 0; i < total; i++) {
+      final n = i < names.length ? names[i] : null;
+      out.add({
+        'index': i,
+        'name': (n != null && n.isNotEmpty) ? n : 'Region ${i + 1}',
+      });
+    }
+    return out;
+  }
+
+  String _channelName(int id) {
+    if (id < 0) return '';
+    for (final c in _channelsForPreferred()) {
+      if (c.channelId == id) {
+        return c.name.isNotEmpty ? c.name : 'Channel ${id + 1}';
+      }
+    }
+    return 'Channel ${id + 1}';
+  }
+
+  String _regionName() {
+    final idx = _currRegion();
+    final names = _regionNames();
+    if (idx >= 0 && idx < names.length) {
+      final n = names[idx];
+      if (n != null && n.isNotEmpty) return n;
+    }
+    return 'Region ${idx + 1}';
   }
 
   String _radioName() {
     if (_preferredRadioId <= 0) return '';
+    // The per-device `FriendlyName` is the live source of truth (updated when
+    // the user renames the radio); fall back to the ConnectedRadios list.
+    final name =
+        _broker.getValue<String>(_preferredRadioId, 'FriendlyName', '') ?? '';
+    if (name.isNotEmpty) return name;
     final radios = _broker.getJsonListValue<ConnectedRadioInfo>(
       1,
       'ConnectedRadios',
@@ -252,15 +460,26 @@ class AndroidAutoBridge {
   }
 
   Map<String, Object?> _buildState() {
-    final channels = _channelsForPreferred();
+    final settings = _settings();
+    final vfoA = settings?.channelA ?? -1;
+    final vfoB = settings?.channelB ?? -1;
+    final merged = <Map<String, Object?>>[..._textMessages, ..._mailMessages]
+      ..sort((a, b) => (b['time'] as int).compareTo(a['time'] as int));
     return {
       'connected': _preferredRadioId > 0,
       'radioName': _radioName(),
-      'currentChannelId': _currentChannelId(),
+      'regionName': _regionName(),
+      'regionIndex': _currRegion(),
+      'regions': _regions(),
+      'vfoA': {'channelId': vfoA, 'name': _channelName(vfoA)},
+      'vfoB': {'channelId': vfoB, 'name': _channelName(vfoB)},
       'channels': [
-        for (final c in channels) {'id': c.channelId, 'name': c.name},
+        for (final c in _channelsForPreferred())
+          {'id': c.channelId, 'name': c.name},
       ],
-      'messages': List<Map<String, Object?>>.from(_messages),
+      'scan': settings?.scan ?? false,
+      'dualWatch': (settings?.doubleChannel ?? 0) != 0,
+      'messages': merged.take(_maxMessages).toList(),
     };
   }
 
