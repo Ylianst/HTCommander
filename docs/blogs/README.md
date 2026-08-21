@@ -156,6 +156,19 @@ Connecting HTCommander to the wider ecosystem of tools operators already run.
 
 ---
 
+## In the Car
+
+Keeping the useful parts of the radio close at hand without putting the full app
+on a dashboard.
+
+1. **[Your Radio on the Dashboard: Android Auto Support in HTCommander](android-auto-support.md)**
+   What phone-projected Android Auto is, how HTCommander connects to a paired
+   radio from the car, the VFO/channel, region, scan, and dual-watch controls,
+   recent APRS/on-air and Winlink messages, spoken incoming messages, and the
+   deliberate safety limits that keep the interface focused and read-only.
+
+---
+
 ## Troubleshooting & Support
 
 Getting good diagnostics out of the app when something goes wrong.
