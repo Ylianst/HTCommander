@@ -44,7 +44,7 @@ jobs:
           echo "build_number=$buildNumber" >> $env:GITHUB_OUTPUT
           echo "Version: $version, Build: $buildNumber"
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2.23.0
         with:
           channel: stable
 
@@ -289,7 +289,7 @@ jobs:
       # bootstrap downloads the correct arm64 Dart SDK and engine on first run.
       - name: Set up Flutter (x64)
         if: matrix.arch == 'x64'
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.23.0
         with:
           channel: stable
 
@@ -535,7 +535,7 @@ jobs:
           echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION, Build: $BUILD_NUMBER"
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2.23.0
         with:
           channel: stable
 
@@ -822,7 +822,7 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2.23.0
         with:
           channel: stable
 
@@ -881,7 +881,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2.23.0
         with:
           channel: stable
 
@@ -924,7 +924,7 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2.23.0
         with:
           channel: stable
 
@@ -994,7 +994,7 @@ jobs:
           cat dist/desktop_updater/app-archive.json
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: HTCommander ${{ github.ref_name }}
           generate_release_notes: true
