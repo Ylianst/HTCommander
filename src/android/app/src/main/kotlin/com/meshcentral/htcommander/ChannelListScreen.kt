@@ -61,6 +61,8 @@ class ChannelListScreen(
                 val row = Row.Builder().setTitle(name)
                 if (channel.id == currentId) {
                     row.addText("Current")
+                } else if (channel.frequency.isNotBlank()) {
+                    row.addText(channel.frequency)
                 }
                 row.setOnClickListener {
                     AndroidAutoBridge.requestChannel(channel.id, vfo)

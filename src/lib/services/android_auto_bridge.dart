@@ -527,14 +527,20 @@ class AndroidAutoBridge {
     return out;
   }
 
-  String _channelName(int id) {
-    if (id < 0) return '';
+  Map<String, Object?> _vfoState(int id) {
+    if (id < 0) {
+      return {'channelId': id, 'name': '', 'frequency': ''};
+    }
     for (final c in _channelsForPreferred()) {
       if (c.channelId == id) {
-        return c.name.isNotEmpty ? c.name : 'Channel ${id + 1}';
+        return {
+          'channelId': id,
+          'name': c.name,
+          'frequency': c.rxFreq > 0 ? '${c.frequencyDisplay} MHz' : '',
+        };
       }
     }
-    return 'Channel ${id + 1}';
+    return {'channelId': id, 'name': '', 'frequency': ''};
   }
 
   String _regionName() {
@@ -584,11 +590,15 @@ class AndroidAutoBridge {
       'regionName': _regionName(),
       'regionIndex': _currRegion(),
       'regions': _regions(),
-      'vfoA': {'channelId': vfoA, 'name': _channelName(vfoA)},
-      'vfoB': {'channelId': vfoB, 'name': _channelName(vfoB)},
+      'vfoA': _vfoState(vfoA),
+      'vfoB': _vfoState(vfoB),
       'channels': [
         for (final c in _channelsForPreferred())
-          {'id': c.channelId, 'name': c.name},
+          {
+            'id': c.channelId,
+            'name': c.name,
+            'frequency': c.rxFreq > 0 ? '${c.frequencyDisplay} MHz' : '',
+          },
       ],
       'scan': settings?.scan ?? false,
       'dualWatch': (settings?.doubleChannel ?? 0) != 0,

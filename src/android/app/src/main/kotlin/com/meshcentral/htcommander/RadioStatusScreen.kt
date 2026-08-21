@@ -103,10 +103,11 @@ class RadioStatusScreen(carContext: CarContext) :
         val listBuilder = ItemList.Builder()
 
         // VFO A
+        val vfoA = AndroidAutoBridge.vfoA
         listBuilder.addItem(
             Row.Builder()
-                .setTitle("VFO A")
-                .addText(AndroidAutoBridge.vfoA.name.ifBlank { "—" })
+                .setTitle(vfoA.title)
+                .apply { if (vfoA.subtitle.isNotEmpty()) addText(vfoA.subtitle) }
                 .setBrowsable(true)
                 .setOnClickListener {
                     screenManager.push(ChannelListScreen(carContext, "A"))
@@ -116,10 +117,11 @@ class RadioStatusScreen(carContext: CarContext) :
 
         if (AndroidAutoBridge.scan || AndroidAutoBridge.dualWatch) {
             // VFO B
+            val vfoB = AndroidAutoBridge.vfoB
             listBuilder.addItem(
                 Row.Builder()
-                    .setTitle("VFO B")
-                    .addText(AndroidAutoBridge.vfoB.name.ifBlank { "—" })
+                    .setTitle(vfoB.title)
+                    .apply { if (vfoB.subtitle.isNotEmpty()) addText(vfoB.subtitle) }
                     .setBrowsable(true)
                     .setOnClickListener {
                         screenManager.push(ChannelListScreen(carContext, "B"))
@@ -155,8 +157,8 @@ class RadioStatusScreen(carContext: CarContext) :
         // Region
         listBuilder.addItem(
             Row.Builder()
-                .setTitle("Region")
-                .addText(AndroidAutoBridge.regionName.ifBlank { "—" })
+                .setTitle(AndroidAutoBridge.regionName.ifBlank { "—" })
+                .addText("Region")
                 .setBrowsable(true)
                 .setOnClickListener {
                     screenManager.push(RegionListScreen(carContext))

@@ -32,10 +32,22 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
     @Volatile
     private var carConnected: Boolean = false
 
-    data class CarChannel(val id: Int, val name: String)
+    data class CarChannel(val id: Int, val name: String, val frequency: String)
     data class CarRadio(val id: String, val name: String)
     data class CarRegion(val index: Int, val name: String)
-    data class CarVfo(val channelId: Int, val name: String)
+    data class CarVfo(val channelId: Int, val name: String, val frequency: String) {
+        val title: String
+            get() = name.ifBlank { frequency.ifBlank { "—" } }
+
+        val subtitle: String
+            get() = if (name.isNotBlank()) {
+                frequency
+            } else if (channelId >= 0) {
+                "Channel ${channelId + 1}"
+            } else {
+                ""
+            }
+    }
     data class CarMessage(
         val kind: String,
         val from: String,
@@ -80,11 +92,11 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
         private set
 
     @Volatile
-    var vfoA: CarVfo = CarVfo(-1, "")
+    var vfoA: CarVfo = CarVfo(-1, "", "")
         private set
 
     @Volatile
-    var vfoB: CarVfo = CarVfo(-1, "")
+    var vfoB: CarVfo = CarVfo(-1, "", "")
         private set
 
     @Volatile
@@ -216,7 +228,7 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
         channels = (map["channels"] as? List<*>).orEmpty().mapNotNull { item ->
             val m = item as? Map<*, *> ?: return@mapNotNull null
             val id = (m["id"] as? Number)?.toInt() ?: return@mapNotNull null
-            CarChannel(id, m["name"] as? String ?: "")
+            CarChannel(id, m["name"] as? String ?: "", m["frequency"] as? String ?: "")
         }
         messages = (map["messages"] as? List<*>).orEmpty().mapNotNull { item ->
             val m = item as? Map<*, *> ?: return@mapNotNull null
@@ -231,10 +243,11 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
     }
 
     private fun parseVfo(value: Any?): CarVfo {
-        val m = value as? Map<*, *> ?: return CarVfo(-1, "")
+        val m = value as? Map<*, *> ?: return CarVfo(-1, "", "")
         return CarVfo(
             channelId = (m["channelId"] as? Number)?.toInt() ?: -1,
             name = m["name"] as? String ?: "",
+            frequency = m["frequency"] as? String ?: "",
         )
     }
 
