@@ -132,6 +132,30 @@
       "inverting": false,
       "status": "active",
       "infoUrl": "https://amsat-uk.org/tag/lapan-a2/"
+    },
+    {
+      "noradId": 67291,
+      "name": "QMR-KWT-2 (RS95S) FM Repeater",
+      "usage": "Repeater",
+      "uplinkHz": 145920000,
+      "downlinkHz": 436950000,
+      "mode": "FM",
+      "ctcssHz": 67.0,
+      "inverting": false,
+      "status": "active",
+      "infoUrl": "https://orbital-space.com/dashboard"
+    },
+    {
+      "noradId": 67291,
+      "name": "QMR-KWT-2 (RS95S) SSTV",
+      "usage": "SSTV",
+      "uplinkHz": null,
+      "downlinkHz": 436950000,
+      "mode": "FM",
+      "ctcssHz": null,
+      "inverting": false,
+      "status": "active",
+      "infoUrl": "https://orbital-space.com/dashboard"
     }
   ]
 }
