@@ -29,7 +29,11 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var methodChannel: MethodChannel? = null
 
+    @Volatile
+    private var carConnected: Boolean = false
+
     data class CarChannel(val id: Int, val name: String)
+    data class CarRadio(val id: String, val name: String)
     data class CarRegion(val index: Int, val name: String)
     data class CarVfo(val channelId: Int, val name: String)
     data class CarMessage(
@@ -41,6 +45,22 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
 
     @Volatile
     var connected: Boolean = false
+        private set
+
+    @Volatile
+    var scanningRadios: Boolean = false
+        private set
+
+    @Volatile
+    var connectingRadioId: String = ""
+        private set
+
+    @Volatile
+    var radioConnectionErrorId: String = ""
+        private set
+
+    @Volatile
+    var availableRadios: List<CarRadio> = emptyList()
         private set
 
     @Volatile
@@ -93,6 +113,7 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
         // Pull the current snapshot in case Dart pushed state before a car
         // screen (and therefore this channel) existed.
         mainHandler.post {
+            methodChannel?.invokeMethod("carConnected", carConnected)
             methodChannel?.invokeMethod("getState", null, object : MethodChannel.Result {
                 override fun success(result: Any?) {
                     @Suppress("UNCHECKED_CAST")
@@ -139,9 +160,22 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
         mainHandler.post { methodChannel?.invokeMethod("setDualWatch", on) }
     }
 
+    /** Requests a fresh enumeration of paired compatible radios. */
+    fun requestRadioRefresh() {
+        mainHandler.post { methodChannel?.invokeMethod("refreshRadios", null) }
+    }
+
+    /** Requests a connection to the paired radio identified by [id]. */
+    fun requestRadioConnection(id: String) {
+        mainHandler.post {
+            methodChannel?.invokeMethod("connectRadio", mapOf("id" to id))
+        }
+    }
+
     /** Notifies Dart whether a car (Android Auto) session is projecting, so it
      *  can decide whether to read incoming messages aloud. */
     fun setCarConnected(connected: Boolean) {
+        carConnected = connected
         mainHandler.post { methodChannel?.invokeMethod("carConnected", connected) }
     }
 
@@ -159,6 +193,14 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
 
     private fun applyState(map: Map<String, Any?>) {
         connected = map["connected"] as? Boolean ?: false
+        scanningRadios = map["scanningRadios"] as? Boolean ?: false
+        connectingRadioId = map["connectingRadioId"] as? String ?: ""
+        radioConnectionErrorId = map["radioConnectionErrorId"] as? String ?: ""
+        availableRadios = (map["availableRadios"] as? List<*>).orEmpty().mapNotNull { item ->
+            val m = item as? Map<*, *> ?: return@mapNotNull null
+            val id = m["id"] as? String ?: return@mapNotNull null
+            CarRadio(id, m["name"] as? String ?: "")
+        }
         radioName = map["radioName"] as? String ?: ""
         regionName = map["regionName"] as? String ?: ""
         regionIndex = (map["regionIndex"] as? Number)?.toInt() ?: -1

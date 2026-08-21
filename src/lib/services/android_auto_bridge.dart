@@ -4,6 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
@@ -11,7 +12,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 import '../models/radio_models.dart';
+import '../radio/radio_transport.dart';
 import '../winlink/winlink_mail.dart';
+import 'bluetooth_service.dart';
 import 'data_broker.dart';
 import 'data_broker_client.dart';
 
@@ -30,8 +33,9 @@ import 'data_broker_client.dart';
 /// via `setChannel` (VFO A/B), `setRegion`, `setScan` and `setDualWatch`. Only
 /// active on Android; a no-op elsewhere.
 class AndroidAutoBridge {
-  static const MethodChannel _channel =
-      MethodChannel('com.htcommander/android_auto');
+  static const MethodChannel _channel = MethodChannel(
+    'com.htcommander/android_auto',
+  );
 
   /// Broker device id the decoded-text history is published under (device 1,
   /// see [CommsHandler]).
@@ -41,9 +45,14 @@ class AndroidAutoBridge {
   static const int _maxMessages = 25;
 
   final DataBrokerClient _broker = DataBrokerClient();
+  final BluetoothService _bluetoothService = BluetoothService();
 
   bool _active = false;
   int _preferredRadioId = -1;
+  bool _scanningRadios = false;
+  String _connectingRadioId = '';
+  String _radioConnectionErrorId = '';
+  List<DiscoveredDevice> _availableRadios = const [];
 
   /// Whether a car (Android Auto) session is currently projecting. Incoming
   /// messages are only read aloud while this is true.
@@ -144,8 +153,10 @@ class AndroidAutoBridge {
 
     // The broker does not replay stored values to new subscribers, so seed the
     // message list from what is already stored, then ask for the mail list.
-    final history =
-        _broker.getValueDynamic(_commsDeviceId, 'DecodedTextHistory');
+    final history = _broker.getValueDynamic(
+      _commsDeviceId,
+      'DecodedTextHistory',
+    );
     if (history is List) _rebuildTextMessages(history);
     _requestMailList();
 
@@ -166,7 +177,21 @@ class AndroidAutoBridge {
         return _buildState();
       case 'carConnected':
         _carConnected = call.arguments as bool? ?? false;
-        if (!_carConnected) _tts?.stop();
+        if (_carConnected && _preferredRadioId <= 0) {
+          await _refreshAvailableRadios();
+        } else if (!_carConnected) {
+          _tts?.stop();
+        }
+        return null;
+      case 'refreshRadios':
+        await _refreshAvailableRadios();
+        return null;
+      case 'connectRadio':
+        final args = call.arguments;
+        if (args is Map) {
+          final radioId = args['id'] as String? ?? '';
+          await _connectRadio(radioId);
+        }
         return null;
       case 'setChannel':
         final args = call.arguments;
@@ -222,13 +247,93 @@ class AndroidAutoBridge {
   }
 
   void _onPreferredRadioChanged(int deviceId, String name, Object? data) {
+    final wasConnected = _preferredRadioId > 0;
     if (data is int) _preferredRadioId = data;
     _lastPushedRegion = -1000;
     _pushState();
+    if (wasConnected && _preferredRadioId <= 0 && _carConnected) {
+      unawaited(_refreshAvailableRadios());
+    }
   }
 
   void _onRadioStateChanged(int deviceId, String name, Object? data) {
     _pushState();
+  }
+
+  Future<void> _refreshAvailableRadios() async {
+    if (_scanningRadios || _connectingRadioId.isNotEmpty) return;
+    _scanningRadios = true;
+    _radioConnectionErrorId = '';
+    _pushState();
+    try {
+      final bluetoothAvailable = await BluetoothService.checkBluetooth();
+      if (!bluetoothAvailable) {
+        _availableRadios = const [];
+        return;
+      }
+      final radios = await _bluetoothService.findCompatibleDevices(
+        timeout: const Duration(seconds: 5),
+      );
+      _availableRadios = radios
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    } catch (error) {
+      debugPrint('AndroidAutoBridge: radio scan failed: $error');
+      _availableRadios = const [];
+    } finally {
+      _scanningRadios = false;
+      _pushState();
+    }
+  }
+
+  Future<void> _connectRadio(String radioId) async {
+    if (radioId.isEmpty || _connectingRadioId.isNotEmpty) return;
+    DiscoveredDevice? selected;
+    for (final radio in _availableRadios) {
+      if (radio.id.toUpperCase() == radioId.toUpperCase()) {
+        selected = radio;
+        break;
+      }
+    }
+    if (selected == null) return;
+
+    _connectingRadioId = selected.id;
+    _radioConnectionErrorId = '';
+    _pushState();
+    try {
+      final deviceId = await _bluetoothService.connectToRadio(
+        selected.id,
+        _friendlyName(selected),
+      );
+      if (deviceId == null) {
+        _radioConnectionErrorId = selected.id;
+        return;
+      }
+      _preferredRadioId = deviceId;
+      _broker.dispatch(
+        deviceId: 1,
+        name: 'SelectedRadioDeviceId',
+        data: deviceId,
+      );
+    } catch (error) {
+      debugPrint('AndroidAutoBridge: radio connection failed: $error');
+      _radioConnectionErrorId = selected.id;
+    } finally {
+      _connectingRadioId = '';
+      _pushState();
+    }
+  }
+
+  String _friendlyName(DiscoveredDevice radio) {
+    final customNames = DataBroker.getValue<Map<String, dynamic>>(
+      0,
+      'DeviceFriendlyName',
+    );
+    if (customNames == null) return radio.name;
+    final upperId = radio.id.toUpperCase();
+    final compactId = upperId.replaceAll(':', '').replaceAll('-', '');
+    return customNames[compactId] as String? ??
+        customNames[upperId] as String? ??
+        radio.name;
   }
 
   /// `HtStatus` updates arrive continuously (RSSI etc.). Only push when the
@@ -339,8 +444,9 @@ class AndroidAutoBridge {
   /// interrupts so back-to-back messages are all read.
   Future<void> _speakMessage(String from, String text) async {
     if (text.isEmpty) return;
-    final spoken =
-        from.isNotEmpty ? 'Message from $from. $text' : 'Message. $text';
+    final spoken = from.isNotEmpty
+        ? 'Message from $from. $text'
+        : 'Message. $text';
     try {
       final tts = await _ensureTts();
       await tts.speak(spoken);
@@ -467,6 +573,13 @@ class AndroidAutoBridge {
       ..sort((a, b) => (b['time'] as int).compareTo(a['time'] as int));
     return {
       'connected': _preferredRadioId > 0,
+      'scanningRadios': _scanningRadios,
+      'connectingRadioId': _connectingRadioId,
+      'radioConnectionErrorId': _radioConnectionErrorId,
+      'availableRadios': [
+        for (final radio in _availableRadios)
+          {'id': radio.id, 'name': _friendlyName(radio)},
+      ],
       'radioName': _radioName(),
       'regionName': _regionName(),
       'regionIndex': _currRegion(),

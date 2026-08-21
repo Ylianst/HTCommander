@@ -441,6 +441,31 @@ class AprsHandler {
       store: false,
     );
 
+    final messageData = aprsPacket.messageData;
+    if (aprsPacket.dataType == PacketDataType.message &&
+        messageData.msgType != MessageType.mtAck &&
+        messageData.msgType != MessageType.mtRej &&
+        messageData.msgText.isNotEmpty) {
+      final source = ax25Packet.addresses.length >= 2
+          ? ax25Packet.addresses[1].callSignWithId
+          : '';
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: 'AprsMessageReceived',
+        data: <String, Object?>{
+          'text': messageData.msgText,
+          'channel': frame.channelName,
+          'time': frame.time.millisecondsSinceEpoch,
+          'source': source,
+          'destination': messageData.addressee,
+          'latitude': aprsPacket.position.coordinateSet.latitude.value,
+          'longitude': aprsPacket.position.coordinateSet.longitude.value,
+          'suppressNotification': true,
+        },
+        store: false,
+      );
+    }
+
     _sendAckIfNeeded(aprsPacket, ax25Packet, frame, deviceId);
     _notifyIncomingAprsMessage(aprsPacket, ax25Packet);
   }

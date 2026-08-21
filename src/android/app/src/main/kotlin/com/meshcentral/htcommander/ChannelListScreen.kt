@@ -17,7 +17,11 @@ import androidx.lifecycle.LifecycleOwner
  * channels and assigns the tapped one to that VFO. The channel currently on the
  * VFO is marked. Mirrors [AndroidAutoBridge] state.
  */
-class ChannelListScreen(carContext: CarContext, private val vfo: String) :
+class ChannelListScreen(
+    carContext: CarContext,
+    private val vfo: String,
+    private val pageIndex: Int = 0,
+) :
     Screen(carContext), DefaultLifecycleObserver {
 
     private val stateListener: () -> Unit = { invalidate() }
@@ -36,7 +40,7 @@ class ChannelListScreen(carContext: CarContext, private val vfo: String) :
 
     override fun onGetTemplate(): Template {
         val listBuilder = ItemList.Builder()
-        val channels = AndroidAutoBridge.channels
+        val channels = AndroidAutoBridge.channels.filter { it.name.isNotBlank() }
         val currentId = if (vfo == "B") {
             AndroidAutoBridge.vfoB.channelId
         } else {
@@ -48,8 +52,12 @@ class ChannelListScreen(carContext: CarContext, private val vfo: String) :
         } else {
             val limit = carContext.getCarService(ConstraintManager::class.java)
                 .getContentLimit(ConstraintManager.CONTENT_LIMIT_TYPE_LIST)
-            for (channel in channels.take(limit)) {
-                val name = channel.name.ifBlank { "Channel ${channel.id + 1}" }
+            val pageSize = if (channels.size > limit && limit > 1) limit - 1 else limit
+            val pageStart = (pageIndex * pageSize).coerceAtMost(channels.lastIndex)
+            val pageEnd = (pageStart + pageSize).coerceAtMost(channels.size)
+
+            for (channel in channels.subList(pageStart, pageEnd)) {
+                val name = channel.name
                 val row = Row.Builder().setTitle(name)
                 if (channel.id == currentId) {
                     row.addText("Current")
@@ -61,9 +69,24 @@ class ChannelListScreen(carContext: CarContext, private val vfo: String) :
                         "VFO $vfo → $name",
                         CarToast.LENGTH_SHORT,
                     ).show()
-                    screenManager.pop()
+                    screenManager.popToRoot()
                 }
                 listBuilder.addItem(row.build())
+            }
+
+            if (pageEnd < channels.size) {
+                listBuilder.addItem(
+                    Row.Builder()
+                        .setTitle("Next channels")
+                        .addText("${pageEnd + 1}–${channels.size}")
+                        .setBrowsable(true)
+                        .setOnClickListener {
+                            screenManager.push(
+                                ChannelListScreen(carContext, vfo, pageIndex + 1),
+                            )
+                        }
+                        .build(),
+                )
             }
         }
 

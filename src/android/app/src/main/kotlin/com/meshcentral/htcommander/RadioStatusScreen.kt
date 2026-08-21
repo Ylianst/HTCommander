@@ -2,6 +2,7 @@ package com.meshcentral.htcommander
 
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
+import androidx.car.app.constraints.ConstraintManager
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.ItemList
@@ -44,29 +45,62 @@ class RadioStatusScreen(carContext: CarContext) :
         val title = AndroidAutoBridge.radioName.ifBlank { "HTCommander" }
 
         if (!AndroidAutoBridge.connected) {
-            val empty = ItemList.Builder()
-                .setNoItemsMessage("Open HTCommander and connect a radio")
+            val listBuilder = ItemList.Builder()
+            val radios = AndroidAutoBridge.availableRadios
+            if (radios.isEmpty()) {
+                listBuilder.setNoItemsMessage(
+                    if (AndroidAutoBridge.scanningRadios) {
+                        "Looking for paired radios…"
+                    } else {
+                        "No paired radios found. Open HTCommander to check Bluetooth access."
+                    },
+                )
+            } else {
+                val limit = carContext.getCarService(ConstraintManager::class.java)
+                    .getContentLimit(ConstraintManager.CONTENT_LIMIT_TYPE_LIST)
+                val pageSize = if (radios.size > limit && limit > 1) limit - 1 else limit
+                for (radio in radios.take(pageSize)) {
+                    val connecting = radio.id == AndroidAutoBridge.connectingRadioId
+                    val failed = radio.id == AndroidAutoBridge.radioConnectionErrorId
+                    val row = Row.Builder()
+                        .setTitle(radio.name.ifBlank { radio.id })
+                    when {
+                        connecting -> row.addText("Connecting…")
+                        failed -> row.addText("Connection failed. Tap to retry.")
+                        radio.name.isNotBlank() -> row.addText(radio.id)
+                    }
+                    if (AndroidAutoBridge.connectingRadioId.isEmpty()) {
+                        row.setOnClickListener {
+                            AndroidAutoBridge.requestRadioConnection(radio.id)
+                        }
+                    }
+                    listBuilder.addItem(row.build())
+                }
+                if (pageSize < radios.size) {
+                    listBuilder.addItem(
+                        Row.Builder()
+                            .setTitle("More radios")
+                            .setBrowsable(true)
+                            .setOnClickListener {
+                                screenManager.push(RadioPickerScreen(carContext, pageSize))
+                            }
+                            .build(),
+                    )
+                }
+            }
+            val refreshAction = Action.Builder()
+                .setTitle("Refresh")
+                .setOnClickListener { AndroidAutoBridge.requestRadioRefresh() }
                 .build()
             return ListTemplate.Builder()
                 .setTitle(title)
                 .setHeaderAction(Action.APP_ICON)
-                .setSingleList(empty)
+                .setActionStrip(ActionStrip.Builder().addAction(refreshAction).build())
+                .setSingleList(listBuilder.build())
                 .build()
         }
 
         val listBuilder = ItemList.Builder()
-
-        // Region
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("Region")
-                .addText(AndroidAutoBridge.regionName.ifBlank { "—" })
-                .setBrowsable(true)
-                .setOnClickListener {
-                    screenManager.push(RegionListScreen(carContext))
-                }
-                .build(),
-        )
 
         // VFO A
         listBuilder.addItem(
@@ -80,17 +114,19 @@ class RadioStatusScreen(carContext: CarContext) :
                 .build(),
         )
 
-        // VFO B
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("VFO B")
-                .addText(AndroidAutoBridge.vfoB.name.ifBlank { "—" })
-                .setBrowsable(true)
-                .setOnClickListener {
-                    screenManager.push(ChannelListScreen(carContext, "B"))
-                }
-                .build(),
-        )
+        if (AndroidAutoBridge.scan || AndroidAutoBridge.dualWatch) {
+            // VFO B
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle("VFO B")
+                    .addText(AndroidAutoBridge.vfoB.name.ifBlank { "—" })
+                    .setBrowsable(true)
+                    .setOnClickListener {
+                        screenManager.push(ChannelListScreen(carContext, "B"))
+                    }
+                    .build(),
+            )
+        }
 
         // Scan (toggle)
         listBuilder.addItem(
@@ -113,6 +149,18 @@ class RadioStatusScreen(carContext: CarContext) :
                         .setChecked(AndroidAutoBridge.dualWatch)
                         .build(),
                 )
+                .build(),
+        )
+
+        // Region
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("Region")
+                .addText(AndroidAutoBridge.regionName.ifBlank { "—" })
+                .setBrowsable(true)
+                .setOnClickListener {
+                    screenManager.push(RegionListScreen(carContext))
+                }
                 .build(),
         )
 

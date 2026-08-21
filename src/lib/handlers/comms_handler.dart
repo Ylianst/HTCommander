@@ -184,7 +184,8 @@ class DecodedTextEntry {
   Sarsat1gDetails? sarsat;
 
   /// Structured decoded fields for DFM radiosonde entries (null otherwise).
-  RadiosondeDetails? radiosonde;  DecodedTextEntry({
+  RadiosondeDetails? radiosonde;
+  DecodedTextEntry({
     this.text,
     this.channel,
     DateTime? time,
@@ -468,6 +469,11 @@ class CommsHandler {
       deviceId: DataBroker.allDevices,
       name: 'UniqueDataFrame',
       callback: _onUniqueDataFrame,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AprsMessageReceived',
+      callback: _onAprsMessageReceived,
     );
 
     // Outgoing chat (BSS) messages from the voice panel across all devices.
@@ -1312,9 +1318,7 @@ class CommsHandler {
       final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
       final channelName =
           (data['channelName'] ?? data['ChannelName']) as String? ?? '';
-      if (usage == null &&
-          !transmit &&
-          channelName.toLowerCase() == 'sarsat') {
+      if (usage == null && !transmit && channelName.toLowerCase() == 'sarsat') {
         if (_sarsatDeviceId <= 0) _sarsatDeviceId = deviceId;
         if (deviceId == _sarsatDeviceId) {
           _sarsatEmitDeviceId = deviceId;
@@ -1763,8 +1767,9 @@ class CommsHandler {
   /// never its original time).
   void _onRadiosondeDecoded(RadiosondeFix f) {
     if (_disposed) return;
-    final deviceId =
-        _radiosondeEmitDeviceId > 0 ? _radiosondeEmitDeviceId : _targetDeviceId;
+    final deviceId = _radiosondeEmitDeviceId > 0
+        ? _radiosondeEmitDeviceId
+        : _targetDeviceId;
     if (deviceId <= 0) return;
     final now = DateTime.now();
     final channel = _getVfoAChannelName(deviceId);
@@ -1865,8 +1870,9 @@ class CommsHandler {
   /// but never its original time).
   void _onSarsatDecoded(Sarsat1gFrame f) {
     if (_disposed) return;
-    final deviceId =
-        _sarsatEmitDeviceId > 0 ? _sarsatEmitDeviceId : _targetDeviceId;
+    final deviceId = _sarsatEmitDeviceId > 0
+        ? _sarsatEmitDeviceId
+        : _targetDeviceId;
     if (deviceId <= 0) return;
     final now = DateTime.now();
     final countryName = sarsatCountryName(f.countryCode);
@@ -1907,7 +1913,9 @@ class CommsHandler {
     );
     final parts = <String>[
       'ID: ${f.hexId}',
-      countryName != null ? '$countryName (${f.countryCode})' : '${f.countryCode}',
+      countryName != null
+          ? '$countryName (${f.countryCode})'
+          : '${f.countryCode}',
       f.protocolName,
     ];
     if (f.isTest) parts.add('Self-test');
@@ -2474,6 +2482,27 @@ class CommsHandler {
   // Received data-packet decoding (UniqueDataFrame)
   // ---------------------------------------------------------------------------
 
+  void _onAprsMessageReceived(int deviceId, String name, Object? data) {
+    if (_disposed || data is! Map) return;
+    final text = data['text'] as String? ?? '';
+    if (text.isEmpty) return;
+    final rawTime = data['time'];
+    _addDataPacketEntry(
+      deviceId: deviceId,
+      text: text,
+      channel: data['channel'] as String? ?? 'APRS',
+      time: rawTime is int
+          ? DateTime.fromMillisecondsSinceEpoch(rawTime)
+          : DateTime.now(),
+      encoding: VoiceTextEncodingType.aprs,
+      source: data['source'] as String?,
+      destination: data['destination'] as String?,
+      latitude: asDouble(data['latitude']),
+      longitude: asDouble(data['longitude']),
+      notify: (data['suppressNotification'] as bool?) != true,
+    );
+  }
+
   /// Handles incoming UniqueDataFrame events and processes unassigned data
   /// packets that did NOT arrive on the APRS channel. Mirrors the C#
   /// `OnUniqueDataFrame`: decodes BSS / Ident / APRS / AX.25 packets and adds
@@ -2622,6 +2651,7 @@ class CommsHandler {
     int? wpm,
     String? keyType,
     Sarsat1gDetails? sarsat,
+    bool notify = true,
   }) {
     final entry = DecodedTextEntry(
       text: text,
@@ -2642,12 +2672,14 @@ class CommsHandler {
     unawaited(_saveVoiceTextHistory());
     _dispatchDecodedTextHistory();
 
-    _notifyIncomingChatMessage(
-      isReceived: isReceived,
-      text: text,
-      source: source,
-      destination: destination,
-    );
+    if (notify) {
+      _notifyIncomingChatMessage(
+        isReceived: isReceived,
+        text: text,
+        source: source,
+        destination: destination,
+      );
+    }
 
     // Dispatch a TextReady event for the radio device. Unlike
     // _dispatchTextReady (which targets the enabled voice device), data
@@ -2702,7 +2734,8 @@ class CommsHandler {
     final destLower = dest.toLowerCase();
     final destBase = destLower.split('-').first;
     final callBase = callsign.toLowerCase().split('-').first;
-    final isForUs = destLower == fullCallsign.toLowerCase() ||
+    final isForUs =
+        destLower == fullCallsign.toLowerCase() ||
         destLower == callsign.toLowerCase() ||
         destBase == callBase;
     if (!isForUs) return;
@@ -2920,10 +2953,12 @@ class CommsHandler {
       );
 
       // Generate morse code PCM (8-bit unsigned, 32 kHz).
-      final int wpm =
-          (_broker.getValue<int>(0, 'MorseSpeedWpm', 15) ?? 15).clamp(5, 40);
-      final morsePcm8bit =
-          MorseCodeEngine.generateMorsePcm(textToMorse, wpm: wpm);
+      final int wpm = (_broker.getValue<int>(0, 'MorseSpeedWpm', 15) ?? 15)
+          .clamp(5, 40);
+      final morsePcm8bit = MorseCodeEngine.generateMorsePcm(
+        textToMorse,
+        wpm: wpm,
+      );
       if (morsePcm8bit.isEmpty) {
         _broker.logError('[CommsHandler] Failed to generate morse code PCM');
         return;

@@ -36,6 +36,8 @@ import 'dart:math' as math;
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../aprs/aprs_util.dart';
+import '../aprs/message_data.dart';
+import '../aprs/packet_data_type.dart';
 import '../gps/gps_data.dart';
 import '../models/radio_models.dart';
 import '../radio/ax25_address.dart';
@@ -68,6 +70,7 @@ class AprsIsManager {
   /// Reconnect backoff bounds.
   static const Duration _minRetry = Duration(seconds: 5);
   static const Duration _maxRetry = Duration(minutes: 2);
+
   /// Maximum number of internet packets kept in memory for late-loading tabs,
   /// mirroring the on-disk history cap.
   static const int _maxHistoryInMemory = 1000;
@@ -77,6 +80,7 @@ class AprsIsManager {
   bool _initialized = false;
   bool _opened = false;
   bool _reconciling = false;
+
   /// The connection parameters (callsign, server, port) of the currently open
   /// session. Used to avoid tearing down and re-establishing an identical
   /// connection when settings are re-dispatched without any relevant change.
@@ -145,20 +149,12 @@ class AprsIsManager {
       name: 'Position',
       callback: _onRadioPosition,
     );
-    _broker.subscribe(
-      deviceId: 1,
-      name: 'GpsData',
-      callback: _onSerialGps,
-    );
+    _broker.subscribe(deviceId: 1, name: 'GpsData', callback: _onSerialGps);
 
     // RF frames (from the AprsHandler on device 1) feed the heard list and the
     // RF -> internet up-gate. Internet frames we re-dispatch here carry
     // `fromAprsIs` and are ignored by the gating logic.
-    _broker.subscribe(
-      deviceId: 1,
-      name: 'AprsFrame',
-      callback: _onAprsFrame,
-    );
+    _broker.subscribe(deviceId: 1, name: 'AprsFrame', callback: _onAprsFrame);
 
     // Serve persisted internet history to the APRS / Map tabs on request.
     _broker.subscribe(
@@ -299,17 +295,18 @@ class AprsIsManager {
     final passcode = AprsUtil.aprsValidationCode(callsign);
     final gen = ++_generation;
 
-    final client = AprsIsClient(
-      callsign: callsign,
-      passcode: passcode,
-      softwareName: _softwareName,
-      softwareVersion: _appVersion.isEmpty ? '0' : _appVersion,
-      filter: _readFilter(),
-      network: DartIoAprsIsNetwork(),
-    )
-      ..onPacketLine = _onServerPacketLine
-      ..onLogin = _onLogin
-      ..onDiagnostic = _broker.logInfo;
+    final client =
+        AprsIsClient(
+            callsign: callsign,
+            passcode: passcode,
+            softwareName: _softwareName,
+            softwareVersion: _appVersion.isEmpty ? '0' : _appVersion,
+            filter: _readFilter(),
+            network: DartIoAprsIsNetwork(),
+          )
+          ..onPacketLine = _onServerPacketLine
+          ..onLogin = _onLogin
+          ..onDiagnostic = _broker.logInfo;
 
     _client = client;
     _publishState('Connecting');
@@ -426,6 +423,30 @@ class AprsIsManager {
       data: AprsFrameEventArgs(aprs, ax25, null),
       store: false,
     );
+
+    final messageData = aprs.messageData;
+    if (aprs.dataType == PacketDataType.message &&
+        messageData.msgType != MessageType.mtAck &&
+        messageData.msgType != MessageType.mtRej &&
+        messageData.msgText.isNotEmpty) {
+      final source = ax25.addresses.length >= 2
+          ? ax25.addresses[1].callSignWithId
+          : '';
+      _broker.dispatch(
+        deviceId: 1,
+        name: 'AprsMessageReceived',
+        data: <String, Object?>{
+          'text': messageData.msgText,
+          'channel': 'APRS-IS',
+          'time': ax25.time.millisecondsSinceEpoch,
+          'source': source,
+          'destination': messageData.addressee,
+          'latitude': aprs.position.coordinateSet.latitude.value,
+          'longitude': aprs.position.coordinateSet.longitude.value,
+        },
+        store: false,
+      );
+    }
 
     _maybeGateToRf(aprs);
   }
