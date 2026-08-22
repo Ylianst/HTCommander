@@ -60,6 +60,10 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
         private set
 
     @Volatile
+    var powerOn: Boolean = true
+        private set
+
+    @Volatile
     var scanningRadios: Boolean = false
         private set
 
@@ -184,6 +188,16 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
         }
     }
 
+    /** Requests the connected radio power on ([on] true) or off ([on] false). */
+    fun requestRadioPower(on: Boolean) {
+        mainHandler.post { methodChannel?.invokeMethod("setRadioPower", on) }
+    }
+
+    /** Requests disconnecting from the currently connected radio. */
+    fun requestDisconnect() {
+        mainHandler.post { methodChannel?.invokeMethod("disconnectRadio", null) }
+    }
+
     /** Notifies Dart whether a car (Android Auto) session is projecting, so it
      *  can decide whether to read incoming messages aloud. */
     fun setCarConnected(connected: Boolean) {
@@ -205,6 +219,7 @@ object AndroidAutoBridge : MethodChannel.MethodCallHandler {
 
     private fun applyState(map: Map<String, Any?>) {
         connected = map["connected"] as? Boolean ?: false
+        powerOn = map["powerOn"] as? Boolean ?: true
         scanningRadios = map["scanningRadios"] as? Boolean ?: false
         connectingRadioId = map["connectingRadioId"] as? String ?: ""
         radioConnectionErrorId = map["radioConnectionErrorId"] as? String ?: ""

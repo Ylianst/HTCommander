@@ -62,6 +62,10 @@ class AndroidAutoBridge {
   /// (RSSI-carrying) `HtStatus` updates that don't change the region.
   int _lastPushedRegion = -1000;
 
+  /// Last power-on state pushed to the car, so a change in the radio's power
+  /// state also refreshes the (otherwise region-gated) `HtStatus` updates.
+  bool? _lastPushedPowerOn;
+
   /// Lazily created text-to-speech engine used to read incoming messages aloud
   /// through the car speaker. Null until the first message is spoken.
   FlutterTts? _tts;
@@ -193,6 +197,22 @@ class AndroidAutoBridge {
           await _connectRadio(radioId);
         }
         return null;
+      case 'setRadioPower':
+        final on = call.arguments as bool?;
+        if (on != null && _preferredRadioId > 0) {
+          _broker.dispatch(
+            deviceId: _preferredRadioId,
+            name: 'SetRadioPower',
+            data: on,
+            store: false,
+          );
+        }
+        return null;
+      case 'disconnectRadio':
+        if (_preferredRadioId > 0) {
+          await _bluetoothService.disconnectRadio(_preferredRadioId);
+        }
+        return null;
       case 'setChannel':
         final args = call.arguments;
         if (args is Map && _preferredRadioId > 0) {
@@ -250,6 +270,7 @@ class AndroidAutoBridge {
     final wasConnected = _preferredRadioId > 0;
     if (data is int) _preferredRadioId = data;
     _lastPushedRegion = -1000;
+    _lastPushedPowerOn = null;
     _pushState();
     if (wasConnected && _preferredRadioId <= 0 && _carConnected) {
       unawaited(_refreshAvailableRadios());
@@ -341,8 +362,10 @@ class AndroidAutoBridge {
   void _onHtStatusChanged(int deviceId, String name, Object? data) {
     if (_preferredRadioId > 0 && deviceId != _preferredRadioId) return;
     final region = _currRegion();
-    if (region == _lastPushedRegion) return;
+    final powerOn = _isPoweredOn();
+    if (region == _lastPushedRegion && powerOn == _lastPushedPowerOn) return;
     _lastPushedRegion = region;
+    _lastPushedPowerOn = powerOn;
     _pushState();
   }
 
@@ -503,6 +526,17 @@ class AndroidAutoBridge {
     return 0;
   }
 
+  /// Whether the preferred radio reports it is powered on. Assumes on until the
+  /// radio's first `HtStatus` says otherwise, so a freshly connected radio is
+  /// not briefly shown as off.
+  bool _isPoweredOn() {
+    if (_preferredRadioId <= 0) return false;
+    final status = _broker.getValueDynamic(_preferredRadioId, 'HtStatus');
+    if (status is RadioHtStatus) return status.isPowerOn;
+    if (status is Map) return status['isPowerOn'] as bool? ?? true;
+    return true;
+  }
+
   List<String?> _regionNames() {
     if (_preferredRadioId <= 0) return const [];
     final names = _broker.getValueDynamic(_preferredRadioId, 'RegionNames');
@@ -579,6 +613,7 @@ class AndroidAutoBridge {
       ..sort((a, b) => (b['time'] as int).compareTo(a['time'] as int));
     return {
       'connected': _preferredRadioId > 0,
+      'powerOn': _isPoweredOn(),
       'scanningRadios': _scanningRadios,
       'connectingRadioId': _connectingRadioId,
       'radioConnectionErrorId': _radioConnectionErrorId,

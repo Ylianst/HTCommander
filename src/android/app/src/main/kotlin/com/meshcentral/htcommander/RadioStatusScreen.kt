@@ -100,6 +100,32 @@ class RadioStatusScreen(carContext: CarContext) :
                 .build()
         }
 
+        // Connected but the radio is powered off: offer only Power on and
+        // Disconnect until the user turns it back on.
+        if (!AndroidAutoBridge.powerOn) {
+            val offList = ItemList.Builder()
+                .addItem(
+                    Row.Builder()
+                        .setTitle("Power on")
+                        .addText("Turn the radio on")
+                        .setOnClickListener { AndroidAutoBridge.requestRadioPower(true) }
+                        .build(),
+                )
+                .addItem(
+                    Row.Builder()
+                        .setTitle("Disconnect")
+                        .addText("Disconnect from this radio")
+                        .setOnClickListener { AndroidAutoBridge.requestDisconnect() }
+                        .build(),
+                )
+                .build()
+            return ListTemplate.Builder()
+                .setTitle(title)
+                .setHeaderAction(Action.APP_ICON)
+                .setSingleList(offList)
+                .build()
+        }
+
         val listBuilder = ItemList.Builder()
 
         // VFO A
@@ -162,6 +188,17 @@ class RadioStatusScreen(carContext: CarContext) :
                 .setBrowsable(true)
                 .setOnClickListener {
                     screenManager.push(RegionListScreen(carContext))
+                }
+                .build(),
+        )
+
+        // Extra options (Power off / Disconnect).
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("Radio options")
+                .setBrowsable(true)
+                .setOnClickListener {
+                    screenManager.push(RadioOptionsScreen(carContext))
                 }
                 .build(),
         )
