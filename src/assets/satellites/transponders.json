@@ -30,7 +30,7 @@
       "name": "ISS SSTV",
       "usage": "SSTV",
       "uplinkHz": null,
-      "downlinkHz": 145800000,
+      "downlinkHz": 437550000,
       "mode": "FM",
       "ctcssHz": null,
       "inverting": false,

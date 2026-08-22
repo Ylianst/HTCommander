@@ -58,6 +58,25 @@ class TransponderRepository {
     return false;
   }
 
+  /// Index of the radio FM band (2 m vs 70 cm) containing [hz], or null.
+  static int? _bandIndex(int? hz) {
+    if (hz == null) return null;
+    for (var i = 0; i < _radioFmRangesHz.length; i++) {
+      final range = _radioFmRangesHz[i];
+      if (hz >= range[0] && hz <= range[1]) return i;
+    }
+    return null;
+  }
+
+  /// True when up- and downlink fall in different radio FM bands — the mark of
+  /// a real cross-band repeater rather than a same-band split (e.g. a voice or
+  /// packet channel that shares the 2 m band).
+  static bool _isCrossBand(SatelliteTransponder t) {
+    final up = _bandIndex(t.uplinkHz);
+    final down = _bandIndex(t.downlinkHz);
+    return up != null && down != null && up != down;
+  }
+
   /// Reads the cached catalog (or seed asset) into memory. Never throws.
   Future<void> load() async {
     await _resolveCacheFile();
@@ -118,9 +137,16 @@ class TransponderRepository {
         if (!isRadioTunable(t.uplinkHz) || !isRadioTunable(t.downlinkHz)) {
           continue;
         }
-        // Keep the first workable FM transponder per satellite. Carry over a
-        // CTCSS tone from the seed/previous catalog, which SatNOGS omits.
-        if (repeaters.containsKey(t.noradId)) continue;
+        // Prefer a true cross-band repeater; only upgrade a same-band pick to a
+        // cross-band one, never the reverse. Otherwise a same-band split (e.g.
+        // the ISS crew-voice 144.49/145.80 channel) can be picked first and,
+        // labeled 'Repeater', override the curated cross-band repeater.
+        final existing = repeaters[t.noradId];
+        if (existing != null && (_isCrossBand(existing) || !_isCrossBand(t))) {
+          continue;
+        }
+        // Carry over a CTCSS tone from the seed/previous catalog, which SatNOGS
+        // omits.
         repeaters[t.noradId] = _withCarriedTone(t);
       }
 
@@ -171,9 +197,13 @@ class TransponderRepository {
   }
 
   /// Overlays the bundled seed onto [target]: adds curated birds the catalog
-  /// lacks and appends any curated usage not already listed for a bird it has.
-  /// Existing (online) usages win, so this only fills gaps; idempotent, so it
-  /// is safe to call on both the cached catalog and a fresh online one.
+  /// lacks, appends any curated usage not already listed for a bird it has, and
+  /// corrects a usage the online/cached catalog already carries. The seed is
+  /// hand-verified, so for a usage it curates its frequencies, tone and mode
+  /// win — otherwise a same-band SatNOGS entry mislabeled 'Repeater' (e.g. the
+  /// ISS crew-voice split) would keep overriding the curated cross-band
+  /// repeater in the cache. Idempotent, so it is safe to call on both the
+  /// cached catalog and a fresh online one.
   void _mergeSeed(
     Map<int, List<SatelliteTransponder>> target,
     String seedText,
@@ -191,10 +221,14 @@ class TransponderRepository {
         );
         if (index < 0) {
           existing.add(usage);
-        } else if (existing[index].infoUrl == null && usage.infoUrl != null) {
-          // Online usage wins, but adopt the curated helpful link it lacks.
-          existing[index] = existing[index].copyWith(infoUrl: usage.infoUrl);
+          continue;
         }
+        // Curated seed wins; keep an online helpful link only if the seed
+        // lacks one (SatNOGS entries carry no infoUrl today, so this is rare).
+        existing[index] =
+            usage.infoUrl == null && existing[index].infoUrl != null
+                ? usage.copyWith(infoUrl: existing[index].infoUrl)
+                : usage;
       }
     });
   }
