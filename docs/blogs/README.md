@@ -130,6 +130,22 @@ would have thrown away.
 
 ---
 
+## Audio Input
+
+Decoding data off any sound-card input — turning ordinary audio into another
+receiver.
+
+1. **[Any Audio In Is a Radio: Audio Receive Devices in HTCommander](audio-receive-devices.md)**
+   How HTCommander turns any computer audio input — a legacy radio on a cable, a
+   scanner, an SDR, or a clean audio tap on a radio you already control — into a
+   receive-only data decoder: picking an input port, choosing APRS or Comms and a
+   modem (AFSK 1200 / PSK 2400 / DART), naming an unpaired device so it becomes a
+   Comms channel, the one-port-per-device rule, optionally pairing to a connected
+   radio for attribution and connected-only listening, and the shared 3-second
+   deduplicator that merges it with the radio's own decode without doubles.
+
+---
+
 ## Messaging & Security
 
 Trusting what comes off the air — proving who sent a message, without breaking

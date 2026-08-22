@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'dialogs/about_dialog.dart';
+import 'dialogs/audio_rx_devices_dialog.dart';
 import 'dialogs/callsign_lookup_dialog.dart';
 import 'dialogs/firmware_update_dialog.dart';
 import 'dialogs/fm_radio_dialog.dart';
@@ -58,6 +59,10 @@ import 'radio/radio_transport.dart';
 // Use a no-op stub on web so the hamlib DSP code is never compiled for web.
 import 'radio/software_modem_stub.dart'
     if (dart.library.io) 'radio/software_modem.dart';
+// Audio Receive Devices capture a sound-card input and decode data off it; they
+// rely on native audio + the dart:io software modem, so use a no-op stub on web.
+import 'audio_rx/audio_rx_manager_stub.dart'
+    if (dart.library.io) 'audio_rx/audio_rx_manager.dart';
 import 'services/bluetooth_service.dart';
 import 'callsign/callsign_country.dart';
 import 'services/callsign_lookup_service.dart';
@@ -235,6 +240,13 @@ Future<void> _startApp(List<String> args) async {
   final softwareModem = SoftwareModem();
   softwareModem.init();
   DataBroker.addDataHandler('SoftwareModem', softwareModem);
+
+  // Register the Audio Receive Device manager so that user-configured sound-card
+  // inputs are captured and decoded (receive-only) through the software modem,
+  // with their frames attributed to the device itself or a paired radio.
+  final audioRxManager = AudioRxManager(softwareModem);
+  audioRxManager.init();
+  DataBroker.addDataHandler('AudioRxManager', audioRxManager);
 
   // Register the comms handler so that audio from radios can be turned into a
   // decoded text history and the comms tab can drive speech-to-text state.
@@ -2697,6 +2709,11 @@ class _MainFormState extends State<MainForm>
                   checked: _aprsModemFec,
                 ),
               ],
+            ),
+            const AppMenuDivider(),
+            AppMenuAction(
+              label: 'Audio Receive Devices...',
+              onPressed: () => showAudioRxDevicesDialog(context),
             ),
           ],
         ),

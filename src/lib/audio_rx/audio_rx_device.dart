@@ -1,0 +1,150 @@
+/*
+Copyright 2026 Ylian Saint-Hilaire
+Licensed under the Apache License, Version 2.0 (the "License");
+http://www.apache.org/licenses/LICENSE-2.0
+*/
+
+//
+// audio_rx_device.dart - A user-configured "Audio Receive Device": a computer
+// sound-card input that HTCommander decodes data off (AFSK 1200 / PSK 2400 /
+// DART), receive-only. Round-tripped to JSON for persistence on Data Broker
+// device 0. Kept free of dart:io so the UI and web stub can reference it.
+//
+
+/// DataBroker key (device 0, persisted) holding the configured audio receive
+/// device list.
+const String audioRxDevicesKey = 'AudioReceiveDevices';
+
+/// First DataBroker device id used for Audio Receive Devices. Each configured
+/// device owns a unique id at or above this base so its decoded frames have a
+/// stable source identity when it is not paired to a radio. Chosen above the
+/// EchoLink (200) and AllStarLink (202/203) pseudo-device ids and the physical
+/// radio range (>=100).
+const int audioRxDeviceIdBase = 300;
+
+/// What kind of traffic an audio receive device carries, which decides where its
+/// decoded frames are routed.
+enum AudioRxUsage { aprs, comms }
+
+/// Which software demodulator an audio receive device runs. APRS always uses
+/// AFSK 1200; the choice only applies to [AudioRxUsage.comms] devices.
+enum AudioRxModem { afsk1200, psk2400, dart }
+
+class AudioRxDevice {
+  /// This device's own DataBroker device id (>= [audioRxDeviceIdBase]). Used as
+  /// the source identity for decoded frames when the device is not paired.
+  final int deviceId;
+
+  /// Friendly name. When the device is not paired to a radio this is shown as
+  /// the received channel in the Comms tab.
+  final String name;
+
+  /// Operating-system capture device id (record package `InputDevice.id`).
+  final String inputDeviceId;
+
+  /// Last-known human-readable label of the input device, for display when the
+  /// port list cannot be enumerated (e.g. the device is unplugged).
+  final String inputDeviceLabel;
+
+  final AudioRxUsage usage;
+
+  /// Demodulator for Comms usage. Ignored for APRS (always AFSK 1200).
+  final AudioRxModem modem;
+
+  /// When true, FX.25 forward error correction is honored on received frames.
+  final bool fecEnabled;
+
+  /// MAC address of the radio this device is paired to, or empty when unpaired.
+  /// When paired, decoded frames are attributed to that radio.
+  final String pairedRadioMac;
+
+  const AudioRxDevice({
+    required this.deviceId,
+    required this.name,
+    required this.inputDeviceId,
+    this.inputDeviceLabel = '',
+    this.usage = AudioRxUsage.aprs,
+    this.modem = AudioRxModem.afsk1200,
+    this.fecEnabled = true,
+    this.pairedRadioMac = '',
+  });
+
+  bool get isPaired => pairedRadioMac.isNotEmpty;
+
+  AudioRxDevice copyWith({
+    int? deviceId,
+    String? name,
+    String? inputDeviceId,
+    String? inputDeviceLabel,
+    AudioRxUsage? usage,
+    AudioRxModem? modem,
+    bool? fecEnabled,
+    String? pairedRadioMac,
+  }) {
+    return AudioRxDevice(
+      deviceId: deviceId ?? this.deviceId,
+      name: name ?? this.name,
+      inputDeviceId: inputDeviceId ?? this.inputDeviceId,
+      inputDeviceLabel: inputDeviceLabel ?? this.inputDeviceLabel,
+      usage: usage ?? this.usage,
+      modem: modem ?? this.modem,
+      fecEnabled: fecEnabled ?? this.fecEnabled,
+      pairedRadioMac: pairedRadioMac ?? this.pairedRadioMac,
+    );
+  }
+
+  Map<String, Object?> toMap() => <String, Object?>{
+        'DeviceId': deviceId,
+        'Name': name,
+        'InputDeviceId': inputDeviceId,
+        'InputDeviceLabel': inputDeviceLabel,
+        'Usage': usage == AudioRxUsage.comms ? 'comms' : 'aprs',
+        'Modem': _modemToString(modem),
+        'Fec': fecEnabled,
+        'PairedRadioMac': pairedRadioMac,
+      };
+
+  static AudioRxDevice fromMap(Map<dynamic, dynamic> m) {
+    String str(Object? a, Object? b) => (a ?? b ?? '').toString();
+    int parseInt(Object? v, int fallback) {
+      if (v is int) return v;
+      if (v is String) return int.tryParse(v) ?? fallback;
+      return fallback;
+    }
+
+    return AudioRxDevice(
+      deviceId: parseInt(m['DeviceId'] ?? m['deviceId'], audioRxDeviceIdBase),
+      name: str(m['Name'], m['name']),
+      inputDeviceId: str(m['InputDeviceId'], m['inputDeviceId']),
+      inputDeviceLabel: str(m['InputDeviceLabel'], m['inputDeviceLabel']),
+      usage: str(m['Usage'], m['usage']) == 'comms'
+          ? AudioRxUsage.comms
+          : AudioRxUsage.aprs,
+      modem: _modemFromString(str(m['Modem'], m['modem'])),
+      fecEnabled: (m['Fec'] ?? m['fec']) as bool? ?? true,
+      pairedRadioMac: str(m['PairedRadioMac'], m['pairedRadioMac']),
+    );
+  }
+
+  static String _modemToString(AudioRxModem modem) {
+    switch (modem) {
+      case AudioRxModem.psk2400:
+        return 'psk2400';
+      case AudioRxModem.dart:
+        return 'dart';
+      case AudioRxModem.afsk1200:
+        return 'afsk1200';
+    }
+  }
+
+  static AudioRxModem _modemFromString(String s) {
+    switch (s.toLowerCase()) {
+      case 'psk2400':
+        return AudioRxModem.psk2400;
+      case 'dart':
+        return AudioRxModem.dart;
+      default:
+        return AudioRxModem.afsk1200;
+    }
+  }
+}

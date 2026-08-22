@@ -420,6 +420,12 @@ class SoftwareModem {
   final DataBrokerClient _broker = DataBrokerClient();
   final Map<int, _RadioModemState> _radioModems = {};
 
+  /// Receive-only external audio sources (Audio Receive Devices) keyed by their
+  /// own source id. Each holds one decode pipeline fed from a sound-card input
+  /// instead of a radio's Bluetooth audio. Kept separate from [_radioModems] so
+  /// external sources never collide with a radio's own decode state.
+  final Map<int, _ModemInstance> _externalInstances = {};
+
   /// Off-isolate transmit-audio encoder. DART (LDPC + OFDM) and AFSK/PSK tone
   /// generation run here instead of on the UI isolate, so a channel-access slot
   /// that fires during window/tab interaction can't stall the real-time audio.
@@ -580,6 +586,10 @@ class SoftwareModem {
       state.dispose();
     }
     _radioModems.clear();
+    for (final instance in _externalInstances.values) {
+      instance.dispose();
+    }
+    _externalInstances.clear();
     _broker.dispose();
   }
 
@@ -1772,6 +1782,68 @@ class SoftwareModem {
       fragment.radioMac = state.macAddress;
     }
     _broker.dispatch(deviceId: deviceId, name: 'DataFrame', data: fragment, store: false);
+  }
+
+  // ---------------------------------------------------------------------------
+  // External audio sources (Audio Receive Devices)
+  // ---------------------------------------------------------------------------
+
+  /// Register (or rebuild) a receive-only decode pipeline for an external audio
+  /// source such as an Audio Receive Device capturing a sound-card input.
+  ///
+  /// Frames it decodes are dispatched as if they arrived on [attributeDeviceId]
+  /// (a paired radio's live device id, or the source's own pseudo device id when
+  /// unpaired) and tagged with [channelName] and [radioMac]. Feeds must be
+  /// 32 kHz, 16-bit, mono, little-endian PCM. A [mode] of
+  /// [SoftwareModemMode.none] simply removes any existing source.
+  void registerExternalSource({
+    required int sourceId,
+    required SoftwareModemMode mode,
+    required bool fecEnabled,
+    required int attributeDeviceId,
+    String channelName = '',
+    String radioMac = '',
+  }) {
+    if (_disposed) return;
+    // Rebuild from scratch so a changed mode/pairing/channel takes effect.
+    unregisterExternalSource(sourceId);
+    if (mode == SoftwareModemMode.none) return;
+
+    // Synthetic state carries the attribution the frame callbacks stamp onto
+    // each decoded fragment. It is not stored in [_radioModems]; it stays alive
+    // through the closures wired into the built instance.
+    final synthetic = _RadioModemState(
+      deviceId: attributeDeviceId,
+      macAddress: radioMac,
+    );
+    synthetic.currentChannelId = -1;
+    synthetic.currentRegionId = -1;
+    synthetic.currentChannelName = channelName;
+
+    final instance = _buildInstance(synthetic, mode, fecEnabled);
+    _externalInstances[sourceId] = instance;
+    _debug(
+      'Registered external source $sourceId (${mode.name}) -> device '
+      '$attributeDeviceId channel "$channelName"',
+    );
+  }
+
+  /// Feed 32 kHz, 16-bit, mono, little-endian PCM to a registered external
+  /// source. Does nothing if [sourceId] is not registered.
+  void feedExternalSamples(int sourceId, Uint8List data,
+      [int offset = 0, int? length]) {
+    if (_disposed) return;
+    final instance = _externalInstances[sourceId];
+    if (instance == null) return;
+    instance.processSamples(data, offset, length ?? (data.length - offset));
+  }
+
+  /// Remove a previously registered external source and free its pipeline.
+  void unregisterExternalSource(int sourceId) {
+    final instance = _externalInstances.remove(sourceId);
+    if (instance == null) return;
+    instance.dispose();
+    _debug('Unregistered external source $sourceId');
   }
 
   void _debug(String msg) {

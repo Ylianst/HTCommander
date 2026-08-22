@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart' show InputDevice;
 
 import '../l10n/app_localizations.dart';
+import '../audio_rx/audio_rx_device.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../allstar/allstar_client.dart' show allStarDeviceId;
 import '../services/audio_output_devices.dart';
@@ -26,7 +27,7 @@ import 'spectrogram/spectrogram_view.dart';
 import 'tab_visibility.dart';
 
 /// Which audio source the spectrograph visualizes (or none to hide it).
-enum SpectrogramSource { none, radio, microphone }
+enum SpectrogramSource { none, radio, microphone, audioDevice }
 
 /// Audio tab - radio + application + computer audio controls.
 ///
@@ -75,6 +76,9 @@ class _AudioTabState extends State<AudioTab>
 
   // Spectrograph. Persisted on DataBroker device 0 ('SpectrogramSource').
   SpectrogramSource _spectrogramSource = SpectrogramSource.none;
+  // Own id of the Audio Receive Device being visualized when the source is
+  // [SpectrogramSource.audioDevice] (-1 otherwise).
+  int _spectrogramAudioDeviceId = -1;
   SpectrogramController? _spectrogram;
 
   // DART reception-quality analysis. Enabling this turns on extra decode-side
@@ -234,6 +238,14 @@ class _AudioTabState extends State<AudioTab>
       callback: _onMicrophoneAudioData,
     );
 
+    // Audio Receive Device PCM is captured in the main window and republished
+    // here (only for the selected device) so its spectrograph can be shown.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AudioRxAudioData',
+      callback: _onAudioRxAudioData,
+    );
+
     _currentRadioDeviceId = _resolveCurrentRadioId();
     _audioEnabled = _readAudioState();
     _loadForCurrentRadio();
@@ -265,6 +277,7 @@ class _AudioTabState extends State<AudioTab>
     final savedSource =
         _broker.getValue<String>(0, 'SpectrogramSource', 'none') ?? 'none';
     _spectrogramSource = _sourceFromName(savedSource);
+    _spectrogramAudioDeviceId = _audioDeviceIdFromName(savedSource);
     if (_spectrogramSource != SpectrogramSource.none) {
       _spectrogram = _createSpectrogramController();
       _updateMicCapture();
@@ -698,6 +711,7 @@ class _AudioTabState extends State<AudioTab>
   // ---------------------------------------------------------------------------
 
   SpectrogramSource _sourceFromName(String name) {
+    if (name.startsWith('audiorx:')) return SpectrogramSource.audioDevice;
     switch (name) {
       case 'radio':
         return SpectrogramSource.radio;
@@ -706,6 +720,13 @@ class _AudioTabState extends State<AudioTab>
       default:
         return SpectrogramSource.none;
     }
+  }
+
+  /// The audio-receive-device own id encoded in an `audiorx:<id>` source value,
+  /// or -1 for any other source.
+  int _audioDeviceIdFromName(String name) {
+    if (!name.startsWith('audiorx:')) return -1;
+    return int.tryParse(name.substring('audiorx:'.length)) ?? -1;
   }
 
   /// Creates a spectrogram controller configured for the Audio tab band.
@@ -725,10 +746,16 @@ class _AudioTabState extends State<AudioTab>
   /// Audio tabs stay in sync and the main window drives microphone capture.
   void _onSpectrogramSourceChanged(int deviceId, String name, Object? data) {
     if (!mounted) return;
-    final source = _sourceFromName(data?.toString() ?? 'none');
-    if (source == _spectrogramSource) return;
+    final String raw = data?.toString() ?? 'none';
+    final source = _sourceFromName(raw);
+    final int audioDeviceId = _audioDeviceIdFromName(raw);
+    if (source == _spectrogramSource &&
+        audioDeviceId == _spectrogramAudioDeviceId) {
+      return;
+    }
     setState(() {
       _spectrogramSource = source;
+      _spectrogramAudioDeviceId = audioDeviceId;
       if (source != SpectrogramSource.none) {
         _spectrogram ??= _createSpectrogramController();
         _spectrogram!.clear();
@@ -737,9 +764,11 @@ class _AudioTabState extends State<AudioTab>
     _updateMicCapture();
   }
 
-  void _setSpectrogramSource(SpectrogramSource source) {
+  void _setSpectrogramSource(SpectrogramSource source, {int audioDeviceId = -1}) {
     setState(() {
       _spectrogramSource = source;
+      _spectrogramAudioDeviceId =
+          source == SpectrogramSource.audioDevice ? audioDeviceId : -1;
       if (source != SpectrogramSource.none) {
         _spectrogram ??= _createSpectrogramController();
         _spectrogram!.clear();
@@ -750,7 +779,9 @@ class _AudioTabState extends State<AudioTab>
     _broker.dispatch(
       deviceId: 0,
       name: 'SpectrogramSource',
-      data: source.name,
+      data: source == SpectrogramSource.audioDevice
+          ? 'audiorx:$audioDeviceId'
+          : source.name,
       store: true,
     );
 
@@ -842,6 +873,24 @@ class _AudioTabState extends State<AudioTab>
       controller.feedPcm16(Uint8List.fromList(data));
     } else if (data is List) {
       // Forwarded to a detached window: JSON decoding yields a List<dynamic>.
+      controller.feedPcm16(Uint8List.fromList(data.cast<int>()));
+    }
+  }
+
+  void _onAudioRxAudioData(int deviceId, String name, Object? data) {
+    final controller = _spectrogram;
+    if (controller == null ||
+        _spectrogramSource != SpectrogramSource.audioDevice ||
+        deviceId != _spectrogramAudioDeviceId) {
+      return;
+    }
+    // Skip the spectrogram FFT while the Audio tab is hidden.
+    if (!isTabVisible) return;
+    if (data is Uint8List) {
+      controller.feedPcm16(data);
+    } else if (data is List<int>) {
+      controller.feedPcm16(Uint8List.fromList(data));
+    } else if (data is List) {
       controller.feedPcm16(Uint8List.fromList(data.cast<int>()));
     }
   }
@@ -1136,9 +1185,33 @@ class _AudioTabState extends State<AudioTab>
         return AppLocalizations.of(context).audioSpectRadio;
       case SpectrogramSource.microphone:
         return AppLocalizations.of(context).audioSpectMic;
+      case SpectrogramSource.audioDevice:
+        return _audioRxDeviceName(_spectrogramAudioDeviceId);
       case SpectrogramSource.none:
         return AppLocalizations.of(context).audioSpectNone;
     }
+  }
+
+  /// The configured Audio Receive Devices (device 0), for the spectrograph menu.
+  List<AudioRxDevice> _readAudioRxDevices() {
+    final Object? raw = _broker.getValueDynamic(0, audioRxDevicesKey);
+    final List<AudioRxDevice> out = <AudioRxDevice>[];
+    if (raw is List) {
+      for (final Object? e in raw) {
+        if (e is Map) out.add(AudioRxDevice.fromMap(e));
+      }
+    }
+    return out;
+  }
+
+  /// Display name of an Audio Receive Device by its own id, with a fallback.
+  String _audioRxDeviceName(int id) {
+    for (final AudioRxDevice d in _readAudioRxDevices()) {
+      if (d.deviceId == id) {
+        return d.name.isNotEmpty ? d.name : 'Audio device';
+      }
+    }
+    return 'Audio device';
   }
 
   Widget _buildSectionTitle(String title) {
@@ -1344,6 +1417,7 @@ class _AudioTabState extends State<AudioTab>
 
     const menuItemPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 4);
     const menuItemHeight = 32.0;
+    final List<AudioRxDevice> audioRxDevices = _readAudioRxDevices();
 
     Widget checkRow(String text, bool checked) => Row(
       children: [
@@ -1393,6 +1467,20 @@ class _AudioTabState extends State<AudioTab>
             _spectrogramSource == SpectrogramSource.microphone,
           ),
         ),
+        if (audioRxDevices.isNotEmpty) ...[
+          const PopupMenuDivider(height: 8),
+          for (final AudioRxDevice d in audioRxDevices)
+            PopupMenuItem<String>(
+              value: 'audiorx:${d.deviceId}',
+              height: menuItemHeight,
+              padding: menuItemPadding,
+              child: checkRow(
+                d.name.isNotEmpty ? d.name : 'Audio device',
+                _spectrogramSource == SpectrogramSource.audioDevice &&
+                    _spectrogramAudioDeviceId == d.deviceId,
+              ),
+            ),
+        ],
         if (_audioChannelSupported && _isDartModem) ...[
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
@@ -1422,6 +1510,15 @@ class _AudioTabState extends State<AudioTab>
       ],
     ).then((value) {
       if (!mounted || value == null) return;
+      if (value.startsWith('audiorx:')) {
+        final int id =
+            int.tryParse(value.substring('audiorx:'.length)) ?? -1;
+        if (id >= 0) {
+          _setSpectrogramSource(SpectrogramSource.audioDevice,
+              audioDeviceId: id);
+        }
+        return;
+      }
       switch (value) {
         case 'sourceNone':
           _setSpectrogramSource(SpectrogramSource.none);
