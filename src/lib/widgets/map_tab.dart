@@ -175,6 +175,10 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// time filter threshold are removed from the display.
   Timer? _filterRefreshTimer;
 
+  /// Debounces persisting the map center/zoom so a zoom/pan gesture writes to
+  /// SharedPreferences once when it settles instead of on every camera frame.
+  Timer? _positionSaveTimer;
+
   /// APRS station markers keyed by callsign (red, or blue for "Self").
   final Map<String, _StationMarkerData> _aprsStations = {};
 
@@ -855,6 +859,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   @override
   void dispose() {
     _filterRefreshTimer?.cancel();
+    _positionSaveTimer?.cancel();
     _broker.dispose();
     super.dispose();
   }
@@ -874,10 +879,19 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
         _defaultLng.toString();
     _initialLat = double.tryParse(latStr) ?? _defaultLat;
     _initialLng = double.tryParse(lngStr) ?? _defaultLng;
+    // double.tryParse accepts "NaN"/"Infinity", so a previously poisoned
+    // MapLatitude/MapLongitude would otherwise reload here and crash the map on
+    // every launch (recoverable only by clearing app data). Reject any
+    // non-finite / out-of-range value and fall back to the default view.
+    if (!_isValidLatLng(_initialLat, _initialLng)) {
+      _initialLat = _defaultLat;
+      _initialLng = _defaultLng;
+    }
     _initialZoom =
         (DataBroker.getValue<int>(0, 'MapZoom', _defaultZoom.toInt()) ??
                 _defaultZoom.toInt())
             .toDouble();
+    if (!_initialZoom.isFinite) _initialZoom = _defaultZoom;
 
     // Load settings
     _isOfflineMode =
@@ -905,18 +919,34 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 
   /// Called when the map position changes.
   void _onMapPositionChanged(MapCamera camera, bool hasGesture) {
-    // Save position to DataBroker (device 0 persists to storage)
-    _broker.dispatch(
-      deviceId: 0,
-      name: 'MapLatitude',
-      data: camera.center.latitude.toString(),
-    );
-    _broker.dispatch(
-      deviceId: 0,
-      name: 'MapLongitude',
-      data: camera.center.longitude.toString(),
-    );
-    _broker.dispatch(deviceId: 0, name: 'MapZoom', data: camera.zoom.toInt());
+    // During a zoom/pan gesture the layout can momentarily be zero-size (e.g.
+    // while an APRS-beacon setState rebuilds the map), producing a non-finite
+    // camera. Persisting that would write "NaN"/"Infinity" to storage (which
+    // double.tryParse happily reloads on next launch) and camera.zoom.toInt()
+    // throws on a non-finite value. Bail out so poison is never stored.
+    final center = camera.center;
+    if (!center.latitude.isFinite ||
+        !center.longitude.isFinite ||
+        !camera.zoom.isFinite) {
+      return;
+    }
+    // Debounce: a gesture fires this on every frame, so persist only once the
+    // camera has settled to avoid a SharedPreferences write storm.
+    _positionSaveTimer?.cancel();
+    _positionSaveTimer = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'MapLatitude',
+        data: center.latitude.toString(),
+      );
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'MapLongitude',
+        data: center.longitude.toString(),
+      );
+      _broker.dispatch(deviceId: 0, name: 'MapZoom', data: camera.zoom.toInt());
+    });
   }
 
   void _zoomIn() {
