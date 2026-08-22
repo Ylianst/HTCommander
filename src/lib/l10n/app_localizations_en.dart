@@ -68,6 +68,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fmRadioPowerTooltip => 'Turn FM radio on or off';
 
   @override
+  String get radioPowerTooltip => 'Turn radio on or off';
+
+  @override
+  String get radioPoweredOff => 'Radio is off';
+
+  @override
   String get fmRadioSeekDownTooltip => 'Seek down';
 
   @override

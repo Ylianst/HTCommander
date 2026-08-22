@@ -68,6 +68,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fmRadioPowerTooltip => '开启或关闭调频广播';
 
   @override
+  String get radioPowerTooltip => '开启或关闭电台';
+
+  @override
+  String get radioPoweredOff => '电台已关闭';
+
+  @override
   String get fmRadioSeekDownTooltip => '向下搜台';
 
   @override

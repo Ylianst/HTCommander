@@ -38,6 +38,8 @@
   "fmRadioMhz": "{value}MHz",
   "fmRadioOff": "बंद",
   "fmRadioPowerTooltip": "FM रेडियो चालू या बंद करें",
+  "radioPowerTooltip": "रेडियो चालू या बंद करें",
+  "radioPoweredOff": "रेडियो बंद है",
   "fmRadioSeekDownTooltip": "नीचे खोजें",
   "fmRadioStepDownTooltip": "आवृत्ति घटाएँ",
   "fmRadioStopTooltip": "बंद करें",

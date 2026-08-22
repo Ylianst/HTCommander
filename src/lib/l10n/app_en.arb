@@ -63,6 +63,14 @@
   "@fmRadioPowerTooltip": {
     "description": "Tooltip for the FM Power button that toggles the receiver on/off."
   },
+  "radioPowerTooltip": "Turn radio on or off",
+  "@radioPowerTooltip": {
+    "description": "Tooltip for the radio power toggle button on the radio tab."
+  },
+  "radioPoweredOff": "Radio is off",
+  "@radioPoweredOff": {
+    "description": "Shown on the radio display when the radio is connected but powered off."
+  },
   "fmRadioSeekDownTooltip": "Seek down",
   "@fmRadioSeekDownTooltip": {
     "description": "Tooltip for the FM seek-down (previous station) button."

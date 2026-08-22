@@ -38,6 +38,8 @@
   "fmRadioMhz": "{value}MHz",
   "fmRadioOff": "Aus",
   "fmRadioPowerTooltip": "UKW-Radio ein-/ausschalten",
+  "radioPowerTooltip": "Funkgerät ein-/ausschalten",
+  "radioPoweredOff": "Funkgerät ist ausgeschaltet",
   "fmRadioSeekDownTooltip": "Abwärts suchen",
   "fmRadioStepDownTooltip": "Frequenz verringern",
   "fmRadioStopTooltip": "Ausschalten",

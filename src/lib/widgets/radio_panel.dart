@@ -118,6 +118,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   // shows the channel list filling the whole area. Toggled via a small button.
   bool _compactShowChannels = false;
 
+  // Local intended power state for the radio power toggle button. A connected
+  // radio is powered on, so this starts true; tapping the button sends the
+  // opposite SET_HT_ON_OFF command.
+  bool _powerOn = true;
+
   // Display panel background color (same as C# app)
   static const Color _displayBgColor = Color(0xFF565658);
   static const Color _activeVfoColor = Color(0xFFDDD300); // Yellow when active
@@ -674,6 +679,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       'HtStatus',
       (json) => RadioHtStatus.fromJson(json),
     );
+    _powerOn = _currentHtStatus?.isPowerOn ?? true;
     _currentSettings = _broker.getJsonValue<RadioSettings>(
       widget.deviceId,
       'Settings',
@@ -831,6 +837,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         case 'HtStatus':
           if (data is Map<String, dynamic>) {
             _currentHtStatus = RadioHtStatus.fromJson(data);
+            _powerOn = _currentHtStatus?.isPowerOn ?? _powerOn;
           }
           break;
         case 'Settings':
@@ -950,6 +957,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   // Computed properties based on broker state
   bool get _isConnected => _currentState == 'Connected';
   bool get _isConnecting => _currentState == 'Connecting';
+
+  // True when connected but the radio reports it is powered off (its control
+  // channel stays up so we can turn it back on).
+  bool get _isPoweredOff =>
+      _isConnected && _currentHtStatus?.isPowerOn == false;
 
   String get _connectionState {
     final l10n = AppLocalizations.of(context);
@@ -2597,6 +2609,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
                 maxChannelsPanelHeight,
               ),
             ),
+            // Power toggle button in the upper-right corner.
+            if (_isConnected)
+              Positioned(top: 4, right: 4, child: _buildPowerToggleButton()),
           ],
         );
       },
@@ -2770,7 +2785,48 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         // Toggle between the radio and the channels (only when channels exist).
         if (hasChannels)
           Positioned(top: 4, right: 4, child: _buildCompactToggleButton()),
+        // Power toggle button, shifted left when the channels toggle is present.
+        if (_isConnected)
+          Positioned(
+            top: 4,
+            right: hasChannels ? 40 : 4,
+            child: _buildPowerToggleButton(),
+          ),
       ],
+    );
+  }
+
+  /// Small circular button shown in the upper-right corner to power the radio
+  /// on or off (sends SET_HT_ON_OFF via the broker).
+  Widget _buildPowerToggleButton() {
+    final l10n = AppLocalizations.of(context);
+    return Tooltip(
+      message: l10n.radioPowerTooltip,
+      child: Material(
+        color: Colors.black54,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () {
+            final next = !_powerOn;
+            _broker.dispatch(
+              deviceId: widget.deviceId,
+              name: 'SetRadioPower',
+              data: next,
+              store: false,
+            );
+            setState(() => _powerOn = next);
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Icon(
+              Icons.power_settings_new,
+              size: 18,
+              color: _powerOn ? Colors.white : Colors.redAccent,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -2814,6 +2870,41 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    if (_isPoweredOff) {
+      // Connected but the radio is powered off. The 20px extra top padding
+      // matches the connected panel (its Positioned top is raised 20px).
+      final l10n = AppLocalizations.of(context);
+      return Container(
+        padding: const EdgeInsets.fromLTRB(16, 36, 16, 16),
+        decoration: BoxDecoration(
+          color: _displayBgColor,
+          borderRadius: BorderRadius.circular(2),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.power_settings_new,
+                color: Color(0xFFD3D3D3),
+                size: 28,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                l10n.radioPoweredOff,
+                style: const TextStyle(
+                  color: Color(0xFFD3D3D3),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
       );

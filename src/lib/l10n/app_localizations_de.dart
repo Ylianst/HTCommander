@@ -68,6 +68,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get fmRadioPowerTooltip => 'UKW-Radio ein-/ausschalten';
 
   @override
+  String get radioPowerTooltip => 'Funkgerät ein-/ausschalten';
+
+  @override
+  String get radioPoweredOff => 'Funkgerät ist ausgeschaltet';
+
+  @override
   String get fmRadioSeekDownTooltip => 'Abwärts suchen';
 
   @override

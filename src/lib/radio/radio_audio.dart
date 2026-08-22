@@ -48,6 +48,12 @@ class RadioAudio {
   bool _connecting = false;
   bool _recording = false;
 
+  // Set when audio was requested but the RFCOMM channel could not be opened
+  // because the radio is powered off. The audio path is (re)started
+  // automatically once the radio reports it has powered back on
+  // (HtStatus.isPowerOn), instead of dropping the whole connection.
+  bool _audioPendingPowerOn = false;
+
   // Volume (0.0 - 1.0+) applied in software, mute state and output device.
   // Tracked here for persistence and passed to the engine on init / change.
   double _outputVolume = 1.0;
@@ -296,6 +302,15 @@ class RadioAudio {
 
   void _onHtStatus(int deviceId, String name, Object? data) {
     if (_enginePortReady) _pushRadioState();
+    // Audio was deferred because the radio was powered off; now that it has
+    // powered back on, open the audio RFCOMM channel.
+    if (_audioPendingPowerOn &&
+        !_running &&
+        !_connecting &&
+        radio.htStatus?.isPowerOn == true) {
+      _audioPendingPowerOn = false;
+      start();
+    }
   }
 
   /// True when this radio is the one selected in the main form and is therefore
@@ -323,6 +338,7 @@ class RadioAudio {
     if (data) {
       start();
     } else {
+      _audioPendingPowerOn = false;
       stop();
     }
   }
@@ -509,6 +525,25 @@ class RadioAudio {
       }
 
       if (!ok) {
+        _connecting = false;
+        await _audioConnSub?.cancel();
+        _audioConnSub = null;
+        _dispatchAudioStateChanged(false);
+
+        // A powered-off radio keeps its control (GATT) channel up but rejects
+        // the audio RFCOMM channel. Instead of tearing down the whole
+        // connection, stay connected and defer audio until the radio reports it
+        // has powered back on, so the user can turn it on from the radio
+        // panel's power button.
+        if (radio.htStatus?.isPowerOn == false) {
+          _audioPendingPowerOn = true;
+          _debug(
+            'Radio is powered off; audio channel unavailable. Staying '
+            'connected — audio will start when the radio is powered on.',
+          );
+          return;
+        }
+
         // The control channel is up but audio is unusable, leaving the radio in
         // a half-connected state. Do a proper, full disconnect so it does not
         // linger unusable; the BluetoothService transport watcher then tears
@@ -517,10 +552,6 @@ class RadioAudio {
           'Audio RFCOMM channel failed after $maxAudioAttempts attempts; '
           'disconnecting radio to avoid a half-connected state.',
         );
-        _connecting = false;
-        await _audioConnSub?.cancel();
-        _audioConnSub = null;
-        _dispatchAudioStateChanged(false);
         radio.disconnect('Audio RFCOMM channel failed to open');
         return;
       }
@@ -541,6 +572,7 @@ class RadioAudio {
 
       _running = true;
       _connecting = false;
+      _audioPendingPowerOn = false;
       _dispatchAudioStateChanged(true);
     } catch (e) {
       _debug('Audio start error: $e');

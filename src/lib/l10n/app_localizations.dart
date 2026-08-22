@@ -226,6 +226,18 @@ abstract class AppLocalizations {
   /// **'Turn FM radio on or off'**
   String get fmRadioPowerTooltip;
 
+  /// Tooltip for the radio power toggle button on the radio tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn radio on or off'**
+  String get radioPowerTooltip;
+
+  /// Shown on the radio display when the radio is connected but powered off.
+  ///
+  /// In en, this message translates to:
+  /// **'Radio is off'**
+  String get radioPoweredOff;
+
   /// Tooltip for the FM seek-down (previous station) button.
   ///
   /// In en, this message translates to:

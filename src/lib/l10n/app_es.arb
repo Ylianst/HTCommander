@@ -38,6 +38,8 @@
   "fmRadioMhz": "{value}MHz",
   "fmRadioOff": "Apagada",
   "fmRadioPowerTooltip": "Encender o apagar la radio FM",
+  "radioPowerTooltip": "Encender o apagar la radio",
+  "radioPoweredOff": "La radio está apagada",
   "fmRadioSeekDownTooltip": "Buscar hacia abajo",
   "fmRadioStepDownTooltip": "Bajar frecuencia",
   "fmRadioStopTooltip": "Apagar",

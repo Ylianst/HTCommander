@@ -38,6 +38,8 @@
   "fmRadioMhz": "{value}MHz",
   "fmRadioOff": "Éteint",
   "fmRadioPowerTooltip": "Activer ou désactiver la radio FM",
+  "radioPowerTooltip": "Allumer ou éteindre la radio",
+  "radioPoweredOff": "La radio est éteinte",
   "fmRadioSeekDownTooltip": "Rechercher vers le bas",
   "fmRadioStepDownTooltip": "Diminuer la fréquence",
   "fmRadioStopTooltip": "Éteindre",

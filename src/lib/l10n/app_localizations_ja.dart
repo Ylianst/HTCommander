@@ -68,6 +68,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get fmRadioPowerTooltip => 'FMラジオのオン/オフ';
 
   @override
+  String get radioPowerTooltip => '無線機のオン/オフ';
+
+  @override
+  String get radioPoweredOff => '無線機はオフです';
+
+  @override
   String get fmRadioSeekDownTooltip => '下方向にシーク';
 
   @override

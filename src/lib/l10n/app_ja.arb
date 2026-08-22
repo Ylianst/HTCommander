@@ -38,6 +38,8 @@
   "fmRadioMhz": "{value}MHz",
   "fmRadioOff": "オフ",
   "fmRadioPowerTooltip": "FMラジオのオン/オフ",
+  "radioPowerTooltip": "無線機のオン/オフ",
+  "radioPoweredOff": "無線機はオフです",
   "fmRadioSeekDownTooltip": "下方向にシーク",
   "fmRadioStepDownTooltip": "周波数を下げる",
   "fmRadioStopTooltip": "オフにする",

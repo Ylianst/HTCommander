@@ -475,6 +475,14 @@ class Radio implements FirmwareRadio {
       callback: _onQueryFmRadioStatusEvent,
     );
 
+    // Subscribe to radio power on/off requests from the radio panel's power
+    // toggle button.
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'SetRadioPower',
+      callback: _onSetRadioPowerEvent,
+    );
+
     // Subscribe to GPS serial data
     _broker.subscribe(
       deviceId: 1,
@@ -569,6 +577,15 @@ class Radio implements FirmwareRadio {
   void _onQueryFmRadioStatusEvent(int devId, String name, dynamic data) {
     if (devId != deviceId) return;
     queryFmRadioStatus();
+  }
+
+  void _onSetRadioPowerEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    if (data is bool) {
+      setRadioPower(data);
+    } else if (data is int) {
+      setRadioPower(data != 0);
+    }
   }
 
   // Event handlers
@@ -1916,6 +1933,16 @@ class Radio implements FirmwareRadio {
       RadioCommandGroup.basic,
       RadioBasicCommand.radioSetMode,
       Uint8List.fromList([on ? 2 : 0]),
+    );
+  }
+
+  /// Turns the radio on or off (SET_HT_ON_OFF). The payload is a single byte:
+  /// `1` powers the radio on and `0` powers it off.
+  void setRadioPower(bool on) {
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.setHtOnOff,
+      Uint8List.fromList([on ? 1 : 0]),
     );
   }
 
