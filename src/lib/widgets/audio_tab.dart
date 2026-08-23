@@ -279,7 +279,8 @@ class _AudioTabState extends State<AudioTab>
     _spectrogramSource = _sourceFromName(savedSource);
     _spectrogramAudioDeviceId = _audioDeviceIdFromName(savedSource);
     if (_spectrogramSource != SpectrogramSource.none) {
-      _spectrogram = _createSpectrogramController();
+      _spectrogram = _createSpectrogramController(
+          _spectrogramSampleRateFor(_spectrogramSource));
       _updateMicCapture();
     }
   }
@@ -730,9 +731,9 @@ class _AudioTabState extends State<AudioTab>
   }
 
   /// Creates a spectrogram controller configured for the Audio tab band.
-  SpectrogramController _createSpectrogramController() {
+  SpectrogramController _createSpectrogramController(int sampleRate) {
     return SpectrogramController(
-      sampleRate: 32000,
+      sampleRate: sampleRate,
       fftSize: 512,
       // Only the bottom quarter of the band (0-4000 Hz of the 16 kHz Nyquist)
       // is displayed, so the generator computes only those bins.
@@ -740,6 +741,21 @@ class _AudioTabState extends State<AudioTab>
       intensity: 5,
       decibel: true,
     );
+  }
+
+  /// Audio-device sources capture at 48k; every other source is 32k.
+  int _spectrogramSampleRateFor(SpectrogramSource source) =>
+      source == SpectrogramSource.audioDevice ? audioRxSampleRate : 32000;
+
+  /// Ensures the controller exists and is configured for [source]'s rate.
+  void _ensureSpectrogram(SpectrogramSource source) {
+    final int rate = _spectrogramSampleRateFor(source);
+    if (_spectrogram == null) {
+      _spectrogram = _createSpectrogramController(rate);
+    } else if (_spectrogram!.sampleRate != rate) {
+      _spectrogram!.reconfigure(sampleRate: rate);
+    }
+    _spectrogram!.clear();
   }
 
   /// Reacts to the global spectrograph source changing in another window so all
@@ -757,8 +773,7 @@ class _AudioTabState extends State<AudioTab>
       _spectrogramSource = source;
       _spectrogramAudioDeviceId = audioDeviceId;
       if (source != SpectrogramSource.none) {
-        _spectrogram ??= _createSpectrogramController();
-        _spectrogram!.clear();
+        _ensureSpectrogram(source);
       }
     });
     _updateMicCapture();
@@ -770,8 +785,7 @@ class _AudioTabState extends State<AudioTab>
       _spectrogramAudioDeviceId =
           source == SpectrogramSource.audioDevice ? audioDeviceId : -1;
       if (source != SpectrogramSource.none) {
-        _spectrogram ??= _createSpectrogramController();
-        _spectrogram!.clear();
+        _ensureSpectrogram(source);
       }
     });
 

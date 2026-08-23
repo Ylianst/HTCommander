@@ -88,6 +88,9 @@ class SpectrogramController extends ChangeNotifier {
   /// The most recent rendered spectrogram image (null until the first frame).
   ui.Image? get image => _image;
 
+  /// Sample rate the generator is currently configured for.
+  int get sampleRate => _generator.sampleRate;
+
   /// Number of frequency bins in the generated image (its native height).
   int get imageHeight => _generator.height;
 

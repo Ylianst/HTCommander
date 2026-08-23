@@ -168,10 +168,11 @@ class AudioRxManager {
       attributeDeviceId: plan.attributeDeviceId,
       channelName: plan.channelName,
       radioMac: plan.radioMac,
+      sampleRate: audioRxSampleRate,
     );
 
     final MicrophoneCapture capture = MicrophoneCapture(
-      sampleRate: 32000,
+      sampleRate: audioRxSampleRate,
       deviceId: plan.config.inputDeviceId,
     );
     final bool ok = await capture.start(

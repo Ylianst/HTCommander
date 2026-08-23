@@ -17,6 +17,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+import '../echolink/pcm_resampler.dart';
 import '../hamlib/audio_buffer.dart';
 import '../hamlib/audio_config.dart';
 import '../hamlib/dart_constellation.dart';
@@ -145,6 +146,14 @@ class _ModemInstance {
 
   final AudioConfig audioConfig;
 
+  /// PCM sample rate this pipeline is fed at. 32k for the radio/SBC path, 48k
+  /// for audio-device sources.
+  final int sampleRate;
+
+  /// Downsamples 48k device audio to DART's native 32k before decode. Null when
+  /// [sampleRate] is already 32k or the mode is not DART.
+  LinearResampler? _dartResampler;
+
   // Receive chain.
   DemodAfsk? afskDemodulator;
   DemodulatorState? afskDemodState;
@@ -202,7 +211,13 @@ class _ModemInstance {
     required this.encoding,
     required this.fecEnabled,
     required this.audioConfig,
-  });
+    this.sampleRate = 32000,
+  }) {
+    if (mode == SoftwareModemMode.dart && sampleRate != 32000) {
+      _dartResampler =
+          LinearResampler(inputRate: sampleRate, outputRate: 32000);
+    }
+  }
 
   /// Feed a block of little-endian 16-bit mono PCM to this pipeline's
   /// demodulator.
@@ -245,9 +260,26 @@ class _ModemInstance {
 
   /// Buffer incoming PCM and attempt to decode complete DART frames.
   void _processDartSamples(Uint8List data, int offset, int length) {
-    for (int i = offset; i < offset + length - 1; i += 2) {
-      dartRxSamples.add((data[i] | (data[i + 1] << 8)).toSigned(16));
-      _dartSamplesSinceDecode++;
+    if (_dartResampler != null) {
+      // Device audio arrives at 48k; DART's waveform is defined at 32k, so
+      // downsample before buffering.
+      final int n = length ~/ 2;
+      final Int16List in16 = Int16List(n);
+      int j = offset;
+      for (int i = 0; i < n; i++) {
+        in16[i] = (data[j] | (data[j + 1] << 8)).toSigned(16);
+        j += 2;
+      }
+      final Int16List out = _dartResampler!.process(in16);
+      for (int i = 0; i < out.length; i++) {
+        dartRxSamples.add(out[i]);
+        _dartSamplesSinceDecode++;
+      }
+    } else {
+      for (int i = offset; i < offset + length - 1; i += 2) {
+        dartRxSamples.add((data[i] | (data[i + 1] << 8)).toSigned(16));
+        _dartSamplesSinceDecode++;
+      }
     }
 
     // Throttle decode attempts.
@@ -326,6 +358,7 @@ class _ModemInstance {
     packetHdlcSend = null;
     packetFx25Send = null;
     dartModem = null;
+    _dartResampler = null;
     dartRxSamples.clear();
     _dartScannedPos = 0;
     onDartFrame = null;
@@ -1088,12 +1121,13 @@ class SoftwareModem {
   _ModemInstance _buildInstance(
     _RadioModemState state,
     SoftwareModemMode mode,
-    bool fecEnabled,
-  ) {
-    // Audio configuration for 32kHz, 16-bit, mono.
+    bool fecEnabled, {
+    int sampleRate = 32000,
+  }) {
+    // Audio configuration for 16-bit, mono at the pipeline's sample rate.
     final audioConfig = AudioConfig();
     audioConfig.devices[0].defined = true;
-    audioConfig.devices[0].samplesPerSec = 32000;
+    audioConfig.devices[0].samplesPerSec = sampleRate;
     audioConfig.devices[0].bitsPerSample = 16;
     audioConfig.devices[0].numChannels = 1;
     audioConfig.channelMedium[0] = Medium.radio;
@@ -1128,6 +1162,7 @@ class SoftwareModem {
       encoding: _getEncodingType(mode),
       fecEnabled: fecEnabled,
       audioConfig: audioConfig,
+      sampleRate: sampleRate,
     );
 
     // DART is frame-based: it owns its own preamble/FEC/framing and bypasses the
@@ -1161,7 +1196,7 @@ class SoftwareModem {
       case SoftwareModemMode.afsk1200:
         final demod = DemodAfsk(bridge);
         final demodState = DemodulatorState();
-        demod.init(32000, 1200, 1200, 2200, 'A', demodState);
+        demod.init(sampleRate, 1200, 1200, 2200, 'A', demodState);
         instance.afskDemodulator = demod;
         instance.afskDemodState = demodState;
         break;
@@ -1169,7 +1204,7 @@ class SoftwareModem {
         final demod = DemodPsk(bridge);
         final demodState = PskDemodulatorState();
         demod.init(
-            ModemType.qpsk, V26Alternative.b, 32000, 2400, 'B', demodState);
+            ModemType.qpsk, V26Alternative.b, sampleRate, 2400, 'B', demodState);
         instance.pskDemodulator = demod;
         instance.pskDemodState = demodState;
         break;
@@ -1803,6 +1838,7 @@ class SoftwareModem {
     required int attributeDeviceId,
     String channelName = '',
     String radioMac = '',
+    int sampleRate = 32000,
   }) {
     if (_disposed) return;
     // Rebuild from scratch so a changed mode/pairing/channel takes effect.
@@ -1820,7 +1856,8 @@ class SoftwareModem {
     synthetic.currentRegionId = -1;
     synthetic.currentChannelName = channelName;
 
-    final instance = _buildInstance(synthetic, mode, fecEnabled);
+    final instance = _buildInstance(synthetic, mode, fecEnabled,
+        sampleRate: sampleRate);
     _externalInstances[sourceId] = instance;
     _debug(
       'Registered external source $sourceId (${mode.name}) -> device '
@@ -1828,8 +1865,9 @@ class SoftwareModem {
     );
   }
 
-  /// Feed 32 kHz, 16-bit, mono, little-endian PCM to a registered external
-  /// source. Does nothing if [sourceId] is not registered.
+  /// Feed 16-bit, mono, little-endian PCM to a registered external source at
+  /// the source's configured sample rate. Does nothing if [sourceId] is not
+  /// registered.
   void feedExternalSamples(int sourceId, Uint8List data,
       [int offset = 0, int? length]) {
     if (_disposed) return;

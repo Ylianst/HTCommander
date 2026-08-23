@@ -22,6 +22,11 @@ const String audioRxDevicesKey = 'AudioReceiveDevices';
 /// radio range (>=100).
 const int audioRxDeviceIdBase = 300;
 
+/// Sample rate audio receive devices capture and decode at. Higher than the
+/// radio/SBC path's 32 kHz for finer AFSK/PSK timing; DART is downsampled to
+/// 32 kHz internally.
+const int audioRxSampleRate = 48000;
+
 /// What kind of traffic an audio receive device carries, which decides where its
 /// decoded frames are routed.
 enum AudioRxUsage { aprs, comms }
