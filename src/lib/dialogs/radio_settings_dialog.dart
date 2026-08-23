@@ -473,26 +473,41 @@ class _RadioSettingsDialogState extends State<RadioSettingsDialog> {
     int max,
     ValueChanged<int> onChanged,
   ) {
+    final slider = Slider(
+      value: value.toDouble().clamp(min.toDouble(), max.toDouble()),
+      min: min.toDouble(),
+      max: max.toDouble(),
+      divisions: max - min,
+      label: '$value',
+      onChanged: (v) => onChanged(v.round()),
+    );
+    final valueText = SizedBox(
+      width: 28,
+      child: Text('$value', textAlign: TextAlign.end),
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          SizedBox(width: 180, child: Text(label)),
-          Expanded(
-            child: Slider(
-              value: value.toDouble().clamp(min.toDouble(), max.toDouble()),
-              min: min.toDouble(),
-              max: max.toDouble(),
-              divisions: max - min,
-              label: '$value',
-              onChanged: (v) => onChanged(v.round()),
-            ),
-          ),
-          SizedBox(
-            width: 28,
-            child: Text('$value', textAlign: TextAlign.end),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Stack the label above the slider on narrow screens so the slider
+          // keeps a usable width instead of being crushed by a 180px label.
+          if (constraints.maxWidth < 360) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label),
+                Row(children: [Expanded(child: slider), valueText]),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              SizedBox(width: 180, child: Text(label)),
+              Expanded(child: slider),
+              valueText,
+            ],
+          );
+        },
       ),
     );
   }

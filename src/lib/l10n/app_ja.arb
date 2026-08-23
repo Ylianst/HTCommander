@@ -1007,6 +1007,7 @@
     }
   },
   "chMoreSettings": "詳細設定",
+  "chMore": "詳細",
   "chChannelNameHint": "チャンネル名",
   "chFrequencyMhz": "周波数 (MHz)",
   "chReceiveMhz": "受信 (MHz)",

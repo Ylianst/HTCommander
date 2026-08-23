@@ -999,6 +999,7 @@
   "chChannelNumber": "Canale {n}",
   "chChShort": "Can {n}",
   "chMoreSettings": "Altre impostazioni",
+  "chMore": "Altro",
   "chChannelNameHint": "Nome canale",
   "chFrequencyMhz": "Frequenza (MHz)",
   "chReceiveMhz": "Ricezione (MHz)",

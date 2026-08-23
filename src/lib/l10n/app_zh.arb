@@ -1007,6 +1007,7 @@
     }
   },
   "chMoreSettings": "更多设置",
+  "chMore": "更多",
   "chChannelNameHint": "信道名称",
   "chFrequencyMhz": "频率 (MHz)",
   "chReceiveMhz": "接收 (MHz)",

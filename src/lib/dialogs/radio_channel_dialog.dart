@@ -405,36 +405,50 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: widget.deviceId > 0 ? _onClear : null,
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red.shade700,
-                    ),
-                    child: Text(l10n.tabClear),
-                  ),
-                  const SizedBox(width: 8),
-                  if (!_advancedMode)
-                    TextButton.icon(
-                      onPressed: () => setState(() => _advancedMode = true),
-                      icon: const Icon(Icons.tune, size: 18),
-                      label: Text(l10n.chMoreSettings),
-                      style: DialogStyles.secondaryButtonStyle(context),
-                    ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: DialogStyles.secondaryButtonStyle(context),
-                    child: Text(l10n.commonCancel),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _canSave ? _onSave : null,
-                    style: DialogStyles.primaryButtonStyle(context),
-                    child: Text(l10n.commonOk),
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final bool compact = constraints.maxWidth < 380;
+                  return Row(
+                    children: [
+                      compact
+                          ? IconButton(
+                              onPressed: widget.deviceId > 0 ? _onClear : null,
+                              icon: const Icon(Icons.delete_outline),
+                              color: Colors.red.shade700,
+                              tooltip: l10n.tabClear,
+                            )
+                          : TextButton(
+                              onPressed: widget.deviceId > 0 ? _onClear : null,
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red.shade700,
+                              ),
+                              child: Text(l10n.tabClear),
+                            ),
+                      const SizedBox(width: 8),
+                      if (!_advancedMode)
+                        TextButton.icon(
+                          onPressed: () => setState(() => _advancedMode = true),
+                          icon: const Icon(Icons.tune, size: 18),
+                          label: Text(
+                            compact ? l10n.chMore : l10n.chMoreSettings,
+                          ),
+                          style: DialogStyles.secondaryButtonStyle(context),
+                        ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: DialogStyles.secondaryButtonStyle(context),
+                        child: Text(l10n.commonCancel),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: _canSave ? _onSave : null,
+                        style: DialogStyles.primaryButtonStyle(context),
+                        child: Text(l10n.commonOk),
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

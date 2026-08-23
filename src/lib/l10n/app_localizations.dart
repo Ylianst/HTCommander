@@ -5710,6 +5710,12 @@ abstract class AppLocalizations {
   /// **'More settings'**
   String get chMoreSettings;
 
+  /// No description provided for @chMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get chMore;
+
   /// No description provided for @chChannelNameHint.
   ///
   /// In en, this message translates to:

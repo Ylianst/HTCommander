@@ -1868,6 +1868,7 @@
     }
   },
   "chMoreSettings": "More settings",
+  "chMore": "More",
   "chChannelNameHint": "Channel name",
   "chFrequencyMhz": "Frequency (MHz)",
   "chReceiveMhz": "Receive (MHz)",

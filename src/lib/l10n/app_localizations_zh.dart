@@ -3037,6 +3037,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chMoreSettings => '更多设置';
 
   @override
+  String get chMore => '更多';
+
+  @override
   String get chChannelNameHint => '信道名称';
 
   @override

@@ -1007,6 +1007,7 @@
     }
   },
   "chMoreSettings": "Więcej ustawień",
+  "chMore": "Więcej",
   "chChannelNameHint": "Nazwa kanału",
   "chFrequencyMhz": "Częstotliwość (MHz)",
   "chReceiveMhz": "Odbiór (MHz)",

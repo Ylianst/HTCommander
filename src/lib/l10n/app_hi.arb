@@ -1007,6 +1007,7 @@
     }
   },
   "chMoreSettings": "अधिक सेटिंग्स",
+  "chMore": "अधिक",
   "chChannelNameHint": "चैनल नाम",
   "chFrequencyMhz": "आवृत्ति (MHz)",
   "chReceiveMhz": "रिसीव (MHz)",

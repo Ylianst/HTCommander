@@ -942,14 +942,30 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
           ),
         ),
         Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(width: _columnWidth, child: _buildRadioColumn()),
-              const SizedBox(width: 16),
-              SizedBox(width: _columnWidth, child: _buildStorageColumn()),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Keep fixed-width columns on wide layouts, but fall back to
+              // flexible columns on narrow screens so they never overflow.
+              final bool narrow =
+                  constraints.maxWidth < (_columnWidth * 2 + 16);
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: narrow
+                    ? [
+                        Expanded(child: _buildRadioColumn()),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildStorageColumn()),
+                      ]
+                    : [
+                        SizedBox(
+                            width: _columnWidth, child: _buildRadioColumn()),
+                        const SizedBox(width: 16),
+                        SizedBox(
+                            width: _columnWidth, child: _buildStorageColumn()),
+                      ],
+              );
+            },
           ),
         ),
       ],

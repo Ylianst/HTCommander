@@ -144,27 +144,39 @@ class _AllStarNodeEditorState extends State<_AllStarNodeEditor> {
               ),
               if (_authMode == AllStarAuthMode.node) ...<Widget>[
                 const SizedBox(height: 8),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      flex: 3,
-                      child: TextField(
-                        controller: _host,
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                            labelText: l10n.settingsAllStarNodeHost),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _port,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                            labelText: l10n.settingsAllStarNodePort),
-                      ),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final host = TextField(
+                      controller: _host,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                          labelText: l10n.settingsAllStarNodeHost),
+                    );
+                    final port = TextField(
+                      controller: _port,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                          labelText: l10n.settingsAllStarNodePort),
+                    );
+                    // Stack host/port on narrow screens so the port field and
+                    // its label stay legible instead of being crushed.
+                    if (constraints.maxWidth < 300) {
+                      return Column(
+                        children: <Widget>[
+                          host,
+                          const SizedBox(height: 8),
+                          port,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: <Widget>[
+                        Expanded(flex: 3, child: host),
+                        const SizedBox(width: 8),
+                        Expanded(child: port),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 8),
                 TextField(

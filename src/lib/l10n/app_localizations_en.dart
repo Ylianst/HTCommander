@@ -3108,6 +3108,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chMoreSettings => 'More settings';
 
   @override
+  String get chMore => 'More';
+
+  @override
   String get chChannelNameHint => 'Channel name';
 
   @override

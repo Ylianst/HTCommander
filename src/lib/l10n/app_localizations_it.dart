@@ -3139,6 +3139,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get chMoreSettings => 'Altre impostazioni';
 
   @override
+  String get chMore => 'Altro';
+
+  @override
   String get chChannelNameHint => 'Nome canale';
 
   @override

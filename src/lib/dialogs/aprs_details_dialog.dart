@@ -358,27 +358,40 @@ class _DetailRow extends StatelessWidget {
             ? scheme.surfaceContainerHigh
             : scheme.surfaceContainerLow,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 150,
-              child: Text(
-                item.name,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final label = Text(
+              item.name,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: SelectableText(
-                item.value,
-                style: const TextStyle(fontSize: 13),
-              ),
-            ),
-          ],
+            );
+            final value = SelectableText(
+              item.value,
+              style: const TextStyle(fontSize: 13),
+            );
+            // Stack label above value on narrow screens so the value gets the
+            // full width instead of being squeezed by a 150px label column.
+            if (constraints.maxWidth < 320) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  label,
+                  const SizedBox(height: 2),
+                  value,
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(width: 150, child: label),
+                const SizedBox(width: 12),
+                Expanded(child: value),
+              ],
+            );
+          },
         ),
       ),
     );

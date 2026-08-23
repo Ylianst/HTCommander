@@ -1007,6 +1007,7 @@
     }
   },
   "chMoreSettings": "Weitere Einstellungen",
+  "chMore": "Mehr",
   "chChannelNameHint": "Kanalname",
   "chFrequencyMhz": "Frequenz (MHz)",
   "chReceiveMhz": "Empfang (MHz)",

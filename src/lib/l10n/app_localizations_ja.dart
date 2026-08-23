@@ -3063,6 +3063,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get chMoreSettings => '詳細設定';
 
   @override
+  String get chMore => '詳細';
+
+  @override
   String get chChannelNameHint => 'チャンネル名';
 
   @override

@@ -167,13 +167,29 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
               ),
             ),
             Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: _buildImportedColumn()),
-                  _buildMoveButtons(),
-                  Expanded(child: _buildRadioColumn()),
-                ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Stack the two lists vertically on narrow screens so each
+                  // gets the full width instead of two cramped columns.
+                  if (constraints.maxWidth < 400) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: _buildImportedColumn()),
+                        _buildMoveButtons(vertical: true),
+                        Expanded(child: _buildRadioColumn()),
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: _buildImportedColumn()),
+                      _buildMoveButtons(),
+                      Expanded(child: _buildRadioColumn()),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -264,42 +280,62 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
     );
   }
 
-  Widget _buildMoveButtons() {
+  Widget _buildMoveButtons({bool vertical = false}) {
     final canMove = _selectedImportedIndex != null && _selectedSlotId != null;
+    final moveButton = IconButton(
+      tooltip: AppLocalizations.of(context).importMoveTooltip,
+      icon: Icon(vertical ? Icons.arrow_downward : Icons.arrow_forward),
+      onPressed: canMove ? _moveSelected : null,
+      style: IconButton.styleFrom(
+        backgroundColor: canMove
+            ? Theme.of(context).colorScheme.primaryContainer
+            : null,
+      ),
+    );
+    final Widget? copyAll = _canCopyAllOneToOne
+        ? Tooltip(
+            message: AppLocalizations.of(context).importCopyAllTooltip,
+            child: OutlinedButton(
+              onPressed: _copyAllOneToOne,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                minimumSize: const Size(0, 28),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+              child: const Text('1:1'),
+            ),
+          )
+        : null;
+    if (vertical) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            moveButton,
+            if (copyAll != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 6),
+                child: copyAll,
+              ),
+          ],
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          IconButton(
-            tooltip: AppLocalizations.of(context).importMoveTooltip,
-            icon: const Icon(Icons.arrow_forward),
-            onPressed: canMove ? _moveSelected : null,
-            style: IconButton.styleFrom(
-              backgroundColor: canMove
-                  ? Theme.of(context).colorScheme.primaryContainer
-                  : null,
-            ),
-          ),
-          if (_canCopyAllOneToOne)
+          moveButton,
+          if (copyAll != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Tooltip(
-                message: AppLocalizations.of(context).importCopyAllTooltip,
-                child: OutlinedButton(
-                  onPressed: _copyAllOneToOne,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    minimumSize: const Size(0, 28),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  child: const Text('1:1'),
-                ),
-              ),
+              child: copyAll,
             ),
         ],
       ),
