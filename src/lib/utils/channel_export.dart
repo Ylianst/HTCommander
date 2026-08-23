@@ -8,7 +8,7 @@
 library;
 
 /// Supported export file formats.
-enum ChannelExportFormat { native, chirp }
+enum ChannelExportFormat { native, chirp, allRegions, fullBackup }
 
 class ChannelExport {
   /// Helpers to read fields from a channel JSON map, tolerant of the legacy

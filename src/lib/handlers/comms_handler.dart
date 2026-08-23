@@ -1437,7 +1437,7 @@ class CommsHandler {
     if (_recorder == null ||
         !_recordingIsTransmit ||
         _recordingDeviceId != deviceId) {
-      var channel = _getVfoAChannelName(deviceId);
+      var channel = _getSelectedVfoChannelName(deviceId);
       if (channel.isEmpty) channel = _currentChannelName;
       _startNewRecording(deviceId, DateTime.now(), channel, true);
     }
@@ -2844,8 +2844,9 @@ class CommsHandler {
       return;
     }
 
-    // Resolve the VFO A channel name for the history entry.
-    final channelName = _getVfoAChannelName(transmitDeviceId);
+    // Resolve the selected VFO's channel name for the history entry so the
+    // sent bubble shows the VFO the data is actually transmitted on.
+    final channelName = _getSelectedVfoChannelName(transmitDeviceId);
 
     _broker.logInfo(
       '[CommsHandler] Sending chat on device $transmitDeviceId: '
@@ -2910,7 +2911,7 @@ class CommsHandler {
     _addDataPacketEntry(
       deviceId: deviceId,
       text: text,
-      channel: _getVfoAChannelName(deviceId),
+      channel: _getSelectedVfoChannelName(deviceId),
       time: DateTime.now(),
       encoding: VoiceTextEncodingType.morse,
       isReceived: false,
@@ -2945,7 +2946,7 @@ class CommsHandler {
     }
 
     try {
-      final channelName = _getVfoAChannelName(transmitDeviceId);
+      final channelName = _getSelectedVfoChannelName(transmitDeviceId);
 
       _broker.logInfo(
         '[CommsHandler] Generating morse code on device $transmitDeviceId: '
@@ -3044,7 +3045,7 @@ class CommsHandler {
     }
 
     try {
-      final channelName = _getVfoAChannelName(transmitDeviceId);
+      final channelName = _getSelectedVfoChannelName(transmitDeviceId);
 
       _broker.logInfo(
         '[CommsHandler] Synthesizing speech on device $transmitDeviceId: '
@@ -3107,11 +3108,33 @@ class CommsHandler {
     if (settings is! Map) return '';
     final channelA = settings['channelA'];
     if (channelA is! int) return '';
+    return _channelNameForId(deviceId, channelA);
+  }
 
+  /// Resolves the channel name for the currently selected VFO on [deviceId].
+  /// In dual-channel mode the settings `doubleChannel` field encodes the
+  /// selected VFO (2 = VFO B, otherwise VFO A), which is the VFO the radio
+  /// transmits on. Used for outgoing messages so a sent bubble shows the VFO
+  /// the data was actually transmitted on. Falls back to an empty string when
+  /// the channel information is not yet available.
+  String _getSelectedVfoChannelName(int deviceId) {
+    final settings = _broker.getValueDynamic(deviceId, 'Settings');
+    if (settings is! Map) return '';
+    final doubleChannel = settings['doubleChannel'];
+    final channelId = (doubleChannel is int && doubleChannel == 2)
+        ? settings['channelB']
+        : settings['channelA'];
+    if (channelId is! int) return '';
+    return _channelNameForId(deviceId, channelId);
+  }
+
+  /// Looks up a channel's display name by its [channelId] from the broker's
+  /// `Channels` list for [deviceId]. Returns an empty string when not found.
+  String _channelNameForId(int deviceId, int channelId) {
     final channels = _broker.getValueDynamic(deviceId, 'Channels');
     if (channels is! List) return '';
     for (final channel in channels) {
-      if (channel is Map && channel['channelId'] == channelA) {
+      if (channel is Map && channel['channelId'] == channelId) {
         final channelName = channel['name'];
         if (channelName is String && channelName.isNotEmpty) {
           return channelName;

@@ -16,6 +16,7 @@ import 'dialogs/callsign_lookup_dialog.dart';
 import 'dialogs/firmware_update_dialog.dart';
 import 'dialogs/fm_radio_dialog.dart';
 import 'dialogs/gps_serial_info_dialog.dart';import 'dialogs/import_channels_dialog.dart';
+import 'dialogs/all_regions_transfer_dialog.dart';
 import 'dialogs/hardware_radio_settings_dialog.dart';
 import 'dialogs/radio_connection_dialog.dart';
 import 'dialogs/radio_info_dialog.dart';
@@ -79,7 +80,9 @@ import 'services/window_service.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/channel_export.dart';
 import 'utils/channel_import.dart';
-import 'radio/radio_models.dart' show RadioChannelInfo;
+import 'utils/all_regions_file.dart';
+import 'utils/radio_backup_file.dart';
+import 'radio/radio_models.dart' show RadioChannelInfo, RadioBssSettings;
 import 'services/update_service.dart';
 import 'winlink/mail_store.dart';
 import 'winlink/winlink_client.dart';
@@ -1941,8 +1944,59 @@ class _MainFormState extends State<MainForm>
         ? raw.whereType<Map>().map((m) => m.cast<String, dynamic>()).toList()
         : <Map<String, dynamic>>[];
 
-    // Only keep channels that have valid TX/RX frequencies (same filter the
-    // export routines apply per row).
+    // Ask the user which format to export.
+    final format = await showDialog<ChannelExportFormat>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Export Channels'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () =>
+                Navigator.of(context).pop(ChannelExportFormat.native),
+            child: const Text('Native Channel File (CSV)'),
+          ),
+          SimpleDialogOption(
+            onPressed: () =>
+                Navigator.of(context).pop(ChannelExportFormat.chirp),
+            child: const Text('CHIRP Channel File (CSV)'),
+          ),
+          // Exports every region and every channel slot to a proprietary JSON
+          // file. Only offered when the radio reports regions.
+          if (_regionCount > 0)
+            SimpleDialogOption(
+              onPressed: () =>
+                  Navigator.of(context).pop(ChannelExportFormat.allRegions),
+              child: const Text('All Regions (HTCommander File)'),
+            ),
+          // Full radio backup: every region and channel plus all radio settings
+          // (paired devices excluded). Only offered when the radio reports
+          // regions.
+          if (_regionCount > 0)
+            SimpleDialogOption(
+              onPressed: () =>
+                  Navigator.of(context).pop(ChannelExportFormat.fullBackup),
+              child: const Text('Full Radio Backup'),
+            ),
+        ],
+      ),
+    );
+    if (format == null) return; // Cancelled.
+
+    // All-regions export reads every region off the radio; it is not limited to
+    // the current region, so it skips the current-region emptiness check.
+    if (format == ChannelExportFormat.allRegions) {
+      await _exportAllRegions();
+      return;
+    }
+
+    // A full backup adds all radio settings to the all-regions data.
+    if (format == ChannelExportFormat.fullBackup) {
+      await _exportFullBackup();
+      return;
+    }
+
+    // The CSV formats only export the currently displayed region. Require at
+    // least one channel with valid TX/RX frequencies before continuing.
     final hasExportable = channels.any(
       (c) =>
           ((c['txFreq'] ?? c['tx_freq'] ?? 0) as int) != 0 &&
@@ -1966,27 +2020,6 @@ class _MainFormState extends State<MainForm>
       );
       return;
     }
-
-    // Ask the user which format to export.
-    final format = await showDialog<ChannelExportFormat>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Export Channels'),
-        children: [
-          SimpleDialogOption(
-            onPressed: () =>
-                Navigator.of(context).pop(ChannelExportFormat.native),
-            child: const Text('Native Channel File (CSV)'),
-          ),
-          SimpleDialogOption(
-            onPressed: () =>
-                Navigator.of(context).pop(ChannelExportFormat.chirp),
-            child: const Text('CHIRP Channel File (CSV)'),
-          ),
-        ],
-      ),
-    );
-    if (format == null) return; // Cancelled.
 
     final content = format == ChannelExportFormat.native
         ? ChannelExport.exportToNativeFormat(channels)
@@ -2025,6 +2058,139 @@ class _MainFormState extends State<MainForm>
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error exporting channels: $e')));
+    }
+  }
+
+  /// Reads every region and channel off the radio and saves them to a
+  /// proprietary HTCommander JSON file. Every channel slot is kept (even
+  /// unused ones) so the file can later re-program the radio exactly.
+  Future<void> _exportAllRegions() async {
+    if (_currentRadioDeviceId <= 0 || _regionCount <= 0) return;
+    final info = DataBroker.getValueDynamic(_currentRadioDeviceId, 'Info');
+    final channelCount =
+        (info is Map ? info['channelCount'] as int? : null) ?? 0;
+    if (channelCount <= 0) return;
+
+    // Read all regions off the radio (shows a progress dialog while switching
+    // through each region).
+    final data = await showExportAllRegionsDialog(
+      context,
+      deviceId: _currentRadioDeviceId,
+      regionCount: _regionCount,
+      channelCount: channelCount,
+    );
+    if (data == null || !mounted) return; // Cancelled or failed.
+
+    final content = data.toJsonString();
+    const defaultFileName = 'channels_all_regions.json';
+    final needsBytes = kIsWeb || Platform.isAndroid || Platform.isIOS;
+
+    try {
+      final outputPath = await FilePicker.saveFile(
+        dialogTitle: 'Export All Regions',
+        fileName: defaultFileName,
+        type: needsBytes ? FileType.any : FileType.custom,
+        allowedExtensions: needsBytes ? null : const ['json'],
+        bytes: needsBytes ? Uint8List.fromList(utf8.encode(content)) : null,
+      );
+      if (outputPath == null) return; // Cancelled.
+
+      if (!needsBytes) {
+        await File(outputPath).writeAsString(content);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('All regions exported to $defaultFileName')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error exporting regions: $e')));
+    }
+  }
+
+  /// Reads every region/channel off the radio and bundles them with all radio
+  /// settings (main settings, BSS/APRS settings and beacon path) into a full
+  /// backup JSON file. Paired/trusted Bluetooth devices are intentionally left
+  /// out so restoring never touches the radio's pairings.
+  Future<void> _exportFullBackup() async {
+    if (_currentRadioDeviceId <= 0 || _regionCount <= 0) return;
+    final info = DataBroker.getValueDynamic(_currentRadioDeviceId, 'Info');
+    final channelCount =
+        (info is Map ? info['channelCount'] as int? : null) ?? 0;
+    if (channelCount <= 0) return;
+
+    // Kick off a read of the programmable-function (button) table now; the
+    // single reply arrives well before the multi-region read below finishes.
+    _broker.dispatch(
+      deviceId: _currentRadioDeviceId,
+      name: 'QueryProgFunctions',
+      data: null,
+      store: false,
+    );
+
+    // Read all regions off the radio (shows a progress dialog while switching
+    // through each region).
+    final regions = await showExportAllRegionsDialog(
+      context,
+      deviceId: _currentRadioDeviceId,
+      regionCount: _regionCount,
+      channelCount: channelCount,
+    );
+    if (regions == null || !mounted) return; // Cancelled or failed.
+
+    // Snapshot the radio settings currently held by the broker.
+    final settingsRaw = _broker.getValueDynamic(
+      _currentRadioDeviceId,
+      'SettingsRaw',
+    );
+    final bss = _broker.getValueDynamic(_currentRadioDeviceId, 'BssSettings');
+    final aprsPath = _broker.getValueDynamic(_currentRadioDeviceId, 'AprsPath');
+    final rawPf = _broker.getValueDynamic(_currentRadioDeviceId, 'PfTable');
+    final pfTable = rawPf is List
+        ? rawPf
+              .whereType<Map>()
+              .map((m) => m.cast<String, dynamic>())
+              .toList()
+        : null;
+
+    final backup = RadioBackupFile(
+      regionCount: regions.regionCount,
+      channelCount: regions.channelCount,
+      regions: regions.regions,
+      settingsRaw: settingsRaw is String ? settingsRaw : null,
+      bssSettings: bss is Map ? bss.cast<String, dynamic>() : null,
+      aprsPath: aprsPath is String ? aprsPath : null,
+      pfTable: pfTable,
+    );
+
+    final content = backup.toJsonString();
+    const defaultFileName = 'radio_backup.json';
+    final needsBytes = kIsWeb || Platform.isAndroid || Platform.isIOS;
+
+    try {
+      final outputPath = await FilePicker.saveFile(
+        dialogTitle: 'Full Radio Backup',
+        fileName: defaultFileName,
+        type: needsBytes ? FileType.any : FileType.custom,
+        allowedExtensions: needsBytes ? null : const ['json'],
+        bytes: needsBytes ? Uint8List.fromList(utf8.encode(content)) : null,
+      );
+      if (outputPath == null) return; // Cancelled.
+
+      if (!needsBytes) {
+        await File(outputPath).writeAsString(content);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Radio backup saved to $defaultFileName')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error saving backup: $e')));
     }
   }
 
@@ -2082,6 +2248,21 @@ class _MainFormState extends State<MainForm>
       return;
     }
 
+    // Detect the proprietary formats first. A full radio backup restores both
+    // channels and settings; an all-regions file restores channels only. Both
+    // program every region at once (after an explicit confirmation) instead of
+    // opening the per-region channel assignment dialog.
+    final backup = RadioBackupFile.tryParse(content);
+    if (backup != null) {
+      await _importFullBackup(backup);
+      return;
+    }
+    final allRegions = AllRegionsFile.tryParse(content);
+    if (allRegions != null) {
+      await _importAllRegions(allRegions);
+      return;
+    }
+
     final importedChannels = ChannelImport.parseChannelsFromCsv(content);
     if (importedChannels.isEmpty) {
       messenger?.showSnackBar(
@@ -2103,6 +2284,177 @@ class _MainFormState extends State<MainForm>
       importedChannels: importedChannels,
       radioChannels: radioChannels,
     );
+  }
+
+  /// Programs every region of the connected radio from a previously exported
+  /// all-regions file. Confirms first, since every region is reprogrammed.
+  Future<void> _importAllRegions(AllRegionsFile data) async {
+    if (_currentRadioDeviceId <= 0 || _regionCount <= 0) return;
+    final info = DataBroker.getValueDynamic(_currentRadioDeviceId, 'Info');
+    final channelCount =
+        (info is Map ? info['channelCount'] as int? : null) ?? 0;
+    if (channelCount <= 0) return;
+
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import All Regions'),
+        content: Text(
+          'This will reprogram all $_regionCount regions on the radio, '
+          'overwriting every channel. This cannot be undone.\n\n'
+          'Do you want to continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Reprogram All Regions'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final ok = await showImportAllRegionsDialog(
+      context,
+      deviceId: _currentRadioDeviceId,
+      regionCount: _regionCount,
+      channelCount: channelCount,
+      data: data,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok ? 'All regions reprogrammed' : 'Region import cancelled',
+        ),
+      ),
+    );
+  }
+
+  /// Restores a full radio backup: every region/channel plus all radio
+  /// settings. Confirms first, since every region and all settings are
+  /// overwritten.
+  Future<void> _importFullBackup(RadioBackupFile backup) async {
+    if (_currentRadioDeviceId <= 0 || _regionCount <= 0) return;
+    final info = DataBroker.getValueDynamic(_currentRadioDeviceId, 'Info');
+    final channelCount =
+        (info is Map ? info['channelCount'] as int? : null) ?? 0;
+    if (channelCount <= 0) return;
+
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Restore Radio Backup'),
+        content: Text(
+          'This will reprogram all $_regionCount regions and restore all radio '
+          'settings, overwriting the current channels and settings. This '
+          'cannot be undone.\n\n'
+          'Do you want to continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Restore Backup'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    // Program every region/channel first.
+    final ok = await showImportAllRegionsDialog(
+      context,
+      deviceId: _currentRadioDeviceId,
+      regionCount: _regionCount,
+      channelCount: channelCount,
+      data: backup.toAllRegionsFile(),
+    );
+    if (!ok) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Backup restore cancelled')),
+      );
+      return;
+    }
+
+    // Restore the radio settings that were captured with the backup.
+    _restoreBackupSettings(backup);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Radio backup restored')),
+    );
+  }
+
+  /// Writes the settings, BSS/APRS settings and beacon path carried by a full
+  /// backup back to the radio. Silently skips any pieces the backup omitted.
+  void _restoreBackupSettings(RadioBackupFile backup) {
+    // Main settings: write the raw frame body (everything after the 5-byte
+    // command header), which restores every setting byte exactly.
+    final rawB64 = backup.settingsRaw;
+    if (rawB64 != null && rawB64.isNotEmpty) {
+      try {
+        final frame = base64Decode(rawB64);
+        if (frame.length > 5) {
+          _broker.dispatch(
+            deviceId: _currentRadioDeviceId,
+            name: 'WriteSettings',
+            data: Uint8List.sublistView(frame, 5),
+            store: false,
+          );
+        }
+      } catch (_) {
+        // Ignore a malformed settings blob; channels were still restored.
+      }
+    }
+
+    // BSS / APRS settings.
+    final bss = backup.bssSettings;
+    if (bss != null) {
+      _broker.dispatch(
+        deviceId: _currentRadioDeviceId,
+        name: 'SetBssSettings',
+        data: RadioBssSettings.fromJson(bss),
+        store: false,
+      );
+    }
+
+    // APRS beacon path.
+    final aprsPath = backup.aprsPath;
+    if (aprsPath != null) {
+      _broker.dispatch(
+        deviceId: _currentRadioDeviceId,
+        name: 'SetAprsPath',
+        data: aprsPath,
+        store: false,
+      );
+    }
+
+    // Programmable-function (button) table. SET_PF takes one effect byte per
+    // slot, in the slot order the table was read.
+    final pfTable = backup.pfTable;
+    if (pfTable != null && pfTable.isNotEmpty) {
+      final effectBytes = <int>[
+        for (final slot in pfTable)
+          ((slot['effectValue'] as num?)?.toInt() ?? 0) & 0xFF,
+      ];
+      _broker.dispatch(
+        deviceId: _currentRadioDeviceId,
+        name: 'SetProgFunctions',
+        data: Uint8List.fromList(effectBytes),
+        store: false,
+      );
+    }
   }
 
   /// Called when the connect button is pressed in RadioPanelControl.

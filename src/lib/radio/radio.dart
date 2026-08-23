@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../services/data_broker_client.dart';
@@ -2965,6 +2966,10 @@ class Radio implements FirmwareRadio {
         'Settings parsed: channelA=${settings!.channelA}, channelB=${settings!.channelB}, rawData.length=${settings!.rawData.length}',
       );
       _dispatch('Settings', settings!.toJson());
+      // Expose the raw settings frame (base64) so a full radio backup can
+      // capture and later restore every setting byte, including fields the
+      // parsed model does not model. Retained in memory (not persisted).
+      _dispatch('SettingsRaw', base64Encode(data));
     } else {
       _debug('Failed to parse settings');
     }
@@ -3230,6 +3235,7 @@ class Radio implements FirmwareRadio {
     settings = RadioSettings.fromBytes(data);
     if (settings != null) {
       _dispatch('Settings', settings!.toJson());
+      _dispatch('SettingsRaw', base64Encode(data));
     }
   }
 

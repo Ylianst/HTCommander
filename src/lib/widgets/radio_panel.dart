@@ -2957,8 +2957,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   /// right-pointing triangle is painted in that slot for the currently selected
   /// VFO ([vfoIndex]: 1 = A, 2 = B).
   Widget _buildVfoLabel(int vfoIndex, String label, Color color) {
-    final showMarker =
-        _isDualChannel && !_showFrequencyMode && _selectedVfo == vfoIndex;
+    final showMarker = _isDualChannel &&
+        !_showFrequencyMode &&
+        _selectedVfo == vfoIndex &&
+        label.isNotEmpty;
     return SizedBox(
       height: 32,
       child: Row(
