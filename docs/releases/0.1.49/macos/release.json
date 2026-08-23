@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 3,
+  "packageId": "com.htcommander.app",
+  "appName": "Handi-Talky Commander.app",
+  "version": "0.1.49",
+  "buildNumber": 51,
+  "platform": "macos",
+  "channel": "stable",
+  "artifact": {
+    "kind": "zip",
+    "url": "https://github.com/Ylianst/HTCommander/releases/download/v0.1.49/htcommander-0.1.49-macos.zip",
+    "sha256": "2336328e492796c19095143779d5daa597f7edbbd6db981cd78a368f4e94379b",
+    "length": 45167447
+  },
+  "install": {
+    "strategy": "wholeBundleReplace"
+  },
+  "minimumUpdaterVersion": "2.0.0",
+  "generatedAt": "2026-08-23T18:08:26.462454Z"
+}
