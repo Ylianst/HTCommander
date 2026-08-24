@@ -106,13 +106,111 @@ import 'dialogs/update_dialog.dart';
 import 'widgets/debug_tab.dart';
 
 void main(List<String> args) {
+  var startupComplete = false;
+
   // Run the whole app inside a guarded zone so uncaught (including async)
   // errors are captured and written to the cross-platform on-disk crash log,
   // even on platforms or failure paths where the Debug tab is never shown.
-  runZonedGuarded(() => _startApp(args), (Object error, StackTrace stack) {
-    CrashLogger.instance.logError('Uncaught error', error, stack);
-    _forwardErrorToDebugTab('Uncaught error: $error');
-  });
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      runApp(const _StartupApp());
+      await _startApp(args);
+      startupComplete = true;
+    },
+    (Object error, StackTrace stack) {
+      CrashLogger.instance.logError('Uncaught error', error, stack);
+      _forwardErrorToDebugTab('Uncaught error: $error');
+      if (!startupComplete) {
+        runApp(_StartupFailureApp(message: error.toString()));
+      }
+    },
+  );
+}
+
+class _StartupApp extends StatelessWidget {
+  const _StartupApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorSchemeSeed: Colors.blue,
+        brightness: Brightness.light,
+      ),
+      darkTheme: ThemeData(
+        colorSchemeSeed: Colors.blue,
+        brightness: Brightness.dark,
+      ),
+      themeMode: ThemeMode.system,
+      home: const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.radio, size: 56),
+              SizedBox(height: 20),
+              Text('Handi-Talky Commander'),
+              SizedBox(height: 20),
+              CircularProgressIndicator(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StartupFailureApp extends StatelessWidget {
+  const _StartupFailureApp({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorSchemeSeed: Colors.red,
+        brightness: Brightness.light,
+      ),
+      darkTheme: ThemeData(
+        colorSchemeSeed: Colors.red,
+        brightness: Brightness.dark,
+      ),
+      themeMode: ThemeMode.system,
+      home: Scaffold(
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 56),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Handi-Talky Commander could not start',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Quit and reopen the app. If the problem continues, include the message below in a support request.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  SelectableText(message, textAlign: TextAlign.center),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Application entry point, executed inside the guarded zone set up by [main].

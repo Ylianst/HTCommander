@@ -77,7 +77,9 @@ class NotificationService with WidgetsBindingObserver {
         linux: linuxInit,
         windows: windowsInit,
       );
-      await _plugin.initialize(settings: settings);
+      await _plugin
+          .initialize(settings: settings)
+          .timeout(const Duration(seconds: 8));
 
       // Android 13+ requires a runtime permission to post notifications.
       if (!kIsWeb && Platform.isAndroid) {
