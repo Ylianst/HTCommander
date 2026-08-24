@@ -35,6 +35,12 @@ enum AudioRxUsage { aprs, comms }
 /// AFSK 1200; the choice only applies to [AudioRxUsage.comms] devices.
 enum AudioRxModem { afsk1200, psk2400, dart }
 
+/// How a stereo capture is collapsed to the mono stream the decoder and
+/// spectrograph use. Stereo TNC/audio interfaces often carry the radio's
+/// receive audio on one channel, so [auto] (loudest channel) is the default;
+/// [mix] averages both, [left]/[right] force one.
+enum AudioRxChannel { auto, left, right, mix }
+
 class AudioRxDevice {
   /// This device's own DataBroker device id (>= [audioRxDeviceIdBase]). Used as
   /// the source identity for decoded frames when the device is not paired.
@@ -63,6 +69,13 @@ class AudioRxDevice {
   /// When paired, decoded frames are attributed to that radio.
   final String pairedRadioMac;
 
+  /// Which channel of a stereo input to use (or how to combine them).
+  final AudioRxChannel audioChannel;
+
+  /// Linear input gain applied to captured audio (1.0 = unchanged). Boosts a
+  /// quiet line-in that has no analog gain of its own.
+  final double audioGain;
+
   const AudioRxDevice({
     required this.deviceId,
     required this.name,
@@ -72,6 +85,8 @@ class AudioRxDevice {
     this.modem = AudioRxModem.afsk1200,
     this.fecEnabled = true,
     this.pairedRadioMac = '',
+    this.audioChannel = AudioRxChannel.auto,
+    this.audioGain = 1.0,
   });
 
   bool get isPaired => pairedRadioMac.isNotEmpty;
@@ -85,6 +100,8 @@ class AudioRxDevice {
     AudioRxModem? modem,
     bool? fecEnabled,
     String? pairedRadioMac,
+    AudioRxChannel? audioChannel,
+    double? audioGain,
   }) {
     return AudioRxDevice(
       deviceId: deviceId ?? this.deviceId,
@@ -95,6 +112,8 @@ class AudioRxDevice {
       modem: modem ?? this.modem,
       fecEnabled: fecEnabled ?? this.fecEnabled,
       pairedRadioMac: pairedRadioMac ?? this.pairedRadioMac,
+      audioChannel: audioChannel ?? this.audioChannel,
+      audioGain: audioGain ?? this.audioGain,
     );
   }
 
@@ -107,6 +126,8 @@ class AudioRxDevice {
         'Modem': _modemToString(modem),
         'Fec': fecEnabled,
         'PairedRadioMac': pairedRadioMac,
+        'AudioChannel': _channelToString(audioChannel),
+        'AudioGain': audioGain,
       };
 
   static AudioRxDevice fromMap(Map<dynamic, dynamic> m) {
@@ -128,7 +149,15 @@ class AudioRxDevice {
       modem: _modemFromString(str(m['Modem'], m['modem'])),
       fecEnabled: (m['Fec'] ?? m['fec']) as bool? ?? true,
       pairedRadioMac: str(m['PairedRadioMac'], m['pairedRadioMac']),
+      audioChannel: _channelFromString(str(m['AudioChannel'], m['audioChannel'])),
+      audioGain: _asDouble(m['AudioGain'] ?? m['audioGain'], 1.0),
     );
+  }
+
+  static double _asDouble(Object? v, double fallback) {
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? fallback;
+    return fallback;
   }
 
   static String _modemToString(AudioRxModem modem) {
@@ -150,6 +179,32 @@ class AudioRxDevice {
         return AudioRxModem.dart;
       default:
         return AudioRxModem.afsk1200;
+    }
+  }
+
+  static String _channelToString(AudioRxChannel c) {
+    switch (c) {
+      case AudioRxChannel.left:
+        return 'left';
+      case AudioRxChannel.right:
+        return 'right';
+      case AudioRxChannel.mix:
+        return 'mix';
+      case AudioRxChannel.auto:
+        return 'auto';
+    }
+  }
+
+  static AudioRxChannel _channelFromString(String s) {
+    switch (s.toLowerCase()) {
+      case 'left':
+        return AudioRxChannel.left;
+      case 'right':
+        return AudioRxChannel.right;
+      case 'mix':
+        return AudioRxChannel.mix;
+      default:
+        return AudioRxChannel.auto;
     }
   }
 }

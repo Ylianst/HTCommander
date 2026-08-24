@@ -19,6 +19,8 @@ void main() {
         modem: AudioRxModem.psk2400,
         fecEnabled: false,
         pairedRadioMac: '',
+        audioChannel: AudioRxChannel.right,
+        audioGain: 4.0,
       );
 
       final AudioRxDevice copy = AudioRxDevice.fromMap(device.toMap());
@@ -31,6 +33,8 @@ void main() {
       expect(copy.modem, AudioRxModem.psk2400);
       expect(copy.fecEnabled, false);
       expect(copy.isPaired, false);
+      expect(copy.audioChannel, AudioRxChannel.right);
+      expect(copy.audioGain, 4.0);
     });
 
     test('round-trips a paired APRS device', () {
@@ -63,6 +67,8 @@ void main() {
       expect(copy.modem, AudioRxModem.afsk1200);
       expect(copy.fecEnabled, true);
       expect(copy.isPaired, false);
+      expect(copy.audioChannel, AudioRxChannel.auto); // default
+      expect(copy.audioGain, 1.0); // default
     });
 
     test('copyWith overrides only the given fields', () {

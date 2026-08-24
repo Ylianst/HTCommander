@@ -50,6 +50,10 @@ class AudioRxManager {
   /// Running captures keyed by each device's own (source) id.
   final Map<int, _RunningCapture> _running = <int, _RunningCapture>{};
 
+  /// Source ids that already logged a decode error, so a recurring failure on a
+  /// noisy input is reported once rather than on every captured block.
+  final Set<int> _decodeErrorLogged = <int>{};
+
   /// Own id of the audio receive device the Audio tab spectrograph is currently
   /// visualizing, or -1 for none. Only that device's captured PCM is republished
   /// on the broker (for the spectrograph) to avoid a needless live stream.
@@ -174,6 +178,12 @@ class AudioRxManager {
     final MicrophoneCapture capture = MicrophoneCapture(
       sampleRate: audioRxSampleRate,
       deviceId: plan.config.inputDeviceId,
+      // Stereo TNC/audio interfaces usually carry the radio's receive audio on
+      // one channel; capture both and pick per the device's channel setting
+      // rather than letting the OS average in the unused (often noisy) channel.
+      requestedChannels: 2,
+      monoReduction: _monoReductionFor(plan.config.audioChannel),
+      gain: plan.config.audioGain,
     );
     final bool ok = await capture.start(
       (Uint8List pcm16) => _onCapturePcm(sourceId, pcm16),
@@ -195,9 +205,24 @@ class AudioRxManager {
 
   Future<void> _stop(int sourceId) async {
     final _RunningCapture? running = _running.remove(sourceId);
+    _decodeErrorLogged.remove(sourceId);
     _softwareModem.unregisterExternalSource(sourceId);
     if (running != null) {
       await running.capture.dispose();
+    }
+  }
+
+  /// Maps a device's channel preference to the capture reduction strategy.
+  static MonoReduction _monoReductionFor(AudioRxChannel c) {
+    switch (c) {
+      case AudioRxChannel.left:
+        return MonoReduction.left;
+      case AudioRxChannel.right:
+        return MonoReduction.right;
+      case AudioRxChannel.mix:
+        return MonoReduction.mix;
+      case AudioRxChannel.auto:
+        return MonoReduction.auto;
     }
   }
 
@@ -205,7 +230,9 @@ class AudioRxManager {
   /// tab spectrograph is showing, republish it on the broker so every Audio tab
   /// (including detached windows) can visualize the input level.
   void _onCapturePcm(int sourceId, Uint8List pcm16) {
-    _softwareModem.feedExternalSamples(sourceId, pcm16);
+    // Republish for the spectrograph first and independently of decoding: the
+    // live visualization the user is watching must never be suppressed by a
+    // decode error on a noisy input.
     if (sourceId == _spectrogramDeviceId) {
       _broker.dispatch(
         deviceId: sourceId,
@@ -213,6 +240,13 @@ class AudioRxManager {
         data: pcm16,
         store: false,
       );
+    }
+    try {
+      _softwareModem.feedExternalSamples(sourceId, pcm16);
+    } catch (e) {
+      if (_decodeErrorLogged.add(sourceId)) {
+        _log('decode error on device $sourceId: $e');
+      }
     }
   }
 
@@ -305,5 +339,6 @@ class _Plan {
 
   String get signature =>
       '${config.inputDeviceId}|${mode.name}|${config.fecEnabled}|'
-      '$attributeDeviceId|$channelName|$radioMac';
+      '$attributeDeviceId|$channelName|$radioMac|${config.audioChannel.name}|'
+      '${config.audioGain}';
 }

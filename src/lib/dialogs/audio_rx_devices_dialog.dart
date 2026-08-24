@@ -11,12 +11,17 @@ http://www.apache.org/licenses/LICENSE-2.0
 // the AudioRxManager. This file provides the list dialog and the add/edit editor.
 //
 
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:record/record.dart' show InputDevice;
 
 import '../audio_rx/audio_rx_device.dart';
 import '../services/data_broker_client.dart';
 import '../services/microphone_capture.dart';
+
+/// Selectable input-gain multipliers for an Audio Receive Device.
+const List<double> _gainOptions = <double>[1.0, 2.0, 4.0, 8.0, 16.0];
 
 /// Shows the Audio Receive Devices manager (list + add/edit/remove).
 Future<void> showAudioRxDevicesDialog(BuildContext context) {
@@ -257,6 +262,8 @@ class _AudioRxDeviceEditorState extends State<_AudioRxDeviceEditor> {
   AudioRxUsage _usage = AudioRxUsage.aprs;
   AudioRxModem _modem = AudioRxModem.afsk1200;
   String _pairedMac = '';
+  AudioRxChannel _audioChannel = AudioRxChannel.auto;
+  double _audioGain = 1.0;
 
   List<InputDevice> _inputs = <InputDevice>[];
   bool _inputsLoaded = false;
@@ -272,6 +279,8 @@ class _AudioRxDeviceEditorState extends State<_AudioRxDeviceEditor> {
     _usage = e?.usage ?? AudioRxUsage.aprs;
     _modem = e?.modem ?? AudioRxModem.afsk1200;
     _pairedMac = e?.pairedRadioMac ?? '';
+    _audioChannel = e?.audioChannel ?? AudioRxChannel.auto;
+    _audioGain = e?.audioGain ?? 1.0;
     _radios = _readRadios();
     _loadInputs();
   }
@@ -341,6 +350,8 @@ class _AudioRxDeviceEditorState extends State<_AudioRxDeviceEditor> {
       usage: _usage,
       modem: _modem,
       pairedRadioMac: _isPaired ? _pairedMac.toUpperCase() : '',
+      audioChannel: _audioChannel,
+      audioGain: _audioGain,
     ));
   }
 
@@ -360,6 +371,54 @@ class _AudioRxDeviceEditorState extends State<_AudioRxDeviceEditor> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               _buildInputDropdown(portTaken),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<AudioRxChannel>(
+                initialValue: _audioChannel,
+                decoration: const InputDecoration(
+                  labelText: 'Audio channel',
+                  helperText:
+                      'Stereo cables often carry audio on one channel only',
+                ),
+                items: const <DropdownMenuItem<AudioRxChannel>>[
+                  DropdownMenuItem<AudioRxChannel>(
+                    value: AudioRxChannel.auto,
+                    child: Text('Auto (loudest channel)'),
+                  ),
+                  DropdownMenuItem<AudioRxChannel>(
+                    value: AudioRxChannel.left,
+                    child: Text('Left'),
+                  ),
+                  DropdownMenuItem<AudioRxChannel>(
+                    value: AudioRxChannel.right,
+                    child: Text('Right'),
+                  ),
+                  DropdownMenuItem<AudioRxChannel>(
+                    value: AudioRxChannel.mix,
+                    child: Text('Mix (average both)'),
+                  ),
+                ],
+                onChanged: (AudioRxChannel? v) =>
+                    setState(() => _audioChannel = v ?? AudioRxChannel.auto),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<double>(
+                initialValue:
+                    _gainOptions.contains(_audioGain) ? _audioGain : 1.0,
+                decoration: const InputDecoration(
+                  labelText: 'Input gain',
+                  helperText: 'Boost a quiet line-in (analog level is cleaner)',
+                ),
+                items: <DropdownMenuItem<double>>[
+                  for (final double g in _gainOptions)
+                    DropdownMenuItem<double>(
+                      value: g,
+                      child: Text(g == 1.0
+                          ? '0 dB (1×)'
+                          : '+${(20 * (log(g) / ln10)).round()} dB (${g.toInt()}×)'),
+                    ),
+                ],
+                onChanged: (double? v) => setState(() => _audioGain = v ?? 1.0),
+              ),
               const SizedBox(height: 12),
               SegmentedButton<AudioRxUsage>(
                 segments: const <ButtonSegment<AudioRxUsage>>[

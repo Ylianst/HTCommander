@@ -121,13 +121,19 @@ class WavFile {
       throw const FormatException('Not a valid WAV file (missing WAVE header)');
     }
 
-    // Read fmt sub-chunk
-    final String fmt = readTag();
+    // Find the fmt sub-chunk. Some recorders (e.g. USB audio capture) insert a
+    // JUNK padding chunk between WAVE and fmt, so scan past any non-fmt chunks.
+    String fmt = readTag();
+    int fmtSize = readInt32();
+    while (fmt != 'fmt ' && pos < bytes.length) {
+      pos += fmtSize + (fmtSize & 1); // chunks are word-aligned
+      fmt = readTag();
+      fmtSize = readInt32();
+    }
     if (fmt != 'fmt ') {
       throw const FormatException('Not a valid WAV file (missing fmt header)');
     }
 
-    final int fmtSize = readInt32();
     final int audioFormat = readInt16();
     if (audioFormat != 1) {
       throw UnsupportedError('Only PCM format is supported');
@@ -154,8 +160,8 @@ class WavFile {
       chunkSize = readInt32();
 
       if (chunkId != 'data') {
-        // Skip this chunk
-        pos += chunkSize;
+        // Skip this chunk (word-aligned)
+        pos += chunkSize + (chunkSize & 1);
       }
     } while (chunkId != 'data' && pos < bytes.length);
 
@@ -163,24 +169,43 @@ class WavFile {
       throw const FormatException('No data chunk found in WAV file');
     }
 
-    // Read sample data
-    final int numSamples = chunkSize ~/ (parameters.bitsPerSample ~/ 8);
-    final Int16List samples = Int16List(numSamples);
+    // Read sample data as interleaved frames.
+    final int bytesPerSample = parameters.bitsPerSample ~/ 8;
+    final int totalSamples = chunkSize ~/ bytesPerSample;
 
+    final Int16List interleaved = Int16List(totalSamples);
     if (parameters.bitsPerSample == 16) {
-      for (int i = 0; i < numSamples; i++) {
-        samples[i] = readInt16();
+      for (int i = 0; i < totalSamples; i++) {
+        interleaved[i] = readInt16();
       }
     } else if (parameters.bitsPerSample == 8) {
-      for (int i = 0; i < numSamples; i++) {
+      for (int i = 0; i < totalSamples; i++) {
         // Convert 8-bit unsigned to 16-bit signed
         final int b = bytes[pos++];
-        samples[i] = (b - 128) * 256;
+        interleaved[i] = (b - 128) * 256;
       }
     } else {
       throw UnsupportedError(
         'Bits per sample ${parameters.bitsPerSample} not supported',
       );
+    }
+
+    // Down-mix multi-channel audio to mono so the demodulators (which expect a
+    // single stream) see one sample per frame at the file's sample rate.
+    final int channels = parameters.numChannels < 1 ? 1 : parameters.numChannels;
+    if (channels == 1) {
+      return (interleaved, parameters);
+    }
+
+    final int frames = totalSamples ~/ channels;
+    final Int16List samples = Int16List(frames);
+    for (int f = 0; f < frames; f++) {
+      int sum = 0;
+      final int base = f * channels;
+      for (int c = 0; c < channels; c++) {
+        sum += interleaved[base + c];
+      }
+      samples[f] = (sum ~/ channels).clamp(-32768, 32767);
     }
 
     return (samples, parameters);

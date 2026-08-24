@@ -1205,11 +1205,19 @@ class _CommsTabState extends State<CommsTab>
     if (_messages.isEmpty) _loadDecodedTextHistory();
   }
 
+  /// True for APRS traffic on the "APRS" channel, which belongs in the APRS tab
+  /// rather than here.
+  bool _isAprsChannelEntry(String encoding, String? channel) =>
+      encoding == 'APRS' && channel == 'APRS';
+
   /// Handles a TextReady event by appending (or updating) a history entry.
   void _onTextReady(int deviceId, String name, Object? data) {
     if (data is! Map) return;
     final text = data['text'] as String?;
     final encoding = data['encoding'] as String? ?? 'Voice';
+    // APRS-channel messages belong in the APRS tab; they are only kept in the
+    // decoded-text history so Android Auto can surface them.
+    if (_isAprsChannelEntry(encoding, data['channel'] as String?)) return;
     final allowEmpty =
         encoding == 'Recording' || encoding == 'Picture' || encoding == 'Ident';
     if ((text == null || text.isEmpty) && !allowEmpty) return;
@@ -1367,6 +1375,9 @@ class _CommsTabState extends State<CommsTab>
       return null;
     }
     final channel = raw['channel'] as String? ?? '';
+    // APRS-channel messages are shown only in the APRS tab (kept in history for
+    // Android Auto).
+    if (_isAprsChannelEntry(encoding, channel)) return null;
     final isReceived = raw['isReceived'] as bool? ?? true;
     final source = raw['source'] as String?;
     final destination = raw['destination'] as String?;

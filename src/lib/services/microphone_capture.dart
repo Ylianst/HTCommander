@@ -16,9 +16,21 @@ import 'package:record/record.dart';
 /// microphone, mirroring the continuous capture the C# RadioAudioForm did with
 /// WASAPI. Capture only runs while [start] has been called and is released by
 /// [stop] / [dispose] so the operating-system microphone indicator turns off
+/// How a multi-channel capture is reduced to the single mono stream this class
+/// emits. Stereo TNC/audio interfaces often carry the radio's receive audio on
+/// only one channel, so averaging both ([mix]) halves the level and folds in
+/// the unused channel's noise; [auto] tracks and emits the louder channel.
+enum MonoReduction { mix, left, right, auto }
+
 /// when the spectrogram no longer needs it.
 class MicrophoneCapture {
-  MicrophoneCapture({this.sampleRate = 32000, this.gain = 1.0, this.deviceId});
+  MicrophoneCapture({
+    this.sampleRate = 32000,
+    this.gain = 1.0,
+    this.deviceId,
+    this.requestedChannels = 1,
+    this.monoReduction = MonoReduction.mix,
+  });
 
   /// Requested capture sample rate (Hz). Chosen to match the spectrogram so
   /// frequencies map correctly.
@@ -35,6 +47,22 @@ class MicrophoneCapture {
   /// [listInputDevices]. Changing this only takes effect on the next [start];
   /// callers that want it applied immediately should [stop] then [start].
   String? deviceId;
+
+  /// Number of channels to request from the device. Values >1 let a stereo
+  /// interface expose its individual channels so [monoReduction] can pick the
+  /// active one instead of relying on the OS to downmix. The class always emits
+  /// mono regardless.
+  final int requestedChannels;
+
+  /// How a [requestedChannels] > 1 capture is collapsed to the emitted mono.
+  final MonoReduction monoReduction;
+
+  /// Channel count the capture actually opened with (may fall back to 1 if the
+  /// device rejects the requested count).
+  int _activeChannels = 1;
+
+  /// Per-channel energy running average used by [MonoReduction.auto].
+  final List<double> _chEnergy = List<double>.filled(8, 0);
 
   final AudioRecorder _recorder = AudioRecorder();
   StreamSubscription<Uint8List>? _subscription;
@@ -85,26 +113,97 @@ class MicrophoneCapture {
       if (!hasPermission) return false;
 
       final String? id = deviceId;
-      final stream = await _recorder.startStream(
-        RecordConfig(
-          encoder: AudioEncoder.pcm16bits,
-          sampleRate: sampleRate,
-          numChannels: 1,
-          device: (id == null || id.isEmpty)
-              ? null
-              : InputDevice(id: id, label: id),
-        ),
-      );
-      _subscription = stream.listen(
-        (chunk) => onData(_applyGain(chunk)),
-        onError: (_) {},
-        cancelOnError: false,
-      );
-      return true;
-    } catch (_) {
+      final InputDevice? device =
+          (id == null || id.isEmpty) ? null : InputDevice(id: id, label: id);
+
+      // Prefer the requested channel count (so a stereo device exposes both
+      // channels), falling back to mono if the device rejects it.
+      final List<int> attempts =
+          requestedChannels > 1 ? <int>[requestedChannels, 1] : <int>[1];
+      for (final int channels in attempts) {
+        try {
+          final stream = await _recorder.startStream(
+            RecordConfig(
+              encoder: AudioEncoder.pcm16bits,
+              sampleRate: sampleRate,
+              numChannels: channels,
+              device: device,
+            ),
+          );
+          _activeChannels = channels;
+          for (int i = 0; i < _chEnergy.length; i++) {
+            _chEnergy[i] = 0;
+          }
+          _subscription = stream.listen(
+            (chunk) => onData(_applyGain(_reduceToMono(chunk))),
+            onError: (_) {},
+            cancelOnError: false,
+          );
+          return true;
+        } catch (_) {
+          // Try the next channel count.
+        }
+      }
       return false;
     } finally {
       _starting = false;
+    }
+  }
+
+  /// Collapses an interleaved [_activeChannels]-channel block to mono per
+  /// [monoReduction]. Returns [pcm16] unchanged for a mono capture.
+  Uint8List _reduceToMono(Uint8List pcm16) {
+    final int ch = _activeChannels;
+    if (ch <= 1) return pcm16;
+    final int frames = (pcm16.lengthInBytes ~/ 2) ~/ ch;
+    if (frames == 0) return Uint8List(0);
+    final ByteData src = ByteData.sublistView(pcm16);
+    final Uint8List out = Uint8List(frames * 2);
+    final ByteData dst = ByteData.sublistView(out);
+
+    if (monoReduction == MonoReduction.mix) {
+      for (int f = 0; f < frames; f++) {
+        int sum = 0;
+        for (int c = 0; c < ch; c++) {
+          sum += src.getInt16((f * ch + c) * 2, Endian.little);
+        }
+        dst.setInt16(f * 2, (sum / ch).round(), Endian.little);
+      }
+      return out;
+    }
+
+    final int sel = _selectChannel(src, frames, ch);
+    for (int f = 0; f < frames; f++) {
+      dst.setInt16(
+          f * 2, src.getInt16((f * ch + sel) * 2, Endian.little), Endian.little);
+    }
+    return out;
+  }
+
+  /// Picks the source channel to emit for a non-mixing [monoReduction]. For
+  /// [MonoReduction.auto] it tracks a per-channel energy average and returns the
+  /// loudest, so a stereo cable carrying audio on one channel selects it.
+  int _selectChannel(ByteData src, int frames, int ch) {
+    switch (monoReduction) {
+      case MonoReduction.left:
+      case MonoReduction.mix:
+        return 0;
+      case MonoReduction.right:
+        return ch > 1 ? 1 : 0;
+      case MonoReduction.auto:
+        for (int c = 0; c < ch && c < _chEnergy.length; c++) {
+          double sum = 0;
+          for (int f = 0; f < frames; f++) {
+            final int s = src.getInt16((f * ch + c) * 2, Endian.little);
+            sum += s.toDouble() * s;
+          }
+          _chEnergy[c] = _chEnergy[c] * 0.9 + (sum / frames) * 0.1;
+        }
+        int best = 0;
+        for (int c = 1; c < ch && c < _chEnergy.length; c++) {
+          if (_chEnergy[c] > _chEnergy[best]) best = c;
+        }
+        return best;
     }
   }
 

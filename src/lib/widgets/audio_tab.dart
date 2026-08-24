@@ -6,6 +6,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -14,7 +15,9 @@ import 'package:record/record.dart' show InputDevice;
 import '../l10n/app_localizations.dart';
 import '../audio_rx/audio_rx_device.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
+import '../echolink/pcm_resampler.dart';
 import '../allstar/allstar_client.dart' show allStarDeviceId;
+import '../radio/pcm_player.dart';
 import '../services/audio_output_devices.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -23,11 +26,15 @@ import '../services/shared_microphone.dart';
 import '../services/system_audio.dart';
 import '../services/window_service.dart';
 import 'dart_analysis_view.dart';
+import 'spectrogram/amplitude_view.dart';
 import 'spectrogram/spectrogram_view.dart';
 import 'tab_visibility.dart';
 
 /// Which audio source the spectrograph visualizes (or none to hide it).
 enum SpectrogramSource { none, radio, microphone, audioDevice }
+
+/// Which style of graph the audio visualizer draws.
+enum GraphType { spectrogram, amplitude }
 
 /// Audio tab - radio + application + computer audio controls.
 ///
@@ -81,6 +88,11 @@ class _AudioTabState extends State<AudioTab>
   int _spectrogramAudioDeviceId = -1;
   SpectrogramController? _spectrogram;
 
+  // Graph style (spectrograph vs amplitude). Persisted on device 0
+  // ('AudioGraphType') and synced across windows.
+  GraphType _graphType = GraphType.spectrogram;
+  AmplitudeController? _amplitude;
+
   // DART reception-quality analysis. Enabling this turns on extra decode-side
   // work in the software modem (constellation capture + per-frame diagnostics),
   // so it is off by default and persisted on DataBroker device 0
@@ -115,6 +127,13 @@ class _AudioTabState extends State<AudioTab>
   // 0 ('InputAudioDevice'); empty id means the OS default device.
   List<InputDevice> _inputDevices = const <InputDevice>[];
   String _inputDeviceId = '';
+
+  // Live listening to the selected Audio Receive Device through the app's
+  // output. Only the main window owns audio hardware, so the captured 48 kHz
+  // PCM is downsampled to the app's 32 kHz output rate before playback.
+  bool _listenEnabled = false;
+  PcmPlayer? _listenPlayer;
+  LinearResampler? _listenResampler;
 
   @override
   bool get wantKeepAlive => true;
@@ -229,6 +248,13 @@ class _AudioTabState extends State<AudioTab>
       callback: _onSpectrogramSourceChanged,
     );
 
+    // The graph style (spectrograph vs amplitude) is a single global setting.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'AudioGraphType',
+      callback: _onGraphTypeChanged,
+    );
+
     // Live microphone PCM is captured only in the main window, then published
     // here so any Audio tab (including detached windows that cannot own the
     // microphone) can render the microphone spectrograph.
@@ -278,9 +304,14 @@ class _AudioTabState extends State<AudioTab>
         _broker.getValue<String>(0, 'SpectrogramSource', 'none') ?? 'none';
     _spectrogramSource = _sourceFromName(savedSource);
     _spectrogramAudioDeviceId = _audioDeviceIdFromName(savedSource);
+    // Restore the persisted graph style.
+    _graphType =
+        (_broker.getValue<String>(0, 'AudioGraphType', 'spectrogram') ==
+                'amplitude')
+            ? GraphType.amplitude
+            : GraphType.spectrogram;
     if (_spectrogramSource != SpectrogramSource.none) {
-      _spectrogram = _createSpectrogramController(
-          _spectrogramSampleRateFor(_spectrogramSource));
+      _ensureGraph(_spectrogramSource);
       _updateMicCapture();
     }
   }
@@ -290,7 +321,10 @@ class _AudioTabState extends State<AudioTab>
     _masterPollTimer?.cancel();
     _micHandle?.cancel();
     _micHandle = null;
+    unawaited(_listenPlayer?.release());
+    _listenPlayer = null;
     _spectrogram?.dispose();
+    _amplitude?.dispose();
     _broker.dispose();
     super.dispose();
   }
@@ -471,10 +505,9 @@ class _AudioTabState extends State<AudioTab>
   }
 
   void _onAudioDataAvailable(int deviceId, String name, Object? data) {
-    final controller = _spectrogram;
     // Only the radio source consumes the received audio stream. The microphone
     // source is fed from live capture instead.
-    if (controller == null || _spectrogramSource != SpectrogramSource.radio) {
+    if (!_hasActiveGraph || _spectrogramSource != SpectrogramSource.radio) {
       return;
     }
     // Skip the (fairly costly) spectrogram FFT while the Audio tab is hidden;
@@ -502,13 +535,13 @@ class _AudioTabState extends State<AudioTab>
     final offset = data['offset'] as int? ?? 0;
     final length = data['length'] as int?;
     if (pcm is Uint8List) {
-      controller.feedPcm16(pcm, offset, length);
+      _feedActiveGraph(pcm, offset, length);
     } else if (pcm is List<int>) {
-      controller.feedPcm16(Uint8List.fromList(pcm), offset, length);
+      _feedActiveGraph(Uint8List.fromList(pcm), offset, length);
     } else if (pcm is List) {
       // Forwarded from the host to a detached window: JSON decoding yields a
       // List<dynamic> of ints, which fails the typed checks above.
-      controller.feedPcm16(Uint8List.fromList(pcm.cast<int>()), offset, length);
+      _feedActiveGraph(Uint8List.fromList(pcm.cast<int>()), offset, length);
     }
   }
 
@@ -747,15 +780,43 @@ class _AudioTabState extends State<AudioTab>
   int _spectrogramSampleRateFor(SpectrogramSource source) =>
       source == SpectrogramSource.audioDevice ? audioRxSampleRate : 32000;
 
-  /// Ensures the controller exists and is configured for [source]'s rate.
-  void _ensureSpectrogram(SpectrogramSource source) {
+  /// Creates an amplitude controller matching the spectrogram's scroll cadence.
+  AmplitudeController _createAmplitudeController(int sampleRate) =>
+      AmplitudeController(sampleRate: sampleRate, fftSize: 512);
+
+  /// Ensures the active graph's controller exists and is configured for
+  /// [source]'s sample rate.
+  void _ensureGraph(SpectrogramSource source) {
     final int rate = _spectrogramSampleRateFor(source);
-    if (_spectrogram == null) {
-      _spectrogram = _createSpectrogramController(rate);
-    } else if (_spectrogram!.sampleRate != rate) {
-      _spectrogram!.reconfigure(sampleRate: rate);
+    if (_graphType == GraphType.amplitude) {
+      if (_amplitude == null) {
+        _amplitude = _createAmplitudeController(rate);
+      } else {
+        _amplitude!.reconfigure(sampleRate: rate);
+      }
+      _amplitude!.clear();
+    } else {
+      if (_spectrogram == null) {
+        _spectrogram = _createSpectrogramController(rate);
+      } else if (_spectrogram!.sampleRate != rate) {
+        _spectrogram!.reconfigure(sampleRate: rate);
+      }
+      _spectrogram!.clear();
     }
-    _spectrogram!.clear();
+  }
+
+  /// Whether the currently selected graph has a live controller.
+  bool get _hasActiveGraph => _graphType == GraphType.amplitude
+      ? _amplitude != null
+      : _spectrogram != null;
+
+  /// Feeds PCM to whichever graph is active.
+  void _feedActiveGraph(Uint8List bytes, [int offset = 0, int? length]) {
+    if (_graphType == GraphType.amplitude) {
+      _amplitude?.feedPcm16(bytes, offset, length);
+    } else {
+      _spectrogram?.feedPcm16(bytes, offset, length);
+    }
   }
 
   /// Reacts to the global spectrograph source changing in another window so all
@@ -773,9 +834,12 @@ class _AudioTabState extends State<AudioTab>
       _spectrogramSource = source;
       _spectrogramAudioDeviceId = audioDeviceId;
       if (source != SpectrogramSource.none) {
-        _ensureSpectrogram(source);
+        _ensureGraph(source);
       }
     });
+    if (source != SpectrogramSource.audioDevice && _listenEnabled) {
+      unawaited(_stopListen());
+    }
     _updateMicCapture();
   }
 
@@ -785,9 +849,12 @@ class _AudioTabState extends State<AudioTab>
       _spectrogramAudioDeviceId =
           source == SpectrogramSource.audioDevice ? audioDeviceId : -1;
       if (source != SpectrogramSource.none) {
-        _ensureSpectrogram(source);
+        _ensureGraph(source);
       }
     });
+    if (source != SpectrogramSource.audioDevice && _listenEnabled) {
+      unawaited(_stopListen());
+    }
 
     // Persist the selection on device 0 so it is restored on the next launch.
     _broker.dispatch(
@@ -800,6 +867,33 @@ class _AudioTabState extends State<AudioTab>
     );
 
     _updateMicCapture();
+  }
+
+  /// Reacts to the global graph-type changing in another window so all Audio
+  /// tabs stay in sync.
+  void _onGraphTypeChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final GraphType type =
+        (data?.toString() == 'amplitude') ? GraphType.amplitude : GraphType.spectrogram;
+    if (type == _graphType) return;
+    setState(() {
+      _graphType = type;
+      if (_spectrogramSource != SpectrogramSource.none) _ensureGraph(_spectrogramSource);
+    });
+  }
+
+  void _setGraphType(GraphType type) {
+    if (type == _graphType) return;
+    setState(() {
+      _graphType = type;
+      if (_spectrogramSource != SpectrogramSource.none) _ensureGraph(_spectrogramSource);
+    });
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'AudioGraphType',
+      data: type.name,
+      store: true,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -874,39 +968,151 @@ class _AudioTabState extends State<AudioTab>
   }
 
   void _onMicrophoneAudioData(int deviceId, String name, Object? data) {
-    final controller = _spectrogram;
-    if (controller == null ||
+    if (!_hasActiveGraph ||
         _spectrogramSource != SpectrogramSource.microphone) {
       return;
     }
-    // Skip the spectrogram FFT while the Audio tab is hidden.
+    // Skip the graph while the Audio tab is hidden.
     if (!isTabVisible) return;
     if (data is Uint8List) {
-      controller.feedPcm16(data);
+      _feedActiveGraph(data);
     } else if (data is List<int>) {
-      controller.feedPcm16(Uint8List.fromList(data));
+      _feedActiveGraph(Uint8List.fromList(data));
     } else if (data is List) {
       // Forwarded to a detached window: JSON decoding yields a List<dynamic>.
-      controller.feedPcm16(Uint8List.fromList(data.cast<int>()));
+      _feedActiveGraph(Uint8List.fromList(data.cast<int>()));
     }
   }
 
   void _onAudioRxAudioData(int deviceId, String name, Object? data) {
-    final controller = _spectrogram;
-    if (controller == null ||
-        _spectrogramSource != SpectrogramSource.audioDevice ||
+    if (_spectrogramSource != SpectrogramSource.audioDevice ||
         deviceId != _spectrogramAudioDeviceId) {
       return;
     }
-    // Skip the spectrogram FFT while the Audio tab is hidden.
+    // Play through the speaker when listening. Done before the visibility gate
+    // so audio keeps playing while another tab is shown.
+    if (_listenEnabled) _feedListen(data);
+
+    if (!_hasActiveGraph) return;
+    // Skip the graph while the Audio tab is hidden.
     if (!isTabVisible) return;
     if (data is Uint8List) {
-      controller.feedPcm16(data);
+      _feedActiveGraph(data);
     } else if (data is List<int>) {
-      controller.feedPcm16(Uint8List.fromList(data));
+      _feedActiveGraph(Uint8List.fromList(data));
     } else if (data is List) {
-      controller.feedPcm16(Uint8List.fromList(data.cast<int>()));
+      _feedActiveGraph(Uint8List.fromList(data.cast<int>()));
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Listen to the selected audio device
+  // ---------------------------------------------------------------------------
+
+  /// Whether a listen toggle can be offered for the current source (an audio
+  /// receive device, in the main window that owns the output hardware).
+  bool get _listenAvailable =>
+      _spectrogramSource == SpectrogramSource.audioDevice &&
+      _audioChannelSupported &&
+      !windowService.isChildWindow;
+
+  Future<void> _toggleListen() async {
+    if (_listenEnabled) {
+      await _stopListen();
+    } else {
+      await _startListen();
+    }
+  }
+
+  Future<void> _startListen() async {
+    if (windowService.isChildWindow || _listenPlayer != null) return;
+    final PcmPlayer player = PcmPlayer();
+    try {
+      await player.setLogLevelError();
+      await player.setup(
+        sampleRate: 32000,
+        channelCount: 1,
+        deviceId: _outputDeviceId.isEmpty ? null : _outputDeviceId,
+      );
+      player.start();
+    } catch (_) {
+      await player.release();
+      return;
+    }
+    if (!mounted) {
+      await player.release();
+      return;
+    }
+    setState(() {
+      _listenPlayer = player;
+      _listenResampler =
+          LinearResampler(inputRate: audioRxSampleRate, outputRate: 32000);
+      _listenEnabled = true;
+    });
+  }
+
+  Future<void> _stopListen() async {
+    final PcmPlayer? player = _listenPlayer;
+    _listenPlayer = null;
+    _listenResampler = null;
+    if (mounted) {
+      setState(() => _listenEnabled = false);
+    } else {
+      _listenEnabled = false;
+    }
+    if (player != null) {
+      try {
+        await player.release();
+      } catch (_) {}
+    }
+  }
+
+  /// Downsamples one block of captured 48 kHz PCM to the 32 kHz output rate,
+  /// applies the output volume/mute, and queues it for playback.
+  void _feedListen(Object? data) {
+    final PcmPlayer? player = _listenPlayer;
+    final LinearResampler? resampler = _listenResampler;
+    if (player == null || resampler == null) return;
+
+    final Uint8List bytes;
+    if (data is Uint8List) {
+      bytes = data;
+    } else if (data is List<int>) {
+      bytes = Uint8List.fromList(data);
+    } else if (data is List) {
+      bytes = Uint8List.fromList(data.cast<int>());
+    } else {
+      return;
+    }
+
+    final int n = bytes.lengthInBytes ~/ 2;
+    if (n == 0) return;
+    final Int16List in16;
+    if (bytes.offsetInBytes.isEven) {
+      in16 = bytes.buffer.asInt16List(bytes.offsetInBytes, n);
+    } else {
+      in16 = Int16List(n);
+      final ByteData bd = ByteData.sublistView(bytes);
+      for (int i = 0; i < n; i++) {
+        in16[i] = bd.getInt16(i * 2, Endian.little);
+      }
+    }
+
+    final Int16List out = resampler.process(in16);
+    if (out.isEmpty) return;
+    final double gain = _appMuted ? 0.0 : _appVolume;
+    if (gain != 1.0) {
+      for (int i = 0; i < out.length; i++) {
+        int v = (out[i] * gain).round();
+        if (v > 32767) {
+          v = 32767;
+        } else if (v < -32768) {
+          v = -32768;
+        }
+        out[i] = v;
+      }
+    }
+    unawaited(player.feed(out));
   }
 
   // ---------------------------------------------------------------------------
@@ -978,6 +1184,14 @@ class _AudioTabState extends State<AudioTab>
     final value = data is String ? data : '';
     if (value == _outputDeviceId) return;
     setState(() => _outputDeviceId = value);
+    // Move an active listen stream to the newly selected output device.
+    if (_listenEnabled && _listenPlayer != null && !windowService.isChildWindow) {
+      unawaited(_listenPlayer!.setup(
+        sampleRate: 32000,
+        channelCount: 1,
+        deviceId: value.isEmpty ? null : value,
+      ));
+    }
   }
 
   /// Applies an input-device change. All windows update the dropdown, but only
@@ -1157,13 +1371,22 @@ class _AudioTabState extends State<AudioTab>
                     ),
                   if (_showSpectrogram) ...[
                     const SizedBox(height: 16),
-                    _buildSectionTitle(_spectrogramTitle()),
+                    _buildSpectrogramHeader(),
                     ClipRect(
                       child: SizedBox(
                         height: 200,
-                        child: _spectrogram == null
-                            ? const ColoredBox(color: Colors.black)
-                            : SpectrogramView(controller: _spectrogram!),
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _setGraphType(
+                              _graphType == GraphType.amplitude
+                                  ? GraphType.spectrogram
+                                  : GraphType.amplitude,
+                            ),
+                            child: _buildGraph(),
+                          ),
+                        ),
                       ),
                     ),
                     if (_micNeeded && _micError != null)
@@ -1234,6 +1457,76 @@ class _AudioTabState extends State<AudioTab>
       child: Text(
         title,
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  /// Renders the active graph (spectrograph or amplitude) for the current
+  /// source, or a black placeholder before its controller exists.
+  Widget _buildGraph() {
+    if (_graphType == GraphType.amplitude) {
+      return _amplitude == null
+          ? const ColoredBox(color: Colors.black)
+          : AmplitudeView(controller: _amplitude!);
+    }
+    return _spectrogram == null
+        ? const ColoredBox(color: Colors.black)
+        : SpectrogramView(controller: _spectrogram!);
+  }
+
+  /// The graph section title, with a graph-type toggle (spectrograph vs
+  /// amplitude) and, for an audio receive device, a listen toggle.
+  Widget _buildSpectrogramHeader() {
+    final bool amplitude = _graphType == GraphType.amplitude;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              _spectrogramTitle(),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+          ),
+          Tooltip(
+            message: amplitude
+                ? 'Show frequency spectrograph'
+                : 'Show amplitude (level) graph',
+            child: InkWell(
+              onTap: () => _setGraphType(
+                  amplitude ? GraphType.spectrogram : GraphType.amplitude),
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  amplitude ? Icons.graphic_eq : Icons.show_chart,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+          if (_listenAvailable)
+            Tooltip(
+              message: _listenEnabled
+                  ? 'Stop listening to this device'
+                  : 'Listen to this device',
+              child: InkWell(
+                onTap: _toggleListen,
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    _listenEnabled ? Icons.volume_up : Icons.volume_off,
+                    size: 20,
+                    color: _listenEnabled
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
