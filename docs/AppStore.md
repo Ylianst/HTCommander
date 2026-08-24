@@ -128,6 +128,27 @@ In App Store Connect, the uploaded build appears under the app's **TestFlight /
 Builds** section after processing (a few minutes). Attach it to the app version
 and submit for review.
 
+The macOS app intentionally includes the
+`com.apple.security.network.server` entitlement. Before submitting, add the
+following to **App Review Information → Notes**:
+
+> Handi-Talky Commander includes two optional, disabled-by-default local server
+> features under Settings → Servers. "Enable Web Server" listens for incoming
+> HTTP and WebSocket connections on the user-configurable port (default 8080)
+> and provides browser access to the connected radio. "Enable AGWPE Server"
+> listens for incoming AGW Packet Engine TCP client connections on the
+> user-configurable port (default 8000) and bridges packet-radio applications
+> to the connected radio. Both services accept incoming connections on the
+> Mac's network interfaces and therefore require the
+> `com.apple.security.network.server` App Sandbox entitlement. To verify, open
+> Settings → Servers, enable either server, retain or choose a port, and save
+> the settings. The entitlement is not used only for outgoing connections.
+
+If automated review flags the entitlement, reply with the same explanation and
+ask review to continue with the existing build. Do not remove the entitlement:
+doing so would prevent these user-facing server features from binding their
+listening sockets in the App Sandbox.
+
 ## Verifying the build before upload
 
 If you want to confirm the archived app is the correct variant:
