@@ -3162,7 +3162,7 @@ class _MainFormState extends State<MainForm>
             ),
             const AppMenuDivider(),
             AppMenuAction(
-              label: 'Audio Receive Devices...',
+              label: 'Audio Devices...',
               onPressed: () => showAudioRxDevicesDialog(context),
             ),
           ],

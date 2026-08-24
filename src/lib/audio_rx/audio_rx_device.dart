@@ -91,6 +91,14 @@ class AudioRxDevice {
 
   bool get isPaired => pairedRadioMac.isNotEmpty;
 
+  static bool isValidCommsName(String value) {
+    final String trimmed = value.trim();
+    return trimmed.isNotEmpty && trimmed.toUpperCase() != 'APRS';
+  }
+
+  String get receivedChannelName =>
+      usage == AudioRxUsage.aprs ? 'APRS' : name.trim();
+
   AudioRxDevice copyWith({
     int? deviceId,
     String? name,

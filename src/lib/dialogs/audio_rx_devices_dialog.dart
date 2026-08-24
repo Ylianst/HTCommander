@@ -154,7 +154,7 @@ class _AudioRxDevicesDialogState extends State<_AudioRxDevicesDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Audio Receive Devices'),
+      title: const Text('Audio Devices'),
       content: SizedBox(
         width: 460,
         child: Column(
@@ -337,6 +337,11 @@ class _AudioRxDeviceEditorState extends State<_AudioRxDeviceEditor> {
   bool get _valid {
     if (!_portValid) return false;
     if (!_isPaired && _name.text.trim().isEmpty) return false;
+    if (!_isPaired &&
+        _usage == AudioRxUsage.comms &&
+        !AudioRxDevice.isValidCommsName(_name.text)) {
+      return false;
+    }
     return true;
   }
 
@@ -480,9 +485,14 @@ class _AudioRxDeviceEditorState extends State<_AudioRxDeviceEditor> {
                 TextField(
                   controller: _name,
                   onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Name',
                     hintText: 'Shown as the received channel in Comms',
+                    errorText: _usage == AudioRxUsage.comms &&
+                            _name.text.trim().isNotEmpty &&
+                            !AudioRxDevice.isValidCommsName(_name.text)
+                        ? 'APRS is reserved for APRS devices'
+                        : null,
                   ),
                 )
               else

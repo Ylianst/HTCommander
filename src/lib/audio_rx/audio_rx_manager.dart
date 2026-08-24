@@ -124,6 +124,11 @@ class AudioRxManager {
     final Set<String> usedPorts = <String>{};
     for (final AudioRxDevice d in devices) {
       if (d.inputDeviceId.isEmpty) continue;
+      if (!d.isPaired &&
+          d.usage == AudioRxUsage.comms &&
+          !AudioRxDevice.isValidCommsName(d.name)) {
+        continue;
+      }
       // Enforce port uniqueness defensively (the editor already prevents it).
       if (!usedPorts.add(d.inputDeviceId.toLowerCase())) continue;
 
@@ -332,9 +337,8 @@ class _Plan {
   /// name as the received channel; a paired device inherits the radio's identity
   /// so it carries no channel name of its own.
   String get channelName {
-    if (config.usage == AudioRxUsage.aprs) return 'APRS';
     if (radioMac.isNotEmpty) return '';
-    return config.name;
+    return config.receivedChannelName;
   }
 
   String get signature =>

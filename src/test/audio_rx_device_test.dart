@@ -89,5 +89,29 @@ void main() {
       expect(updated.modem, AudioRxModem.dart);
       expect(updated.usage, AudioRxUsage.comms);
     });
+
+    test('reserves APRS as a Comms device name', () {
+      expect(AudioRxDevice.isValidCommsName('Shack Base'), isTrue);
+      expect(AudioRxDevice.isValidCommsName('APRS'), isFalse);
+      expect(AudioRxDevice.isValidCommsName(' aprs '), isFalse);
+      expect(AudioRxDevice.isValidCommsName('  '), isFalse);
+    });
+
+    test('uses usage and device name for the received channel', () {
+      const AudioRxDevice aprsDevice = AudioRxDevice(
+        deviceId: 300,
+        name: 'Ignored',
+        inputDeviceId: 'aprs-input',
+      );
+      const AudioRxDevice commsDevice = AudioRxDevice(
+        deviceId: 301,
+        name: ' Shack Base ',
+        inputDeviceId: 'comms-input',
+        usage: AudioRxUsage.comms,
+      );
+
+      expect(aprsDevice.receivedChannelName, 'APRS');
+      expect(commsDevice.receivedChannelName, 'Shack Base');
+    });
   });
 }
