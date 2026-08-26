@@ -24,6 +24,11 @@ import AVFoundation
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "TextToSpeechHandler") {
       TextToSpeechHandler.register(with: registrar)
     }
+
+    // Wire up the CarPlay bridge so the CarPlay scene can mirror radio state.
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "CarBridge") {
+      CarBridge.shared.attach(messenger: registrar.messenger())
+    }
   }
 }
 

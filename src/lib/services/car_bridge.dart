@@ -18,24 +18,31 @@ import 'bluetooth_service.dart';
 import 'data_broker.dart';
 import 'data_broker_client.dart';
 
-/// Bridges the app's radio state to the native Android Auto car UI.
+/// Bridges the app's radio state to the native in-car UI (Android Auto on
+/// Android, CarPlay on iOS).
 ///
-/// The Android Auto surface is drawn by a native `CarAppService` (Kotlin) that
-/// cannot see the Dart isolate directly, so this class mirrors a small,
-/// car-safe slice of state over the `com.htcommander/android_auto`
-/// [MethodChannel]:
+/// The car surface is drawn natively (a Kotlin `CarAppService` on Android, a
+/// Swift `CPTemplateApplicationSceneDelegate` on iOS) and cannot see the Dart
+/// isolate directly, so this class mirrors a small, car-safe slice of state
+/// over a platform [MethodChannel]:
 ///   - the preferred radio's current region, VFO A / VFO B channels, scan and
 ///     dual-watch state, plus the region and channel lists used by the pickers,
 ///   - a merged list of recent messages addressed to our station (APRS and
 ///     other on-air chat via the comms history, plus Winlink Inbox mail).
 ///
 /// State flows Dart -> native via `updateState`. The car requests changes back
-/// via `setChannel` (VFO A/B), `setRegion`, `setScan` and `setDualWatch`. Only
-/// active on Android; a no-op elsewhere.
-class AndroidAutoBridge {
-  static const MethodChannel _channel = MethodChannel(
-    'com.htcommander/android_auto',
-  );
+/// via `setChannel` (VFO A/B), `setRegion`, `setScan` and `setDualWatch`. The
+/// state contract and control events are identical on both platforms; only the
+/// channel name differs. A no-op on non-mobile platforms.
+class CarBridge {
+  /// Method channel name for the native car UI, selected per platform. The
+  /// state payload and control events are identical on both.
+  static String get _channelName =>
+      (!kIsWeb && Platform.isIOS)
+          ? 'com.htcommander/carplay'
+          : 'com.htcommander/android_auto';
+
+  static final MethodChannel _channel = MethodChannel(_channelName);
 
   /// Broker device id the decoded-text history is published under (device 1,
   /// see [CommsHandler]).
@@ -77,9 +84,10 @@ class AndroidAutoBridge {
   List<Map<String, Object?>> _mailMessages = const [];
 
   /// Initializes the bridge. Safe to call on every platform; only wires up the
-  /// native channel and broker subscriptions on Android.
+  /// native channel and broker subscriptions on the platforms that have an
+  /// in-car UI (Android Auto on Android, CarPlay on iOS).
   void init() {
-    if (kIsWeb || !Platform.isAndroid) return;
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
     _active = true;
 
     _channel.setMethodCallHandler(_onNativeCall);
@@ -298,7 +306,7 @@ class AndroidAutoBridge {
       _availableRadios = radios
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     } catch (error) {
-      debugPrint('AndroidAutoBridge: radio scan failed: $error');
+      debugPrint('CarBridge: radio scan failed: $error');
       _availableRadios = const [];
     } finally {
       _scanningRadios = false;
@@ -336,7 +344,7 @@ class AndroidAutoBridge {
         data: deviceId,
       );
     } catch (error) {
-      debugPrint('AndroidAutoBridge: radio connection failed: $error');
+      debugPrint('CarBridge: radio connection failed: $error');
       _radioConnectionErrorId = selected.id;
     } finally {
       _connectingRadioId = '';
@@ -474,7 +482,7 @@ class AndroidAutoBridge {
       final tts = await _ensureTts();
       await tts.speak(spoken);
     } catch (e) {
-      debugPrint('AndroidAutoBridge: TTS speak failed: $e');
+      debugPrint('CarBridge: TTS speak failed: $e');
     }
   }
 

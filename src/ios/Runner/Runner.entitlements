@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  CarPlay requires an entitlement that Apple grants only after review, tied
+	  to a specific app category. HTCommander fits the Communication/Messaging
+	  category best (APRS / Winlink / on-air chat inbox + read-aloud). Once the
+	  entitlement is granted for this bundle id, uncomment the matching key
+	  below, add this file to the Runner target's "Code Signing Entitlements"
+	  build setting, and regenerate provisioning profiles.
+
+	  <key>com.apple.developer.carplay-communication</key>
+	  <true/>
+	-->
+</dict>
+</plist>

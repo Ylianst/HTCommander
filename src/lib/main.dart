@@ -74,7 +74,7 @@ import 'services/data_broker_serializers.dart';
 import 'services/history_limiter.dart';
 import 'services/locale_controller.dart';
 import 'services/notification_service.dart';
-import 'services/android_auto_bridge.dart';
+import 'services/car_bridge.dart';
 import 'services/theme_controller.dart';
 import 'services/window_service.dart';
 import 'l10n/app_localizations.dart';
@@ -470,9 +470,9 @@ Future<void> _startApp(List<String> args) async {
   }
 
   // Mirror the preferred radio's channel list and incoming APRS messages to the
-  // native Android Auto car UI. No-op on every non-Android platform.
-  final androidAutoBridge = AndroidAutoBridge();
-  androidAutoBridge.init();
+  // native in-car UI (Android Auto on Android, CarPlay on iOS). No-op elsewhere.
+  final carBridge = CarBridge();
+  carBridge.init();
 
   // Initialize the history limiter so that persisted data is pruned at startup,
   // when limits change, and periodically (every 30 min) if new data arrives.
