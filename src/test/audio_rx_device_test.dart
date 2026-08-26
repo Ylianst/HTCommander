@@ -37,22 +37,39 @@ void main() {
       expect(copy.audioGain, 4.0);
     });
 
-    test('round-trips a paired APRS device', () {
+    test('round-trips a paired device', () {
       const device = AudioRxDevice(
         deviceId: 300,
         name: '',
         inputDeviceId: 'usb-audio',
-        usage: AudioRxUsage.aprs,
-        modem: AudioRxModem.dart, // ignored for APRS
+        usage: AudioRxUsage.paired,
+        modem: AudioRxModem.dart,
         pairedRadioMac: 'AA:BB:CC:DD:EE:FF',
       );
 
       final AudioRxDevice copy = AudioRxDevice.fromMap(device.toMap());
 
-      expect(copy.usage, AudioRxUsage.aprs);
+      expect(copy.usage, AudioRxUsage.paired);
+      expect(copy.modem, AudioRxModem.dart);
       expect(copy.pairedRadioMac, 'AA:BB:CC:DD:EE:FF');
       expect(copy.isPaired, true);
       expect(copy.fecEnabled, true); // default
+    });
+
+    test('migrates a legacy device that stored a paired radio to paired mode',
+        () {
+      // Older builds recorded pairing as a separate field alongside an
+      // 'aprs'/'comms' usage; that device must load as the paired mode.
+      final AudioRxDevice copy = AudioRxDevice.fromMap(<String, Object?>{
+        'DeviceId': 300,
+        'InputDeviceId': 'usb-audio',
+        'Usage': 'aprs',
+        'PairedRadioMac': 'AA:BB:CC:DD:EE:FF',
+      });
+
+      expect(copy.usage, AudioRxUsage.paired);
+      expect(copy.pairedRadioMac, 'AA:BB:CC:DD:EE:FF');
+      expect(copy.isPaired, true);
     });
 
     test('fromMap tolerates missing/partial fields', () {
@@ -88,30 +105,6 @@ void main() {
       expect(updated.inputDeviceId, 'x');
       expect(updated.modem, AudioRxModem.dart);
       expect(updated.usage, AudioRxUsage.comms);
-    });
-
-    test('reserves APRS as a Comms device name', () {
-      expect(AudioRxDevice.isValidCommsName('Shack Base'), isTrue);
-      expect(AudioRxDevice.isValidCommsName('APRS'), isFalse);
-      expect(AudioRxDevice.isValidCommsName(' aprs '), isFalse);
-      expect(AudioRxDevice.isValidCommsName('  '), isFalse);
-    });
-
-    test('uses usage and device name for the received channel', () {
-      const AudioRxDevice aprsDevice = AudioRxDevice(
-        deviceId: 300,
-        name: 'Ignored',
-        inputDeviceId: 'aprs-input',
-      );
-      const AudioRxDevice commsDevice = AudioRxDevice(
-        deviceId: 301,
-        name: ' Shack Base ',
-        inputDeviceId: 'comms-input',
-        usage: AudioRxUsage.comms,
-      );
-
-      expect(aprsDevice.receivedChannelName, 'APRS');
-      expect(commsDevice.receivedChannelName, 'Shack Base');
     });
   });
 }

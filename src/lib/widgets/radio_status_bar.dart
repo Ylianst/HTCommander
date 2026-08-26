@@ -53,6 +53,11 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
   double _echoLinkRxLevel = 0;
   bool _echoLinkTransmitting = false;
 
+  // Receive level (0..1) and active flag for the audio-path RSSI fill, driven by
+  // a paired radio-pipeline Audio Receive Device replaying this radio's audio.
+  double _audioPathRxLevel = 0;
+  bool _audioPathActive = false;
+
   // Display colors (match the Radio status tab / C# app).
   static const Color _displayBgColor = Color(0xFF565658);
   static const Color _activeVfoColor = Color(0xFFDDD300); // Yellow when active
@@ -100,6 +105,8 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
     _echoLinkConnected = null;
     _echoLinkRxLevel = 0;
     _echoLinkTransmitting = false;
+    _audioPathRxLevel = 0;
+    _audioPathActive = false;
   }
 
   void _subscribeToDevice() {
@@ -139,6 +146,8 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
         'LockState',
         'GpsEnabled',
         'Position',
+        'RxLevel',
+        'AudioPathActive',
       ],
       callback: _onBrokerEvent,
     );
@@ -200,6 +209,13 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
       'Position',
       (json) => RadioPosition.fromJson(json),
     );
+
+    _audioPathActive =
+        _broker.getValue<bool>(widget.deviceId, 'AudioPathActive') ?? false;
+    final audioRx = _broker.getValue<num>(widget.deviceId, 'RxLevel');
+    _audioPathRxLevel = _audioPathActive && audioRx != null
+        ? (audioRx.toDouble().clamp(0.0, 1.0) * 15).round() / 15.0
+        : 0;
 
     if (mounted) setState(() {});
   }
@@ -272,6 +288,17 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
           if (data is Map<String, dynamic>) {
             _position = RadioPosition.fromJson(data);
           }
+          break;
+        case 'RxLevel':
+          final double raw = (data is num) ? data.toDouble() : 0.0;
+          double lvl = (raw.clamp(0.0, 1.0) * 15).round() / 15.0;
+          // Any detected audio shows at least a 1/8 fill so it is visible.
+          if (raw > 0 && lvl < 0.125) lvl = 0.125;
+          _audioPathRxLevel = lvl;
+          break;
+        case 'AudioPathActive':
+          _audioPathActive = data == true;
+          if (!_audioPathActive) _audioPathRxLevel = 0;
           break;
       }
     });
@@ -654,7 +681,9 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
       );
     }
 
-    final bool active = _isConnected && (_rssi > 0 || _isTransmitting);
+    final bool audioActive = _audioPathActive && _audioPathRxLevel > 0;
+    final bool active =
+        _isConnected && (_rssi > 0 || _isTransmitting || audioActive);
     if (!active) {
       return const LinearGradient(
         colors: [_displayBgColor, _displayBgColor],
@@ -664,7 +693,7 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
     final Color fillColor = _isTransmitting ? _txFillColor : _rssiFillColor;
     final double fraction = _isTransmitting
         ? 1.0
-        : (_rssi / 15).clamp(0.0, 1.0);
+        : (_audioPathActive ? _audioPathRxLevel : (_rssi / 15)).clamp(0.0, 1.0);
 
     return LinearGradient(
       begin: Alignment.centerLeft,

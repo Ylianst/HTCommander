@@ -19,6 +19,7 @@ import 'package:htcommander/hamlib/audio_config.dart';
 import 'package:htcommander/hamlib/dart_modem.dart';
 import 'package:htcommander/hamlib/gen_tone.dart';
 import 'package:htcommander/hamlib/hdlc_send.dart';
+import 'package:htcommander/radio/radio_models.dart';
 import 'package:htcommander/radio/software_modem.dart';
 import 'package:htcommander/radio/tnc_data_fragment.dart';
 import 'package:htcommander/services/data_broker.dart';
@@ -176,6 +177,82 @@ void main() {
     expect(f.radioDeviceId, 102);
     expect(f.channelName, 'APRS');
     expect(f.radioMac, 'AA:BB:CC:DD:EE:FF');
+    client.dispose();
+    modem.dispose();
+  });
+
+  test('a followRadioChannel source stamps the paired radio\'s live channel',
+      () {
+    final SoftwareModem modem = SoftwareModem();
+    modem.init();
+
+    final DataBrokerClient client = DataBrokerClient();
+
+    // Seed the paired radio (device 105): its channel list and the channel it
+    // is currently tuned to via HtStatus.
+    client.dispatch(
+      deviceId: 105,
+      name: 'Channels',
+      data: <Map<String, dynamic>>[
+        RadioChannelInfo(channelId: 0, name: 'Channel 0').toJson(),
+        RadioChannelInfo(channelId: 15, name: 'Repeater 15').toJson(),
+      ],
+      store: true,
+    );
+    client.dispatch(
+      deviceId: 105,
+      name: 'HtStatus',
+      data: <String, dynamic>{'currChId': 15, 'currRegion': 2},
+      store: true,
+    );
+
+    final List<TncDataFragment> frames = <TncDataFragment>[];
+    client.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'DataFrame',
+      callback: (int deviceId, String name, Object? data) {
+        if (data is TncDataFragment) frames.add(data);
+      },
+    );
+
+    final Uint8List frame =
+        Uint8List.fromList(List<int>.generate(18, (int i) => (i * 5 + 1) & 0xff));
+
+    modem.registerExternalSource(
+      sourceId: 305,
+      mode: SoftwareModemMode.afsk1200,
+      fecEnabled: false,
+      attributeDeviceId: 105,
+      channelName: '',
+      radioMac: '11:22:33:44:55:66',
+      followRadioChannel: true,
+    );
+
+    modem.feedExternalSamples(305, _encodeAfsk1200(frame));
+
+    expect(frames, isNotEmpty);
+    final TncDataFragment f = frames.first;
+    expect(f.data, equals(frame));
+    expect(f.radioDeviceId, 105);
+    expect(f.channelId, 15);
+    expect(f.regionId, 2);
+    expect(f.channelName, 'Repeater 15');
+    expect(f.radioMac, '11:22:33:44:55:66');
+
+    // Retuning the radio moves later frames to the new channel without a
+    // re-register (the channel is resolved live at decode time).
+    client.dispatch(
+      deviceId: 105,
+      name: 'HtStatus',
+      data: <String, dynamic>{'currChId': 0, 'currRegion': 2},
+      store: true,
+    );
+    frames.clear();
+    modem.feedExternalSamples(305, _encodeAfsk1200(frame));
+    expect(frames, isNotEmpty);
+    expect(frames.first.channelId, 0);
+    expect(frames.first.channelName, 'Channel 0');
+
     client.dispose();
     modem.dispose();
   });

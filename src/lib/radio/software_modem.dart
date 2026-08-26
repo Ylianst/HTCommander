@@ -78,6 +78,12 @@ class _RadioModemState {
   int currentChannelId = 0;
   int currentRegionId = 0;
 
+  /// When true, this is a paired Audio Receive Device source: before each frame
+  /// is dispatched, the channel id / region / name are refreshed from the live
+  /// [deviceId] radio so the frame is attributed to whatever channel the radio
+  /// is tuned to at the moment of decode.
+  bool followRadioChannel = false;
+
   /// Cached id of the channel named "APRS" on this radio (-1 if none). Used to
   /// route received audio and transmits to the APRS modem instance.
   int aprsChannelId = -1;
@@ -1115,6 +1121,40 @@ class SoftwareModem {
     return -1;
   }
 
+  /// For a paired Audio Receive Device source ([state.followRadioChannel]),
+  /// refresh its channel id / region / name from the live radio's `HtStatus`
+  /// and `Channels` on the broker so the frame about to be built is attributed
+  /// to whatever channel the radio is currently tuned to.
+  void _refreshFollowedChannel(_RadioModemState state) {
+    if (!state.followRadioChannel) return;
+    final int devId = state.deviceId;
+
+    final Object? htStatus = _broker.getValue<Object>(devId, 'HtStatus', null);
+    if (htStatus is Map) {
+      final int? chId = _readInt(
+          htStatus['currChId'] ?? htStatus['curr_ch_id'] ?? htStatus['CurrChId']);
+      if (chId != null) state.currentChannelId = chId;
+      final int? region = _readInt(htStatus['currRegion'] ??
+          htStatus['curr_region'] ??
+          htStatus['CurrRegion']);
+      if (region != null) state.currentRegionId = region;
+    }
+
+    final channels = _broker.getJsonListValue<RadioChannelInfo>(
+      devId,
+      'Channels',
+      (json) => RadioChannelInfo.fromJson(json),
+    );
+    if (channels != null) {
+      for (final channel in channels) {
+        if (channel.channelId == state.currentChannelId) {
+          state.currentChannelName = channel.name;
+          break;
+        }
+      }
+    }
+  }
+
   /// Builds one complete modem pipeline (receive + transmit) for [mode] with the
   /// given FX.25 [fecEnabled] flag. Frames it decodes are attributed to this
   /// exact instance (correct encoding / FEC) via per-instance callbacks.
@@ -1275,6 +1315,7 @@ class SoftwareModem {
       '${_hex(frameData)}',
     );
 
+    _refreshFollowedChannel(state);
     final fragment = TncDataFragment(
       finalFragment: true,
       fragmentId: 0,
@@ -1324,6 +1365,7 @@ class SoftwareModem {
       '${pending.length}-byte frame: ${_hex(pending)}',
     );
 
+    _refreshFollowedChannel(state);
     final fragment = TncDataFragment(
       finalFragment: true,
       fragmentId: 0,
@@ -1360,6 +1402,7 @@ class SoftwareModem {
       '${result.ldpcCorrections} LDPC corrections: ${_hex(frame)}',
     );
 
+    _refreshFollowedChannel(state);
     final fragment = TncDataFragment(
       finalFragment: true,
       fragmentId: 0,
@@ -1831,6 +1874,11 @@ class SoftwareModem {
   /// unpaired) and tagged with [channelName] and [radioMac]. Feeds must be
   /// 32 kHz, 16-bit, mono, little-endian PCM. A [mode] of
   /// [SoftwareModemMode.none] simply removes any existing source.
+  ///
+  /// When [followRadioChannel] is true the [channelName] is ignored and each
+  /// decoded frame instead inherits the channel id / region / name the
+  /// [attributeDeviceId] radio is currently tuned to (a paired device follows
+  /// its radio across channel changes).
   void registerExternalSource({
     required int sourceId,
     required SoftwareModemMode mode,
@@ -1838,6 +1886,7 @@ class SoftwareModem {
     required int attributeDeviceId,
     String channelName = '',
     String radioMac = '',
+    bool followRadioChannel = false,
     int sampleRate = 32000,
   }) {
     if (_disposed) return;
@@ -1855,6 +1904,7 @@ class SoftwareModem {
     synthetic.currentChannelId = -1;
     synthetic.currentRegionId = -1;
     synthetic.currentChannelName = channelName;
+    synthetic.followRadioChannel = followRadioChannel;
 
     final instance = _buildInstance(synthetic, mode, fecEnabled,
         sampleRate: sampleRate);
@@ -1930,6 +1980,7 @@ class _Fx25MultiModemWrapper extends MultiModem {
       '${SoftwareModem._hex(frameData)}',
     );
 
+    _parent._refreshFollowedChannel(_state);
     final fragment = TncDataFragment(
       finalFragment: true,
       fragmentId: 0,

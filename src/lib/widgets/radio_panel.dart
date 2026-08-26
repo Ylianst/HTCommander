@@ -107,6 +107,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   double _allStarRxLevel = 0;
   bool _allStarTransmitting = false;
 
+  // Receive level (0..1) and active flag for the audio-path RSSI bar, driven by
+  // a paired radio-pipeline Audio Receive Device replaying this radio's audio.
+  double _audioPathRxLevel = 0;
+  bool _audioPathActive = false;
+
   // UI state
   bool _showAllChannels = false;
   // Whether channel tiles display the frequency under the name (View menu).
@@ -376,6 +381,32 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     setState(() => _allStarTransmitting = active);
   }
 
+  /// Handles the audio-path receive-level meter: a paired radio-pipeline Audio
+  /// Receive Device publishes 'RxLevel' (0..1) on this radio while it replays
+  /// the radio's audio. Quantized like the radio's 0..15 RSSI to limit rebuilds.
+  void _onRadioRxLevel(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final double raw = (data is num) ? data.toDouble() : 0.0;
+    double level = (raw.clamp(0.0, 1.0) * 15).round() / 15.0;
+    // Any detected audio shows at least a 1/8 bar so it is clearly visible.
+    if (raw > 0 && level < 0.125) level = 0.125;
+    if (level == _audioPathRxLevel) return;
+    setState(() => _audioPathRxLevel = level);
+  }
+
+  /// Handles the audio-path active flag ('AudioPathActive'): while true, the
+  /// RSSI bar is driven by the replayed audio amplitude instead of the radio's
+  /// own RSSI.
+  void _onAudioPathActive(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final bool active = data == true;
+    if (active == _audioPathActive) return;
+    setState(() {
+      _audioPathActive = active;
+      if (!active) _audioPathRxLevel = 0;
+    });
+  }
+
   /// Handles EchoLink status events (device 200) when this panel displays
   /// EchoLink.
   void _onEchoLinkEvent(int deviceId, String name, Object? data) {
@@ -601,6 +632,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     _allStarNodes = const [];
     _allStarRxLevel = 0;
     _allStarTransmitting = false;
+    _audioPathRxLevel = 0;
+    _audioPathActive = false;
   }
 
   void _subscribeToDevice() {
@@ -666,6 +699,20 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       callback: _onBrokerEvent,
     );
 
+    // When a paired radio-pipeline Audio Receive Device replays this radio's
+    // audio, it publishes a 0..1 receive level and an active flag so the RSSI
+    // bar can rise with the audio amplitude (like EchoLink / AllStarLink).
+    _broker.subscribe(
+      deviceId: widget.deviceId,
+      name: 'RxLevel',
+      callback: _onRadioRxLevel,
+    );
+    _broker.subscribe(
+      deviceId: widget.deviceId,
+      name: 'AudioPathActive',
+      callback: _onAudioPathActive,
+    );
+
     // Load initial state from broker
     _loadInitialState();
   }
@@ -722,6 +769,13 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       'LockState',
       (json) => RadioLockState.fromJson(json),
     );
+
+    _audioPathActive =
+        _broker.getValue<bool>(widget.deviceId, 'AudioPathActive') ?? false;
+    final audioRx = _broker.getValue<num>(widget.deviceId, 'RxLevel');
+    _audioPathRxLevel = _audioPathActive && audioRx != null
+        ? (audioRx.toDouble().clamp(0.0, 1.0) * 15).round() / 15.0
+        : 0;
 
     // Try to get FriendlyName from ConnectedRadios if not set
     if (_friendlyName.isEmpty) {
@@ -2718,7 +2772,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         ),
 
       // RSSI / Transmit bar.
-      if (_isConnected && (_rssi > 0 || _isTransmitting))
+      if (_isConnected &&
+          (_rssi > 0 ||
+              _isTransmitting ||
+              (_audioPathActive && _audioPathRxLevel > 0)))
         Positioned(
           left:
               leftMargin +
@@ -2732,7 +2789,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
               : ClipRRect(
                   borderRadius: BorderRadius.circular(1),
                   child: LinearProgressIndicator(
-                    value: _rssi / 15,
+                    value: _audioPathActive
+                        ? _audioPathRxLevel
+                        : _rssi / 15,
                     backgroundColor: _displayBgColor,
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       Colors.green,

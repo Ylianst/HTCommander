@@ -16,10 +16,14 @@ http://www.apache.org/licenses/LICENSE-2.0
 //
 
 import 'dart:io';
+import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
+import '../echolink/pcm_resampler.dart';
 import '../radio/software_modem.dart';
+import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/microphone_capture.dart';
 import 'audio_rx_device.dart';
@@ -32,7 +36,16 @@ class _RunningCapture {
   /// the pipeline must be rebuilt.
   final String signature;
 
-  _RunningCapture(this.capture, this.signature);
+  /// Input-device id this capture opened, so the manager can publish the set of
+  /// ports currently in use.
+  final String inputDeviceId;
+
+  /// Non-null when this device routes its audio through the paired radio's own
+  /// receive pipeline instead of a fixed software-modem external source.
+  final _RadioPipelineFeeder? feeder;
+
+  _RunningCapture(this.capture, this.signature,
+      {required this.inputDeviceId, this.feeder});
 }
 
 /// Owns every Audio Receive Device: reads the persisted list, opens each input
@@ -82,6 +95,13 @@ class AudioRxManager {
       name: 'ConnectedRadios',
       callback: (_, _, _) => _reconcile(),
     );
+    // A radio-pipeline device only runs while the paired radio's own Bluetooth
+    // audio path is off, so reconcile whenever any radio's audio toggles.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AudioState',
+      callback: (_, _, _) => _reconcile(),
+    );
     // Track which device (if any) the Audio tab spectrograph is showing so its
     // captured audio is republished for visualization.
     _spectrogramDeviceId = _parseSpectrogramDeviceId(
@@ -104,6 +124,7 @@ class AudioRxManager {
       await entry.value.capture.dispose();
     }
     _running.clear();
+    _publishActivePorts();
     _broker.dispose();
   }
 
@@ -124,19 +145,21 @@ class AudioRxManager {
     final Set<String> usedPorts = <String>{};
     for (final AudioRxDevice d in devices) {
       if (d.inputDeviceId.isEmpty) continue;
-      if (!d.isPaired &&
-          d.usage == AudioRxUsage.comms &&
-          !AudioRxDevice.isValidCommsName(d.name)) {
-        continue;
-      }
       // Enforce port uniqueness defensively (the editor already prevents it).
       if (!usedPorts.add(d.inputDeviceId.toLowerCase())) continue;
 
       int attributeDeviceId = d.deviceId;
       String radioMac = '';
-      if (d.isPaired) {
+      if (d.usage == AudioRxUsage.paired) {
+        if (d.pairedRadioMac.isEmpty) continue; // no radio chosen yet
         final int? radioId = connected[d.pairedRadioMac.toUpperCase()];
         if (radioId == null) continue; // paired radio not connected -> stay silent
+        // A paired device replays audio through the radio's own pipeline; only
+        // do so while the radio's Bluetooth audio path is off, otherwise the
+        // radio is already decoding this audio and we would duplicate it.
+        final bool radioAudioOn =
+            _broker.getValue<bool>(radioId, 'AudioState', false) ?? false;
+        if (radioAudioOn) continue;
         attributeDeviceId = radioId;
         radioMac = d.pairedRadioMac.toUpperCase();
       }
@@ -164,21 +187,35 @@ class AudioRxManager {
       if (existing != null) await _stop(sourceId);
       await _start(sourceId, plan);
     }
+
+    _publishActivePorts();
   }
 
   Future<void> _start(int sourceId, _Plan plan) async {
-    final SoftwareModemMode mode = plan.mode;
-    if (mode == SoftwareModemMode.none) return;
-
-    _softwareModem.registerExternalSource(
-      sourceId: sourceId,
-      mode: mode,
-      fecEnabled: plan.config.fecEnabled,
-      attributeDeviceId: plan.attributeDeviceId,
-      channelName: plan.channelName,
-      radioMac: plan.radioMac,
-      sampleRate: audioRxSampleRate,
-    );
+    _RadioPipelineFeeder? feeder;
+    if (plan.useRadioPipeline) {
+      // Replay the captured audio as the paired radio's own receive stream so
+      // its configured decoders (speech-to-text, Morse, SSTV, APRS, ...) run.
+      final int radioId = plan.attributeDeviceId;
+      feeder = _RadioPipelineFeeder(
+        broker: _broker,
+        radioDeviceId: radioId,
+        resolveChannel: () => _resolveRadioChannelName(radioId),
+        resolveUsage: () => _resolveRadioUsage(radioId),
+      );
+    } else {
+      final SoftwareModemMode mode = plan.mode;
+      if (mode == SoftwareModemMode.none) return;
+      _softwareModem.registerExternalSource(
+        sourceId: sourceId,
+        mode: mode,
+        fecEnabled: plan.config.fecEnabled,
+        attributeDeviceId: plan.attributeDeviceId,
+        channelName: plan.channelName,
+        radioMac: plan.radioMac,
+        sampleRate: audioRxSampleRate,
+      );
+    }
 
     final MicrophoneCapture capture = MicrophoneCapture(
       sampleRate: audioRxSampleRate,
@@ -201,9 +238,13 @@ class AudioRxManager {
       }
       return;
     }
-    _running[sourceId] = _RunningCapture(capture, plan.signature);
+    _running[sourceId] =
+        _RunningCapture(capture, plan.signature,
+            inputDeviceId: plan.config.inputDeviceId, feeder: feeder);
+    feeder?.start();
     _log(
-      'started "${plan.config.name}" (${mode.name}) on device '
+      'started "${plan.config.name}" '
+      '(${plan.useRadioPipeline ? 'radio pipeline' : plan.mode.name}) on device '
       '${plan.attributeDeviceId}',
     );
   }
@@ -211,10 +252,26 @@ class AudioRxManager {
   Future<void> _stop(int sourceId) async {
     final _RunningCapture? running = _running.remove(sourceId);
     _decodeErrorLogged.remove(sourceId);
+    running?.feeder?.close();
     _softwareModem.unregisterExternalSource(sourceId);
     if (running != null) {
       await running.capture.dispose();
     }
+  }
+
+  /// Publishes the set of input-device ids currently being captured so the
+  /// editor can avoid opening a second recorder on a port already in use.
+  void _publishActivePorts() {
+    final List<String> ports = _running.values
+        .map((_RunningCapture r) => r.inputDeviceId.toLowerCase())
+        .where((String s) => s.isNotEmpty)
+        .toList();
+    _broker.dispatch(
+      deviceId: 0,
+      name: audioRxActivePortsKey,
+      data: ports,
+      store: true,
+    );
   }
 
   /// Maps a device's channel preference to the capture reduction strategy.
@@ -247,12 +304,50 @@ class AudioRxManager {
       );
     }
     try {
-      _softwareModem.feedExternalSamples(sourceId, pcm16);
+      final _RadioPipelineFeeder? feeder = _running[sourceId]?.feeder;
+      if (feeder != null) {
+        feeder.onPcm48(pcm16);
+      } else {
+        _softwareModem.feedExternalSamples(sourceId, pcm16);
+      }
     } catch (e) {
       if (_decodeErrorLogged.add(sourceId)) {
         _log('decode error on device $sourceId: $e');
       }
     }
+  }
+
+  /// The paired radio's current channel name, resolved live from its `HtStatus`
+  /// (current channel id) and `Channels` list on the broker. Empty when unknown.
+  String _resolveRadioChannelName(int radioId) {
+    final Object? ht = _broker.getValueDynamic(radioId, 'HtStatus');
+    int? chId;
+    if (ht is Map) {
+      chId = _asInt(ht['currChId'] ?? ht['curr_ch_id'] ?? ht['CurrChId']);
+    }
+    if (chId == null) return '';
+    final Object? channels = _broker.getValueDynamic(radioId, 'Channels');
+    if (channels is List) {
+      for (final Object? e in channels) {
+        if (e is Map && _asInt(e['channelId'] ?? e['ChannelId']) == chId) {
+          return (e['name'] ?? e['Name'] ?? '').toString();
+        }
+      }
+    }
+    return '';
+  }
+
+  /// The paired radio's active channel-lock usage, or null when not locked, so
+  /// the replayed audio carries the same usage tag the radio would emit.
+  String? _resolveRadioUsage(int radioId) {
+    final Object? lock = _broker.getValueDynamic(radioId, 'LockState');
+    if (lock is Map) {
+      final bool locked =
+          (lock['isLocked'] ?? lock['IsLocked']) as bool? ?? false;
+      final String usage = (lock['usage'] ?? lock['Usage'] ?? '').toString();
+      if (locked && usage.isNotEmpty) return usage;
+    }
+    return null;
   }
 
   /// Parses the own device id from a 'SpectrogramSource' value of the form
@@ -321,6 +416,10 @@ class _Plan {
     required this.radioMac,
   });
 
+  /// Paired devices replay audio through the radio's own receive pipeline
+  /// (voice + data) rather than a single fixed software-modem source.
+  bool get useRadioPipeline => config.usage == AudioRxUsage.paired;
+
   SoftwareModemMode get mode {
     if (config.usage == AudioRxUsage.aprs) return SoftwareModemMode.afsk1200;
     switch (config.modem) {
@@ -333,16 +432,205 @@ class _Plan {
     }
   }
 
-  /// APRS must route on the "APRS" channel; an unpaired Comms device uses its
-  /// name as the received channel; a paired device inherits the radio's identity
-  /// so it carries no channel name of its own.
+  /// APRS must route on the "APRS" channel; a Comms device uses its name as the
+  /// received channel.
   String get channelName {
-    if (radioMac.isNotEmpty) return '';
-    return config.receivedChannelName;
+    if (config.usage == AudioRxUsage.aprs) return 'APRS';
+    if (config.usage == AudioRxUsage.paired) return '';
+    return config.name;
   }
 
   String get signature =>
       '${config.inputDeviceId}|${mode.name}|${config.fecEnabled}|'
-      '$attributeDeviceId|$channelName|$radioMac|${config.audioChannel.name}|'
-      '${config.audioGain}';
+      '$attributeDeviceId|$channelName|$radioMac|$useRadioPipeline|'
+      '${config.audioChannel.name}|${config.audioGain}';
+}
+
+/// Replays a captured 48 kHz audio stream as the paired radio's own receive
+/// audio: it downsamples to the 32 kHz the radio audio path uses and publishes
+/// `AudioDataStart` / `AudioDataAvailable` / `AudioDataEnd` on the radio's
+/// device id, so the software modem (APRS / data) and the comms handler
+/// (speech-to-text, Morse, SSTV, ...) decode it with the radio's own
+/// configuration.
+///
+/// A soundcard capture has no squelch, so a simple RMS gate synthesizes the
+/// audio-run boundaries the radio firmware would otherwise provide: a run opens
+/// when the level rises above [_openRms] and closes after [_hangMs] below
+/// [_closeRms]. Audio frames are only published while a run is open.
+class _RadioPipelineFeeder {
+  _RadioPipelineFeeder({
+    required this.broker,
+    required this.radioDeviceId,
+    required this.resolveChannel,
+    required this.resolveUsage,
+  });
+
+  final DataBrokerClient broker;
+  final int radioDeviceId;
+  final String Function() resolveChannel;
+  final String? Function() resolveUsage;
+
+  static const int _outputSampleRate = 32000;
+  static const double _openRms = 500.0;
+  static const double _closeRms = 250.0;
+  static const int _hangMs = 500;
+
+  final LinearResampler _resampler = LinearResampler(
+    inputRate: audioRxSampleRate,
+    outputRate: _outputSampleRate,
+  );
+
+  bool _open = false;
+  int _startMs = 0;
+  DateTime _lastVoice = DateTime.fromMillisecondsSinceEpoch(0);
+  String _channelName = '';
+
+  /// Marks the audio path as active so the radio panel drives its RSSI bar from
+  /// the replayed audio amplitude ('RxLevel') instead of the radio's own RSSI.
+  void start() {
+    broker.dispatch(
+      deviceId: radioDeviceId,
+      name: 'AudioPathActive',
+      data: true,
+      store: true,
+    );
+  }
+
+  void onPcm48(Uint8List pcm48) {
+    final Int16List in16 = _bytesToInt16(pcm48);
+    final Int16List out32 = _resampler.process(in16);
+    if (out32.isEmpty) return;
+
+    final double rms = _rms(out32);
+    final DateTime now = DateTime.now();
+    if (rms >= _openRms) {
+      _lastVoice = now;
+      if (!_open) _openRun(now);
+    } else if (_open && rms >= _closeRms) {
+      _lastVoice = now; // hold the run open through brief dips
+    }
+
+    if (!_open) return;
+    _channelName = resolveChannel();
+    _publishAvailable(out32);
+    if (now.difference(_lastVoice).inMilliseconds > _hangMs) {
+      _closeRun();
+    }
+  }
+
+  void _openRun(DateTime now) {
+    _open = true;
+    _startMs = now.millisecondsSinceEpoch;
+    _channelName = resolveChannel();
+    broker.dispatch(
+      deviceId: radioDeviceId,
+      name: 'AudioDataStart',
+      store: false,
+      data: <String, Object?>{
+        'startTime': _startMs,
+        'channelName': _channelName,
+        'transmit': false,
+        'muted': false,
+        'usage': resolveUsage(),
+      },
+    );
+  }
+
+  void _publishAvailable(Int16List pcm32) {
+    final Uint8List bytes = _int16ToBytes(pcm32);
+    broker.dispatch(
+      deviceId: radioDeviceId,
+      name: 'AudioDataAvailable',
+      store: false,
+      data: <String, Object?>{
+        'data': bytes,
+        'offset': 0,
+        'length': bytes.length,
+        'channelName': _channelName,
+        'transmit': false,
+        'muted': false,
+        'audioRunStartTime': _startMs,
+        'usage': resolveUsage(),
+      },
+    );
+    // Feed the panel's RSSI-style bar with the received audio's peak level.
+    broker.dispatch(
+      deviceId: radioDeviceId,
+      name: 'RxLevel',
+      data: _peak(pcm32),
+      store: false,
+    );
+  }
+
+  void _closeRun() {
+    if (!_open) return;
+    _open = false;
+    broker.dispatch(
+      deviceId: radioDeviceId,
+      name: 'AudioDataEnd',
+      store: false,
+      data: <String, Object?>{
+        'startTime': _startMs,
+        'transmit': false,
+        'usage': resolveUsage(),
+      },
+    );
+    // Drop the RSSI-style bar back to zero at the end of a run.
+    broker.dispatch(
+      deviceId: radioDeviceId,
+      name: 'RxLevel',
+      data: 0.0,
+      store: false,
+    );
+  }
+
+  /// Ends any open run (so trailing decoders flush), clears the audio-path
+  /// active flag, and resets the resampler.
+  void close() {
+    _closeRun();
+    broker.dispatch(
+      deviceId: radioDeviceId,
+      name: 'AudioPathActive',
+      data: false,
+      store: true,
+    );
+    _resampler.reset();
+  }
+
+  static Int16List _bytesToInt16(Uint8List bytes) {
+    final int n = bytes.length ~/ 2;
+    final ByteData bd = ByteData.sublistView(bytes, 0, n * 2);
+    final Int16List out = Int16List(n);
+    for (int i = 0; i < n; i++) {
+      out[i] = bd.getInt16(i * 2, Endian.little);
+    }
+    return out;
+  }
+
+  static Uint8List _int16ToBytes(Int16List samples) {
+    final Uint8List bytes = Uint8List(samples.length * 2);
+    final ByteData bd = ByteData.sublistView(bytes);
+    for (int i = 0; i < samples.length; i++) {
+      bd.setInt16(i * 2, samples[i], Endian.little);
+    }
+    return bytes;
+  }
+
+  static double _rms(Int16List samples) {
+    if (samples.isEmpty) return 0.0;
+    double sum = 0.0;
+    for (final int s in samples) {
+      sum += s.toDouble() * s.toDouble();
+    }
+    return math.sqrt(sum / samples.length);
+  }
+
+  static double _peak(Int16List samples) {
+    int peak = 0;
+    for (final int s in samples) {
+      final int a = s < 0 ? -s : s;
+      if (a > peak) peak = a;
+    }
+    return (peak / 32768.0).clamp(0.0, 1.0);
+  }
 }

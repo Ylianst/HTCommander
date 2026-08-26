@@ -15,6 +15,11 @@ http://www.apache.org/licenses/LICENSE-2.0
 /// device list.
 const String audioRxDevicesKey = 'AudioReceiveDevices';
 
+/// DataBroker key (device 0, not meaningfully persisted) holding the list of
+/// input-device ids the manager is currently capturing. The editor consults it
+/// to avoid opening a second recorder on a port already in use (which crashes).
+const String audioRxActivePortsKey = 'AudioReceiveActivePorts';
+
 /// First DataBroker device id used for Audio Receive Devices. Each configured
 /// device owns a unique id at or above this base so its decoded frames have a
 /// stable source identity when it is not paired to a radio. Chosen above the
@@ -28,11 +33,16 @@ const int audioRxDeviceIdBase = 300;
 const int audioRxSampleRate = 48000;
 
 /// What kind of traffic an audio receive device carries, which decides where its
-/// decoded frames are routed.
-enum AudioRxUsage { aprs, comms }
+/// decoded frames are routed:
+/// * [aprs]   - frames are received on the "APRS" channel.
+/// * [comms]  - frames are received on a channel named after the device.
+/// * [paired] - frames are received on the current channel of a paired radio,
+///   inheriting that channel's id and name at the moment each frame decodes.
+enum AudioRxUsage { aprs, comms, paired }
 
 /// Which software demodulator an audio receive device runs. APRS always uses
-/// AFSK 1200; the choice only applies to [AudioRxUsage.comms] devices.
+/// AFSK 1200; the choice applies to [AudioRxUsage.comms] and
+/// [AudioRxUsage.paired] devices.
 enum AudioRxModem { afsk1200, psk2400, dart }
 
 /// How a stereo capture is collapsed to the mono stream the decoder and
@@ -65,8 +75,9 @@ class AudioRxDevice {
   /// When true, FX.25 forward error correction is honored on received frames.
   final bool fecEnabled;
 
-  /// MAC address of the radio this device is paired to, or empty when unpaired.
-  /// When paired, decoded frames are attributed to that radio.
+  /// MAC address of the radio this device is paired to (only used when [usage]
+  /// is [AudioRxUsage.paired]), or empty otherwise. When paired, decoded frames
+  /// are attributed to that radio and its currently-tuned channel.
   final String pairedRadioMac;
 
   /// Which channel of a stereo input to use (or how to combine them).
@@ -89,15 +100,8 @@ class AudioRxDevice {
     this.audioGain = 1.0,
   });
 
-  bool get isPaired => pairedRadioMac.isNotEmpty;
-
-  static bool isValidCommsName(String value) {
-    final String trimmed = value.trim();
-    return trimmed.isNotEmpty && trimmed.toUpperCase() != 'APRS';
-  }
-
-  String get receivedChannelName =>
-      usage == AudioRxUsage.aprs ? 'APRS' : name.trim();
+  bool get isPaired =>
+      usage == AudioRxUsage.paired && pairedRadioMac.isNotEmpty;
 
   AudioRxDevice copyWith({
     int? deviceId,
@@ -130,7 +134,7 @@ class AudioRxDevice {
         'Name': name,
         'InputDeviceId': inputDeviceId,
         'InputDeviceLabel': inputDeviceLabel,
-        'Usage': usage == AudioRxUsage.comms ? 'comms' : 'aprs',
+        'Usage': _usageToString(usage),
         'Modem': _modemToString(modem),
         'Fec': fecEnabled,
         'PairedRadioMac': pairedRadioMac,
@@ -151,9 +155,10 @@ class AudioRxDevice {
       name: str(m['Name'], m['name']),
       inputDeviceId: str(m['InputDeviceId'], m['inputDeviceId']),
       inputDeviceLabel: str(m['InputDeviceLabel'], m['inputDeviceLabel']),
-      usage: str(m['Usage'], m['usage']) == 'comms'
-          ? AudioRxUsage.comms
-          : AudioRxUsage.aprs,
+      usage: _usageFromMap(
+        str(m['Usage'], m['usage']),
+        str(m['PairedRadioMac'], m['pairedRadioMac']),
+      ),
       modem: _modemFromString(str(m['Modem'], m['modem'])),
       fecEnabled: (m['Fec'] ?? m['fec']) as bool? ?? true,
       pairedRadioMac: str(m['PairedRadioMac'], m['pairedRadioMac']),
@@ -166,6 +171,26 @@ class AudioRxDevice {
     if (v is num) return v.toDouble();
     if (v is String) return double.tryParse(v) ?? fallback;
     return fallback;
+  }
+
+  static String _usageToString(AudioRxUsage usage) {
+    switch (usage) {
+      case AudioRxUsage.comms:
+        return 'comms';
+      case AudioRxUsage.paired:
+        return 'paired';
+      case AudioRxUsage.aprs:
+        return 'aprs';
+    }
+  }
+
+  /// Resolves the stored usage, migrating older devices that recorded a paired
+  /// radio MAC alongside an 'aprs'/'comms' usage into the [AudioRxUsage.paired]
+  /// mode.
+  static AudioRxUsage _usageFromMap(String usage, String pairedMac) {
+    if (usage == 'paired' || pairedMac.isNotEmpty) return AudioRxUsage.paired;
+    if (usage == 'comms') return AudioRxUsage.comms;
+    return AudioRxUsage.aprs;
   }
 
   static String _modemToString(AudioRxModem modem) {
