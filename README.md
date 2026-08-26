@@ -20,6 +20,7 @@ EchoLink and the following radios should work with this application:
 ### Installation
 
 - [Windows Installer (.msi)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander-x64.msi). Only runs on 64bit Windows 10 and 11.
+- [Apple App Store](https://apps.apple.com/us/app/handi-talky-commander/id6786154035). Available for iOS and macOS.
 - [macOS Installer (.dmg)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.dmg). Universal binary.
 - [Linux x64 (.tar.gz)](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.tar.gz) | [.deb](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.deb) | [.rpm](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.rpm) | [.AppImage](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.AppImage). Should work, please test and report.
 - [Linux ARM64 (.tar.gz)](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-arm64.tar.gz) | [.deb](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-arm64.deb) | [.rpm](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-arm64.rpm) | [.AppImage](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-arm64.AppImage). Should work, please test and report.
