@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../widgets/contact_avatar.dart';
 
 import 'dialog_utils.dart';
 
@@ -36,6 +37,11 @@ Future<void> showMailViewerDialog(
   required String subject,
   required String body,
   List<MailViewerAttachment> attachments = const [],
+  String? avatarCallsign,
+  String? avatarIcon,
+  String? avatarImage,
+  VoidCallback? onAvatarTap,
+  VoidCallback? onAddContact,
   VoidCallback? onReply,
   VoidCallback? onReplyAll,
   VoidCallback? onForward,
@@ -51,6 +57,11 @@ Future<void> showMailViewerDialog(
       subject: subject,
       body: body,
       attachments: attachments,
+      avatarCallsign: avatarCallsign,
+      avatarIcon: avatarIcon,
+      avatarImage: avatarImage,
+      onAvatarTap: onAvatarTap,
+      onAddContact: onAddContact,
       onReply: onReply,
       onReplyAll: onReplyAll,
       onForward: onForward,
@@ -68,6 +79,11 @@ class _MailViewerDialog extends StatelessWidget {
     required this.subject,
     required this.body,
     required this.attachments,
+    this.avatarCallsign,
+    this.avatarIcon,
+    this.avatarImage,
+    this.onAvatarTap,
+    this.onAddContact,
     this.onReply,
     this.onReplyAll,
     this.onForward,
@@ -81,6 +97,11 @@ class _MailViewerDialog extends StatelessWidget {
   final String subject;
   final String body;
   final List<MailViewerAttachment> attachments;
+  final String? avatarCallsign;
+  final String? avatarIcon;
+  final String? avatarImage;
+  final VoidCallback? onAvatarTap;
+  final VoidCallback? onAddContact;
   final VoidCallback? onReply;
   final VoidCallback? onReplyAll;
   final VoidCallback? onForward;
@@ -103,13 +124,50 @@ class _MailViewerDialog extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  subject.isNotEmpty ? 'Mail - $subject' : 'Mail',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: scheme.onSurface,
-                  ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        subject.isNotEmpty ? 'Mail - $subject' : 'Mail',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: scheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    if (avatarCallsign != null) ...[
+                      const SizedBox(width: 12),
+                      InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: onAvatarTap,
+                        child: ContactAvatar(
+                          callsign: avatarCallsign!,
+                          avatarIcon: avatarIcon,
+                          avatarImage: avatarImage,
+                          radius: 22,
+                        ),
+                      ),
+                    ] else if (onAddContact != null) ...[
+                      const SizedBox(width: 12),
+                      Tooltip(
+                        message: AppLocalizations.of(context).mailAddToContacts,
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: onAddContact,
+                          child: CircleAvatar(
+                            radius: 22,
+                            backgroundColor: scheme.primaryContainer,
+                            child: Icon(
+                              Icons.person_add_alt_1,
+                              size: 22,
+                              color: scheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               Flexible(

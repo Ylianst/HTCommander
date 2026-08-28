@@ -2447,6 +2447,18 @@ class AppLocalizationsIt extends AppLocalizations {
       'Trascina per selezionare l\'area da memorizzare';
 
   @override
+  String get mapStationMessage => 'Invia messaggio';
+
+  @override
+  String get mapStationCenter => 'Zoom sulla stazione';
+
+  @override
+  String get mapStationAddContact => 'Aggiungi contatto';
+
+  @override
+  String get mapStationsHere => 'Stazioni qui';
+
+  @override
   String get aprsNoChannel => 'Nessuna radio con un canale APRS è disponibile';
 
   @override
@@ -2798,6 +2810,18 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get mailRemoveCc => 'Rimuovi Cc';
+
+  @override
+  String get mailAddContact => 'Aggiungi dai contatti';
+
+  @override
+  String get mailContactsTitle => 'Contatti';
+
+  @override
+  String get mailNoContacts => 'Nessun contatto trovato';
+
+  @override
+  String get mailAddToContacts => 'Aggiungi ai contatti';
 
   @override
   String get mailMessageLabel => 'Messaggio';

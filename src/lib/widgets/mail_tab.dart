@@ -7,10 +7,12 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'tab_visibility.dart';
+import 'contact_avatar.dart';
 import '../dialogs/mail_compose_dialog.dart';
 import '../dialogs/mail_viewer_dialog.dart';
 import '../dialogs/mail_debug_dialog.dart';
 import '../dialogs/active_station_selector_dialog.dart';
+import '../dialogs/add_station_dialog.dart';
 import '../dialogs/dialog_utils.dart';
 import '../l10n/app_localizations.dart';
 import '../models/station_info.dart';
@@ -88,6 +90,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
   // Raw Winlink mail keyed by MID, used for read-flag updates and lookups.
   final Map<String, WinLinkMail> _rawMails = {};
 
+  // Contacts used to resolve an avatar for a mail's correspondent.
+  List<StationInfo> _stations = const [];
+
   // Transient status shown in the bottom panel while mail is being processed.
   String? _transferStatus;
   // Persistent error shown in the bottom panel until the user dismisses it.
@@ -127,6 +132,12 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
       name: 'WinlinkError',
       callback: _onWinlinkError,
     );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'Stations',
+      callback: _onStationsChanged,
+    );
+    _loadStations();
     // Pick up any status that was already set before this tab was built.
     final initialStatus = _broker.getValueDynamic(1, 'WinlinkStateMessage');
     if (initialStatus is String && initialStatus.isNotEmpty) {
@@ -191,6 +202,148 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
     if (data is String && data.isNotEmpty) {
       setState(() => _errorMessage = data);
     }
+  }
+
+  void _onStationsChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(_loadStations);
+  }
+
+  /// Loads the configured contacts/stations used to resolve mail avatars.
+  void _loadStations() {
+    final stations = <StationInfo>[];
+    final raw = _broker.getValueDynamic(0, 'Stations', null);
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map<String, dynamic>) {
+          stations.add(StationInfo.fromJson(item));
+        } else if (item is Map) {
+          stations.add(StationInfo.fromJson(item.cast<String, dynamic>()));
+        }
+      }
+    }
+    _stations = stations;
+  }
+
+  /// Extracts the bare, lowercased email addresses from a mail header value,
+  /// handling `Name <addr>` forms, multiple addresses and the "SMTP:" prefix.
+  List<String> _emailAddresses(String header) {
+    final result = <String>[];
+    for (final part in header.split(RegExp(r'[;,]'))) {
+      var addr = part.trim();
+      if (addr.isEmpty) continue;
+      final lt = addr.indexOf('<');
+      final gt = addr.indexOf('>');
+      if (lt >= 0 && gt > lt) addr = addr.substring(lt + 1, gt).trim();
+      addr = _stripSmtpPrefix(addr).trim();
+      if (addr.isNotEmpty) result.add(addr.toLowerCase());
+    }
+    return result;
+  }
+
+  /// Returns the contact matching the mail's correspondent, or null when none
+  /// matches. The correspondent is the recipient for outbound mail
+  /// (Outbox/Draft/Sent) and the sender otherwise. A match occurs when the
+  /// address equals a contact's ID, or when a `<callsign>@winlink.org` address
+  /// matches a generic or APRS station's callsign.
+  StationInfo? _matchedStationForMail(MailMessage m) {
+    final header = _showRecipientColumn ? m.to : m.from;
+    for (final email in _emailAddresses(header)) {
+      for (final s in _stations) {
+        if (s.callsign.trim().toLowerCase() == email) return s;
+      }
+      final at = email.indexOf('@');
+      if (at > 0 && email.substring(at + 1) == 'winlink.org') {
+        final callPart = email.substring(0, at);
+        for (final s in _stations) {
+          if (s.stationType != StationType.generic &&
+              s.stationType != StationType.aprs) {
+            continue;
+          }
+          final base = contactCallsignBase(s.callsign).trim().toLowerCase();
+          if (base == callPart || s.callsign.trim().toLowerCase() == callPart) {
+            return s;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Opens the contact edit dialog for [station] and persists any change.
+  Future<void> _editContact(StationInfo station) async {
+    final result = await showStationDialog(context, existing: station);
+    if (result == null || !mounted) return;
+    final stations = List<StationInfo>.from(_stations);
+    stations.removeWhere(
+      (s) =>
+          s.callsign == station.callsign &&
+          s.stationType == station.stationType,
+    );
+    stations.add(result);
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'Stations',
+      data: stations.map((s) => s.toJson()).toList(),
+    );
+  }
+
+  /// The display name in the first address of a header (`Name <addr>`), or null.
+  String? _displayNameFromHeader(String header) {
+    final first = header.split(RegExp(r'[;,]')).firstWhere(
+          (e) => e.trim().isNotEmpty,
+          orElse: () => '',
+        );
+    final lt = first.indexOf('<');
+    if (lt > 0) {
+      final name = first.substring(0, lt).trim().replaceAll('"', '');
+      if (name.isNotEmpty) return name;
+    }
+    return null;
+  }
+
+  /// Opens the add-contact dialog pre-filled from the mail's correspondent, then
+  /// persists the new contact. A `<callsign>@winlink.org` address creates a
+  /// Winlink contact; any other address creates an email contact.
+  Future<void> _addContactForMail(MailMessage m) async {
+    final header = _showRecipientColumn ? m.to : m.from;
+    final addresses = _emailAddresses(header);
+    if (addresses.isEmpty) return;
+    final email = addresses.first;
+
+    final StationInfo proposed;
+    final at = email.indexOf('@');
+    if (at > 0 && email.substring(at + 1) == 'winlink.org') {
+      proposed = StationInfo(
+        callsign: email.substring(0, at).toUpperCase(),
+        stationType: StationType.winlink,
+      );
+    } else {
+      proposed = StationInfo(callsign: email, stationType: StationType.email);
+    }
+    final name = _displayNameFromHeader(header);
+    if (name != null) proposed.name = name;
+
+    final result = await showStationDialog(context, existing: proposed);
+    if (result == null || !mounted) return;
+    final stations = List<StationInfo>.from(_stations);
+    stations.removeWhere(
+      (s) =>
+          s.callsign == result.callsign && s.stationType == result.stationType,
+    );
+    stations.add(result);
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'Stations',
+      data: stations.map((s) => s.toJson()).toList(),
+    );
+  }
+
+  /// Whether the mail's correspondent yields an address that could be added as
+  /// a contact (used to offer the add-contact affordance when unmatched).
+  bool _canAddContactForMail(MailMessage m) {
+    final header = _showRecipientColumn ? m.to : m.from;
+    return _emailAddresses(header).isNotEmpty;
   }
 
   void _dismissError() {
@@ -636,6 +789,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
       if (result != null) _addComposedMail(result, replaceId: m.id);
     } else {
       _markRead(m);
+      final station = _matchedStationForMail(m);
       await showMailViewerDialog(
         context,
         from: m.from,
@@ -645,6 +799,13 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
         subject: m.subject,
         body: m.body,
         attachments: _viewerAttachmentsFor(m.id),
+        avatarCallsign: station?.callsign,
+        avatarIcon: station?.avatarIcon,
+        avatarImage: station?.avatarImage,
+        onAvatarTap: station == null ? null : () => _editContact(station),
+        onAddContact: station != null || !_canAddContactForMail(m)
+            ? null
+            : () => _addContactForMail(m),
         onReply: _onReply,
         onReplyAll: _onReplyAll,
         onForward: _onForward,
@@ -1740,6 +1901,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
     }
 
     final mail = _selectedMail!;
+    final previewStation = _matchedStationForMail(mail);
     return Container(
       color: scheme.surface,
       child: Column(
@@ -1789,32 +1951,48 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(12),
               child: SelectionArea(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Stack(
                   children: [
-                    Text(
-                      mail.subject,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          mail.subject,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'From: ${mail.from}',
+                          style: TextStyle(color: scheme.onSurfaceVariant),
+                        ),
+                        Text(
+                          'To: ${mail.to}',
+                          style: TextStyle(color: scheme.onSurfaceVariant),
+                        ),
+                        Text(
+                          'Date: ${_formatMailTime(mail.time)}',
+                          style: TextStyle(color: scheme.onSurfaceVariant),
+                        ),
+                        _buildPreviewAttachments(mail.id, scheme),
+                        const Divider(height: 24),
+                        Text(mail.body),
+                      ],
+                    ),
+                    if (previewStation != null)
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: _buildPreviewAvatar(previewStation, scheme),
+                      )
+                    else if (_canAddContactForMail(mail))
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: _buildPreviewAddContact(mail, scheme),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'From: ${mail.from}',
-                      style: TextStyle(color: scheme.onSurfaceVariant),
-                    ),
-                    Text(
-                      'To: ${mail.to}',
-                      style: TextStyle(color: scheme.onSurfaceVariant),
-                    ),
-                    Text(
-                      'Date: ${_formatMailTime(mail.time)}',
-                      style: TextStyle(color: scheme.onSurfaceVariant),
-                    ),
-                    _buildPreviewAttachments(mail.id, scheme),
-                    const Divider(height: 24),
-                    Text(mail.body),
                   ],
                 ),
               ),
@@ -1824,4 +2002,109 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
       ),
     );
   }
+
+  /// The matched contact's avatar over a filled corner triangle, shown at the
+  /// top-right of the (scrollable) preview header. Tapping it opens the contact
+  /// edit dialog.
+  Widget _buildPreviewAvatar(StationInfo station, ColorScheme scheme) {
+    const double corner = 88;
+    return SizedBox(
+      width: corner,
+      height: corner,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _MailCornerTrianglePainter(scheme.surfaceContainerHigh),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Tooltip(
+              message: station.name.isNotEmpty
+                  ? station.name
+                  : station.callsign,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => _editContact(station),
+                child: ContactAvatar(
+                  callsign: station.callsign,
+                  avatarIcon: station.avatarIcon,
+                  avatarImage: station.avatarImage,
+                  radius: 26,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Add-contact affordance shown at the top-right of the preview header when
+  /// the correspondent is not in the contact list. Tapping it opens the
+  /// add-contact dialog pre-filled with the address.
+  Widget _buildPreviewAddContact(MailMessage mail, ColorScheme scheme) {
+    const double corner = 88;
+    return SizedBox(
+      width: corner,
+      height: corner,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _MailCornerTrianglePainter(scheme.surfaceContainerHigh),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Tooltip(
+              message: AppLocalizations.of(context).mailAddToContacts,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => _addContactForMail(mail),
+                child: CircleAvatar(
+                  radius: 26,
+                  backgroundColor: scheme.primaryContainer,
+                  child: Icon(
+                    Icons.person_add_alt_1,
+                    color: scheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Fills the top-right corner with a triangle so scrolling content does not
+/// peek around the avatar circle.
+class _MailCornerTrianglePainter extends CustomPainter {
+  final Color color;
+  _MailCornerTrianglePainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final path = Path()
+      ..moveTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, 0)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_MailCornerTrianglePainter old) => old.color != color;
 }

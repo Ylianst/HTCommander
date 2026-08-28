@@ -54,10 +54,17 @@ String contactCallsignBase(String callsign) {
   return dash >= 0 ? callsign.substring(0, dash) : callsign;
 }
 
-/// Up to three characters for the placeholder avatar. Callsigns show the last
+/// Up to three characters for the placeholder avatar. Email addresses show the
+/// first three letters (e.g. "john@x.com" -> "JOH"); callsigns show the last
 /// three letters (e.g. "KK7VZT" -> "VZT"); phone numbers (no letters) show the
 /// first three digits so SMS contacts render consistently everywhere.
 String contactInitials(String callsign) {
+  if (callsign.contains('@')) {
+    final letters =
+        callsign.toUpperCase().replaceAll(RegExp(r'[^A-Z]'), '');
+    if (letters.isEmpty) return '?';
+    return letters.length <= 3 ? letters : letters.substring(0, 3);
+  }
   final base = contactCallsignBase(callsign).toUpperCase();
   final letters = base.replaceAll(RegExp(r'[^A-Z]'), '');
   if (letters.isEmpty) {

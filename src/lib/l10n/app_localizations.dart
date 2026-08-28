@@ -4468,6 +4468,30 @@ abstract class AppLocalizations {
   /// **'Drag to select area to cache'**
   String get mapDragToSelect;
 
+  /// No description provided for @mapStationMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Message'**
+  String get mapStationMessage;
+
+  /// No description provided for @mapStationCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom to Station'**
+  String get mapStationCenter;
+
+  /// No description provided for @mapStationAddContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Contact'**
+  String get mapStationAddContact;
+
+  /// No description provided for @mapStationsHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Stations Here'**
+  String get mapStationsHere;
+
   /// No description provided for @aprsNoChannel.
   ///
   /// In en, this message translates to:
@@ -5085,6 +5109,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove Cc'**
   String get mailRemoveCc;
+
+  /// No description provided for @mailAddContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Add from contacts'**
+  String get mailAddContact;
+
+  /// No description provided for @mailContactsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Contacts'**
+  String get mailContactsTitle;
+
+  /// No description provided for @mailNoContacts.
+  ///
+  /// In en, this message translates to:
+  /// **'No contacts found'**
+  String get mailNoContacts;
+
+  /// No description provided for @mailAddToContacts.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to contacts'**
+  String get mailAddToContacts;
 
   /// No description provided for @mailMessageLabel.
   ///

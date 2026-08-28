@@ -2449,6 +2449,18 @@ class AppLocalizationsDe extends AppLocalizations {
       'Ziehen Sie, um den zwischenzuspeichernden Bereich auszuwählen';
 
   @override
+  String get mapStationMessage => 'Nachricht senden';
+
+  @override
+  String get mapStationCenter => 'Zur Station zoomen';
+
+  @override
+  String get mapStationAddContact => 'Kontakt hinzufügen';
+
+  @override
+  String get mapStationsHere => 'Stationen hier';
+
+  @override
   String get aprsNoChannel => 'Kein Funkgerät mit APRS-Kanal verfügbar';
 
   @override
@@ -2799,6 +2811,18 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get mailRemoveCc => 'Cc entfernen';
+
+  @override
+  String get mailAddContact => 'Aus Kontakten hinzufügen';
+
+  @override
+  String get mailContactsTitle => 'Kontakte';
+
+  @override
+  String get mailNoContacts => 'Keine Kontakte gefunden';
+
+  @override
+  String get mailAddToContacts => 'Zu Kontakten hinzufügen';
 
   @override
   String get mailMessageLabel => 'Nachricht';

@@ -2372,6 +2372,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mapDragToSelect => '拖动以选择要缓存的区域';
 
   @override
+  String get mapStationMessage => '发送消息';
+
+  @override
+  String get mapStationCenter => '缩放到该台站';
+
+  @override
+  String get mapStationAddContact => '添加联系人';
+
+  @override
+  String get mapStationsHere => '此处的台站';
+
+  @override
   String get aprsNoChannel => '没有带 APRS 信道的电台可用';
 
   @override
@@ -2702,6 +2714,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mailRemoveCc => '移除抄送';
+
+  @override
+  String get mailAddContact => '从联系人添加';
+
+  @override
+  String get mailContactsTitle => '联系人';
+
+  @override
+  String get mailNoContacts => '未找到联系人';
+
+  @override
+  String get mailAddToContacts => '添加到联系人';
 
   @override
   String get mailMessageLabel => '消息';

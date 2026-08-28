@@ -2709,10 +2709,10 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
             leftMargin +
             (_kFixedImageWidth * _kDisplayLeft) +
             _kDisplayLeftOffset,
-        // Raise the panel's top by the VFO 1 upward shift so the VFO A large
-        // label (translated up 20px in _buildDisplayPanel) stays inside the
-        // panel's hit-test bounds and remains tappable. Extra top padding in
-        // the connected panel keeps its on-screen position unchanged.
+        // Raise the connected panel's top by 20px so the LCD rows sit within
+        // the radio image's LCD cutout. The panel content (see
+        // _buildDisplayPanel) uses plain layout with paint == layout, so every
+        // row stays inside the panel's hit-test bounds and remains tappable.
         top:
             scaledImageHeight * _kDisplayTop -
             topCrop -
@@ -2969,12 +2969,19 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       );
     }
 
-    // Connected panel with VFO info
+    // Connected panel with VFO info.
+    //
+    // The rows are laid out with a plain Column and explicit gap spacers rather
+    // than Transform.translate. Transform.translate desynchronises a widget's
+    // paint position from its layout box: a row painted above its layout box
+    // (and, for VFO 1, sitting under the container's top padding) cannot be hit
+    // tested at the pixels where it is drawn, creating an invisible dead zone
+    // over the top of the tappable VFO labels. The gap values below reproduce
+    // the exact spacing the old translate offsets (-20/-14/-14/-12) produced
+    // (consecutive gaps are the differences of those offsets), while keeping
+    // paint == layout so the whole VFO A / VFO B labels are clickable.
     return Container(
-      // The 20px top padding offsets the panel's raised Positioned top (see
-      // _buildRadioLayers): the VFO 1 row is translated up 20px, so this keeps
-      // its rendered position unchanged while the label stays within bounds.
-      padding: const EdgeInsets.fromLTRB(4, 22, 4, 2),
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 2),
       decoration: BoxDecoration(
         color: _displayBgColor,
         borderRadius: BorderRadius.circular(2),
@@ -2983,29 +2990,18 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // VFO 1 - shifted up 20px
-          Transform.translate(
-            offset: const Offset(0, -20),
-            child: _buildVfo1Row(),
+          const SizedBox(height: 2),
+          _buildVfo1Row(),
+          const SizedBox(height: 6),
+          // Divider line.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            child: Container(height: 1, color: const Color(0xFF999999)),
           ),
-          // Divider line - shifted up 14px
-          Transform.translate(
-            offset: const Offset(0, -14),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              child: Container(height: 1, color: const Color(0xFF999999)),
-            ),
-          ),
-          // VFO 2 - shifted up 14px
-          Transform.translate(
-            offset: const Offset(0, -14),
-            child: _buildVfo2Row(),
-          ),
-          // Bottom row: Voice indicator and GPS status - shifted up 12px
-          Transform.translate(
-            offset: const Offset(0, -12),
-            child: _buildStatusRow(),
-          ),
+          _buildVfo2Row(),
+          const SizedBox(height: 2),
+          // Bottom row: Voice indicator and GPS status.
+          _buildStatusRow(),
         ],
       ),
     );

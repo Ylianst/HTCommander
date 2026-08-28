@@ -17,10 +17,12 @@ import 'package:url_launcher/url_launcher.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../aprs/aprs_symbols.dart';
+import '../dialogs/add_station_dialog.dart';
 import '../gps/gps_data.dart';
 import '../l10n/app_localizations.dart';
 import '../models/aircraft.dart';
 import '../models/radio_models.dart';
+import '../models/station_info.dart';
 import '../satellite/satellite_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -1564,16 +1566,19 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             width: size,
             height: size + spikeHeight,
             alignment: Alignment.topCenter,
-            child: Tooltip(
-              message: '${s.callsign}\n${_formatTime(s.time)}',
-              child: _buildAprsSymbolMarker(
-                table: s.symbolTable,
-                code: s.symbolCode,
-                size: size,
-                spikeHeight: spikeHeight,
-                spikeColor: color,
-                chipBg: symbolChipBg,
-                symbolColor: symbolFg,
+            child: _wrapStationMenu(
+              s,
+              Tooltip(
+                message: '${s.callsign}\n${_formatTime(s.time)}',
+                child: _buildAprsSymbolMarker(
+                  table: s.symbolTable,
+                  code: s.symbolCode,
+                  size: size,
+                  spikeHeight: spikeHeight,
+                  spikeColor: color,
+                  chipBg: symbolChipBg,
+                  symbolColor: symbolFg,
+                ),
               ),
             ),
           ),
@@ -1585,9 +1590,12 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             width: size,
             height: size,
             alignment: Alignment.topCenter,
-            child: Tooltip(
-              message: '${s.callsign}\n${_formatTime(s.time)}',
-              child: Icon(Icons.location_pin, color: color, size: size),
+            child: _wrapStationMenu(
+              s,
+              Tooltip(
+                message: '${s.callsign}\n${_formatTime(s.time)}',
+                child: Icon(Icons.location_pin, color: color, size: size),
+              ),
             ),
           ),
         );
@@ -1699,6 +1707,271 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     markers.sort((a, b) => b.point.latitude.compareTo(a.point.latitude));
 
     return markers;
+  }
+
+  /// Wraps a callsign station marker so a right-click (desktop) or long-press
+  /// (touch) opens a context menu offering to message the station, center the
+  /// map on it, or — when several stations overlap at the same spot — pick one
+  /// from the list first.
+  Widget _wrapStationMenu(_StationMarkerData station, Widget child) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onSecondaryTapUp: (d) =>
+          _showStationContextMenu(d.globalPosition, station),
+      onLongPressStart: (d) =>
+          _showStationContextMenu(d.globalPosition, station),
+      child: child,
+    );
+  }
+
+  /// Returns every currently-visible callsign station (APRS + voice/BSS) whose
+  /// on-screen position is within a few pixels of [target], so overlapping
+  /// markers can be disambiguated. The returned list always starts with
+  /// [target].
+  List<_StationMarkerData> _stationsNear(_StationMarkerData target) {
+    final camera = _mapController.camera;
+    final Offset anchor = camera.latLngToScreenOffset(target.position);
+    const double thresholdPx = 22;
+    final contactCallsigns =
+        _showContactsOnly ? _getContactCallsigns() : null;
+    final result = <_StationMarkerData>[target];
+
+    bool hidden(_StationMarkerData s) =>
+        contactCallsigns != null &&
+        !s.isSelf &&
+        !contactCallsigns.contains(s.callsign.toUpperCase());
+
+    void consider(_StationMarkerData s) {
+      if (identical(s, target)) return;
+      if (!_passesTimeFilter(s.time) || hidden(s)) return;
+      final Offset o = camera.latLngToScreenOffset(s.position);
+      if ((o - anchor).distance <= thresholdPx) result.add(s);
+    }
+
+    for (final s in _aprsStations.values) {
+      if (s.fromAprsIs && !_showAprsIs) continue;
+      consider(s);
+    }
+    for (final s in _voiceStations.values) {
+      consider(s);
+    }
+    return result;
+  }
+
+  /// Opens the station context menu at [globalPosition]. When several stations
+  /// overlap the tapped one, a picker is shown first so the user can choose
+  /// which station to act on.
+  void _showStationContextMenu(
+    Offset globalPosition,
+    _StationMarkerData station,
+  ) {
+    final near = _stationsNear(station);
+    if (near.length > 1) {
+      _showOverlappingStationsMenu(globalPosition, near);
+    } else {
+      _showStationActionMenu(globalPosition, station);
+    }
+  }
+
+  RelativeRect _menuPositionAt(Offset globalPosition) {
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    return RelativeRect.fromRect(
+      Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
+      Offset.zero & overlay.size,
+    );
+  }
+
+  /// Lists the stations overlapping at the same spot (UIView32 style). Picking
+  /// one opens that station's action menu.
+  Future<void> _showOverlappingStationsMenu(
+    Offset globalPosition,
+    List<_StationMarkerData> stations,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final selected = await showMenu<_StationMarkerData>(
+      context: context,
+      position: _menuPositionAt(globalPosition),
+      items: [
+        PopupMenuItem<_StationMarkerData>(
+          enabled: false,
+          height: 28,
+          child: Text(
+            l10n.mapStationsHere,
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ),
+        const PopupMenuDivider(height: 8),
+        for (final s in stations)
+          PopupMenuItem<_StationMarkerData>(
+            value: s,
+            height: 36,
+            child: Text(s.callsign),
+          ),
+      ],
+    );
+    if (selected != null && mounted) {
+      _showStationActionMenu(globalPosition, selected);
+    }
+  }
+
+  /// Shows the per-station actions: message the station or center the map on
+  /// it (zooming in to separate overlapping markers).
+  Future<void> _showStationActionMenu(
+    Offset globalPosition,
+    _StationMarkerData station,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final bool isContact = _hasAprsContact(station.callsign);
+    final action = await showMenu<String>(
+      context: context,
+      position: _menuPositionAt(globalPosition),
+      items: [
+        PopupMenuItem<String>(
+          enabled: false,
+          height: 28,
+          child: Text(
+            station.callsign,
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ),
+        const PopupMenuDivider(height: 8),
+        PopupMenuItem<String>(
+          value: 'message',
+          height: 40,
+          child: Row(
+            children: [
+              const Icon(Icons.chat_bubble_outline, size: 18),
+              const SizedBox(width: 8),
+              Text(l10n.mapStationMessage),
+            ],
+          ),
+        ),
+        if (!isContact)
+          PopupMenuItem<String>(
+            value: 'addContact',
+            height: 40,
+            child: Row(
+              children: [
+                const Icon(Icons.person_add_alt, size: 18),
+                const SizedBox(width: 8),
+                Text(l10n.mapStationAddContact),
+              ],
+            ),
+          ),
+        PopupMenuItem<String>(
+          value: 'center',
+          height: 40,
+          child: Row(
+            children: [
+              const Icon(Icons.my_location, size: 18),
+              const SizedBox(width: 8),
+              Text(l10n.mapStationCenter),
+            ],
+          ),
+        ),
+      ],
+    );
+    if (!mounted) return;
+    switch (action) {
+      case 'message':
+        _messageStation(station);
+        break;
+      case 'addContact':
+        _addStationContact(station);
+        break;
+      case 'center':
+        _centerOnStation(station);
+        break;
+    }
+  }
+
+  /// Whether an APRS-type contact already exists for [callsign] in the address
+  /// book (device 0 `Stations`).
+  bool _hasAprsContact(String callsign) {
+    final target = callsign.toUpperCase();
+    final raw = _broker.getValueDynamic(0, 'Stations', null);
+    if (raw is! List) return false;
+    for (final item in raw) {
+      final map = item is Map<String, dynamic>
+          ? item
+          : (item is Map ? Map<String, dynamic>.from(item) : null);
+      if (map == null) continue;
+      final cs = (map['Callsign'] ?? map['callsign'] ?? '')
+          .toString()
+          .toUpperCase();
+      if (cs != target) continue;
+      final typeRaw = map['StationType'] ?? map['stationType'];
+      final typeStr = '$typeRaw'.toLowerCase();
+      final typeIndex = typeRaw is int ? typeRaw : int.tryParse(typeStr);
+      if (typeIndex == 1 || typeStr == 'aprs') return true;
+    }
+    return false;
+  }
+
+  /// Opens the add-contact dialog pre-filled with [station]'s callsign as a new
+  /// APRS contact and persists it to the address book (device 0 `Stations`).
+  Future<void> _addStationContact(_StationMarkerData station) async {
+    final result = await showStationDialog(
+      context,
+      existing: StationInfo(
+        callsign: station.callsign,
+        stationType: StationType.aprs,
+      ),
+    );
+    if (result == null || !mounted) return;
+
+    final stations = <StationInfo>[];
+    final raw = _broker.getValueDynamic(0, 'Stations', null);
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map<String, dynamic>) {
+          stations.add(StationInfo.fromJson(item));
+        } else if (item is Map) {
+          stations.add(StationInfo.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+    stations.removeWhere(
+      (s) =>
+          s.callsign == result.callsign && s.stationType == result.stationType,
+    );
+    stations.add(result);
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'Stations',
+      data: stations.map((s) => s.toJson()).toList(),
+    );
+  }
+
+  /// Switches to the APRS tab and asks it to start a message to [station]. The
+  /// APRS tab opens a Messenger conversation (if in Messenger mode) or pre-fills
+  /// the destination in the classic feed. The message request is dispatched
+  /// after a frame so the APRS tab is built and subscribed when it arrives.
+  void _messageStation(_StationMarkerData station) {
+    final callsign = station.callsign;
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'RequestSelectTab',
+      data: 'APRS',
+      store: false,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'AprsMessageStation',
+        data: callsign,
+        store: false,
+      );
+    });
+  }
+
+  /// Centers the map on [station], zooming in enough to separate stations that
+  /// were overlapping at the previous zoom level.
+  void _centerOnStation(_StationMarkerData station) {
+    final currentZoom = _mapController.camera.zoom;
+    final targetZoom = math.max(currentZoom, 16.0);
+    _mapController.move(station.position, targetZoom);
   }
 
   /// Builds an APRS symbol marker: the station's symbol drawn inside a small

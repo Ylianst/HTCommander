@@ -254,6 +254,16 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       },
     );
 
+    // Handle "Message this station" requests dispatched from the Map tab's
+    // station context menu (device 0, key 'AprsMessageStation', data =
+    // callsign). Opens a conversation in Messenger mode or pre-fills the
+    // destination in the classic feed.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'AprsMessageStation',
+      callback: _onMessageStationRequested,
+    );
+
     // Subscribe to settings changes from device 0.
     _broker.subscribeMultiple(
       deviceId: 0,
@@ -1473,6 +1483,38 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     }
   }
 
+  /// Handles a "Message this station" request from the Map tab. In Messenger
+  /// mode it opens the conversation for [data] when the station is a known APRS
+  /// contact; otherwise it drops out of Messenger mode and pre-fills the
+  /// destination in the classic feed. In the classic feed it just pre-fills the
+  /// destination.
+  void _onMessageStationRequested(int deviceId, String name, dynamic data) {
+    if (data is! String || data.trim().isEmpty || !mounted) return;
+    final callsign = data.trim().toUpperCase();
+    if (_messengerMode && _isAprsContact(callsign)) {
+      _openConversation(callsign);
+    } else if (_messengerMode) {
+      // No contact for this station: the Messenger conversation list has
+      // nothing to show, so leave Messenger mode and pre-fill the classic feed.
+      setState(() {
+        _messengerMode = false;
+        _selectedContact = null;
+      });
+      _broker.dispatch(deviceId: 0, name: 'AprsMessengerMode', data: 0);
+      _setReceiver(callsign);
+      _rebuildMessages();
+    } else {
+      _setReceiver(callsign);
+    }
+  }
+
+  /// Whether [callsign] (upper-cased) is a known APRS contact in the address
+  /// book. SMS contacts (keyed by phone digits) are excluded.
+  bool _isAprsContact(String callsign) {
+    final target = callsign.toUpperCase();
+    return _addressBookIds.contains(target) && !_smsContacts.contains(target);
+  }
+
   /// Sets the APRS receiver (destination) to [callsign], updating the input
   /// field and persisting the choice via the data broker.
   void _setReceiver(String callsign) {
@@ -2039,12 +2081,30 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
             children: [
               SizedBox(
                 height: 34,
-                child: ElevatedButton(
-                  onPressed: _openAddContact,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: PopupMenuButton<StationType>(
+                  onSelected: _openAddContact,
+                  tooltip: '',
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: StationType.aprs,
+                      child: Text(l10n.stationTitleAprs),
+                    ),
+                    PopupMenuItem(
+                      value: StationType.sms,
+                      child: Text(l10n.stationTitleSms),
+                    ),
+                  ],
+                  child: ElevatedButton(
+                    onPressed: null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      disabledBackgroundColor:
+                          Theme.of(context).colorScheme.primary,
+                      disabledForegroundColor:
+                          Theme.of(context).colorScheme.onPrimary,
+                    ),
+                    child: Text(l10n.aprsAddContact),
                   ),
-                  child: Text(l10n.aprsAddContact),
                 ),
               ),
             ],
@@ -2086,12 +2146,12 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     );
   }
 
-  /// Opens the add-station dialog (locked to APRS type) and persists the new
+  /// Opens the add-station dialog (locked to [type]) and persists the new
   /// contact to the address book.
-  Future<void> _openAddContact() async {
+  Future<void> _openAddContact(StationType type) async {
     final station = await showStationDialog(
       context,
-      fixedType: StationType.aprs,
+      fixedType: type,
     );
     if (station == null || !mounted) return;
     final raw = _broker.getValueDynamic(0, 'Stations', null);
@@ -2118,9 +2178,13 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         data: stations.map((s) => s.toJson()).toList(),
       );
     }
-    // Open the conversation with the new contact.
-    if (station.callsign.isNotEmpty) {
-      _openConversation(station.callsign);
+    // Open the conversation with the new contact. SMS conversations are keyed
+    // by the digits-only phone number to match gateway message threading.
+    final peerKey = station.stationType == StationType.sms
+        ? _digitsOnly(station.callsign)
+        : station.callsign;
+    if (peerKey.isNotEmpty) {
+      _openConversation(peerKey);
     }
   }
 

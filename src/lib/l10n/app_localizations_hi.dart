@@ -2428,6 +2428,18 @@ class AppLocalizationsHi extends AppLocalizations {
   String get mapDragToSelect => 'कैश करने के लिए क्षेत्र चुनने हेतु खींचें';
 
   @override
+  String get mapStationMessage => 'संदेश भेजें';
+
+  @override
+  String get mapStationCenter => 'स्टेशन पर ज़ूम करें';
+
+  @override
+  String get mapStationAddContact => 'संपर्क जोड़ें';
+
+  @override
+  String get mapStationsHere => 'यहाँ के स्टेशन';
+
+  @override
   String get aprsNoChannel => 'APRS चैनल वाला कोई रेडियो उपलब्ध नहीं है';
 
   @override
@@ -2778,6 +2790,18 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get mailRemoveCc => 'Cc हटाएँ';
+
+  @override
+  String get mailAddContact => 'संपर्कों से जोड़ें';
+
+  @override
+  String get mailContactsTitle => 'संपर्क';
+
+  @override
+  String get mailNoContacts => 'कोई संपर्क नहीं मिला';
+
+  @override
+  String get mailAddToContacts => 'संपर्कों में जोड़ें';
 
   @override
   String get mailMessageLabel => 'संदेश';

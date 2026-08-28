@@ -1547,6 +1547,11 @@
   },
   "mapDragToSelect": "Drag to select area to cache",
 
+  "mapStationMessage": "Send Message",
+  "mapStationCenter": "Zoom to Station",
+  "mapStationAddContact": "Add Contact",
+  "mapStationsHere": "Stations Here",
+
   "aprsNoChannel": "No radio with an APRS channel is available",
   "aprsNoLoadedChannels": "No radio with loaded channels is available",
   "aprsDetails": "Details...",
@@ -1699,6 +1704,10 @@
   "mailAddCc": "Add Cc",
   "mailCc": "Cc",
   "mailRemoveCc": "Remove Cc",
+  "mailAddContact": "Add from contacts",
+  "mailContactsTitle": "Contacts",
+  "mailNoContacts": "No contacts found",
+  "mailAddToContacts": "Add to contacts",
   "mailMessageLabel": "Message",
   "mailSaveDraft": "Save Draft",
   "mailAttachmentsLabel": "Attachments",

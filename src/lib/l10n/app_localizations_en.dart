@@ -2418,6 +2418,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mapDragToSelect => 'Drag to select area to cache';
 
   @override
+  String get mapStationMessage => 'Send Message';
+
+  @override
+  String get mapStationCenter => 'Zoom to Station';
+
+  @override
+  String get mapStationAddContact => 'Add Contact';
+
+  @override
+  String get mapStationsHere => 'Stations Here';
+
+  @override
   String get aprsNoChannel => 'No radio with an APRS channel is available';
 
   @override
@@ -2767,6 +2779,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mailRemoveCc => 'Remove Cc';
+
+  @override
+  String get mailAddContact => 'Add from contacts';
+
+  @override
+  String get mailContactsTitle => 'Contacts';
+
+  @override
+  String get mailNoContacts => 'No contacts found';
+
+  @override
+  String get mailAddToContacts => 'Add to contacts';
 
   @override
   String get mailMessageLabel => 'Message';

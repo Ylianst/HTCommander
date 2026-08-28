@@ -1135,6 +1135,14 @@ class _MainFormState extends State<MainForm>
       callback: _onSetPreferredRadioRequested,
     );
 
+    // Subscribe to RequestSelectTab so other tabs (e.g. the Map's station
+    // context menu) can bring a tab to the front by label.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'RequestSelectTab',
+      callback: _onRequestSelectTab,
+    );
+
     // Subscribe to BatteryAsPercentage from all radio devices
     _broker.subscribe(
       deviceId: DataBroker.allDevices,
@@ -2569,6 +2577,21 @@ class _MainFormState extends State<MainForm>
     } else {
       _onConnect();
     }
+  }
+
+  /// Brings the tab with the given [label] to the front, if it is currently
+  /// visible. Dispatched via the `RequestSelectTab` event (device 0) so other
+  /// tabs can navigate the user to a different tab.
+  void _onRequestSelectTab(int deviceId, String name, dynamic data) {
+    if (data is! String || data.isEmpty || !mounted) return;
+    final idx = _currentTabs.indexWhere((t) => t.label == data);
+    if (idx < 0) {
+      // Tab isn't present in the current mode yet; remember it so it can be
+      // selected once the tab set is rebuilt.
+      _pendingRestoreTab = data;
+      return;
+    }
+    if (_tabController.index != idx) _tabController.animateTo(idx);
   }
 
   /// Called when tab selection changes.

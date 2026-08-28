@@ -2388,6 +2388,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get mapDragToSelect => 'キャッシュするエリアをドラッグして選択してください';
 
   @override
+  String get mapStationMessage => 'メッセージを送信';
+
+  @override
+  String get mapStationCenter => '局にズーム';
+
+  @override
+  String get mapStationAddContact => '連絡先を追加';
+
+  @override
+  String get mapStationsHere => 'ここの局';
+
+  @override
   String get aprsNoChannel => 'APRS チャンネルを持つ無線機がありません';
 
   @override
@@ -2724,6 +2736,18 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get mailRemoveCc => 'Cc を削除';
+
+  @override
+  String get mailAddContact => '連絡先から追加';
+
+  @override
+  String get mailContactsTitle => '連絡先';
+
+  @override
+  String get mailNoContacts => '連絡先が見つかりません';
+
+  @override
+  String get mailAddToContacts => '連絡先に追加';
 
   @override
   String get mailMessageLabel => 'メッセージ';

@@ -2440,6 +2440,18 @@ class AppLocalizationsPl extends AppLocalizations {
       'Przeciągnij, aby wybrać obszar do zapisania w pamięci podręcznej';
 
   @override
+  String get mapStationMessage => 'Wyślij wiadomość';
+
+  @override
+  String get mapStationCenter => 'Powiększ do stacji';
+
+  @override
+  String get mapStationAddContact => 'Dodaj kontakt';
+
+  @override
+  String get mapStationsHere => 'Stacje tutaj';
+
+  @override
   String get aprsNoChannel => 'Brak radiotelefonu z kanałem APRS';
 
   @override
@@ -2790,6 +2802,18 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get mailRemoveCc => 'Usuń DW';
+
+  @override
+  String get mailAddContact => 'Dodaj z kontaktów';
+
+  @override
+  String get mailContactsTitle => 'Kontakty';
+
+  @override
+  String get mailNoContacts => 'Nie znaleziono kontaktów';
+
+  @override
+  String get mailAddToContacts => 'Dodaj do kontaktów';
 
   @override
   String get mailMessageLabel => 'Wiadomość';

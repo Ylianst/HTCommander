@@ -7,7 +7,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../models/station_info.dart';
 import '../services/data_broker_client.dart';
+import '../widgets/contact_avatar.dart';
 import 'dialog_utils.dart';
 
 /// A file attached to a composed message, carrying the file name and its raw
@@ -193,6 +195,114 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
     final items = text.replaceAll(' ', ';').split(';');
     final cleaned = items.map((s) => s.trim()).where((s) => s.isNotEmpty);
     return cleaned.join(';');
+  }
+
+  /// Contacts that can be addressed from a Winlink message: email contacts,
+  /// Winlink callsign contacts, or any contact whose id is an email address.
+  List<StationInfo> _loadMailContacts() {
+    final stations = <StationInfo>[];
+    final raw = _broker.getValueDynamic(0, 'Stations', null);
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map<String, dynamic>) {
+          stations.add(StationInfo.fromJson(item));
+        } else if (item is Map) {
+          stations.add(StationInfo.fromJson(item.cast<String, dynamic>()));
+        }
+      }
+    }
+    bool isMailContact(StationInfo s) =>
+        s.stationType == StationType.email ||
+        s.stationType == StationType.winlink ||
+        s.callsign.contains('@');
+    final result = stations.where(isMailContact).toList();
+    String key(StationInfo s) =>
+        (s.name.isNotEmpty ? s.name : s.callsign).toLowerCase();
+    result.sort((a, b) => key(a).compareTo(key(b)));
+    return result;
+  }
+
+  /// Appends [id] to a recipient field, avoiding duplicates.
+  void _addRecipient(TextEditingController controller, String id) {
+    final existing = _cleanString(controller.text)
+        .split(';')
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (existing.any((e) => e.toLowerCase() == id.toLowerCase())) return;
+    existing.add(id);
+    controller.text = existing.join(';');
+  }
+
+  /// Opens a contact picker and appends the chosen contact to [target].
+  Future<void> _pickContact(TextEditingController target) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final contacts = _loadMailContacts();
+    if (contacts.isEmpty) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.mailNoContacts)));
+      return;
+    }
+    final selected = await showDialog<StationInfo>(
+      context: context,
+      builder: (context) {
+        final scheme = Theme.of(context).colorScheme;
+        return AlertDialog(
+          title: Text(l10n.mailContactsTitle),
+          content: SizedBox(
+            width: 360,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 400),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: contacts.length,
+                itemBuilder: (context, i) {
+                  final c = contacts[i];
+                  final title = c.name.isNotEmpty ? c.name : c.callsign;
+                  return ListTile(
+                    leading: ContactAvatar(
+                      callsign: c.callsign,
+                      avatarIcon: c.avatarIcon,
+                      avatarImage: c.avatarImage,
+                    ),
+                    title: Text(title),
+                    subtitle: c.name.isNotEmpty
+                        ? Text(
+                            c.callsign,
+                            style: TextStyle(color: scheme.onSurfaceVariant),
+                          )
+                        : null,
+                    onTap: () => Navigator.of(context).pop(c),
+                  );
+                },
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.commonCancel),
+            ),
+          ],
+        );
+      },
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _addRecipient(target, selected.callsign);
+      _messageChanged = true;
+    });
+  }
+
+  /// A small button next to a recipient label that opens the contact picker.
+  Widget _buildAddContactButton(TextEditingController target) {
+    return IconButton(
+      onPressed: () => _pickContact(target),
+      icon: const Icon(Icons.person_add_alt_1, size: 18),
+      tooltip: AppLocalizations.of(context).mailAddContact,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+    );
   }
 
   String _resolveFromCallsign() {
@@ -562,6 +672,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                                   style: DialogStyles.labelStyle,
                                 ),
                                 const Spacer(),
+                                _buildAddContactButton(_toController),
                                 if (!_showCc)
                                   TextButton.icon(
                                     onPressed: () =>
@@ -605,6 +716,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                                     style: DialogStyles.labelStyle,
                                   ),
                                   const Spacer(),
+                                  _buildAddContactButton(_ccController),
                                   IconButton(
                                     onPressed: () {
                                       setState(() {
