@@ -7,18 +7,14 @@ http://www.apache.org/licenses/LICENSE-2.0
 import CarPlay
 import Foundation
 
-/// CarPlay entry point. Builds the radio-status dashboard and its picker
-/// screens from CarPlay list templates, mirroring the Android Auto screens
-/// (`RadioStatusScreen`, `RegionListScreen`, `ChannelListScreen`,
-/// `MessagesScreen`, `RadioOptionsScreen`, `RadioPickerScreen`).
+/// CarPlay audio-app entry point. Presents the radio as an audio experience: a
+/// browsable channel list (the "stations") that opens the system Now Playing
+/// screen for the selected channel, plus an Options screen for region, scan,
+/// dual-watch and power. All state comes from [CarBridge.shared]; templates
+/// rebuild whenever the bridge reports new state.
 ///
-/// All state comes from [CarBridge.shared]; every template is rebuilt whenever
-/// the bridge reports new state so the UI stays in sync with the radio. Control
-/// taps are forwarded to Dart through the bridge.
-///
-/// NOTE: CarPlay requires a com.apple.developer.carplay-* entitlement granted
-/// by Apple. Without it this scene will not be created on device; the CarPlay
-/// Simulator in Xcode can be used for development.
+/// NOTE: CarPlay requires the com.apple.developer.carplay-audio entitlement,
+/// granted by Apple. The CarPlay Simulator renders audio apps for development.
 class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     private var interfaceController: CPInterfaceController?
     private var rootTemplate: CPListTemplate?
@@ -42,6 +38,8 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
             self?.rebuildRoot()
         }
         CarBridge.shared.setCarConnected(true)
+        CarBridge.shared.activateAudioSession()
+        CarBridge.shared.updateNowPlayingInfo()
     }
 
     func templateApplicationScene(
@@ -61,8 +59,8 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         guard let root = rootTemplate else { return }
         let bridge = CarBridge.shared
         root.updateSections(rootSections(bridge))
-        // Refresh the "Messages" trailing bar button count/state.
-        root.trailingNavigationBarButtons = [messagesBarButton()]
+        root.trailingNavigationBarButtons =
+            (bridge.connected && bridge.powerOn) ? [optionsBarButton()] : []
     }
 
     private func rootSections(_ bridge: CarBridge) -> [CPListSection] {
@@ -72,65 +70,46 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         if !bridge.powerOn {
             return [poweredOffSection()]
         }
-
-        var rows: [CPListItem] = []
-
-        // Region row -> region picker.
-        let regionRow = CPListItem(text: "Region", detailText: bridge.regionName.isEmpty ? "—" : bridge.regionName)
-        regionRow.accessoryType = .disclosureIndicator
-        regionRow.handler = { [weak self] _, completion in
-            self?.pushRegionPicker()
-            completion()
-        }
-        rows.append(regionRow)
-
-        // VFO A row -> channel picker for VFO A.
-        rows.append(vfoRow(title: "VFO A", vfo: bridge.vfoA, vfoId: "A"))
-
-        // VFO B row (shown when scan or dual-watch make it meaningful).
-        if bridge.scan || bridge.dualWatch {
-            rows.append(vfoRow(title: "VFO B", vfo: bridge.vfoB, vfoId: "B"))
-        }
-
-        // Scan toggle.
-        let scanRow = CPListItem(text: "Scan", detailText: bridge.scan ? "On" : "Off")
-        scanRow.handler = { _, completion in
-            CarBridge.shared.requestScan(!bridge.scan)
-            completion()
-        }
-        rows.append(scanRow)
-
-        // Dual-watch toggle.
-        let dualRow = CPListItem(text: "Dual Watch", detailText: bridge.dualWatch ? "On" : "Off")
-        dualRow.handler = { _, completion in
-            CarBridge.shared.requestDualWatch(!bridge.dualWatch)
-            completion()
-        }
-        rows.append(dualRow)
-
-        // Radio options (power off / disconnect).
-        let optionsRow = CPListItem(text: "Radio options", detailText: nil)
-        optionsRow.accessoryType = .disclosureIndicator
-        optionsRow.handler = { [weak self] _, completion in
-            self?.pushRadioOptions()
-            completion()
-        }
-        rows.append(optionsRow)
-
-        return [CPListSection(items: rows)]
+        return [channelSection(bridge)]
     }
 
-    private func vfoRow(title: String, vfo: CarBridge.CarVfo, vfoId: String) -> CPListItem {
-        let row = CPListItem(text: title, detailText: "\(vfo.title)  \(vfo.subtitle)".trimmingCharacters(in: .whitespaces))
-        row.accessoryType = .disclosureIndicator
-        row.handler = { [weak self] _, completion in
-            self?.pushChannelPicker(vfo: vfoId)
-            completion()
+    /// The browse list of channels; the active channel is marked as playing and
+    /// selecting one opens the Now Playing screen.
+    private func channelSection(_ bridge: CarBridge) -> CPListSection {
+        let named = bridge.channels.filter { !$0.name.isEmpty }
+        if named.isEmpty {
+            let detail = "\(bridge.vfoA.title)  \(bridge.vfoA.subtitle)".trimmingCharacters(in: .whitespaces)
+            let item = CPListItem(text: "VFO A", detailText: detail)
+            item.isPlaying = true
+            item.handler = { [weak self] _, completion in
+                self?.showNowPlaying()
+                completion()
+            }
+            return CPListSection(items: [item], header: "Now Playing", sectionIndexTitle: nil)
         }
-        return row
+        let items = named.map { channel -> CPListItem in
+            let item = CPListItem(text: channel.name, detailText: channel.frequency)
+            item.isPlaying = channel.id == bridge.vfoA.channelId
+            item.handler = { [weak self] _, completion in
+                CarBridge.shared.requestChannel(channelId: channel.id, vfo: "A")
+                self?.showNowPlaying()
+                completion()
+            }
+            return item
+        }
+        return CPListSection(items: items, header: "Channels", sectionIndexTitle: nil)
     }
 
-    // MARK: - Powered off / picker sections
+    // MARK: - Now Playing
+
+    private func showNowPlaying() {
+        guard let ic = interfaceController else { return }
+        CarBridge.shared.updateNowPlayingInfo()
+        if ic.topTemplate is CPNowPlayingTemplate { return }
+        ic.pushTemplate(CPNowPlayingTemplate.shared, animated: true, completion: nil)
+    }
+
+    // MARK: - Not-connected / powered-off sections
 
     private func poweredOffSection() -> CPListSection {
         let powerOn = CPListItem(text: "Power on", detailText: nil)
@@ -148,8 +127,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
 
     private func radioPickerSection(_ bridge: CarBridge) -> CPListSection {
         if bridge.scanningRadios && bridge.availableRadios.isEmpty {
-            let scanning = CPListItem(text: "Searching for radios…", detailText: nil)
-            return CPListSection(items: [scanning])
+            return CPListSection(items: [CPListItem(text: "Searching for radios…", detailText: nil)])
         }
         if bridge.availableRadios.isEmpty {
             let refresh = CPListItem(text: "Search for radios", detailText: "No radios found")
@@ -175,7 +153,59 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         return CPListSection(items: items)
     }
 
-    // MARK: - Pushed templates
+    // MARK: - Options (region / scan / dual-watch / power)
+
+    private func optionsBarButton() -> CPBarButton {
+        return CPBarButton(title: "Options") { [weak self] _ in
+            self?.pushOptions()
+        }
+    }
+
+    private func pushOptions() {
+        let bridge = CarBridge.shared
+        var rows: [CPListItem] = []
+
+        let regionRow = CPListItem(text: "Region", detailText: bridge.regionName.isEmpty ? "—" : bridge.regionName)
+        regionRow.accessoryType = .disclosureIndicator
+        regionRow.handler = { [weak self] _, completion in
+            self?.pushRegionPicker()
+            completion()
+        }
+        rows.append(regionRow)
+
+        let scanRow = CPListItem(text: "Scan", detailText: bridge.scan ? "On" : "Off")
+        scanRow.handler = { _, completion in
+            CarBridge.shared.requestScan(!bridge.scan)
+            completion()
+        }
+        rows.append(scanRow)
+
+        let dualRow = CPListItem(text: "Dual Watch", detailText: bridge.dualWatch ? "On" : "Off")
+        dualRow.handler = { _, completion in
+            CarBridge.shared.requestDualWatch(!bridge.dualWatch)
+            completion()
+        }
+        rows.append(dualRow)
+
+        let powerOff = CPListItem(text: "Power off", detailText: nil)
+        powerOff.handler = { [weak self] _, completion in
+            CarBridge.shared.requestRadioPower(false)
+            self?.interfaceController?.popTemplate(animated: true, completion: nil)
+            completion()
+        }
+        rows.append(powerOff)
+
+        let disconnect = CPListItem(text: "Disconnect", detailText: nil)
+        disconnect.handler = { [weak self] _, completion in
+            CarBridge.shared.requestDisconnect()
+            self?.interfaceController?.popTemplate(animated: true, completion: nil)
+            completion()
+        }
+        rows.append(disconnect)
+
+        let template = CPListTemplate(title: "Options", sections: [CPListSection(items: rows)])
+        interfaceController?.pushTemplate(template, animated: true, completion: nil)
+    }
 
     private func pushRegionPicker() {
         let bridge = CarBridge.shared
@@ -190,59 +220,5 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         }
         let template = CPListTemplate(title: "Region", sections: [CPListSection(items: items)])
         interfaceController?.pushTemplate(template, animated: true, completion: nil)
-    }
-
-    private func pushChannelPicker(vfo: String) {
-        let bridge = CarBridge.shared
-        let currentId = vfo == "B" ? bridge.vfoB.channelId : bridge.vfoA.channelId
-        let items = bridge.channels.filter { !$0.name.isEmpty }.map { channel -> CPListItem in
-            let item = CPListItem(text: channel.name, detailText: channel.id == currentId ? "Current" : channel.frequency)
-            item.handler = { [weak self] _, completion in
-                CarBridge.shared.requestChannel(channelId: channel.id, vfo: vfo)
-                self?.interfaceController?.popTemplate(animated: true, completion: nil)
-                completion()
-            }
-            return item
-        }
-        let template = CPListTemplate(title: "VFO \(vfo)", sections: [CPListSection(items: items)])
-        interfaceController?.pushTemplate(template, animated: true, completion: nil)
-    }
-
-    private func pushRadioOptions() {
-        let powerOff = CPListItem(text: "Power off", detailText: nil)
-        powerOff.handler = { [weak self] _, completion in
-            CarBridge.shared.requestRadioPower(false)
-            self?.interfaceController?.popTemplate(animated: true, completion: nil)
-            completion()
-        }
-        let disconnect = CPListItem(text: "Disconnect", detailText: nil)
-        disconnect.handler = { [weak self] _, completion in
-            CarBridge.shared.requestDisconnect()
-            self?.interfaceController?.popTemplate(animated: true, completion: nil)
-            completion()
-        }
-        let template = CPListTemplate(title: "Radio options", sections: [CPListSection(items: [powerOff, disconnect])])
-        interfaceController?.pushTemplate(template, animated: true, completion: nil)
-    }
-
-    private func pushMessages() {
-        let bridge = CarBridge.shared
-        let items = bridge.messages.map { message -> CPListItem in
-            let from = message.from.isEmpty ? message.kind : "\(message.from) (\(message.kind))"
-            return CPListItem(text: from, detailText: message.text)
-        }
-        let sections = items.isEmpty
-            ? [CPListSection(items: [CPListItem(text: "No messages", detailText: nil)])]
-            : [CPListSection(items: items)]
-        let template = CPListTemplate(title: "Messages", sections: sections)
-        interfaceController?.pushTemplate(template, animated: true, completion: nil)
-    }
-
-    private func messagesBarButton() -> CPBarButton {
-        let count = CarBridge.shared.messages.count
-        let title = count > 0 ? "Messages (\(count))" : "Messages"
-        return CPBarButton(title: title) { [weak self] _ in
-            self?.pushMessages()
-        }
     }
 }
