@@ -4,8 +4,10 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import AVFoundation
 import Flutter
 import Foundation
+import MediaPlayer
 
 /// In-process bridge between the Flutter engine and the CarPlay UI.
 ///
@@ -27,6 +29,7 @@ final class CarBridge: NSObject {
 
     private var methodChannel: FlutterMethodChannel?
     private var carConnected = false
+    private var remoteCommandsRegistered = false
 
     // MARK: - Mirrored state
 
@@ -64,13 +67,6 @@ final class CarBridge: NSObject {
         }
     }
 
-    struct CarMessage {
-        let kind: String
-        let from: String
-        let text: String
-        let time: Int
-    }
-
     private(set) var connected = false
     private(set) var powerOn = true
     private(set) var scanningRadios = false
@@ -86,7 +82,6 @@ final class CarBridge: NSObject {
     private(set) var scan = false
     private(set) var dualWatch = false
     private(set) var channels: [CarChannel] = []
-    private(set) var messages: [CarMessage] = []
 
     // MARK: - Listeners
 
@@ -205,14 +200,7 @@ final class CarBridge: NSObject {
             guard let id = (m["id"] as? NSNumber)?.intValue else { return nil }
             return CarChannel(id: id, name: m["name"] as? String ?? "", frequency: m["frequency"] as? String ?? "")
         }
-        messages = (map["messages"] as? [[String: Any]] ?? []).map { m in
-            CarMessage(
-                kind: m["kind"] as? String ?? "",
-                from: m["from"] as? String ?? "",
-                text: m["text"] as? String ?? "",
-                time: (m["time"] as? NSNumber)?.intValue ?? 0
-            )
-        }
+        updateNowPlayingInfo()
         notifyListeners()
     }
 
@@ -231,5 +219,53 @@ final class CarBridge: NSObject {
         DispatchQueue.main.async { [weak self] in
             self?.listeners.values.forEach { $0() }
         }
+    }
+
+    // MARK: - Audio session & Now Playing
+
+    /// Activates the playback audio session and registers the CarPlay transport
+    /// commands. Called when the CarPlay scene connects.
+    func activateAudioSession() {
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .default, options: [])
+        try? session.setActive(true)
+        registerRemoteCommands()
+    }
+
+    /// Maps the Now Playing transport play/pause to radio power so the driver
+    /// can start and stop listening from the car's controls and steering wheel.
+    private func registerRemoteCommands() {
+        guard !remoteCommandsRegistered else { return }
+        remoteCommandsRegistered = true
+        let center = MPRemoteCommandCenter.shared()
+        center.playCommand.addTarget { [weak self] _ in
+            self?.requestRadioPower(true)
+            return .success
+        }
+        center.pauseCommand.addTarget { [weak self] _ in
+            self?.requestRadioPower(false)
+            return .success
+        }
+        center.togglePlayPauseCommand.addTarget { [weak self] _ in
+            guard let self = self else { return .commandFailed }
+            self.requestRadioPower(!self.powerOn)
+            return .success
+        }
+    }
+
+    /// Publishes the current channel to the system Now Playing info so the
+    /// CarPlay Now Playing screen (and lock screen) show what's being received.
+    func updateNowPlayingInfo() {
+        let vfo = vfoA
+        let title = vfo.title == "\u{2014}" ? (radioName.isEmpty ? "HTCommander" : radioName) : vfo.title
+        let subtitle = vfo.frequency.isEmpty ? radioName : vfo.frequency
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: title,
+            MPMediaItemPropertyArtist: subtitle,
+            MPNowPlayingInfoPropertyIsLiveStream: true,
+            MPNowPlayingInfoPropertyPlaybackRate: (connected && powerOn) ? 1.0 : 0.0,
+        ]
+        if scan { info[MPMediaItemPropertyAlbumTitle] = "Scanning" }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 }

@@ -201,11 +201,15 @@ class _CommsTabState extends State<CommsTab>
   bool get wantKeepAlive => true;
 
   /// Whether the radio's audio channel is available on this platform. Web and
-  /// iOS talk to the radio over the BLE control channel only (no audio
-  /// channel), so the Voice tab is restricted to data-only "Chat" mode: the
-  /// Enable button and the audio transmit modes (PTT/Speak/Morse/DTMF) plus the
-  /// speech-to-text, recording and SSTV/audio send features are hidden.
+  /// iOS talk to physical radios over the BLE control channel only (no audio
+  /// channel), so radio audio features are hidden there.
   bool get _audioChannelSupported => !kIsWeb && !Platform.isIOS;
+
+  /// PTT can use the normal radio audio channel or an internet-link connection.
+  /// EchoLink and AllStarLink accept microphone PCM directly, including on iOS.
+  bool get _pttModeSupported =>
+      MicrophoneCapture.isSupported &&
+      (_audioChannelSupported || _isEchoLink || _isAllStar);
 
   @override
   void initState() {
@@ -385,10 +389,12 @@ class _CommsTabState extends State<CommsTab>
     _currentMode = _modeFromName(
       _broker.getValue<String>(0, 'VoiceTransmitMode', null),
     );
-    // Web and iOS have no audio channel, so only the data-only "Chat" mode
-    // (which uses the radio's internal modem over the control channel) is
-    // available. Force it regardless of any previously stored mode.
-    if (!_audioChannelSupported) _currentMode = VoiceTransmitMode.chat;
+    // Restore PTT on iOS only for internet-link radios, which accept microphone
+    // PCM directly without a physical-radio audio channel.
+    if (!_audioChannelSupported &&
+        (_currentMode != VoiceTransmitMode.ptt || !_pttModeSupported)) {
+      _currentMode = VoiceTransmitMode.chat;
+    }
     final storedMorse = _broker.getValue<Map<dynamic, dynamic>>(
       0,
       'MorseKeySettings',
@@ -819,7 +825,11 @@ class _CommsTabState extends State<CommsTab>
       _sstvAutoMuted = _readSstvAutoMuteState();
       _updateVfoAInfo();
     });
-    _updatePttMic();
+    if (_currentMode == VoiceTransmitMode.ptt && !_pttModeSupported) {
+      _setMode(VoiceTransmitMode.chat);
+    } else {
+      _updatePttMic();
+    }
   }
 
   void _onSelectedRadioChanged(int deviceId, String name, Object? data) {
@@ -831,7 +841,11 @@ class _CommsTabState extends State<CommsTab>
       _sstvAutoMuted = _readSstvAutoMuteState();
       _updateVfoAInfo();
     });
-    _updatePttMic();
+    if (_currentMode == VoiceTransmitMode.ptt && !_pttModeSupported) {
+      _setMode(VoiceTransmitMode.chat);
+    } else {
+      _updatePttMic();
+    }
   }
 
   void _onLockStateChanged(int deviceId, String name, Object? data) {
@@ -2512,7 +2526,11 @@ class _CommsTabState extends State<CommsTab>
       ),
       items: [
         modeItem(VoiceTransmitMode.none, 'None'),
-        if (!kIsWeb) modeItem(VoiceTransmitMode.ptt, AppLocalizations.of(context).commsModePtt),
+        if (_pttModeSupported)
+          modeItem(
+            VoiceTransmitMode.ptt,
+            AppLocalizations.of(context).commsModePtt,
+          ),
         modeItem(VoiceTransmitMode.chat, AppLocalizations.of(context).commsModeChat),
         if (!kIsWeb) modeItem(VoiceTransmitMode.speak, AppLocalizations.of(context).commsModeSpeak),
         if (!kIsWeb) modeItem(VoiceTransmitMode.morse, AppLocalizations.of(context).commsModeMorse),
@@ -2560,9 +2578,9 @@ class _CommsTabState extends State<CommsTab>
             ],
           ),
         ),
-        // Mode selection (only the data-only Chat mode is offered on web/iOS).
-        // Hidden entirely when transmitting is not allowed.
-        if (_audioChannelSupported && _allowTransmit)
+        // Mode selection. On iOS, PTT remains available for internet links even
+        // though physical-radio audio modes are unavailable.
+        if (_pttModeSupported && _allowTransmit)
           PopupMenuItem<String>(
             value: 'modePtt',
             height: menuItemHeight,
