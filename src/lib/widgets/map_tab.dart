@@ -81,7 +81,12 @@ class _StationMarkerData {
     position = newPosition;
     time = newTime;
     if (isTest != null) this.isTest = isTest;
-    if (fromAprsIs != null) this.fromAprsIs = fromAprsIs;
+    // `fromAprsIs` is sticky-false: a station is only treated as internet-only
+    // while every packet for it has come from APRS-IS. Once it is heard on RF
+    // (fromAprsIs == false) it stays visible even after the internet echoes the
+    // same packet back (e.g. when we ourselves gate it up), so the "Show
+    // Internet Traffic" filter never hides an RF-heard station.
+    if (fromAprsIs != null) this.fromAprsIs = this.fromAprsIs && fromAprsIs;
     if (symbolTable != null && symbolTable.isNotEmpty) {
       this.symbolTable = symbolTable;
     }
