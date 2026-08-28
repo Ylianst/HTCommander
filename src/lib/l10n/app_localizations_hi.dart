@@ -1884,6 +1884,12 @@ class AppLocalizationsHi extends AppLocalizations {
   String get contactsTypeAgwpe => 'AGWPE स्टेशन';
 
   @override
+  String get contactsTypeSms => 'SMS / फ़ोन संपर्क';
+
+  @override
+  String get contactsTypeEmail => 'ईमेल संपर्क';
+
+  @override
   String get contactsExists =>
       'इस कॉल साइन और प्रकार वाला स्टेशन पहले से मौजूद है';
 
@@ -1917,6 +1923,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get contactsColCallsign => 'कॉल साइन';
+
+  @override
+  String get contactsColId => 'आईडी';
 
   @override
   String get contactsColName => 'नाम';
@@ -2457,6 +2466,15 @@ class AppLocalizationsHi extends AppLocalizations {
   String get aprsShowAprsIs => 'इंटरनेट ट्रैफ़िक दिखाएं';
 
   @override
+  String get aprsMessengerMode => 'मैसेंजर मोड';
+
+  @override
+  String get aprsAddContact => 'संपर्क जोड़ें...';
+
+  @override
+  String get aprsNoConversations => 'अभी तक कोई बातचीत नहीं';
+
+  @override
   String get aprsSendSms => 'SMS संदेश भेजें...';
 
   @override
@@ -2911,6 +2929,42 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get stationTitleGeneric => 'स्टेशन';
+
+  @override
+  String get stationTitleSms => 'SMS / फ़ोन संपर्क';
+
+  @override
+  String get stationTitleEmail => 'ईमेल संपर्क';
+
+  @override
+  String get stationPhoneNumber => 'फ़ोन नंबर';
+
+  @override
+  String get stationEmail => 'ईमेल पता';
+
+  @override
+  String get stationInvalidEmail => 'अमान्य ईमेल पता';
+
+  @override
+  String get contactAvatarCustomize => 'अवतार अनुकूलित करें';
+
+  @override
+  String get contactAvatarChooseLogo => 'लोगो चुनें...';
+
+  @override
+  String get contactAvatarChooseImage => 'छवि चुनें...';
+
+  @override
+  String get contactAvatarPaste => 'चिपकाएं';
+
+  @override
+  String get contactAvatarReset => 'डिफ़ॉल्ट पर रीसेट करें';
+
+  @override
+  String get contactAvatarCropTitle => 'छवि क्रॉप करें';
+
+  @override
+  String get contactAvatarImageError => 'छवि लोड नहीं हो सकी';
 
   @override
   String get stationTypeOptionVoice => 'आवाज़ / सामान्य स्टेशन';

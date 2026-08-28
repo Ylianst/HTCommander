@@ -3478,6 +3478,18 @@ abstract class AppLocalizations {
   /// **'AGWPE Stations'**
   String get contactsTypeAgwpe;
 
+  /// No description provided for @contactsTypeSms.
+  ///
+  /// In en, this message translates to:
+  /// **'SMS / Phone Contacts'**
+  String get contactsTypeSms;
+
+  /// No description provided for @contactsTypeEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email Contacts'**
+  String get contactsTypeEmail;
+
   /// No description provided for @contactsExists.
   ///
   /// In en, this message translates to:
@@ -3537,6 +3549,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Callsign'**
   String get contactsColCallsign;
+
+  /// No description provided for @contactsColId.
+  ///
+  /// In en, this message translates to:
+  /// **'ID'**
+  String get contactsColId;
 
   /// No description provided for @contactsColName.
   ///
@@ -4522,6 +4540,24 @@ abstract class AppLocalizations {
   /// **'Show Internet Traffic'**
   String get aprsShowAprsIs;
 
+  /// No description provided for @aprsMessengerMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Messenger Mode'**
+  String get aprsMessengerMode;
+
+  /// No description provided for @aprsAddContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Contact...'**
+  String get aprsAddContact;
+
+  /// No description provided for @aprsNoConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'No conversations yet'**
+  String get aprsNoConversations;
+
   /// No description provided for @aprsSendSms.
   ///
   /// In en, this message translates to:
@@ -5319,6 +5355,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Station'**
   String get stationTitleGeneric;
+
+  /// No description provided for @stationTitleSms.
+  ///
+  /// In en, this message translates to:
+  /// **'SMS / Phone Contact'**
+  String get stationTitleSms;
+
+  /// No description provided for @stationTitleEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email Contact'**
+  String get stationTitleEmail;
+
+  /// No description provided for @stationPhoneNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone Number'**
+  String get stationPhoneNumber;
+
+  /// No description provided for @stationEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email Address'**
+  String get stationEmail;
+
+  /// No description provided for @stationInvalidEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid email address'**
+  String get stationInvalidEmail;
+
+  /// No description provided for @contactAvatarCustomize.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize avatar'**
+  String get contactAvatarCustomize;
+
+  /// No description provided for @contactAvatarChooseLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Logo...'**
+  String get contactAvatarChooseLogo;
+
+  /// No description provided for @contactAvatarChooseImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Image...'**
+  String get contactAvatarChooseImage;
+
+  /// No description provided for @contactAvatarPaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get contactAvatarPaste;
+
+  /// No description provided for @contactAvatarReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to Default'**
+  String get contactAvatarReset;
+
+  /// No description provided for @contactAvatarCropTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop Image'**
+  String get contactAvatarCropTitle;
+
+  /// No description provided for @contactAvatarImageError.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to load image'**
+  String get contactAvatarImageError;
 
   /// No description provided for @stationTypeOptionVoice.
   ///

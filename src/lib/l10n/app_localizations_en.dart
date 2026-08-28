@@ -1875,6 +1875,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get contactsTypeAgwpe => 'AGWPE Stations';
 
   @override
+  String get contactsTypeSms => 'SMS / Phone Contacts';
+
+  @override
+  String get contactsTypeEmail => 'Email Contacts';
+
+  @override
   String get contactsExists =>
       'A station with this callsign and type already exists';
 
@@ -1908,6 +1914,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get contactsColCallsign => 'Callsign';
+
+  @override
+  String get contactsColId => 'ID';
 
   @override
   String get contactsColName => 'Name';
@@ -2447,6 +2456,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aprsShowAprsIs => 'Show Internet Traffic';
 
   @override
+  String get aprsMessengerMode => 'Messenger Mode';
+
+  @override
+  String get aprsAddContact => 'Add Contact...';
+
+  @override
+  String get aprsNoConversations => 'No conversations yet';
+
+  @override
   String get aprsSendSms => 'Send SMS Message...';
 
   @override
@@ -2899,6 +2917,42 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stationTitleGeneric => 'Station';
+
+  @override
+  String get stationTitleSms => 'SMS / Phone Contact';
+
+  @override
+  String get stationTitleEmail => 'Email Contact';
+
+  @override
+  String get stationPhoneNumber => 'Phone Number';
+
+  @override
+  String get stationEmail => 'Email Address';
+
+  @override
+  String get stationInvalidEmail => 'Invalid email address';
+
+  @override
+  String get contactAvatarCustomize => 'Customize avatar';
+
+  @override
+  String get contactAvatarChooseLogo => 'Choose Logo...';
+
+  @override
+  String get contactAvatarChooseImage => 'Choose Image...';
+
+  @override
+  String get contactAvatarPaste => 'Paste';
+
+  @override
+  String get contactAvatarReset => 'Reset to Default';
+
+  @override
+  String get contactAvatarCropTitle => 'Crop Image';
+
+  @override
+  String get contactAvatarImageError => 'Unable to load image';
 
   @override
   String get stationTypeOptionVoice => 'Voice / Generic Station';

@@ -5,6 +5,7 @@ import 'tab_visibility.dart';
 import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'chat_widget.dart';
+import 'contact_avatar.dart';
 import '../dialogs/aprs_configuration_dialog.dart';
 import '../dialogs/aprs_details_dialog.dart';
 import '../dialogs/aprs_sms_dialog.dart';
@@ -13,6 +14,7 @@ import '../dialogs/dialog_utils.dart';
 import '../dialogs/aprs_location_dialog.dart';
 import '../dialogs/edit_beacon_settings_dialog.dart';
 import '../dialogs/digipeater_dialog.dart';
+import '../dialogs/add_station_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
@@ -24,6 +26,7 @@ import '../aprs/aprs_symbols.dart';
 import '../aprs/message_data.dart';
 import '../aprs/packet_data_type.dart';
 import '../models/radio_models.dart';
+import '../models/station_info.dart';
 import '../radio/radio_models.dart' as radio;
 import '../radio/ax25_packet.dart';
 import '../utils/channel_share.dart';
@@ -59,6 +62,10 @@ class _AprsEntry {
   double? latitude;
   double? longitude;
   bool visible;
+  // Peer callsign for Messenger-mode conversation grouping: the addressee for
+  // sent messages, or the sender for messages addressed to us. Null for
+  // packets that don't belong to one of our direct conversations.
+  final String? peerCallsign;
 
   _AprsEntry({
     required this.aprsPacket,
@@ -73,6 +80,26 @@ class _AprsEntry {
     required this.imageIndex,
     required this.authState,
     required this.visible,
+    this.peerCallsign,
+  });
+}
+
+/// A single Messenger-mode conversation: one peer callsign with its most recent
+/// message preview. Contacts from the address book with no message history are
+/// represented with an empty [lastMessage] and null [lastTime].
+class _AprsConversation {
+  final String callsign;
+  final String? name;
+  final String lastMessage;
+  final DateTime? lastTime;
+  final bool lastFromMe;
+
+  const _AprsConversation({
+    required this.callsign,
+    required this.name,
+    required this.lastMessage,
+    required this.lastTime,
+    required this.lastFromMe,
   });
 }
 
@@ -109,6 +136,16 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   bool _aprsIsEnabled = false;
   bool _historicalLoaded = false;
   bool _aprsIsHistoricalLoaded = false;
+
+  // Messenger mode: a Signal-style conversation list + per-contact chat. When
+  // [_messengerMode] is off the tab shows the classic combined APRS feed.
+  bool _messengerMode = false;
+  // Selected conversation peer (uppercased callsign). Null shows the list.
+  String? _selectedContact;
+  // Display names for APRS stations from the address book, keyed by callsign.
+  Map<String, String> _contactNames = {};
+  // Avatar overrides (chosen logo / custom image) keyed by uppercased callsign.
+  Map<String, ({String? icon, String? image})> _contactAvatars = {};
 
   // Local station identity (from device 0).
   String _callsign = '';
@@ -151,6 +188,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         (_broker.getValue<int>(0, 'AprsShowTelemetry', 0) ?? 0) != 0;
     _showAprsIs =
         (_broker.getValue<int>(0, 'AprsShowAprsIs', 1) ?? 1) != 0;
+    _messengerMode =
+        (_broker.getValue<int>(0, 'AprsMessengerMode', 0) ?? 0) != 0;
     _selectedRouteIndex = _broker.getValue<int>(0, 'SelectedAprsRoute', 0) ?? 0;
     _parseAndSetRoutes(_broker.getValue<String>(0, 'AprsRoutes', '') ?? '');
     final savedDest = _broker.getValue<String>(0, 'AprsDestination', '') ?? '';
@@ -309,6 +348,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
 
   void _loadStationDestinations() {
     final dests = <String>['ALL', 'QST', 'CQ'];
+    final names = <String, String>{};
+    final avatars = <String, ({String? icon, String? image})>{};
     final raw = _broker.getValueDynamic(0, 'Stations', null);
     if (raw is List) {
       for (final item in raw) {
@@ -320,10 +361,31 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
               !dests.contains(station.callsign)) {
             dests.add(station.callsign);
           }
+          // Capture a display name + avatar for Messenger-mode conversation rows.
+          if (station != null && station.isAprs && station.callsign.isNotEmpty) {
+            final key = station.callsign.toUpperCase();
+            final name =
+                (item['Name'] ?? item['name'])?.toString().trim() ?? '';
+            if (name.isNotEmpty) {
+              names[key] = name;
+            }
+            final icon = (item['AvatarIcon'] ?? item['avatarIcon'])?.toString();
+            final image =
+                (item['AvatarImage'] ?? item['avatarImage'])?.toString();
+            if ((icon != null && icon.isNotEmpty) ||
+                (image != null && image.isNotEmpty)) {
+              avatars[key] = (
+                icon: (icon != null && icon.isNotEmpty) ? icon : null,
+                image: (image != null && image.isNotEmpty) ? image : null,
+              );
+            }
+          }
         }
       }
     }
     _destinations = dests;
+    _contactNames = names;
+    _contactAvatars = avatars;
   }
 
   void _onSettingsChanged(int deviceId, String name, Object? data) {
@@ -544,7 +606,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   bool get _canSend =>
       (_hasAprsChannel || _aprsIsTransmitAvailable || _isAprsSatActive) &&
       (!_isRadioLockedForOtherUsage || _isAprsSatActive) &&
-      _destinationController.text.trim().isNotEmpty &&
+      ((_messengerMode && _selectedContact != null) ||
+          _destinationController.text.trim().isNotEmpty) &&
       _messageController.text.trim().isNotEmpty;
 
   /// Rebuilds when the destination/message fields change so the send button
@@ -709,7 +772,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     final list = <ChatMessage>[];
     for (var i = 0; i < _entries.length; i++) {
       final e = _entries[i];
-      if (!e.visible) continue;
+      if (!_entryInCurrentView(e)) continue;
       list.add(_entryToMessage(i, e));
     }
     if (mounted) {
@@ -719,12 +782,27 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     }
   }
 
+  /// Whether [e] should appear in the chat view given the current filters and,
+  /// in Messenger mode with a selected contact, the conversation peer.
+  bool _entryInCurrentView(_AprsEntry e) {
+    if (_messengerMode && _selectedContact != null) {
+      // In a focused conversation, show every message to/from the peer,
+      // ignoring the telemetry / internet-traffic toggles (those govern the
+      // combined feed). peerCallsign is only set for message packets, so
+      // telemetry never leaks in here.
+      return e.peerCallsign != null &&
+          e.peerCallsign!.toUpperCase() == _selectedContact;
+    }
+    if (!e.visible) return false;
+    return true;
+  }
+
   /// Appends a single newly added entry to the display list without rebuilding
   /// the entire message list. A full rebuild re-created a [ChatMessage] for
   /// every entry (O(n) allocations) and ran on every incoming packet, so cost
   /// grew with history size. Appending keeps the per-packet cost constant.
   void _appendMessage(int index, _AprsEntry e) {
-    if (!e.visible) return;
+    if (!_entryInCurrentView(e)) return;
     final msg = _entryToMessage(index, e);
     if (mounted) {
       setState(() => _messages.add(msg));
@@ -747,6 +825,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     String? messageText;
     PacketDataType messageType = aprsPacket.dataType;
     int imageIndex = -1;
+    String? peerCallsign;
 
     final senderAddr = packet.addresses.length > 1
         ? packet.addresses[1]
@@ -780,6 +859,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
 
       if (sender) {
         routingString = '→ $addressee';
+        peerCallsign = addressee;
       } else {
         if (senderAddr.address == addressee ||
             senderAddr.callSignWithId == addressee) {
@@ -787,6 +867,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         } else {
           routingString = '$senderCallsign → $addressee';
         }
+        // Only messages addressed to us belong to one of our conversations.
+        if (forSelf) peerCallsign = senderCallsign;
       }
       if (packet.authState == AuthState.success) routingString += ' ✓';
       if (packet.authState == AuthState.failed) routingString += ' ❌';
@@ -858,6 +940,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       imageIndex: imageIndex,
       authState: packet.authState,
       visible: _computeVisible(messageType, aprsPacket.fromAprsIs),
+      peerCallsign: peerCallsign,
     );
 
     // Drop duplicates within the last 5 minutes. Compare the sender callsign
@@ -1002,7 +1085,11 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   }
 
   void _sendMessage() {
-    final destination = _destinationController.text.trim().toUpperCase();
+    // In a Messenger conversation the destination is the selected contact;
+    // otherwise it comes from the destination field.
+    final destination = (_messengerMode && _selectedContact != null)
+        ? _selectedContact!
+        : _destinationController.text.trim().toUpperCase();
     final text = _messageController.text;
     if (destination.isEmpty || text.trim().isEmpty) return;
 
@@ -1427,6 +1514,33 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     _rebuildMessages();
   }
 
+  void _toggleMessengerMode() {
+    setState(() {
+      _messengerMode = !_messengerMode;
+      _selectedContact = null;
+    });
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'AprsMessengerMode',
+      data: _messengerMode ? 1 : 0,
+    );
+    _rebuildMessages();
+  }
+
+  /// Opens a conversation for [callsign] in Messenger mode, filtering the chat
+  /// to that peer.
+  void _openConversation(String callsign) {
+    setState(() => _selectedContact = callsign.toUpperCase());
+    _rebuildMessages();
+    _messageFocusNode.requestFocus();
+  }
+
+  /// Returns to the Messenger conversation list.
+  void _closeConversation() {
+    setState(() => _selectedContact = null);
+    _rebuildMessages();
+  }
+
   Future<void> _clearMessages() async {
     final l10n = AppLocalizations.of(context);
     final confirmed = await DialogHelper.showConfirmDialog(
@@ -1465,6 +1579,23 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         offset.dy,
       ),
       items: [
+        PopupMenuItem<String>(
+          value: 'messengerMode',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                child: _messengerMode
+                    ? const Text('✓', style: TextStyle(fontSize: 14))
+                    : null,
+              ),
+              Text(l10n.aprsMessengerMode),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
           value: 'showAll',
           height: menuItemHeight,
@@ -1558,6 +1689,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     ).then((value) {
       if (value == null || !mounted) return;
       switch (value) {
+        case 'messengerMode':
+          _toggleMessengerMode();
+          break;
         case 'showAll':
           _toggleShowAll();
           break;
@@ -1593,6 +1727,16 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    // Messenger mode, conversation list: header + list, no input panel.
+    if (_messengerMode && _selectedContact == null) {
+      return Column(
+        children: [
+          _buildHeader(),
+          if (_showMissingChannel) _buildMissingChannelBanner(),
+          Expanded(child: _buildMessengerList()),
+        ],
+      );
+    }
     return Column(
       children: [
         _buildHeader(),
@@ -1613,6 +1757,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
                       onMessageIconTap: _onMessageIconTap,
                     ),
                   ),
+                  if (_messengerMode && _selectedContact != null)
+                    _buildConversationAvatarOverlay(),
                   if (channelHover)
                     Positioned.fill(
                       child: IgnorePointer(child: _buildChannelDropOverlay()),
@@ -1625,6 +1771,285 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         if (_allowTransmit) _buildInputPanel(),
       ],
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Messenger mode
+  // ---------------------------------------------------------------------------
+
+  /// Corner overlay shown in a conversation: a filled top-right triangle (so
+  /// scrolling messages don't peek around the avatar) with the contact avatar
+  /// on top. Tapping it opens the contact edit dialog.
+  Widget _buildConversationAvatarOverlay() {
+    final callsign = _selectedContact!;
+    final scheme = Theme.of(context).colorScheme;
+    final avatar = _contactAvatars[callsign.toUpperCase()];
+    const double corner = 104;
+    return Positioned(
+      top: 0,
+      right: 0,
+      child: SizedBox(
+        width: corner,
+        height: corner,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _CornerTrianglePainter(scheme.surfaceContainerHigh),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Tooltip(
+                message: _contactDisplayName(callsign),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: _editSelectedContact,
+                  child: ContactAvatar(
+                    callsign: callsign,
+                    avatarIcon: avatar?.icon,
+                    avatarImage: avatar?.image,
+                    radius: 32,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Opens the contact edit dialog for the selected conversation peer, creating
+  /// an APRS contact if one does not exist yet, and persists the result.
+  Future<void> _editSelectedContact() async {
+    final callsign = _selectedContact;
+    if (callsign == null) return;
+
+    final stations = <StationInfo>[];
+    final raw = _broker.getValueDynamic(0, 'Stations', null);
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map<String, dynamic>) {
+          stations.add(StationInfo.fromJson(item));
+        } else if (item is Map) {
+          stations.add(StationInfo.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+
+    // Prefer an existing APRS contact with this callsign; fall back to any.
+    StationInfo? existing;
+    for (final s in stations) {
+      if (s.callsign.toUpperCase() == callsign) {
+        existing = s;
+        if (s.stationType == StationType.aprs) break;
+      }
+    }
+
+    final result = await showStationDialog(
+      context,
+      existing: existing ??
+          StationInfo(callsign: callsign, stationType: StationType.aprs),
+    );
+    if (result == null || !mounted) return;
+
+    stations.removeWhere(
+      (s) =>
+          s.callsign == result.callsign && s.stationType == result.stationType,
+    );
+    stations.add(result);
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'Stations',
+      data: stations.map((s) => s.toJson()).toList(),
+    );
+  }
+
+  /// Display name for a conversation peer: the address-book name if known,
+  /// otherwise the callsign.
+  String _contactDisplayName(String callsign) {
+    return _contactNames[callsign.toUpperCase()] ?? callsign;
+  }
+
+  /// Short relative time such as "5m", "3h" or "5d".
+  String _relativeTimeShort(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inSeconds < 60) return 'now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 365) return '${diff.inDays}d';
+    return '${diff.inDays ~/ 365}y';
+  }
+
+  /// Builds the ordered list of Messenger conversations from message history and
+  /// the APRS address book. Peers with recent messages come first (most recent
+  /// on top); address-book contacts with no messages follow, sorted by name.
+  List<_AprsConversation> _buildConversations() {
+    final byPeer = <String, _AprsEntry>{};
+    for (final e in _entries) {
+      final peer = e.peerCallsign;
+      if (peer == null || peer.isEmpty) continue;
+      final key = peer.toUpperCase();
+      final existing = byPeer[key];
+      if (existing == null || e.time.isAfter(existing.time)) {
+        byPeer[key] = e;
+      }
+    }
+
+    final conversations = <_AprsConversation>[];
+    for (final entry in byPeer.entries) {
+      final e = entry.value;
+      conversations.add(_AprsConversation(
+        callsign: entry.key,
+        name: _contactNames[entry.key],
+        lastMessage: e.messageText.trim(),
+        lastTime: e.time,
+        lastFromMe: e.sender,
+      ));
+    }
+    conversations.sort((a, b) => b.lastTime!.compareTo(a.lastTime!));
+
+    // Append address-book APRS contacts that have no message history yet.
+    final existingKeys = byPeer.keys.toSet();
+    final extras = <_AprsConversation>[];
+    for (final entry in _contactNames.entries) {
+      if (existingKeys.contains(entry.key)) continue;
+      extras.add(_AprsConversation(
+        callsign: entry.key,
+        name: entry.value,
+        lastMessage: '',
+        lastTime: null,
+        lastFromMe: false,
+      ));
+    }
+    extras.sort((a, b) => _contactDisplayName(a.callsign)
+        .toLowerCase()
+        .compareTo(_contactDisplayName(b.callsign).toLowerCase()));
+
+    return [...conversations, ...extras];
+  }
+
+  Widget _buildMessengerList() {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final conversations = _buildConversations();
+
+    return Column(
+      children: [
+        Expanded(
+          child: conversations.isEmpty
+              ? Center(
+                  child: Text(
+                    l10n.aprsNoConversations,
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
+                )
+              : ListView.separated(
+                  itemCount: conversations.length,
+                  separatorBuilder: (_, _) =>
+                      Divider(height: 1, color: scheme.outlineVariant),
+                  itemBuilder: (context, index) =>
+                      _buildConversationTile(conversations[index]),
+                ),
+        ),
+        Divider(height: 1, color: scheme.outlineVariant),
+        // Add-contact action, styled like the Contacts tab bottom bar.
+        Container(
+          height: 50,
+          decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          clipBehavior: Clip.hardEdge,
+          child: Row(
+            children: [
+              SizedBox(
+                height: 34,
+                child: ElevatedButton(
+                  onPressed: _openAddContact,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: Text(l10n.aprsAddContact),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConversationTile(_AprsConversation c) {
+    final scheme = Theme.of(context).colorScheme;
+    final title = _contactDisplayName(c.callsign);
+    final preview = c.lastMessage.isEmpty
+        ? ''
+        : (c.lastFromMe ? '→ ${c.lastMessage}' : c.lastMessage);
+    final avatar = _contactAvatars[c.callsign.toUpperCase()];
+    return ListTile(
+      leading: ContactAvatar(
+        callsign: c.callsign,
+        avatarIcon: avatar?.icon,
+        avatarImage: avatar?.image,
+      ),
+      title: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontWeight: FontWeight.w500),
+      ),
+      subtitle: preview.isEmpty
+          ? null
+          : Text(preview, maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: c.lastTime == null
+          ? null
+          : Text(
+              _relativeTimeShort(c.lastTime!),
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+      onTap: () => _openConversation(c.callsign),
+    );
+  }
+
+  /// Opens the add-station dialog (locked to APRS type) and persists the new
+  /// contact to the address book.
+  Future<void> _openAddContact() async {
+    final station = await showStationDialog(
+      context,
+      fixedType: StationType.aprs,
+    );
+    if (station == null || !mounted) return;
+    final raw = _broker.getValueDynamic(0, 'Stations', null);
+    final stations = <StationInfo>[];
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map<String, dynamic>) {
+          stations.add(StationInfo.fromJson(item));
+        } else if (item is Map) {
+          stations.add(StationInfo.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+    final exists = stations.any(
+      (s) =>
+          s.callsign == station.callsign &&
+          s.stationType == station.stationType,
+    );
+    if (!exists) {
+      stations.add(station);
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'Stations',
+        data: stations.map((s) => s.toJson()).toList(),
+      );
+    }
+    // Open the conversation with the new contact.
+    if (station.callsign.isNotEmpty) {
+      _openConversation(station.callsign);
+    }
   }
 
   Widget _buildBeaconIcon() {
@@ -1777,13 +2202,35 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         builder: (context, constraints) {
           final showDropdown =
               constraints.maxWidth > 250 && _aprsRoutes.length > 1;
+          final inConversation =
+              _messengerMode && _selectedContact != null;
+          final title = inConversation
+              ? '${AppLocalizations.of(context).tabAprs} - ${_contactDisplayName(_selectedContact!)}'
+              : AppLocalizations.of(context).tabAprs;
           return Row(
             children: [
-              Text(
-                AppLocalizations.of(context).tabAprs,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              if (inConversation)
+                InkWell(
+                  onTap: _closeConversation,
+                  borderRadius: BorderRadius.circular(4),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(Icons.arrow_back, size: 20),
+                  ),
+                ),
+              if (inConversation) const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               // Beacon active indicator - opens beacon settings on tap.
               if (_beaconInterval > 0) _buildBeaconIcon(),
               if (_beaconInterval > 0) const SizedBox(width: 4),
@@ -1857,6 +2304,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
 
   Widget _buildInputPanel() {
     final scheme = Theme.of(context).colorScheme;
+    // In a Messenger conversation the destination is fixed to the selected
+    // contact, so the destination combo box is hidden.
+    final inConversation = _messengerMode && _selectedContact != null;
     return Container(
       height: 50,
       decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
@@ -1866,72 +2316,74 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Destination combo box (text input with dropdown)
-          SizedBox(
-            width: 100,
-            height: 34,
-            child: Container(
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerLow,
-                border: Border.all(color: scheme.onSurfaceVariant),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _destinationController,
-                      style: const TextStyle(fontSize: 14),
-                      decoration: const InputDecoration(
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                        border: InputBorder.none,
-                        isDense: true,
-                        isCollapsed: true,
+          if (!inConversation) ...[
+            SizedBox(
+              width: 100,
+              height: 34,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerLow,
+                  border: Border.all(color: scheme.onSurfaceVariant),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _destinationController,
+                        style: const TextStyle(fontSize: 14),
+                        decoration: const InputDecoration(
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                          border: InputBorder.none,
+                          isDense: true,
+                          isCollapsed: true,
+                        ),
+                        onChanged: (value) {
+                          _selectedDestination = value.toUpperCase();
+                          _broker.dispatch(
+                            deviceId: 0,
+                            name: 'AprsDestination',
+                            data: _selectedDestination,
+                          );
+                        },
+                        textCapitalization: TextCapitalization.characters,
                       ),
-                      onChanged: (value) {
-                        _selectedDestination = value.toUpperCase();
-                        _broker.dispatch(
-                          deviceId: 0,
-                          name: 'AprsDestination',
-                          data: _selectedDestination,
-                        );
-                      },
-                      textCapitalization: TextCapitalization.characters,
                     ),
-                  ),
-                  SizedBox(
-                    width: 24,
-                    height: 32,
-                    child: PopupMenuButton<String>(
-                      icon: const Icon(Icons.arrow_drop_down, size: 20),
-                      padding: EdgeInsets.zero,
-                      onSelected: (value) {
-                        setState(() {
-                          _selectedDestination = value;
-                          _destinationController.text = value;
-                        });
-                        _broker.dispatch(
-                          deviceId: 0,
-                          name: 'AprsDestination',
-                          data: value,
-                        );
-                      },
-                      itemBuilder: (context) => _destinations.map((dest) {
-                        return PopupMenuItem<String>(
-                          value: dest,
-                          height: 36,
-                          child: Text(
-                            dest,
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        );
-                      }).toList(),
+                    SizedBox(
+                      width: 24,
+                      height: 32,
+                      child: PopupMenuButton<String>(
+                        icon: const Icon(Icons.arrow_drop_down, size: 20),
+                        padding: EdgeInsets.zero,
+                        onSelected: (value) {
+                          setState(() {
+                            _selectedDestination = value;
+                            _destinationController.text = value;
+                          });
+                          _broker.dispatch(
+                            deviceId: 0,
+                            name: 'AprsDestination',
+                            data: value,
+                          );
+                        },
+                        itemBuilder: (context) => _destinations.map((dest) {
+                          return PopupMenuItem<String>(
+                            value: dest,
+                            height: 36,
+                            child: Text(
+                              dest,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
+            const SizedBox(width: 8),
+          ],
           // Text input
           Expanded(
             child: Container(
@@ -1973,3 +2425,27 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     );
   }
 }
+
+/// Fills the top-right corner with a triangle whose points are the top-right
+/// corner, a point down the right edge, and a point left along the top edge.
+class _CornerTrianglePainter extends CustomPainter {
+  final Color color;
+  _CornerTrianglePainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final path = Path()
+      ..moveTo(size.width, 0) // top-right corner
+      ..lineTo(size.width, size.height) // down the right edge
+      ..lineTo(0, 0) // left along the top edge
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_CornerTrianglePainter old) => old.color != color;
+}
+

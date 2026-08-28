@@ -128,6 +128,10 @@ class _ContactsTabState extends State<ContactsTab>
         return l10n.contactsTypeTorrent;
       case StationType.agwpe:
         return l10n.contactsTypeAgwpe;
+      case StationType.sms:
+        return l10n.contactsTypeSms;
+      case StationType.email:
+        return l10n.contactsTypeEmail;
     }
   }
 
@@ -147,6 +151,10 @@ class _ContactsTabState extends State<ContactsTab>
         return Icons.swap_horiz;
       case StationType.agwpe:
         return Icons.lan;
+      case StationType.sms:
+        return Icons.sms;
+      case StationType.email:
+        return Icons.alternate_email;
     }
   }
 
@@ -738,7 +746,7 @@ class _ContactsTabState extends State<ContactsTab>
       ),
       child: Row(
         children: [
-          _buildColumnHeader(AppLocalizations.of(context).contactsColCallsign, 0, flex: 2),
+          _buildColumnHeader(AppLocalizations.of(context).contactsColId, 0, flex: 2),
           _buildColumnHeader(AppLocalizations.of(context).contactsColName, 1, flex: 3),
           if (!_isCompact)
             _buildColumnHeader(AppLocalizations.of(context).contactsColDescription, 2, flex: 4),

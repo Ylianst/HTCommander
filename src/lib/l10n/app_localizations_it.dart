@@ -1898,6 +1898,12 @@ class AppLocalizationsIt extends AppLocalizations {
   String get contactsTypeAgwpe => 'Stazioni AGWPE';
 
   @override
+  String get contactsTypeSms => 'Contatti SMS / telefono';
+
+  @override
+  String get contactsTypeEmail => 'Contatti email';
+
+  @override
   String get contactsExists =>
       'Esiste già una stazione con questo nominativo e tipo';
 
@@ -1931,6 +1937,9 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get contactsColCallsign => 'Nominativo';
+
+  @override
+  String get contactsColId => 'ID';
 
   @override
   String get contactsColName => 'Nome';
@@ -2476,6 +2485,15 @@ class AppLocalizationsIt extends AppLocalizations {
   String get aprsShowAprsIs => 'Mostra traffico internet';
 
   @override
+  String get aprsMessengerMode => 'Modalità messenger';
+
+  @override
+  String get aprsAddContact => 'Aggiungi contatto...';
+
+  @override
+  String get aprsNoConversations => 'Nessuna conversazione';
+
+  @override
   String get aprsSendSms => 'Invia messaggio SMS...';
 
   @override
@@ -2930,6 +2948,42 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get stationTitleGeneric => 'Stazione';
+
+  @override
+  String get stationTitleSms => 'Contatto SMS / telefono';
+
+  @override
+  String get stationTitleEmail => 'Contatto email';
+
+  @override
+  String get stationPhoneNumber => 'Numero di telefono';
+
+  @override
+  String get stationEmail => 'Indirizzo email';
+
+  @override
+  String get stationInvalidEmail => 'Indirizzo email non valido';
+
+  @override
+  String get contactAvatarCustomize => 'Personalizza avatar';
+
+  @override
+  String get contactAvatarChooseLogo => 'Scegli logo...';
+
+  @override
+  String get contactAvatarChooseImage => 'Scegli immagine...';
+
+  @override
+  String get contactAvatarPaste => 'Incolla';
+
+  @override
+  String get contactAvatarReset => 'Ripristina predefinito';
+
+  @override
+  String get contactAvatarCropTitle => 'Ritaglia immagine';
+
+  @override
+  String get contactAvatarImageError => 'Impossibile caricare l\'immagine';
 
   @override
   String get stationTypeOptionVoice => 'Stazione vocale / generica';

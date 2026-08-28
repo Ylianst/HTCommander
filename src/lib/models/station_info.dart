@@ -6,7 +6,8 @@
 library;
 
 /// Station type. The integer index matches the C# `StationInfoClass.StationTypes`
-/// enum so serialized values stay compatible.
+/// enum so serialized values stay compatible. New values are appended so the
+/// stored index of existing types never changes.
 enum StationType {
   generic, // 0
   aprs, // 1
@@ -15,6 +16,8 @@ enum StationType {
   winlink, // 4
   torrent, // 5
   agwpe, // 6
+  sms, // 7 - SMS / phone number contact
+  email, // 8 - email contact
 }
 
 /// Terminal protocol. The integer index matches the C#
@@ -47,6 +50,14 @@ class StationInfo {
   /// support the audio channel (not web or iOS).
   String modem;
 
+  /// Name of a chosen built-in avatar logo (see `contact_avatar.dart`), or null
+  /// to fall back to an automatic service icon / initials.
+  String? avatarIcon;
+
+  /// Base64-encoded 64x64 PNG of a custom avatar image, or null when none. When
+  /// set it takes precedence over [avatarIcon] and the initials.
+  String? avatarImage;
+
   StationInfo({
     this.callsign = '',
     this.name = '',
@@ -59,6 +70,8 @@ class StationInfo {
     this.waitForConnection = false,
     this.authPassword,
     this.modem = 'Hardware',
+    this.avatarIcon,
+    this.avatarImage,
   });
 
   /// Callsign with a trailing `-0` SSID removed (matches C# `CallsignNoZero`).
@@ -81,6 +94,8 @@ class StationInfo {
     bool? waitForConnection,
     String? authPassword,
     String? modem,
+    String? avatarIcon,
+    String? avatarImage,
   }) {
     return StationInfo(
       callsign: callsign ?? this.callsign,
@@ -94,6 +109,8 @@ class StationInfo {
       waitForConnection: waitForConnection ?? this.waitForConnection,
       authPassword: authPassword ?? this.authPassword,
       modem: modem ?? this.modem,
+      avatarIcon: avatarIcon ?? this.avatarIcon,
+      avatarImage: avatarImage ?? this.avatarImage,
     );
   }
 
@@ -112,6 +129,8 @@ class StationInfo {
       'WaitForConnection': waitForConnection,
       'AuthPassword': authPassword,
       'Modem': modem,
+      'AvatarIcon': avatarIcon,
+      'AvatarImage': avatarImage,
     };
   }
 
@@ -176,7 +195,15 @@ class StationInfo {
           ? pwd
           : null,
       modem: _parseModem(json['Modem'] ?? json['modem']),
+      avatarIcon: _nonEmptyOrNull(json['AvatarIcon'] ?? json['avatarIcon']),
+      avatarImage: _nonEmptyOrNull(json['AvatarImage'] ?? json['avatarImage']),
     );
+  }
+
+  /// Returns the trimmed string value, or null when empty/absent/'null'.
+  static String? _nonEmptyOrNull(Object? raw) {
+    final s = raw?.toString() ?? '';
+    return (s.isEmpty || s == 'null') ? null : s;
   }
 
   /// Normalizes a stored modem value, defaulting to `'Hardware'`.
@@ -208,6 +235,8 @@ class StationInfo {
       sb.writeln('AX25Destination=${station.ax25Destination}');
       sb.writeln('AuthPassword=${station.authPassword ?? ''}');
       sb.writeln('Modem=${station.modem}');
+      sb.writeln('AvatarIcon=${station.avatarIcon ?? ''}');
+      sb.writeln('AvatarImage=${station.avatarImage ?? ''}');
       sb.writeln();
     }
     return sb.toString();
@@ -267,6 +296,12 @@ class StationInfo {
             break;
           case 'Modem':
             current.modem = _parseModem(value);
+            break;
+          case 'AvatarIcon':
+            current.avatarIcon = value.isEmpty ? null : value;
+            break;
+          case 'AvatarImage':
+            current.avatarImage = value.isEmpty ? null : value;
             break;
         }
       }

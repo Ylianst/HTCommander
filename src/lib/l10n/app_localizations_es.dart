@@ -1893,6 +1893,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get contactsTypeAgwpe => 'Estaciones AGWPE';
 
   @override
+  String get contactsTypeSms => 'Contactos SMS / teléfono';
+
+  @override
+  String get contactsTypeEmail => 'Contactos de correo';
+
+  @override
   String get contactsExists =>
       'Ya existe una estación con este indicativo y tipo';
 
@@ -1927,6 +1933,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get contactsColCallsign => 'Indicativo';
+
+  @override
+  String get contactsColId => 'ID';
 
   @override
   String get contactsColName => 'Nombre';
@@ -2476,6 +2485,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get aprsShowAprsIs => 'Mostrar tráfico de Internet';
 
   @override
+  String get aprsMessengerMode => 'Modo mensajería';
+
+  @override
+  String get aprsAddContact => 'Añadir contacto...';
+
+  @override
+  String get aprsNoConversations => 'Aún no hay conversaciones';
+
+  @override
   String get aprsSendSms => 'Enviar un mensaje SMS...';
 
   @override
@@ -2930,6 +2948,42 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get stationTitleGeneric => 'Estación';
+
+  @override
+  String get stationTitleSms => 'Contacto SMS / teléfono';
+
+  @override
+  String get stationTitleEmail => 'Contacto de correo';
+
+  @override
+  String get stationPhoneNumber => 'Número de teléfono';
+
+  @override
+  String get stationEmail => 'Dirección de correo';
+
+  @override
+  String get stationInvalidEmail => 'Dirección de correo no válida';
+
+  @override
+  String get contactAvatarCustomize => 'Personalizar avatar';
+
+  @override
+  String get contactAvatarChooseLogo => 'Elegir logotipo...';
+
+  @override
+  String get contactAvatarChooseImage => 'Elegir imagen...';
+
+  @override
+  String get contactAvatarPaste => 'Pegar';
+
+  @override
+  String get contactAvatarReset => 'Restablecer predeterminado';
+
+  @override
+  String get contactAvatarCropTitle => 'Recortar imagen';
+
+  @override
+  String get contactAvatarImageError => 'No se puede cargar la imagen';
 
   @override
   String get stationTypeOptionVoice => 'Estación de voz / genérica';

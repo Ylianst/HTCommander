@@ -1,14 +1,20 @@
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:pasteboard/pasteboard.dart';
 
 import '../l10n/app_localizations.dart';
 import 'dialog_utils.dart';
+import 'contact_logo_picker_dialog.dart';
+import 'image_crop_dialog.dart';
 import '../models/station_info.dart';
 import '../models/radio_models.dart';
 import '../radio/ax25_address.dart';
 import '../services/data_broker_client.dart';
+import '../widgets/contact_avatar.dart';
 
 /// Shows the add / edit station dialog. When [existing] is provided the dialog
 /// edits that station (callsign and type are locked, matching the C#
@@ -42,6 +48,8 @@ const List<_TypeOption> _typeOptions = [
   _TypeOption(StationType.aprs, 'APRS Station'),
   _TypeOption(StationType.terminal, 'Terminal Station'),
   _TypeOption(StationType.winlink, 'Winlink Gateway'),
+  _TypeOption(StationType.sms, 'SMS / Phone'),
+  _TypeOption(StationType.email, 'Email'),
 ];
 
 class _ProtocolOption {
@@ -96,6 +104,10 @@ class _StationDialogState extends State<_StationDialog> {
   bool _useAuth = false;
   String _modem = 'Hardware';
 
+  // Avatar customization: a chosen built-in logo name and/or a base64 64x64 PNG.
+  String? _avatarIcon;
+  String? _avatarImage;
+
   List<String> _channelNames = [];
   List<String> _aprsRouteNames = [];
 
@@ -132,6 +144,8 @@ class _StationDialogState extends State<_StationDialog> {
       _useAuth =
           s.stationType == StationType.aprs &&
           (s.authPassword?.isNotEmpty ?? false);
+      _avatarIcon = s.avatarIcon;
+      _avatarImage = s.avatarImage;
     }
 
     _loadChannelNames();
@@ -201,10 +215,33 @@ class _StationDialogState extends State<_StationDialog> {
 
   // ---- validation -----------------------------------------------------------
 
+  /// True for the simple contact types (SMS / phone and email) that only carry
+  /// an identifier (phone number or email address) and a name.
+  bool get _isSimpleContact =>
+      _stationType == StationType.sms || _stationType == StationType.email;
+
   bool get _callsignValid {
     final text = _callsignController.text.trim();
     if (text.isEmpty) return false;
     return AX25Address.parse(text) != null;
+  }
+
+  /// Rough email format check: something@something.something.
+  bool get _emailValid {
+    final text = _callsignController.text.trim();
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(text);
+  }
+
+  /// The identifier field (callsign / phone / email) is valid for the type.
+  bool get _idValid {
+    switch (_stationType) {
+      case StationType.sms:
+        return _callsignController.text.trim().isNotEmpty;
+      case StationType.email:
+        return _emailValid;
+      default:
+        return _callsignValid;
+    }
   }
 
   bool get _ax25DestValid {
@@ -214,7 +251,8 @@ class _StationDialogState extends State<_StationDialog> {
   }
 
   bool get _isValid {
-    if (!_callsignValid) return false;
+    if (!_idValid) return false;
+    if (_isSimpleContact) return true;
     if (!_ax25DestValid) return false;
     if (_stationType == StationType.aprs &&
         _useAuth &&
@@ -236,6 +274,8 @@ class _StationDialogState extends State<_StationDialog> {
       StationType.aprs => l10n.stationTitleAprs,
       StationType.terminal => l10n.stationTitleTerminal,
       StationType.winlink => l10n.stationTitleWinlink,
+      StationType.sms => l10n.stationTitleSms,
+      StationType.email => l10n.stationTitleEmail,
       _ => l10n.stationTitleGeneric,
     };
     if (_isEditing) return '$base - ${widget.existing!.callsign}';
@@ -253,12 +293,149 @@ class _StationDialogState extends State<_StationDialog> {
         return l10n.stationTitleTerminal;
       case StationType.winlink:
         return l10n.stationTitleWinlink;
+      case StationType.sms:
+        return l10n.stationTitleSms;
+      case StationType.email:
+        return l10n.stationTitleEmail;
       default:
         return l10n.stationTitleGeneric;
     }
   }
 
+  /// Round contact avatar shown at the dialog's top-right. Tapping it opens the
+  /// avatar customization menu.
+  Widget _buildAvatarButton() {
+    return Tooltip(
+      message: AppLocalizations.of(context).contactAvatarCustomize,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTapDown: (details) => _showAvatarMenu(details.globalPosition),
+        child: ContactAvatar(
+          callsign: _callsignController.text.trim(),
+          avatarIcon: _avatarIcon,
+          avatarImage: _avatarImage,
+          radius: 22,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAvatarMenu(Offset globalPosition) async {
+    final l10n = AppLocalizations.of(context);
+    // A snapshot of any clipboard image, read up front so a "Paste" item can be
+    // offered only when one is available.
+    Uint8List? clipboardImage;
+    try {
+      clipboardImage = await Pasteboard.image;
+    } catch (_) {
+      clipboardImage = null;
+    }
+    if (!mounted) return;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final hasCustom = _avatarIcon != null || _avatarImage != null;
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        globalPosition & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem<String>(
+          value: 'logo',
+          child: Text(l10n.contactAvatarChooseLogo),
+        ),
+        PopupMenuItem<String>(
+          value: 'image',
+          child: Text(l10n.contactAvatarChooseImage),
+        ),
+        if (clipboardImage != null)
+          PopupMenuItem<String>(
+            value: 'paste',
+            child: Text(l10n.contactAvatarPaste),
+          ),
+        if (hasCustom)
+          PopupMenuItem<String>(
+            value: 'reset',
+            child: Text(l10n.contactAvatarReset),
+          ),
+      ],
+    );
+    if (selected == null || !mounted) return;
+    switch (selected) {
+      case 'logo':
+        await _chooseLogo();
+        break;
+      case 'image':
+        await _chooseImage();
+        break;
+      case 'paste':
+        if (clipboardImage != null) await _cropAndSetImage(clipboardImage);
+        break;
+      case 'reset':
+        setState(() {
+          _avatarIcon = null;
+          _avatarImage = null;
+        });
+        break;
+    }
+  }
+
+  Future<void> _chooseLogo() async {
+    final name = await showContactLogoPicker(context);
+    if (name == null || !mounted) return;
+    setState(() {
+      _avatarIcon = name;
+      _avatarImage = null; // a logo replaces any custom image
+    });
+  }
+
+  Future<void> _chooseImage() async {
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+    } catch (_) {
+      return;
+    }
+    if (result == null || result.files.isEmpty || !mounted) return;
+    final file = result.files.single;
+    var bytes = file.bytes;
+    if (bytes == null && !kIsWeb && file.path != null) {
+      try {
+        bytes = await File(file.path!).readAsBytes();
+      } catch (_) {
+        bytes = null;
+      }
+    }
+    if (bytes == null || !mounted) return;
+    await _cropAndSetImage(bytes);
+  }
+
+  /// Runs [bytes] through the crop dialog and stores the resulting avatar image.
+  Future<void> _cropAndSetImage(Uint8List bytes) async {
+    final b64 = await showImageCropDialog(context, bytes);
+    if (b64 == null || !mounted) return;
+    setState(() {
+      _avatarImage = b64;
+      _avatarIcon = null; // a custom image replaces any chosen logo
+    });
+  }
+
   StationInfo _buildResult() {
+    if (_isSimpleContact) {
+      // The identifier (phone number or email) is stored in the callsign field,
+      // which the contacts list surfaces as the generic "ID" column.
+      return StationInfo(
+        callsign: _callsignController.text.trim(),
+        name: _nameController.text.trim(),
+        stationType: _stationType,
+        avatarIcon: _avatarIcon,
+        avatarImage: _avatarImage,
+      );
+    }
     if (_stationType == StationType.winlink) {
       return StationInfo(
         callsign: _callsignController.text.trim(),
@@ -268,6 +445,8 @@ class _StationDialogState extends State<_StationDialog> {
         terminalProtocol: TerminalProtocol.x25Session,
         channel: _channelController.text.trim(),
         modem: _modem,
+        avatarIcon: _avatarIcon,
+        avatarImage: _avatarImage,
       );
     }
     return StationInfo(
@@ -283,6 +462,8 @@ class _StationDialogState extends State<_StationDialog> {
           ? _authPasswordController.text
           : null,
       modem: _modem,
+      avatarIcon: _avatarIcon,
+      avatarImage: _avatarImage,
     );
   }
 
@@ -290,7 +471,13 @@ class _StationDialogState extends State<_StationDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: Text(_title),
+      title: Row(
+        children: [
+          Expanded(child: Text(_title)),
+          const SizedBox(width: 12),
+          _buildAvatarButton(),
+        ],
+      ),
       content: SizedBox(
         width: 420,
         child: SingleChildScrollView(
@@ -298,20 +485,23 @@ class _StationDialogState extends State<_StationDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (!_isTypeLocked) ...[
+                _buildTypeDropdown(),
+              ],
               _buildCallsignField(),
               const SizedBox(height: 12),
               TextField(
                 controller: _nameController,
                 decoration: _inputDecoration(labelText: l10n.contactsColName),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _descriptionController,
-                decoration:
-                    _inputDecoration(labelText: l10n.contactsColDescription),
-              ),
-              const SizedBox(height: 12),
-              if (!_isTypeLocked) _buildTypeDropdown(),
+              if (!_isSimpleContact) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _descriptionController,
+                  decoration:
+                      _inputDecoration(labelText: l10n.contactsColDescription),
+                ),
+              ],
               ..._buildTypeSpecificFields(),
             ],
           ),
@@ -351,23 +541,48 @@ class _StationDialogState extends State<_StationDialog> {
 
   Widget _buildCallsignField() {
     final l10n = AppLocalizations.of(context);
+    // The identifier field adapts to the station type: a callsign for radio
+    // contacts, a phone number for SMS, or an email address for email.
+    final String label;
+    String? errorText;
+    switch (_stationType) {
+      case StationType.sms:
+        label = l10n.stationPhoneNumber;
+        break;
+      case StationType.email:
+        label = l10n.stationEmail;
+        errorText = _callsignController.text.isNotEmpty && !_emailValid
+            ? l10n.stationInvalidEmail
+            : null;
+        break;
+      default:
+        label = l10n.contactsColCallsign;
+        errorText = _callsignController.text.isNotEmpty && !_callsignValid
+            ? l10n.terminalInvalidCallsign
+            : null;
+    }
     return TextField(
       controller: _callsignController,
       enabled: !_isEditing,
-      textCapitalization: TextCapitalization.characters,
-      decoration: _inputDecoration(
-        labelText: l10n.contactsColCallsign,
-        errorText: _callsignController.text.isNotEmpty && !_callsignValid
-            ? l10n.terminalInvalidCallsign
-            : null,
-      ),
+      keyboardType: _stationType == StationType.sms
+          ? TextInputType.phone
+          : (_stationType == StationType.email
+              ? TextInputType.emailAddress
+              : TextInputType.text),
+      textCapitalization: _isSimpleContact
+          ? TextCapitalization.none
+          : TextCapitalization.characters,
+      decoration: _inputDecoration(labelText: label, errorText: errorText),
       onChanged: (value) {
-        final upper = value.toUpperCase();
-        if (upper != value) {
-          _callsignController.value = _callsignController.value.copyWith(
-            text: upper,
-            selection: TextSelection.collapsed(offset: upper.length),
-          );
+        // Only callsigns are force-uppercased; phone/email keep their casing.
+        if (!_isSimpleContact) {
+          final upper = value.toUpperCase();
+          if (upper != value) {
+            _callsignController.value = _callsignController.value.copyWith(
+              text: upper,
+              selection: TextSelection.collapsed(offset: upper.length),
+            );
+          }
         }
       },
     );

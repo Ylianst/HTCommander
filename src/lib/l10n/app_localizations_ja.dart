@@ -1853,6 +1853,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get contactsTypeAgwpe => 'AGWPE 局';
 
   @override
+  String get contactsTypeSms => 'SMS / 電話の連絡先';
+
+  @override
+  String get contactsTypeEmail => 'メールの連絡先';
+
+  @override
   String get contactsExists => 'このコールサインとタイプの局は既に存在します';
 
   @override
@@ -1885,6 +1891,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get contactsColCallsign => 'コールサイン';
+
+  @override
+  String get contactsColId => 'ID';
 
   @override
   String get contactsColName => '名前';
@@ -2416,6 +2425,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aprsShowAprsIs => 'インターネットトラフィックを表示';
 
   @override
+  String get aprsMessengerMode => 'メッセンジャーモード';
+
+  @override
+  String get aprsAddContact => '連絡先を追加...';
+
+  @override
+  String get aprsNoConversations => '会話はまだありません';
+
+  @override
   String get aprsSendSms => 'SMS メッセージを送信...';
 
   @override
@@ -2856,6 +2874,42 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get stationTitleGeneric => '局';
+
+  @override
+  String get stationTitleSms => 'SMS / 電話の連絡先';
+
+  @override
+  String get stationTitleEmail => 'メールの連絡先';
+
+  @override
+  String get stationPhoneNumber => '電話番号';
+
+  @override
+  String get stationEmail => 'メールアドレス';
+
+  @override
+  String get stationInvalidEmail => '無効なメールアドレス';
+
+  @override
+  String get contactAvatarCustomize => 'アバターをカスタマイズ';
+
+  @override
+  String get contactAvatarChooseLogo => 'ロゴを選択...';
+
+  @override
+  String get contactAvatarChooseImage => '画像を選択...';
+
+  @override
+  String get contactAvatarPaste => '貼り付け';
+
+  @override
+  String get contactAvatarReset => 'デフォルトにリセット';
+
+  @override
+  String get contactAvatarCropTitle => '画像をトリミング';
+
+  @override
+  String get contactAvatarImageError => '画像を読み込めません';
 
   @override
   String get stationTypeOptionVoice => '音声 / 汎用局';

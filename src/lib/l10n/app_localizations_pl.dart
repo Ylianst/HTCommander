@@ -1894,6 +1894,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get contactsTypeAgwpe => 'Stacje AGWPE';
 
   @override
+  String get contactsTypeSms => 'Kontakty SMS / telefon';
+
+  @override
+  String get contactsTypeEmail => 'Kontakty e-mail';
+
+  @override
   String get contactsExists =>
       'Stacja o tym znaku wywoławczym i typie już istnieje';
 
@@ -1927,6 +1933,9 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get contactsColCallsign => 'Znak wywoławczy';
+
+  @override
+  String get contactsColId => 'ID';
 
   @override
   String get contactsColName => 'Nazwa';
@@ -2469,6 +2478,15 @@ class AppLocalizationsPl extends AppLocalizations {
   String get aprsShowAprsIs => 'Pokaż ruch internetowy';
 
   @override
+  String get aprsMessengerMode => 'Tryb komunikatora';
+
+  @override
+  String get aprsAddContact => 'Dodaj kontakt...';
+
+  @override
+  String get aprsNoConversations => 'Brak rozmów';
+
+  @override
   String get aprsSendSms => 'Wyślij wiadomość SMS...';
 
   @override
@@ -2923,6 +2941,42 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get stationTitleGeneric => 'Stacja';
+
+  @override
+  String get stationTitleSms => 'Kontakt SMS / telefon';
+
+  @override
+  String get stationTitleEmail => 'Kontakt e-mail';
+
+  @override
+  String get stationPhoneNumber => 'Numer telefonu';
+
+  @override
+  String get stationEmail => 'Adres e-mail';
+
+  @override
+  String get stationInvalidEmail => 'Nieprawidłowy adres e-mail';
+
+  @override
+  String get contactAvatarCustomize => 'Dostosuj awatar';
+
+  @override
+  String get contactAvatarChooseLogo => 'Wybierz logo...';
+
+  @override
+  String get contactAvatarChooseImage => 'Wybierz obraz...';
+
+  @override
+  String get contactAvatarPaste => 'Wklej';
+
+  @override
+  String get contactAvatarReset => 'Przywróć domyślny';
+
+  @override
+  String get contactAvatarCropTitle => 'Przytnij obraz';
+
+  @override
+  String get contactAvatarImageError => 'Nie można załadować obrazu';
 
   @override
   String get stationTypeOptionVoice => 'Stacja głosowa / ogólna';

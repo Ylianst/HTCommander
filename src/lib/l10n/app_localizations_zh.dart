@@ -1837,6 +1837,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get contactsTypeAgwpe => 'AGWPE 台站';
 
   @override
+  String get contactsTypeSms => '短信 / 电话联系人';
+
+  @override
+  String get contactsTypeEmail => '电子邮件联系人';
+
+  @override
   String get contactsExists => '已存在具有此呼号和类型的台站';
 
   @override
@@ -1869,6 +1875,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get contactsColCallsign => '呼号';
+
+  @override
+  String get contactsColId => 'ID';
 
   @override
   String get contactsColName => '名称';
@@ -2399,6 +2408,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aprsShowAprsIs => '显示互联网流量';
 
   @override
+  String get aprsMessengerMode => '信使模式';
+
+  @override
+  String get aprsAddContact => '添加联系人...';
+
+  @override
+  String get aprsNoConversations => '暂无会话';
+
+  @override
   String get aprsSendSms => '发送 SMS 消息...';
 
   @override
@@ -2832,6 +2850,42 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get stationTitleGeneric => '台站';
+
+  @override
+  String get stationTitleSms => '短信 / 电话联系人';
+
+  @override
+  String get stationTitleEmail => '电子邮件联系人';
+
+  @override
+  String get stationPhoneNumber => '电话号码';
+
+  @override
+  String get stationEmail => '电子邮件地址';
+
+  @override
+  String get stationInvalidEmail => '电子邮件地址无效';
+
+  @override
+  String get contactAvatarCustomize => '自定义头像';
+
+  @override
+  String get contactAvatarChooseLogo => '选择图标...';
+
+  @override
+  String get contactAvatarChooseImage => '选择图片...';
+
+  @override
+  String get contactAvatarPaste => '粘贴';
+
+  @override
+  String get contactAvatarReset => '重置为默认';
+
+  @override
+  String get contactAvatarCropTitle => '裁剪图片';
+
+  @override
+  String get contactAvatarImageError => '无法加载图片';
 
   @override
   String get stationTypeOptionVoice => '语音 / 通用台站';
