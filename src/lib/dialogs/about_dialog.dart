@@ -107,6 +107,10 @@ class HTAboutDialog extends StatelessWidget {
                                   'https://github.com/repins267',
                                 ),
                                 _buildAttribution(
+                                  'Contributions by David Johnston, KM7HCN',
+                                  'https://github.com/dj-on-github',
+                                ),
+                                _buildAttribution(
                                   '© OpenStreetMap contributors — map data\nprovided by the project that creates and\ndistributes free geographic data for the world.',
                                   'https://www.openstreetmap.org/copyright',
                                 ),

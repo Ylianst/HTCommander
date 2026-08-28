@@ -2419,6 +2419,9 @@ class AppLocalizationsJa extends AppLocalizations {
       'すべての APRS メッセージをクリアしますか？これにより地図上のすべての APRS マーカーも削除されます。この操作は元に戻せません。';
 
   @override
+  String get aprsClearContactPrompt => 'この連絡先とのすべてのメッセージをクリアしますか？この操作は元に戻せません。';
+
+  @override
   String get aprsShowAll => 'テレメトリを表示';
 
   @override

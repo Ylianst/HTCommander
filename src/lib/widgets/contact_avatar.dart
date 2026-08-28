@@ -54,14 +54,20 @@ String contactCallsignBase(String callsign) {
   return dash >= 0 ? callsign.substring(0, dash) : callsign;
 }
 
-/// Up to the last three letters of the callsign (after removing the SSID and
-/// any digits) for the placeholder avatar, e.g. "KK7VZT" -> "VZT".
+/// Up to three characters for the placeholder avatar. Callsigns show the last
+/// three letters (e.g. "KK7VZT" -> "VZT"); phone numbers (no letters) show the
+/// first three digits so SMS contacts render consistently everywhere.
 String contactInitials(String callsign) {
   final base = contactCallsignBase(callsign).toUpperCase();
   final letters = base.replaceAll(RegExp(r'[^A-Z]'), '');
-  final source = letters.isNotEmpty ? letters : base;
-  if (source.isEmpty) return '?';
-  return source.length <= 3 ? source : source.substring(source.length - 3);
+  if (letters.isEmpty) {
+    final digits = callsign.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return '?';
+    return digits.length <= 3 ? digits : digits.substring(0, 3);
+  }
+  return letters.length <= 3
+      ? letters
+      : letters.substring(letters.length - 3);
 }
 
 /// Deterministic avatar colour derived from the callsign.

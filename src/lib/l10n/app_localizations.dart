@@ -4528,6 +4528,12 @@ abstract class AppLocalizations {
   /// **'Clear all APRS messages? This also removes all APRS markers from the map. This cannot be undone.'**
   String get aprsClearPrompt;
 
+  /// No description provided for @aprsClearContactPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all messages with this contact? This cannot be undone.'**
+  String get aprsClearContactPrompt;
+
   /// No description provided for @aprsShowAll.
   ///
   /// In en, this message translates to:

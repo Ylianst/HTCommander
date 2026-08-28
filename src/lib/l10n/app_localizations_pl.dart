@@ -2472,6 +2472,10 @@ class AppLocalizationsPl extends AppLocalizations {
       'Wyczyścić wszystkie wiadomości APRS? Spowoduje to również usunięcie wszystkich znaczników APRS z mapy. Tej operacji nie można cofnąć.';
 
   @override
+  String get aprsClearContactPrompt =>
+      'Wyczyścić wszystkie wiadomości z tym kontaktem? Tej operacji nie można cofnąć.';
+
+  @override
   String get aprsShowAll => 'Pokaż telemetrię';
 
   @override

@@ -784,6 +784,7 @@
   "aprsCopyChannel": "Copia canale",
   "aprsClearTitle": "Cancella messaggi APRS",
   "aprsClearPrompt": "Cancellare tutti i messaggi APRS? Questo rimuove anche tutti gli indicatori APRS dalla mappa. Questa operazione non può essere annullata.",
+  "aprsClearContactPrompt": "Cancellare tutti i messaggi con questo contatto? Questa operazione non può essere annullata.",
   "aprsShowAll": "Mostra telemetria",
   "aprsShowAprsIs": "Mostra traffico internet",
   "aprsMessengerMode": "Modalità messenger",

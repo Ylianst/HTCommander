@@ -2460,6 +2460,10 @@ class AppLocalizationsHi extends AppLocalizations {
       'सभी APRS संदेश साफ़ करें? यह मानचित्र से सभी APRS मार्कर भी हटा देता है। यह क्रिया पूर्ववत नहीं की जा सकती।';
 
   @override
+  String get aprsClearContactPrompt =>
+      'इस संपर्क के साथ सभी संदेश साफ़ करें? यह क्रिया पूर्ववत नहीं की जा सकती।';
+
+  @override
   String get aprsShowAll => 'टेलीमेट्री दिखाएँ';
 
   @override

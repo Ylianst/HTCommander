@@ -792,6 +792,7 @@
   "aprsCopyChannel": "Copier le canal",
   "aprsClearTitle": "Effacer les messages APRS",
   "aprsClearPrompt": "Effacer tous les messages APRS ? Cela supprime également tous les marqueurs APRS de la carte. Cette action est irréversible.",
+  "aprsClearContactPrompt": "Effacer tous les messages avec ce contact ? Cette action est irréversible.",
   "aprsShowAll": "Afficher la télémétrie",
   "aprsShowAprsIs": "Afficher le trafic Internet",
   "aprsMessengerMode": "Mode messagerie",

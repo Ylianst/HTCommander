@@ -2479,6 +2479,10 @@ class AppLocalizationsIt extends AppLocalizations {
       'Cancellare tutti i messaggi APRS? Questo rimuove anche tutti gli indicatori APRS dalla mappa. Questa operazione non può essere annullata.';
 
   @override
+  String get aprsClearContactPrompt =>
+      'Cancellare tutti i messaggi con questo contatto? Questa operazione non può essere annullata.';
+
+  @override
   String get aprsShowAll => 'Mostra telemetria';
 
   @override

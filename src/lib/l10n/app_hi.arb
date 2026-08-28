@@ -792,6 +792,7 @@
   "aprsCopyChannel": "चैनल कॉपी करें",
   "aprsClearTitle": "APRS संदेश साफ़ करें",
   "aprsClearPrompt": "सभी APRS संदेश साफ़ करें? यह मानचित्र से सभी APRS मार्कर भी हटा देता है। यह क्रिया पूर्ववत नहीं की जा सकती।",
+  "aprsClearContactPrompt": "इस संपर्क के साथ सभी संदेश साफ़ करें? यह क्रिया पूर्ववत नहीं की जा सकती।",
   "aprsShowAll": "टेलीमेट्री दिखाएँ",
   "aprsShowAprsIs": "इंटरनेट ट्रैफ़िक दिखाएं",
   "aprsMessengerMode": "मैसेंजर मोड",

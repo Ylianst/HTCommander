@@ -2476,6 +2476,10 @@ class AppLocalizationsFr extends AppLocalizations {
       'Effacer tous les messages APRS ? Cela supprime également tous les marqueurs APRS de la carte. Cette action est irréversible.';
 
   @override
+  String get aprsClearContactPrompt =>
+      'Effacer tous les messages avec ce contact ? Cette action est irréversible.';
+
+  @override
   String get aprsShowAll => 'Afficher la télémétrie';
 
   @override

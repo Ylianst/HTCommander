@@ -792,6 +792,7 @@
   "aprsCopyChannel": "Kopiuj kanał",
   "aprsClearTitle": "Wyczyść wiadomości APRS",
   "aprsClearPrompt": "Wyczyścić wszystkie wiadomości APRS? Spowoduje to również usunięcie wszystkich znaczników APRS z mapy. Tej operacji nie można cofnąć.",
+  "aprsClearContactPrompt": "Wyczyścić wszystkie wiadomości z tym kontaktem? Tej operacji nie można cofnąć.",
   "aprsShowAll": "Pokaż telemetrię",
   "aprsShowAprsIs": "Pokaż ruch internetowy",
   "aprsMessengerMode": "Tryb komunikatora",

@@ -21,7 +21,6 @@ import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
-import '../aprs/aprs_auth.dart';
 import '../aprs/aprs_symbols.dart';
 import '../aprs/message_data.dart';
 import '../aprs/packet_data_type.dart';
@@ -146,6 +145,12 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   Map<String, String> _contactNames = {};
   // Avatar overrides (chosen logo / custom image) keyed by uppercased callsign.
   Map<String, ({String? icon, String? image})> _contactAvatars = {};
+  // Uppercased ids of SMS/phone contacts; messages to these route via the SMS
+  // gateway instead of being addressed to the id directly.
+  Set<String> _smsContacts = {};
+  // Uppercased ids of all messenger-eligible address-book contacts (APRS + SMS),
+  // shown in the conversation list even without message history.
+  List<String> _addressBookIds = [];
 
   // Local station identity (from device 0).
   String _callsign = '';
@@ -350,42 +355,51 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     final dests = <String>['ALL', 'QST', 'CQ'];
     final names = <String, String>{};
     final avatars = <String, ({String? icon, String? image})>{};
+    final smsContacts = <String>{};
+    final addressBookIds = <String>[];
     final raw = _broker.getValueDynamic(0, 'Stations', null);
     if (raw is List) {
       for (final item in raw) {
-        if (item is Map<String, dynamic>) {
-          final station = AprsStationInfo.fromJson(item);
-          if (station != null &&
-              station.isAprs &&
-              station.callsign.isNotEmpty &&
-              !dests.contains(station.callsign)) {
-            dests.add(station.callsign);
-          }
-          // Capture a display name + avatar for Messenger-mode conversation rows.
-          if (station != null && station.isAprs && station.callsign.isNotEmpty) {
-            final key = station.callsign.toUpperCase();
-            final name =
-                (item['Name'] ?? item['name'])?.toString().trim() ?? '';
-            if (name.isNotEmpty) {
-              names[key] = name;
-            }
-            final icon = (item['AvatarIcon'] ?? item['avatarIcon'])?.toString();
-            final image =
-                (item['AvatarImage'] ?? item['avatarImage'])?.toString();
-            if ((icon != null && icon.isNotEmpty) ||
-                (image != null && image.isNotEmpty)) {
-              avatars[key] = (
-                icon: (icon != null && icon.isNotEmpty) ? icon : null,
-                image: (image != null && image.isNotEmpty) ? image : null,
-              );
-            }
-          }
+        if (item is! Map<String, dynamic>) continue;
+        final id =
+            (item['Callsign'] ?? item['callsign'] ?? '').toString().trim();
+        if (id.isEmpty) continue;
+        final typeRaw = item['StationType'] ?? item['stationType'];
+        final typeStr = '$typeRaw'.toLowerCase();
+        final typeIndex = typeRaw is int ? typeRaw : int.tryParse(typeStr);
+        final isAprs = typeIndex == 1 || typeStr == 'aprs';
+        final isSms = typeIndex == 7 || typeStr == 'sms';
+
+        if (isAprs && !dests.contains(id)) dests.add(id);
+        // Only APRS and SMS contacts take part in Messenger conversations.
+        if (!isAprs && !isSms) continue;
+
+        // SMS contacts are keyed by their digits-only phone number so gateway
+        // messages ("@<phone> ...") thread into the matching contact.
+        final key = isSms ? _digitsOnly(id) : id.toUpperCase();
+        if (key.isEmpty) continue;
+        if (!addressBookIds.contains(key)) addressBookIds.add(key);
+        if (isSms) smsContacts.add(key);
+
+        final name = (item['Name'] ?? item['name'])?.toString().trim() ?? '';
+        if (name.isNotEmpty) names[key] = name;
+
+        final icon = (item['AvatarIcon'] ?? item['avatarIcon'])?.toString();
+        final image = (item['AvatarImage'] ?? item['avatarImage'])?.toString();
+        if ((icon != null && icon.isNotEmpty) ||
+            (image != null && image.isNotEmpty)) {
+          avatars[key] = (
+            icon: (icon != null && icon.isNotEmpty) ? icon : null,
+            image: (image != null && image.isNotEmpty) ? image : null,
+          );
         }
       }
     }
     _destinations = dests;
     _contactNames = names;
     _contactAvatars = avatars;
+    _smsContacts = smsContacts;
+    _addressBookIds = addressBookIds;
   }
 
   void _onSettingsChanged(int deviceId, String name, Object? data) {
@@ -878,13 +892,20 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           : aprsPacket.messageData.seqId;
       messageText = aprsPacket.messageData.msgText;
 
-      // SMS messages with special formatting.
+      // APRS SMS gateway traffic uses "@<phone> <text>". Thread it into the SMS
+      // contact matching the phone number (digits only), for both outbound
+      // messages (addressee "SMS") and inbound gateway replies (from SMS/SMSGTE).
       final msgText = aprsPacket.messageData.msgText;
-      if (addressee == 'SMS' && msgText.length > 12 && msgText[0] == '@') {
-        final i = msgText.indexOf(' ');
-        if (i >= 0) {
-          routingString = '→ SMS: ${msgText.substring(1, i)}';
-          messageText = msgText.substring(i + 1);
+      final fromSmsGateway = !sender && _senderIsSmsGateway(senderCallsign);
+      if ((addressee == 'SMS' || fromSmsGateway) && msgText.startsWith('@')) {
+        final sp = msgText.indexOf(' ');
+        if (sp > 1) {
+          final phone = _digitsOnly(msgText.substring(1, sp));
+          if (phone.isNotEmpty) {
+            peerCallsign = phone;
+            messageText = msgText.substring(sp + 1);
+            routingString = sender ? '→ SMS: $phone' : 'SMS: $phone';
+          }
         }
       }
 
@@ -1085,13 +1106,27 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   }
 
   void _sendMessage() {
-    // In a Messenger conversation the destination is the selected contact;
-    // otherwise it comes from the destination field.
-    final destination = (_messengerMode && _selectedContact != null)
-        ? _selectedContact!
-        : _destinationController.text.trim().toUpperCase();
+    final inConversation = _messengerMode && _selectedContact != null;
+    // Messages to an SMS/phone contact are relayed through the "SMS" gateway,
+    // exactly like the "Send SMS Message..." menu (@<number> <text>).
+    final toSms = inConversation && _smsContacts.contains(_selectedContact);
     final text = _messageController.text;
-    if (destination.isEmpty || text.trim().isEmpty) return;
+    if (text.trim().isEmpty) return;
+
+    final String destination;
+    final String outgoing;
+    if (toSms) {
+      destination = 'SMS';
+      // The SMS gateway expects a bare numeric phone number.
+      final phone = _selectedContact!.replaceAll(RegExp(r'[^0-9]'), '');
+      outgoing = '@$phone ${text.trim()}';
+    } else {
+      destination = inConversation
+          ? _selectedContact!
+          : _destinationController.text.trim().toUpperCase();
+      outgoing = text;
+    }
+    if (destination.isEmpty) return;
 
     final radioDeviceId = _getPreferredAprsRadioDeviceId();
     if (radioDeviceId == -1 && !_aprsIsTransmitAvailable) {
@@ -1109,7 +1144,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       name: 'SendAprsMessage',
       data: AprsSendMessageData(
         destination: destination,
-        message: text,
+        message: outgoing,
         radioDeviceId: radioDeviceId,
         route: _getSelectedRoute(),
       ),
@@ -1543,13 +1578,26 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
 
   Future<void> _clearMessages() async {
     final l10n = AppLocalizations.of(context);
+    final inConversation = _messengerMode && _selectedContact != null;
     final confirmed = await DialogHelper.showConfirmDialog(
       context,
       title: l10n.aprsClearTitle,
-      message: l10n.aprsClearPrompt,
+      message: inConversation ? l10n.aprsClearContactPrompt : l10n.aprsClearPrompt,
       okText: l10n.tabClear,
     );
     if (!confirmed || !mounted) return;
+
+    // In a conversation, clear only that contact's messages; leave the rest.
+    if (inConversation) {
+      final peer = _selectedContact;
+      setState(() {
+        _entries.removeWhere((e) =>
+            e.peerCallsign != null && e.peerCallsign!.toUpperCase() == peer);
+      });
+      _rebuildMessages();
+      return;
+    }
+
     setState(() {
       _entries.clear();
       _messages = [];
@@ -1672,6 +1720,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           value: 'clear',
           height: menuItemHeight,
           padding: menuItemPadding,
+          // Nothing to clear while viewing the Messenger conversation list.
+          enabled: !(_messengerMode && _selectedContact == null),
           child: Row(children: [const SizedBox(width: 20), Text(l10n.tabClear)]),
         ),
         if (windowService.canDetach) ...[
@@ -1783,7 +1833,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   Widget _buildConversationAvatarOverlay() {
     final callsign = _selectedContact!;
     final scheme = Theme.of(context).colorScheme;
-    final avatar = _contactAvatars[callsign.toUpperCase()];
+    final avatar = _avatarDataFor(callsign);
     const double corner = 104;
     return Positioned(
       top: 0,
@@ -1810,8 +1860,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
                   onTap: _editSelectedContact,
                   child: ContactAvatar(
                     callsign: callsign,
-                    avatarIcon: avatar?.icon,
-                    avatarImage: avatar?.image,
+                    avatarIcon: avatar.icon,
+                    avatarImage: avatar.image,
                     radius: 32,
                   ),
                 ),
@@ -1841,19 +1891,26 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       }
     }
 
-    // Prefer an existing APRS contact with this callsign; fall back to any.
+    // Prefer an existing contact matching this peer. SMS peers are the phone
+    // number's digits, so match SMS contacts by their digits-only id.
+    final isSms = _smsContacts.contains(callsign);
     StationInfo? existing;
     for (final s in stations) {
-      if (s.callsign.toUpperCase() == callsign) {
-        existing = s;
-        if (s.stationType == StationType.aprs) break;
-      }
+      final sid = isSms ? _digitsOnly(s.callsign) : s.callsign.toUpperCase();
+      if (sid != callsign) continue;
+      existing = s;
+      final preferred =
+          isSms ? StationType.sms : StationType.aprs;
+      if (s.stationType == preferred) break;
     }
 
     final result = await showStationDialog(
       context,
       existing: existing ??
-          StationInfo(callsign: callsign, stationType: StationType.aprs),
+          StationInfo(
+            callsign: callsign,
+            stationType: isSms ? StationType.sms : StationType.aprs,
+          ),
     );
     if (result == null || !mounted) return;
 
@@ -1873,6 +1930,15 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   /// otherwise the callsign.
   String _contactDisplayName(String callsign) {
     return _contactNames[callsign.toUpperCase()] ?? callsign;
+  }
+
+  /// Digits-only form of a phone number, used as the SMS conversation key.
+  String _digitsOnly(String s) => s.replaceAll(RegExp(r'[^0-9]'), '');
+
+  /// Whether [callsign] is the APRS SMS gateway (SMS / SMSGTE, any SSID).
+  bool _senderIsSmsGateway(String callsign) {
+    final base = callsign.split('-').first.toUpperCase();
+    return base == 'SMS' || base == 'SMSGTE';
   }
 
   /// Short relative time such as "5m", "3h" or "5d".
@@ -1913,14 +1979,14 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     }
     conversations.sort((a, b) => b.lastTime!.compareTo(a.lastTime!));
 
-    // Append address-book APRS contacts that have no message history yet.
+    // Append address-book contacts (APRS + SMS) that have no message history.
     final existingKeys = byPeer.keys.toSet();
     final extras = <_AprsConversation>[];
-    for (final entry in _contactNames.entries) {
-      if (existingKeys.contains(entry.key)) continue;
+    for (final id in _addressBookIds) {
+      if (existingKeys.contains(id)) continue;
       extras.add(_AprsConversation(
-        callsign: entry.key,
-        name: entry.value,
+        callsign: id,
+        name: _contactNames[id],
         lastMessage: '',
         lastTime: null,
         lastFromMe: false,
@@ -1931,6 +1997,12 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         .compareTo(_contactDisplayName(b.callsign).toLowerCase()));
 
     return [...conversations, ...extras];
+  }
+
+  /// Avatar data (custom logo / image) for a conversation peer, or none.
+  ({String? icon, String? image}) _avatarDataFor(String callsign) {
+    final a = _contactAvatars[callsign.toUpperCase()];
+    return (icon: a?.icon, image: a?.image);
   }
 
   Widget _buildMessengerList() {
@@ -1988,12 +2060,12 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     final preview = c.lastMessage.isEmpty
         ? ''
         : (c.lastFromMe ? '→ ${c.lastMessage}' : c.lastMessage);
-    final avatar = _contactAvatars[c.callsign.toUpperCase()];
+    final avatar = _avatarDataFor(c.callsign);
     return ListTile(
       leading: ContactAvatar(
         callsign: c.callsign,
-        avatarIcon: avatar?.icon,
-        avatarImage: avatar?.image,
+        avatarIcon: avatar.icon,
+        avatarImage: avatar.image,
       ),
       title: Text(
         title,

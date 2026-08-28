@@ -2402,6 +2402,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aprsClearPrompt => '清除所有 APRS 消息？这还将从地图中删除所有 APRS 标记。此操作无法撤消。';
 
   @override
+  String get aprsClearContactPrompt => '清除与此联系人的所有消息？此操作无法撤消。';
+
+  @override
   String get aprsShowAll => '显示遥测';
 
   @override

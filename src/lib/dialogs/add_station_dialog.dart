@@ -278,7 +278,6 @@ class _StationDialogState extends State<_StationDialog> {
       StationType.email => l10n.stationTitleEmail,
       _ => l10n.stationTitleGeneric,
     };
-    if (_isEditing) return '$base - ${widget.existing!.callsign}';
     return base;
   }
 
@@ -470,6 +469,7 @@ class _StationDialogState extends State<_StationDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final typeFields = _buildTypeSpecificFields();
     return AlertDialog(
       title: Row(
         children: [
@@ -502,7 +502,8 @@ class _StationDialogState extends State<_StationDialog> {
                       _inputDecoration(labelText: l10n.contactsColDescription),
                 ),
               ],
-              ..._buildTypeSpecificFields(),
+              if (typeFields.isNotEmpty) const SizedBox(height: 12),
+              ...typeFields,
             ],
           ),
         ),
