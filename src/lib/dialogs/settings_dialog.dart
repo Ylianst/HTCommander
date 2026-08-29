@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:pasteboard/pasteboard.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
 import '../l10n/app_localizations.dart';
@@ -21,9 +24,12 @@ import '../services/mqtt/mqtt_client_facade.dart';
 import '../services/theme_controller.dart';
 import '../services/tts_service.dart';
 import '../services/sherpa_model_manager.dart';
+import '../widgets/contact_avatar.dart';
 import 'app_settings.dart';
 import 'aprs_route_dialog.dart';
+import 'contact_logo_picker_dialog.dart';
 import 'echolink_create_account_dialog.dart';
+import 'image_crop_dialog.dart';
 import 'location_picker_dialog.dart';
 
 /// Settings dialog with tabbed interface
@@ -46,6 +52,13 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   late TabController _tabController;
   late AppSettings _settings;
+
+  // Operator's own avatar for the License tab. Mirrors [_settings] and is
+  // written back on save. A custom [_avatarImage] takes precedence over a
+  // chosen [_avatarIcon], which in turn takes precedence over the callsign
+  // initials.
+  String? _avatarIcon;
+  String? _avatarImage;
 
   // Data Broker client for reading/writing the AllStarLink account credentials.
   final DataBrokerClient _broker = DataBrokerClient();
@@ -200,6 +213,8 @@ class _SettingsDialogState extends State<SettingsDialog>
 
     // Load settings from DataBroker
     _settings = AppSettings.loadFromDataBroker();
+    _avatarIcon = _settings.avatarIcon;
+    _avatarImage = _settings.avatarImage;
 
     // Enumerate serial ports for the GPS receiver dropdown (desktop only).
     _availablePorts = _listSerialPorts();
@@ -730,6 +745,8 @@ class _SettingsDialogState extends State<SettingsDialog>
     }
 
     // Save all settings to DataBroker (persisted to SharedPreferences)
+    _settings.avatarIcon = _avatarIcon;
+    _settings.avatarImage = _avatarImage;
     _settings.saveToDataBroker();
 
     // Persist AllStarLink node-hosting configuration (device 0).
@@ -1063,6 +1080,128 @@ class _SettingsDialogState extends State<SettingsDialog>
     );
   }
 
+  /// Round operator avatar shown at the License tab's top-right. Tapping it
+  /// opens the avatar customization menu.
+  Widget _buildAvatarButton() {
+    return Tooltip(
+      message: AppLocalizations.of(context).contactAvatarCustomize,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTapDown: (details) => _showAvatarMenu(details.globalPosition),
+        child: ContactAvatar(
+          callsign: _settings.callSign,
+          avatarIcon: _avatarIcon,
+          avatarImage: _avatarImage,
+          radius: 28,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAvatarMenu(Offset globalPosition) async {
+    final l10n = AppLocalizations.of(context);
+    // A snapshot of any clipboard image, read up front so a "Paste" item can be
+    // offered only when one is available.
+    Uint8List? clipboardImage;
+    try {
+      clipboardImage = await Pasteboard.image;
+    } catch (_) {
+      clipboardImage = null;
+    }
+    if (!mounted) return;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final hasCustom = _avatarIcon != null || _avatarImage != null;
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        globalPosition & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem<String>(
+          value: 'logo',
+          child: Text(l10n.contactAvatarChooseLogo),
+        ),
+        PopupMenuItem<String>(
+          value: 'image',
+          child: Text(l10n.contactAvatarChooseImage),
+        ),
+        if (clipboardImage != null)
+          PopupMenuItem<String>(
+            value: 'paste',
+            child: Text(l10n.contactAvatarPaste),
+          ),
+        if (hasCustom)
+          PopupMenuItem<String>(
+            value: 'reset',
+            child: Text(l10n.contactAvatarReset),
+          ),
+      ],
+    );
+    if (selected == null || !mounted) return;
+    switch (selected) {
+      case 'logo':
+        await _chooseAvatarLogo();
+        break;
+      case 'image':
+        await _chooseAvatarImage();
+        break;
+      case 'paste':
+        if (clipboardImage != null) await _cropAndSetAvatar(clipboardImage);
+        break;
+      case 'reset':
+        setState(() {
+          _avatarIcon = null;
+          _avatarImage = null;
+        });
+        break;
+    }
+  }
+
+  Future<void> _chooseAvatarLogo() async {
+    final name = await showContactLogoPicker(context);
+    if (name == null || !mounted) return;
+    setState(() {
+      _avatarIcon = name;
+      _avatarImage = null; // a logo replaces any custom image
+    });
+  }
+
+  Future<void> _chooseAvatarImage() async {
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+    } catch (_) {
+      return;
+    }
+    if (result == null || result.files.isEmpty || !mounted) return;
+    final file = result.files.single;
+    var bytes = file.bytes;
+    if (bytes == null && !kIsWeb && file.path != null) {
+      try {
+        bytes = await File(file.path!).readAsBytes();
+      } catch (_) {
+        bytes = null;
+      }
+    }
+    if (bytes == null || !mounted) return;
+    await _cropAndSetAvatar(bytes);
+  }
+
+  /// Runs [bytes] through the crop dialog and stores the resulting avatar image.
+  Future<void> _cropAndSetAvatar(Uint8List bytes) async {
+    final b64 = await showImageCropDialog(context, bytes);
+    if (b64 == null || !mounted) return;
+    setState(() {
+      _avatarImage = b64;
+      _avatarIcon = null; // a custom image replaces any chosen logo
+    });
+  }
+
   Widget _buildLicenseTab() {
     final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
@@ -1070,18 +1209,33 @@ class _SettingsDialogState extends State<SettingsDialog>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Info text
-          Text(
-            l10n.settingsLicenseInfo,
-            style: DialogStyles.bodyStyle,
-          ),
-          const SizedBox(height: 8),
-          InkWell(
-            onTap: () => _launchUrl('https://www.arrl.org/getting-licensed'),
-            child: const Text(
-              'www.arrl.org/getting-licensed',
-              style: DialogStyles.linkStyle,
-            ),
+          // Info text with the operator's own avatar on the upper right.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.settingsLicenseInfo,
+                      style: DialogStyles.bodyStyle,
+                    ),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () =>
+                          _launchUrl('https://www.arrl.org/getting-licensed'),
+                      child: const Text(
+                        'www.arrl.org/getting-licensed',
+                        style: DialogStyles.linkStyle,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              _buildAvatarButton(),
+            ],
           ),
           const SizedBox(height: 24),
           // Call Sign & Station ID group

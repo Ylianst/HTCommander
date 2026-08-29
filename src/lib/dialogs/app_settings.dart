@@ -9,6 +9,14 @@ class AppSettings {
   int stationId;
   bool allowTransmit;
 
+  /// Name of a chosen built-in avatar logo (see `contact_avatar.dart`), or null
+  /// to fall back to the callsign initials for the operator's own avatar.
+  String? avatarIcon;
+
+  /// Base64-encoded 64x64 PNG of a custom operator avatar image, or null when
+  /// none. When set it takes precedence over [avatarIcon] and the initials.
+  String? avatarImage;
+
   // Application language tag: 'system' (follow the OS), 'en', 'fr'.
   String language;
 
@@ -118,6 +126,8 @@ class AppSettings {
     this.callSign = '',
     this.stationId = 0,
     this.allowTransmit = false,
+    this.avatarIcon,
+    this.avatarImage,
     this.language = LocaleController.systemTag,
     this.themeMode = ThemeController.systemTag,
     List<AprsRoute>? aprsRoutes,
@@ -262,6 +272,10 @@ class AppSettings {
       stationId: DataBroker.getValue<int>(0, 'StationId', 0) ?? 0,
       allowTransmit:
           (DataBroker.getValue<int>(0, 'AllowTransmit', 0) ?? 0) == 1,
+      avatarIcon: _nonEmptyOrNull(
+          DataBroker.getValue<String>(0, 'AvatarIcon', '') ?? ''),
+      avatarImage: _nonEmptyOrNull(
+          DataBroker.getValue<String>(0, 'AvatarImage', '') ?? ''),
       language:
           DataBroker.getValue<String>(0, LocaleController.storageKey,
                   LocaleController.systemTag) ??
@@ -348,6 +362,16 @@ class AppSettings {
       deviceId: 0,
       name: 'AllowTransmit',
       data: allowTransmit ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'AvatarIcon',
+      data: avatarIcon ?? '',
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'AvatarImage',
+      data: avatarImage ?? '',
     );
     DataBroker.dispatch(
       deviceId: 0,
@@ -506,6 +530,13 @@ class AppSettings {
       name: 'MaxCommEvents',
       data: maxCommEvents,
     );
+  }
+
+  /// Returns [value] trimmed, or null when it is empty. Used so stored empty
+  /// avatar strings load back as a null (meaning "no custom avatar").
+  static String? _nonEmptyOrNull(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 
   /// Serialize APRS routes to pipe-separated string format: "Name|Path|Name|Path..."
