@@ -16,11 +16,17 @@
     <!-- Show pop-up notifications for incoming messages (Android 13+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Android Auto TEMPORARILY DISABLED for this release (car app approval
+         process pending). Re-enable by uncommenting this uses-feature, the two
+         androidx.car.app / com.google.android.gms.car meta-data entries, and the
+         RadioCarAppService <service> below. Kotlin/Dart scaffold left intact. -->
     <!-- Declares that the app hosts an Android for Cars App Library (Android
          Auto) experience. Optional so phones without a car host still install. -->
+    <!--
     <uses-feature
         android:name="android.software.car.templates_host"
         android:required="false" />
+    -->
 
     <application
         android:label="HTCommander"
@@ -55,7 +61,13 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
-        <!-- Android for Cars App Library: minimum car API level required. -->
+        <!-- Android Auto TEMPORARILY DISABLED for this release (car app approval
+             process pending). The block below is the car API meta-data plus the
+             RadioCarAppService entry point (androidx.car.app.CarAppService, IOT
+             category). Re-enable Android Auto by uncommenting it. Note: XML
+             comments cannot nest, so the original inline comments were removed;
+             see RadioCarAppService / RadioStatusScreen in Kotlin for details. -->
+        <!--
         <meta-data
             android:name="androidx.car.app.minCarApiLevel"
             android:value="1" />
@@ -63,9 +75,6 @@
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
 
-        <!-- Android Auto car UI entry point (templated). The IOT category lets
-             the app appear on phone-projected Android Auto as a device control
-             app. See RadioCarAppService / RadioStatusScreen. -->
         <service
             android:name=".RadioCarAppService"
             android:exported="true">
@@ -74,6 +83,7 @@
                 <category android:name="androidx.car.app.category.IOT" />
             </intent-filter>
         </service>
+        -->
 
         <!-- Enables androidx.appcompat locale persistence so the per-app language
              picker works on Android 12 and below (API < 33). -->
