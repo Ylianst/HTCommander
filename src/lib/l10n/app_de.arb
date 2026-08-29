@@ -236,6 +236,20 @@
   "settingsAprsIsRangeHelp": "Empfangen Sie APRS-Verkehr innerhalb dieses Bereichs Ihrer letzten bestätigten GPS-Position, die von einem Funkgerät oder seriellen GPS stammt.",
   "settingsAprsIsGateToRf": "Internet-Nachrichten an HF weiterleiten (IGate)",
   "settingsAprsIsGateToRfHelp": "Übertragen Sie Nachrichten aus dem Internet auf HF für Stationen, die in der letzten Stunde lokal gehört wurden. Erfordert ein Funkgerät mit einem APRS-Kanal.",
+  "settingsAprsFiTitle": "APRS.fi-Nachladen",
+  "settingsAprsFiIntro": "Geben Sie Ihren persönlichen aprs.fi-API-Schlüssel ein, um an Sie gerichtete APRS-Nachrichten abzurufen, die empfangen wurden, während diese App offline war. Die Nachrichten werden mit den bereits vorhandenen zusammengeführt.",
+  "settingsAprsFiApiKey": "aprs.fi-API-Schlüssel",
+  "settingsAprsFiApiKeyHint": "Geben Sie Ihren aprs.fi-API-Schlüssel ein",
+  "settingsAprsFiTestNoKey": "Geben Sie zuerst einen API-Schlüssel ein.",
+  "settingsAprsFiTestNoCallSign": "Legen Sie zuerst Ihr Rufzeichen fest.",
+  "settingsAprsFiTestSuccess": "Erfolg, {count} Nachricht(en) gefunden.",
+  "@settingsAprsFiTestSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsEditRoute": "Route bearbeiten",
   "settingsEditRouteProtected": "Die integrierte Route kann nicht bearbeitet werden",
   "settingsDeleteRoute": "Route löschen",

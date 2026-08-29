@@ -674,6 +674,30 @@ class AppLocalizationsZh extends AppLocalizations {
       '为过去一小时内本地收听到的电台，将来自互联网的消息通过射频发送。需要具有 APRS 频道的无线电。';
 
   @override
+  String get settingsAprsFiTitle => 'APRS.fi 回填';
+
+  @override
+  String get settingsAprsFiIntro =>
+      '提供您的个人 aprs.fi API 密钥，以拉取在本应用离线期间收到的、发送给您的 APRS 消息。消息将与您已有的消息合并。';
+
+  @override
+  String get settingsAprsFiApiKey => 'aprs.fi API 密钥';
+
+  @override
+  String get settingsAprsFiApiKeyHint => '输入您的 aprs.fi API 密钥';
+
+  @override
+  String get settingsAprsFiTestNoKey => '请先输入 API 密钥。';
+
+  @override
+  String get settingsAprsFiTestNoCallSign => '请先设置您的呼号。';
+
+  @override
+  String settingsAprsFiTestSuccess(int count) {
+    return '成功，找到 $count 条消息。';
+  }
+
+  @override
   String get settingsEditRoute => '编辑路由';
 
   @override

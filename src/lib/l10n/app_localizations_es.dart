@@ -690,6 +690,30 @@ class AppLocalizationsEs extends AppLocalizations {
       'Transmita mensajes de Internet por RF para las estaciones escuchadas localmente durante la última hora. Requiere una radio con un canal APRS.';
 
   @override
+  String get settingsAprsFiTitle => 'Recuperación de APRS.fi';
+
+  @override
+  String get settingsAprsFiIntro =>
+      'Proporcione su clave API personal de aprs.fi para obtener los mensajes APRS dirigidos a usted que se recibieron mientras esta aplicación estaba desconectada. Los mensajes se combinan con los que ya tiene.';
+
+  @override
+  String get settingsAprsFiApiKey => 'Clave API de aprs.fi';
+
+  @override
+  String get settingsAprsFiApiKeyHint => 'Introduzca su clave API de aprs.fi';
+
+  @override
+  String get settingsAprsFiTestNoKey => 'Introduzca primero una clave API.';
+
+  @override
+  String get settingsAprsFiTestNoCallSign => 'Configure primero su indicativo.';
+
+  @override
+  String settingsAprsFiTestSuccess(int count) {
+    return 'Correcto, se encontraron $count mensaje(s).';
+  }
+
+  @override
   String get settingsEditRoute => 'Editar ruta';
 
   @override

@@ -573,6 +573,20 @@
   "settingsAprsIsRangeHelp": "Receive APRS traffic within this range of your last confirmed GPS position, obtained from a radio or serial GPS.",
   "settingsAprsIsGateToRf": "Gate internet messages to RF (IGate)",
   "settingsAprsIsGateToRfHelp": "Transmit messages from the internet on RF for stations heard locally within the last hour. Requires a radio with an APRS channel.",
+  "settingsAprsFiTitle": "APRS.fi backfill",
+  "settingsAprsFiIntro": "Provide your personal aprs.fi API key to pull in APRS messages addressed to you that were received while this app was offline. Messages are merged with the ones you already have.",
+  "settingsAprsFiApiKey": "aprs.fi API key",
+  "settingsAprsFiApiKeyHint": "Enter your aprs.fi API key",
+  "settingsAprsFiTestNoKey": "Enter an API key first.",
+  "settingsAprsFiTestNoCallSign": "Set your call sign first.",
+  "settingsAprsFiTestSuccess": "Success, {count} message(s) found.",
+  "@settingsAprsFiTestSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsEditRoute": "Edit route",
   "settingsEditRouteProtected": "Built-in route cannot be edited",
   "settingsDeleteRoute": "Delete route",

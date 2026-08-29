@@ -236,6 +236,20 @@
   "settingsAprsIsRangeHelp": "Odbieraj ruch APRS w tym zasięgu od ostatniej potwierdzonej pozycji GPS, uzyskanej z radia lub szeregowego GPS.",
   "settingsAprsIsGateToRf": "Przekazuj wiadomości internetowe do RF (IGate)",
   "settingsAprsIsGateToRfHelp": "Nadawaj wiadomości z internetu na RF dla stacji słyszanych lokalnie w ciągu ostatniej godziny. Wymaga radia z kanałem APRS.",
+  "settingsAprsFiTitle": "Uzupełnianie z APRS.fi",
+  "settingsAprsFiIntro": "Podaj swój osobisty klucz API aprs.fi, aby pobrać adresowane do Ciebie wiadomości APRS odebrane, gdy ta aplikacja była offline. Wiadomości są scalane z tymi, które już masz.",
+  "settingsAprsFiApiKey": "Klucz API aprs.fi",
+  "settingsAprsFiApiKeyHint": "Wprowadź swój klucz API aprs.fi",
+  "settingsAprsFiTestNoKey": "Najpierw wprowadź klucz API.",
+  "settingsAprsFiTestNoCallSign": "Najpierw ustaw swój znak wywoławczy.",
+  "settingsAprsFiTestSuccess": "Sukces, znaleziono {count} wiadomości.",
+  "@settingsAprsFiTestSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsEditRoute": "Edytuj trasę",
   "settingsEditRouteProtected": "Wbudowanej trasy nie można edytować",
   "settingsDeleteRoute": "Usuń trasę",

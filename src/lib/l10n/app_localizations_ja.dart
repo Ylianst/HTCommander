@@ -681,6 +681,30 @@ class AppLocalizationsJa extends AppLocalizations {
       '過去1時間以内にローカルで受信した局に対して、インターネットからのメッセージをRFで送信します。APRSチャンネルを備えた無線機が必要です。';
 
   @override
+  String get settingsAprsFiTitle => 'APRS.fi バックフィル';
+
+  @override
+  String get settingsAprsFiIntro =>
+      '個人の aprs.fi API キーを入力すると、このアプリがオフラインの間に受信した、あなた宛ての APRS メッセージを取得できます。メッセージは既存のものと統合されます。';
+
+  @override
+  String get settingsAprsFiApiKey => 'aprs.fi API キー';
+
+  @override
+  String get settingsAprsFiApiKeyHint => 'aprs.fi API キーを入力';
+
+  @override
+  String get settingsAprsFiTestNoKey => '先に API キーを入力してください。';
+
+  @override
+  String get settingsAprsFiTestNoCallSign => '先にコールサインを設定してください。';
+
+  @override
+  String settingsAprsFiTestSuccess(int count) {
+    return '成功、$count 件のメッセージが見つかりました。';
+  }
+
+  @override
   String get settingsEditRoute => 'ルートを編集';
 
   @override

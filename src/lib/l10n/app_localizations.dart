@@ -1372,6 +1372,48 @@ abstract class AppLocalizations {
   /// **'Transmit messages from the internet on RF for stations heard locally within the last hour. Requires a radio with an APRS channel.'**
   String get settingsAprsIsGateToRfHelp;
 
+  /// No description provided for @settingsAprsFiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'APRS.fi backfill'**
+  String get settingsAprsFiTitle;
+
+  /// No description provided for @settingsAprsFiIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Provide your personal aprs.fi API key to pull in APRS messages addressed to you that were received while this app was offline. Messages are merged with the ones you already have.'**
+  String get settingsAprsFiIntro;
+
+  /// No description provided for @settingsAprsFiApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'aprs.fi API key'**
+  String get settingsAprsFiApiKey;
+
+  /// No description provided for @settingsAprsFiApiKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your aprs.fi API key'**
+  String get settingsAprsFiApiKeyHint;
+
+  /// No description provided for @settingsAprsFiTestNoKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an API key first.'**
+  String get settingsAprsFiTestNoKey;
+
+  /// No description provided for @settingsAprsFiTestNoCallSign.
+  ///
+  /// In en, this message translates to:
+  /// **'Set your call sign first.'**
+  String get settingsAprsFiTestNoCallSign;
+
+  /// No description provided for @settingsAprsFiTestSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Success, {count} message(s) found.'**
+  String settingsAprsFiTestSuccess(int count);
+
   /// No description provided for @settingsEditRoute.
   ///
   /// In en, this message translates to:

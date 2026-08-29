@@ -45,6 +45,7 @@ import '../radio/ax25_packet.dart';
 import '../radio/radio.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import 'aprsfi_client.dart';
 import 'aprsis_client.dart';
 import 'aprsis_history_store.dart';
 import 'aprsis_network_io.dart';
@@ -111,6 +112,14 @@ class AprsIsManager {
   /// Whether the persisted history has finished loading.
   bool _historyReady = false;
 
+  /// Guards against overlapping aprs.fi backfill requests.
+  bool _mergingAprsFi = false;
+
+  /// Time window within which an aprs.fi message is considered a duplicate of
+  /// an internet message we already have (accounts for clock skew between our
+  /// receive time and aprs.fi's timestamp).
+  static const Duration _aprsFiDedupWindow = Duration(minutes: 2);
+
   /// Subscribes to settings + RF frames and opens the client when enabled.
   void init() {
     if (_initialized) return;
@@ -163,7 +172,17 @@ class AprsIsManager {
       callback: _onRequestAprsIsPackets,
     );
 
-    unawaited(_loadHistory());
+    // Re-run the aprs.fi backfill whenever the API key or our callsign changes
+    // (e.g. after the settings dialog is closed).
+    _broker.subscribeMultiple(
+      deviceId: 0,
+      names: const ['AprsFiApiKey', 'CallSign', 'StationId'],
+      callback: (_, _, _) => unawaited(_mergeFromAprsFi()),
+    );
+
+    // Backfill missed messages from aprs.fi once the persisted history is
+    // loaded, so newly fetched messages are de-duplicated against it.
+    unawaited(_loadHistory().then((_) => _mergeFromAprsFi()));
     unawaited(_reconcile());
   }
 
@@ -205,6 +224,164 @@ class AprsIsManager {
       data: List<AprsPacket>.from(_historyPackets),
       store: false,
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // aprs.fi backfill
+  // ---------------------------------------------------------------------------
+
+  /// Fetches recent messages from aprs.fi and merges any we do not already have
+  /// into the internet history: messages addressed to us (received) and, to
+  /// recover local state, messages we sent to those same stations. Runs at
+  /// startup and whenever the API key or callsign changes. No-op when no API
+  /// key is configured.
+  Future<void> _mergeFromAprsFi() async {
+    if (_mergingAprsFi || !_historyReady) return;
+    final apiKey =
+        (_broker.getValue<String>(0, 'AprsFiApiKey', '') ?? '').trim();
+    final self = _readCallsignWithId();
+    if (apiKey.isEmpty || self.isEmpty) return;
+    final selfUpper = self.toUpperCase();
+
+    _mergingAprsFi = true;
+    try {
+      final userAgent = _appVersion.isEmpty
+          ? _softwareName
+          : '$_softwareName/$_appVersion';
+
+      // 1. Messages addressed to us (received).
+      final received = await AprsFiClient.fetchMessages(
+        apiKey: apiKey,
+        dstCallsign: self,
+        userAgent: userAgent,
+      );
+      if (!received.ok) {
+        _broker.logInfo('[aprs.fi] Backfill failed: ${received.error}');
+        return;
+      }
+      var merged = 0;
+      // aprs.fi returns newest first; ingest oldest first so the message view
+      // keeps chronological order.
+      for (final msg in received.messages.reversed) {
+        if (_ingestAprsFiMessage(msg)) merged++;
+      }
+
+      // 2. Messages we sent to the stations we've talked with (recover local
+      // state). aprs.fi only indexes messages by recipient, so we query the
+      // peers that messaged us and keep the entries whose source is us.
+      final peers = <String>{};
+      for (final msg in received.messages) {
+        final peer = msg.srcCall.trim().toUpperCase();
+        if (peer.isNotEmpty && peer != selfUpper) peers.add(peer);
+      }
+      if (peers.isNotEmpty) {
+        merged += await _mergeSentMessages(apiKey, userAgent, selfUpper, peers);
+      }
+
+      if (merged > 0) {
+        _broker.logInfo('[aprs.fi] Backfilled $merged message(s)');
+      }
+    } finally {
+      _mergingAprsFi = false;
+    }
+  }
+
+  /// Fetches messages we sent to [peers] and merges them as outgoing messages.
+  /// aprs.fi allows up to 10 recipients per query, so peers are queried in
+  /// batches. Returns the number of newly merged messages.
+  Future<int> _mergeSentMessages(
+    String apiKey,
+    String userAgent,
+    String selfUpper,
+    Set<String> peers,
+  ) async {
+    var merged = 0;
+    final list = peers.toList();
+    for (var i = 0; i < list.length; i += 10) {
+      final batch = list.sublist(i, math.min(i + 10, list.length));
+      final result = await AprsFiClient.fetchMessages(
+        apiKey: apiKey,
+        dstCallsign: batch.join(','),
+        userAgent: userAgent,
+      );
+      if (!result.ok) continue;
+      for (final msg in result.messages.reversed) {
+        // Keep only the messages we sent to these peers.
+        if (msg.srcCall.trim().toUpperCase() != selfUpper) continue;
+        if (_ingestAprsFiMessage(msg, sent: true)) merged++;
+      }
+    }
+    return merged;
+  }
+
+  /// Converts a single aprs.fi message into an internet [AprsPacket], skipping
+  /// duplicates already present in the internet history. When [sent] is true
+  /// the message is one we originated, so it is shown as outgoing. Returns true
+  /// when a new message was ingested.
+  bool _ingestAprsFiMessage(AprsFiMessage msg, {bool sent = false}) {
+    final addressee = msg.dst.trim().toUpperCase();
+    final src = msg.srcCall.trim().toUpperCase();
+    if (addressee.isEmpty || src.isEmpty) return false;
+
+    if (_isDuplicateAprsFiMessage(src, addressee, msg.message, msg.time)) {
+      return false;
+    }
+
+    // Build a TNC2 line so the message flows through the same decode pipeline
+    // as live APRS-IS traffic. The APRS message info field is a 9-character
+    // padded addressee followed by ':' and the message text.
+    final paddedAddressee = addressee.padRight(9);
+    final tnc2Line = '$src>APRS,TCPIP*,qAC,APRSFI::$paddedAddressee:'
+        '${msg.message}';
+    final ax25 = Tnc2Codec.decode(tnc2Line, time: msg.time);
+    if (ax25 == null) return false;
+    if (sent) {
+      ax25.incoming = false;
+      ax25.sent = true;
+    }
+    final aprs = AprsPacket.parse(ax25);
+    if (aprs == null || aprs.dataType != PacketDataType.message) return false;
+    aprs.fromAprsIs = true;
+
+    // Persist received messages so they survive a restart. Sent messages are
+    // re-fetched from aprs.fi each run instead (the history store cannot record
+    // packet direction, so a persisted sent message would reload as received).
+    if (!sent) _history.append(ax25.time, tnc2Line);
+    _historyPackets.add(aprs);
+    while (_historyPackets.length > _maxHistoryInMemory) {
+      _historyPackets.removeAt(0);
+    }
+
+    // Surface to the APRS + Map tabs (device 1, non-UniqueDataFrame).
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'AprsFrame',
+      data: AprsFrameEventArgs(aprs, ax25, null),
+      store: false,
+    );
+    return true;
+  }
+
+  /// Whether an internet message with the same source, addressee and text
+  /// already exists within [_aprsFiDedupWindow] of [time].
+  bool _isDuplicateAprsFiMessage(
+    String src,
+    String addressee,
+    String text,
+    DateTime time,
+  ) {
+    for (final p in _historyPackets) {
+      if (p.dataType != PacketDataType.message) continue;
+      final packet = p.packet;
+      if (packet == null || packet.addresses.length < 2) continue;
+      if (packet.addresses[1].callSignWithId.toUpperCase() != src) continue;
+      if (p.messageData.addressee.toUpperCase() != addressee) continue;
+      if (p.messageData.msgText != text) continue;
+      if ((packet.time.difference(time)).abs() <= _aprsFiDedupWindow) {
+        return true;
+      }
+    }
+    return false;
   }
 
   bool _readEnabled() =>
@@ -449,6 +626,47 @@ class AprsIsManager {
     }
 
     _maybeGateToRf(aprs);
+    _maybeAckOverAprsIs(aprs, ax25);
+  }
+
+  /// Sends an APRS message ACK back over APRS-IS when a message with a sequence
+  /// number is received addressed to our station. Mirrors [AprsHandler]'s RF
+  /// auto-ack, but replies over the internet instead of RF. No-op unless we are
+  /// connected with a verified, transmit-capable login.
+  void _maybeAckOverAprsIs(AprsPacket aprs, AX25Packet ax25) {
+    if (aprs.dataType != PacketDataType.message) return;
+    final messageData = aprs.messageData;
+    if (messageData.msgType == MessageType.mtAck) return;
+    if (messageData.msgType == MessageType.mtRej) return;
+    final seqId = messageData.seqId.trim();
+    if (seqId.isEmpty) return;
+
+    final client = _client;
+    if (client == null) return;
+    if (client.state != AprsIsConnectionState.connected) return;
+    if (!client.canTransmit || !client.isVerified) return;
+
+    final localCallsign = _readCallsignWithId();
+    if (localCallsign.isEmpty) return;
+
+    // Only acknowledge messages actually addressed to us (with or without SSID).
+    final addressee = messageData.addressee.trim().toUpperCase();
+    if (addressee.isEmpty) return;
+    final callsignOnly =
+        (_broker.getValue<String>(0, 'CallSign', '') ?? '').trim().toUpperCase();
+    final isForUs = addressee == localCallsign.toUpperCase() ||
+        (callsignOnly.isNotEmpty && addressee == callsignOnly);
+    if (!isForUs) return;
+
+    if (ax25.addresses.length < 2) return;
+    final senderCallsign = ax25.addresses[1].callSignWithId;
+    if (senderCallsign.isEmpty) return;
+
+    // APRS message ACK format: ":<addressee padded to 9>:ack<seqId>".
+    final paddedAddr = senderCallsign.padRight(9);
+    final tnc2Line = '$localCallsign>APRS,TCPIP*::$paddedAddr:ack$seqId';
+    client.sendPacketLine(tnc2Line);
+    _broker.logInfo('[APRS-IS] Sent ack$seqId to $senderCallsign');
   }
 
   void _maybeGateToRf(AprsPacket aprs) {

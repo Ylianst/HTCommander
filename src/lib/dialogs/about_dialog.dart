@@ -114,6 +114,10 @@ class HTAboutDialog extends StatelessWidget {
                                   '© OpenStreetMap contributors — map data\nprovided by the project that creates and\ndistributes free geographic data for the world.',
                                   'https://www.openstreetmap.org/copyright',
                                 ),
+                                _buildAttribution(
+                                  'APRS message backfill via aprs.fi,\ncourtesy of Heikki Hannikainen, OH7LZB',
+                                  'https://aprs.fi',
+                                ),
                               ],
                             ),
                           ),

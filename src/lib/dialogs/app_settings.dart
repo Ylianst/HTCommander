@@ -34,6 +34,9 @@ class AppSettings {
   bool aprsIsGateToRf;
   String aprsIsPasscode;
 
+  // APRS.fi API key used to backfill missed APRS messages - APRS tab
+  String aprsFiApiKey;
+
   // Voice tab
   String voiceLanguage;
   String voiceModel;
@@ -137,6 +140,7 @@ class AppSettings {
     this.aprsIsRangeKm = 0,
     this.aprsIsGateToRf = false,
     this.aprsIsPasscode = '',
+    this.aprsFiApiKey = '',
     this.voiceLanguage = 'auto',
     this.voiceModel = 'sense-voice',
     this.voice = '',
@@ -182,6 +186,7 @@ class AppSettings {
     int? aprsIsRangeKm,
     bool? aprsIsGateToRf,
     String? aprsIsPasscode,
+    String? aprsFiApiKey,
     String? voiceLanguage,
     String? voiceModel,
     String? voice,
@@ -226,6 +231,7 @@ class AppSettings {
       aprsIsRangeKm: aprsIsRangeKm ?? this.aprsIsRangeKm,
       aprsIsGateToRf: aprsIsGateToRf ?? this.aprsIsGateToRf,
       aprsIsPasscode: aprsIsPasscode ?? this.aprsIsPasscode,
+      aprsFiApiKey: aprsFiApiKey ?? this.aprsFiApiKey,
       voiceLanguage: voiceLanguage ?? this.voiceLanguage,
       voiceModel: voiceModel ?? this.voiceModel,
       voice: voice ?? this.voice,
@@ -297,6 +303,8 @@ class AppSettings {
           (DataBroker.getValue<int>(0, 'AprsIsGateToRf', 0) ?? 0) == 1,
       aprsIsPasscode:
           DataBroker.getValue<String>(0, 'AprsIsPasscode', '') ?? '',
+      aprsFiApiKey:
+          DataBroker.getValue<String>(0, 'AprsFiApiKey', '') ?? '',
       voiceLanguage:
           DataBroker.getValue<String>(0, 'VoiceLanguage', 'auto') ?? 'auto',
       voiceModel:
@@ -399,6 +407,11 @@ class AppSettings {
       deviceId: 0,
       name: 'AprsIsPasscode',
       data: aprsIsPasscode,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'AprsFiApiKey',
+      data: aprsFiApiKey,
     );
     DataBroker.dispatch(
       deviceId: 0,

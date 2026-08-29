@@ -15,6 +15,7 @@ import '../aprs/weather_data.dart';
 import '../allstar/allstar_node.dart';
 import '../allstar/allstar_portal_service.dart';
 import '../allstar/iax2_constants.dart' show iax2DefaultPort;
+import '../aprsis/aprsfi_client.dart';
 import '../echolink/echolink_credential_test.dart';
 import '../services/serial/serial_port.dart';
 import '../services/data_broker_client.dart';
@@ -77,6 +78,7 @@ class _SettingsDialogState extends State<SettingsDialog>
   late TextEditingController _aprsIsServerController;
   late TextEditingController _aprsIsPortController;
   late TextEditingController _aprsIsPasscodeController;
+  late TextEditingController _aprsFiApiKeyController;
   late TextEditingController _webPortController;
   late TextEditingController _agwpePortController;
   late TextEditingController _airplaneUrlController;
@@ -100,6 +102,11 @@ class _SettingsDialogState extends State<SettingsDialog>
   bool _homeAssistantTesting = false;
   String _homeAssistantTestResult = '';
   bool _homeAssistantTestOk = false;
+
+  // APRS.fi API key "Test" state.
+  bool _aprsFiTesting = false;
+  String _aprsFiTestResult = '';
+  bool _aprsFiTestOk = false;
 
   // EchoLink credential "Test" state.
   bool _echoLinkTesting = false;
@@ -260,6 +267,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     _aprsIsPasscodeController = TextEditingController(
       text: _settings.aprsIsPasscode,
     );
+    _aprsFiApiKeyController = TextEditingController(
+      text: _settings.aprsFiApiKey,
+    );
     _webPortController = TextEditingController(
       text: _settings.webServerPort.toString(),
     );
@@ -343,6 +353,7 @@ class _SettingsDialogState extends State<SettingsDialog>
     _aprsIsServerController.dispose();
     _aprsIsPortController.dispose();
     _aprsIsPasscodeController.dispose();
+    _aprsFiApiKeyController.dispose();
     _webPortController.dispose();
     _agwpePortController.dispose();
     _airplaneUrlController.dispose();
@@ -668,6 +679,63 @@ class _SettingsDialogState extends State<SettingsDialog>
     }
   }
 
+  /// Our own callsign with SSID (e.g. `KK7VZT-7`), used as the aprs.fi `dst`.
+  String _selfCallsignWithId() {
+    final callsign = _settings.callSign.trim().toUpperCase();
+    if (callsign.isEmpty) return '';
+    return _settings.stationId > 0
+        ? '$callsign-${_settings.stationId}'
+        : callsign;
+  }
+
+  /// Tests the entered aprs.fi API key by requesting the most recent messages
+  /// addressed to our own callsign and reporting how many were found.
+  Future<void> _testAprsFiApiKey() async {
+    final l10n = AppLocalizations.of(context);
+    final apiKey = _aprsFiApiKeyController.text.trim();
+    final dst = _selfCallsignWithId();
+    if (apiKey.isEmpty) {
+      setState(() {
+        _aprsFiTestOk = false;
+        _aprsFiTestResult = l10n.settingsAprsFiTestNoKey;
+      });
+      return;
+    }
+    if (dst.isEmpty) {
+      setState(() {
+        _aprsFiTestOk = false;
+        _aprsFiTestResult = l10n.settingsAprsFiTestNoCallSign;
+      });
+      return;
+    }
+
+    setState(() {
+      _aprsFiTesting = true;
+      _aprsFiTestResult = l10n.settingsTestTesting;
+    });
+
+    final version = _broker.getValue<String>(0, 'AppVersion', '') ?? '';
+    final result = await AprsFiClient.fetchMessages(
+      apiKey: apiKey,
+      dstCallsign: dst,
+      userAgent: version.isEmpty ? 'HTCommander' : 'HTCommander/$version',
+      timeout: const Duration(seconds: 15),
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _aprsFiTesting = false;
+      _aprsFiTestOk = result.ok;
+      _aprsFiTestResult = result.ok
+          ? l10n.settingsAprsFiTestSuccess(result.messages.length)
+          : l10n.settingsTestFailed;
+    });
+
+    if (!result.ok && result.error != null) {
+      _showTestErrorDialog(result.error!);
+    }
+  }
+
   void _onSave() async {
     final l10n = AppLocalizations.of(context);
     // Update settings from text controllers
@@ -676,6 +744,7 @@ class _SettingsDialogState extends State<SettingsDialog>
     _settings.echoLinkLocation = _echoLinkLocationController.text;
     _settings.aprsIsServer = _aprsIsServerController.text.trim();
     _settings.aprsIsPort = int.tryParse(_aprsIsPortController.text) ?? 14580;
+    _settings.aprsFiApiKey = _aprsFiApiKeyController.text.trim();
     _settings.webServerPort = int.tryParse(_webPortController.text) ?? 8080;
     _settings.agwpeServerPort = int.tryParse(_agwpePortController.text) ?? 8000;
     _settings.airplaneServerUrl = _airplaneUrlController.text;
@@ -1778,6 +1847,59 @@ class _SettingsDialogState extends State<SettingsDialog>
           ),
           const SizedBox(height: 4),
           Text(l10n.settingsAprsIsGateToRfHelp, style: _secondaryStyle()),
+          const Divider(height: 32),
+          Text(l10n.settingsAprsFiTitle, style: _sectionTitleStyle()),
+          const SizedBox(height: 8),
+          Text(l10n.settingsAprsFiIntro, style: DialogStyles.bodyStyle),
+          const SizedBox(height: 4),
+          InkWell(
+            onTap: () => _launchUrl('https://aprs.fi/account/'),
+            child: const Text('aprs.fi/account/', style: DialogStyles.linkStyle),
+          ),
+          const SizedBox(height: 16),
+          Text(l10n.settingsAprsFiApiKey, style: DialogStyles.labelStyle),
+          const SizedBox(height: 4),
+          TextField(
+            controller: _aprsFiApiKeyController,
+            obscureText: true,
+            enableSuggestions: false,
+            autocorrect: false,
+            decoration: _inputDecoration(
+              hintText: l10n.settingsAprsFiApiKeyHint,
+            ),
+            onChanged: (_) {
+              // Rebuild so the Test button's enabled state tracks the field and
+              // any prior result is cleared.
+              setState(() => _aprsFiTestResult = '');
+            },
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              ElevatedButton(
+                onPressed: (_aprsFiApiKeyController.text.trim().isNotEmpty &&
+                        !_aprsFiTesting)
+                    ? _testAprsFiApiKey
+                    : null,
+                child: Text(l10n.settingsTest),
+              ),
+              if (_aprsFiTestResult.isNotEmpty) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _aprsFiTestResult,
+                    style: TextStyle(
+                      color: _aprsFiTesting
+                          ? Theme.of(context).colorScheme.onSurfaceVariant
+                          : (_aprsFiTestOk
+                              ? Colors.green.shade700
+                              : Colors.red.shade700),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );

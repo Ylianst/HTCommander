@@ -236,6 +236,20 @@
   "settingsAprsIsRangeHelp": "無線機またはシリアルGPSから取得した、最後に確認されたGPS位置のこの範囲内のAPRSトラフィックを受信します。",
   "settingsAprsIsGateToRf": "インターネットメッセージをRFにゲートする（IGate）",
   "settingsAprsIsGateToRfHelp": "過去1時間以内にローカルで受信した局に対して、インターネットからのメッセージをRFで送信します。APRSチャンネルを備えた無線機が必要です。",
+  "settingsAprsFiTitle": "APRS.fi バックフィル",
+  "settingsAprsFiIntro": "個人の aprs.fi API キーを入力すると、このアプリがオフラインの間に受信した、あなた宛ての APRS メッセージを取得できます。メッセージは既存のものと統合されます。",
+  "settingsAprsFiApiKey": "aprs.fi API キー",
+  "settingsAprsFiApiKeyHint": "aprs.fi API キーを入力",
+  "settingsAprsFiTestNoKey": "先に API キーを入力してください。",
+  "settingsAprsFiTestNoCallSign": "先にコールサインを設定してください。",
+  "settingsAprsFiTestSuccess": "成功、{count} 件のメッセージが見つかりました。",
+  "@settingsAprsFiTestSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsEditRoute": "ルートを編集",
   "settingsEditRouteProtected": "組み込みルートは編集できません",
   "settingsDeleteRoute": "ルートを削除",

@@ -236,6 +236,20 @@
   "settingsAprsIsRangeHelp": "रेडियो या सीरियल GPS से प्राप्त आपकी अंतिम पुष्टि की गई GPS स्थिति के इस रेंज के भीतर APRS ट्रैफ़िक प्राप्त करें।",
   "settingsAprsIsGateToRf": "इंटरनेट संदेशों को RF पर गेट करें (IGate)",
   "settingsAprsIsGateToRfHelp": "पिछले एक घंटे में स्थानीय रूप से सुने गए स्टेशनों के लिए इंटरनेट से संदेशों को RF पर प्रसारित करें। इसके लिए APRS चैनल वाले रेडियो की आवश्यकता होती है।",
+  "settingsAprsFiTitle": "APRS.fi बैकफ़िल",
+  "settingsAprsFiIntro": "आपको संबोधित APRS संदेशों को प्राप्त करने के लिए अपनी व्यक्तिगत aprs.fi API कुंजी दर्ज करें, जो इस ऐप के ऑफ़लाइन रहने के दौरान प्राप्त हुए थे। संदेश आपके पास पहले से मौजूद संदेशों के साथ मर्ज कर दिए जाते हैं।",
+  "settingsAprsFiApiKey": "aprs.fi API कुंजी",
+  "settingsAprsFiApiKeyHint": "अपनी aprs.fi API कुंजी दर्ज करें",
+  "settingsAprsFiTestNoKey": "पहले एक API कुंजी दर्ज करें।",
+  "settingsAprsFiTestNoCallSign": "पहले अपना कॉल साइन सेट करें।",
+  "settingsAprsFiTestSuccess": "सफल, {count} संदेश मिले।",
+  "@settingsAprsFiTestSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsEditRoute": "रूट संपादित करें",
   "settingsEditRouteProtected": "अंतर्निहित रूट संपादित नहीं किया जा सकता",
   "settingsDeleteRoute": "रूट हटाएँ",

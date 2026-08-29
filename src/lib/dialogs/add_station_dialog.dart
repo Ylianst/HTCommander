@@ -173,6 +173,14 @@ class _StationDialogState extends State<_StationDialog> {
     _authPasswordController.addListener(_onTextChanged);
     _channelController.addListener(_onTextChanged);
     _callsignFocusNode.addListener(_onCallsignFocusChanged);
+
+    // When opened prefilled with a callsign (e.g. from the callsign lookup
+    // dialog), auto-fill the name and description from the offline database.
+    if (s == null && (widget.initialCallsign ?? '').trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _autoFillFromCallsign(),
+      );
+    }
   }
 
   @override
@@ -225,6 +233,61 @@ class _StationDialogState extends State<_StationDialog> {
       _autoFilledCallsign = callsign;
       setState(() {});
     }
+  }
+
+  /// Builds the right-click / long-press context menu for the Name and
+  /// Description fields, appending a "Lookup" item that fills the field from the
+  /// offline callsign database. The item is only offered for radio callsign
+  /// contacts with a valid callsign entered.
+  Widget _fieldContextMenuBuilder(
+    BuildContext context,
+    EditableTextState editableTextState,
+    TextEditingController controller, {
+    required bool isName,
+  }) {
+    final buttonItems = editableTextState.contextMenuButtonItems;
+    if (!_isSimpleContact && _callsignValid) {
+      buttonItems.add(
+        ContextMenuButtonItem(
+          label: AppLocalizations.of(context).cslButtonLookup,
+          onPressed: () {
+            ContextMenuController.removeAny();
+            _lookupField(controller, isName: isName);
+          },
+        ),
+      );
+    }
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: editableTextState.contextMenuAnchors,
+      buttonItems: buttonItems,
+    );
+  }
+
+  /// Looks the entered callsign up in the offline database and replaces the
+  /// target field with the record's name (or location for the description).
+  Future<void> _lookupField(
+    TextEditingController controller, {
+    required bool isName,
+  }) async {
+    final callsign = _callsignController.text.trim().toUpperCase();
+    if (callsign.isEmpty || !_callsignValid) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context);
+
+    final result = await CallsignLookupService.instance.lookup(callsign);
+    if (!mounted) return;
+
+    final value = result == null
+        ? ''
+        : (isName ? result.record.name : result.record.location);
+    if (value.isEmpty) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.cslNotFound(callsign))),
+      );
+      return;
+    }
+    controller.text = value;
+    setState(() {});
   }
 
   /// Collects channel names from all connected radios, excluding "APRS".
@@ -548,12 +611,26 @@ class _StationDialogState extends State<_StationDialog> {
               const SizedBox(height: 12),
               TextField(
                 controller: _nameController,
+                contextMenuBuilder: (context, editableTextState) =>
+                    _fieldContextMenuBuilder(
+                      context,
+                      editableTextState,
+                      _nameController,
+                      isName: true,
+                    ),
                 decoration: _inputDecoration(labelText: l10n.contactsColName),
               ),
               if (!_isSimpleContact) ...[
                 const SizedBox(height: 12),
                 TextField(
                   controller: _descriptionController,
+                  contextMenuBuilder: (context, editableTextState) =>
+                      _fieldContextMenuBuilder(
+                        context,
+                        editableTextState,
+                        _descriptionController,
+                        isName: false,
+                      ),
                   decoration:
                       _inputDecoration(labelText: l10n.contactsColDescription),
                 ),

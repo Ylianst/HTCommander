@@ -677,19 +677,23 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
       _searched && !_loading && (_country != null || _result != null);
 
   /// Adds the looked-up callsign to the address book as a contact of [type].
-  /// Opens the station dialog prefilled with the callsign (editable) so the
-  /// user can review the details before saving. APRS contacts default to a
-  /// station id of zero.
+  /// When a station of the same type and callsign already exists it is edited
+  /// instead, filling in its name and description from the lookup only when they
+  /// are currently empty. Otherwise a new contact is created, prefilled with the
+  /// callsign (editable). APRS contacts keep a station id (SSID) typed in the
+  /// lookup field, or default to zero when none was given.
   Future<void> _addAsContact(StationType type) async {
-    final base = _searchedCallsign.trim().split('-').first;
+    final searched = _searchedCallsign.trim();
+    final dash = searched.indexOf('-');
+    final hasSsid = dash >= 0 && dash < searched.length - 1;
+    final base = dash >= 0 ? searched.substring(0, dash) : searched;
     if (base.isEmpty) return;
-    final callsign = type == StationType.aprs ? '$base-0' : base;
-    final result = await showStationDialog(
-      context,
-      fixedType: type,
-      initialCallsign: callsign,
-    );
-    if (result == null || !mounted) return;
+    final String callsign;
+    if (type == StationType.aprs) {
+      callsign = hasSsid ? searched : '$base-0';
+    } else {
+      callsign = base;
+    }
 
     final broker = DataBrokerClient();
     final stations = <StationInfo>[];
@@ -703,11 +707,47 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
         }
       }
     }
-    stations.removeWhere(
-      (s) =>
-          s.callsign == result.callsign && s.stationType == result.stationType,
+
+    // A trailing "-0" APRS SSID is equivalent to no SSID when matching.
+    String noZero(String cs) =>
+        cs.endsWith('-0') ? cs.substring(0, cs.length - 2) : cs;
+    final target = noZero(callsign);
+    final existingIndex = stations.indexWhere(
+      (s) => s.stationType == type && noZero(s.callsign) == target,
     );
-    stations.add(result);
+
+    StationInfo? result;
+    if (existingIndex >= 0) {
+      final existing = stations[existingIndex];
+      // Fill name/description from the lookup only when currently empty; the
+      // edit dialog does not auto-fill locked callsigns.
+      final record = _result?.record;
+      if (record != null) {
+        if (existing.name.trim().isEmpty && record.name.isNotEmpty) {
+          existing.name = record.name;
+        }
+        if (existing.description.trim().isEmpty && record.location.isNotEmpty) {
+          existing.description = record.location;
+        }
+      }
+      result = await showStationDialog(context, existing: existing);
+    } else {
+      result = await showStationDialog(
+        context,
+        fixedType: type,
+        initialCallsign: callsign,
+      );
+    }
+    if (result == null || !mounted) {
+      broker.dispose();
+      return;
+    }
+
+    final saved = result;
+    stations.removeWhere(
+      (s) => s.callsign == saved.callsign && s.stationType == saved.stationType,
+    );
+    stations.add(saved);
     broker.dispatch(
       deviceId: 0,
       name: 'Stations',

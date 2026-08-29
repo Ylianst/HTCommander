@@ -227,6 +227,20 @@
   "settingsAprsIsRangeHelp": "Ricevi il traffico APRS entro questo raggio dalla tua ultima posizione GPS confermata, ottenuta da una radio o da un GPS seriale.",
   "settingsAprsIsGateToRf": "Instrada i messaggi da internet all'RF (IGate)",
   "settingsAprsIsGateToRfHelp": "Trasmetti sull'RF i messaggi provenienti da internet per le stazioni ascoltate localmente nell'ultima ora. Richiede una radio con un canale APRS.",
+  "settingsAprsFiTitle": "Recupero da APRS.fi",
+  "settingsAprsFiIntro": "Fornisci la tua chiave API personale di aprs.fi per recuperare i messaggi APRS indirizzati a te ricevuti mentre questa app era offline. I messaggi vengono uniti a quelli che hai già.",
+  "settingsAprsFiApiKey": "Chiave API aprs.fi",
+  "settingsAprsFiApiKeyHint": "Inserisci la tua chiave API aprs.fi",
+  "settingsAprsFiTestNoKey": "Inserisci prima una chiave API.",
+  "settingsAprsFiTestNoCallSign": "Imposta prima il tuo nominativo.",
+  "settingsAprsFiTestSuccess": "Riuscito, trovati {count} messaggi.",
+  "@settingsAprsFiTestSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsEditRoute": "Modifica percorso",
   "settingsEditRouteProtected": "Il percorso integrato non può essere modificato",
   "settingsDeleteRoute": "Elimina percorso",

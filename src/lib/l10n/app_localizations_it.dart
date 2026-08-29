@@ -690,6 +690,30 @@ class AppLocalizationsIt extends AppLocalizations {
       'Trasmetti sull\'RF i messaggi provenienti da internet per le stazioni ascoltate localmente nell\'ultima ora. Richiede una radio con un canale APRS.';
 
   @override
+  String get settingsAprsFiTitle => 'Recupero da APRS.fi';
+
+  @override
+  String get settingsAprsFiIntro =>
+      'Fornisci la tua chiave API personale di aprs.fi per recuperare i messaggi APRS indirizzati a te ricevuti mentre questa app era offline. I messaggi vengono uniti a quelli che hai già.';
+
+  @override
+  String get settingsAprsFiApiKey => 'Chiave API aprs.fi';
+
+  @override
+  String get settingsAprsFiApiKeyHint => 'Inserisci la tua chiave API aprs.fi';
+
+  @override
+  String get settingsAprsFiTestNoKey => 'Inserisci prima una chiave API.';
+
+  @override
+  String get settingsAprsFiTestNoCallSign => 'Imposta prima il tuo nominativo.';
+
+  @override
+  String settingsAprsFiTestSuccess(int count) {
+    return 'Riuscito, trovati $count messaggi.';
+  }
+
+  @override
   String get settingsEditRoute => 'Modifica percorso';
 
   @override

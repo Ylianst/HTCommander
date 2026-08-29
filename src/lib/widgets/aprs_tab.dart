@@ -693,8 +693,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     _aprsIsHistoricalLoaded = true;
     for (final item in data) {
       if (item is AprsPacket && item.packet != null) {
-        // Internet packets are always received (never sent by us).
-        _addAprsPacket(item, false, rebuild: false);
+        // Internet packets are usually received; messages we sent (recovered
+        // from aprs.fi) carry incoming=false and are shown as outgoing.
+        _addAprsPacket(item, !item.packet!.incoming, rebuild: false);
       }
     }
     _sortEntriesByTime();
@@ -1002,17 +1003,31 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       entry.longitude = pos.coordinateSet.longitude.value;
     }
 
-    _entries.add(entry);
-    // Cap the number of internet-gated (APRS-IS) messages kept in memory so a
-    // long-running session doesn't grow without bound. When pruning shifts
-    // entry indices, a full rebuild is required instead of a cheap append.
+    if (!rebuild) {
+      // Bulk historical load: append now; the caller sorts afterwards.
+      _entries.add(entry);
+      _pruneAprsIsHistory();
+      return;
+    }
+
+    // Live path: keep _entries in chronological order. Real-time traffic
+    // arrives newest-last (a cheap append), but backfilled aprs.fi messages
+    // carry older timestamps and must slot into their correct position so the
+    // bubbles stay sorted by time.
+    var insertIndex = _entries.length;
+    while (insertIndex > 0 &&
+        _entries[insertIndex - 1].time.isAfter(entry.time)) {
+      insertIndex--;
+    }
+    _entries.insert(insertIndex, entry);
+    final appendedAtEnd = insertIndex == _entries.length - 1;
+    // Pruning shifts entry indices, so a full rebuild is required then instead
+    // of a cheap append; likewise when the entry slotted in out of order.
     final pruned = _pruneAprsIsHistory();
-    if (rebuild) {
-      if (pruned) {
-        _rebuildMessages();
-      } else {
-        _appendMessage(_entries.length - 1, entry);
-      }
+    if (pruned || !appendedAtEnd) {
+      _rebuildMessages();
+    } else {
+      _appendMessage(_entries.length - 1, entry);
     }
   }
 

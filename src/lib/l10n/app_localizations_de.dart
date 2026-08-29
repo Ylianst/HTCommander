@@ -693,6 +693,33 @@ class AppLocalizationsDe extends AppLocalizations {
       'Übertragen Sie Nachrichten aus dem Internet auf HF für Stationen, die in der letzten Stunde lokal gehört wurden. Erfordert ein Funkgerät mit einem APRS-Kanal.';
 
   @override
+  String get settingsAprsFiTitle => 'APRS.fi-Nachladen';
+
+  @override
+  String get settingsAprsFiIntro =>
+      'Geben Sie Ihren persönlichen aprs.fi-API-Schlüssel ein, um an Sie gerichtete APRS-Nachrichten abzurufen, die empfangen wurden, während diese App offline war. Die Nachrichten werden mit den bereits vorhandenen zusammengeführt.';
+
+  @override
+  String get settingsAprsFiApiKey => 'aprs.fi-API-Schlüssel';
+
+  @override
+  String get settingsAprsFiApiKeyHint =>
+      'Geben Sie Ihren aprs.fi-API-Schlüssel ein';
+
+  @override
+  String get settingsAprsFiTestNoKey =>
+      'Geben Sie zuerst einen API-Schlüssel ein.';
+
+  @override
+  String get settingsAprsFiTestNoCallSign =>
+      'Legen Sie zuerst Ihr Rufzeichen fest.';
+
+  @override
+  String settingsAprsFiTestSuccess(int count) {
+    return 'Erfolg, $count Nachricht(en) gefunden.';
+  }
+
+  @override
   String get settingsEditRoute => 'Route bearbeiten';
 
   @override

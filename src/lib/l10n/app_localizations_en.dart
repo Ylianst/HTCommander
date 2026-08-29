@@ -687,6 +687,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'Transmit messages from the internet on RF for stations heard locally within the last hour. Requires a radio with an APRS channel.';
 
   @override
+  String get settingsAprsFiTitle => 'APRS.fi backfill';
+
+  @override
+  String get settingsAprsFiIntro =>
+      'Provide your personal aprs.fi API key to pull in APRS messages addressed to you that were received while this app was offline. Messages are merged with the ones you already have.';
+
+  @override
+  String get settingsAprsFiApiKey => 'aprs.fi API key';
+
+  @override
+  String get settingsAprsFiApiKeyHint => 'Enter your aprs.fi API key';
+
+  @override
+  String get settingsAprsFiTestNoKey => 'Enter an API key first.';
+
+  @override
+  String get settingsAprsFiTestNoCallSign => 'Set your call sign first.';
+
+  @override
+  String settingsAprsFiTestSuccess(int count) {
+    return 'Success, $count message(s) found.';
+  }
+
+  @override
   String get settingsEditRoute => 'Edit route';
 
   @override

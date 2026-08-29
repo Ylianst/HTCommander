@@ -236,6 +236,20 @@
   "settingsAprsIsRangeHelp": "接收距离您最后确认的 GPS 位置（从无线电或串行 GPS 获取）此范围内的 APRS 流量。",
   "settingsAprsIsGateToRf": "将互联网消息转发到射频 (IGate)",
   "settingsAprsIsGateToRfHelp": "为过去一小时内本地收听到的电台，将来自互联网的消息通过射频发送。需要具有 APRS 频道的无线电。",
+  "settingsAprsFiTitle": "APRS.fi 回填",
+  "settingsAprsFiIntro": "提供您的个人 aprs.fi API 密钥，以拉取在本应用离线期间收到的、发送给您的 APRS 消息。消息将与您已有的消息合并。",
+  "settingsAprsFiApiKey": "aprs.fi API 密钥",
+  "settingsAprsFiApiKeyHint": "输入您的 aprs.fi API 密钥",
+  "settingsAprsFiTestNoKey": "请先输入 API 密钥。",
+  "settingsAprsFiTestNoCallSign": "请先设置您的呼号。",
+  "settingsAprsFiTestSuccess": "成功，找到 {count} 条消息。",
+  "@settingsAprsFiTestSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsEditRoute": "编辑路由",
   "settingsEditRouteProtected": "内置路由无法编辑",
   "settingsDeleteRoute": "删除路由",

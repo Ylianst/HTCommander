@@ -690,6 +690,30 @@ class AppLocalizationsHi extends AppLocalizations {
       'पिछले एक घंटे में स्थानीय रूप से सुने गए स्टेशनों के लिए इंटरनेट से संदेशों को RF पर प्रसारित करें। इसके लिए APRS चैनल वाले रेडियो की आवश्यकता होती है।';
 
   @override
+  String get settingsAprsFiTitle => 'APRS.fi बैकफ़िल';
+
+  @override
+  String get settingsAprsFiIntro =>
+      'आपको संबोधित APRS संदेशों को प्राप्त करने के लिए अपनी व्यक्तिगत aprs.fi API कुंजी दर्ज करें, जो इस ऐप के ऑफ़लाइन रहने के दौरान प्राप्त हुए थे। संदेश आपके पास पहले से मौजूद संदेशों के साथ मर्ज कर दिए जाते हैं।';
+
+  @override
+  String get settingsAprsFiApiKey => 'aprs.fi API कुंजी';
+
+  @override
+  String get settingsAprsFiApiKeyHint => 'अपनी aprs.fi API कुंजी दर्ज करें';
+
+  @override
+  String get settingsAprsFiTestNoKey => 'पहले एक API कुंजी दर्ज करें।';
+
+  @override
+  String get settingsAprsFiTestNoCallSign => 'पहले अपना कॉल साइन सेट करें।';
+
+  @override
+  String settingsAprsFiTestSuccess(int count) {
+    return 'सफल, $count संदेश मिले।';
+  }
+
+  @override
   String get settingsEditRoute => 'रूट संपादित करें';
 
   @override
