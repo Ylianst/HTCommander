@@ -2443,6 +2443,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aprsMessengerMode => 'メッセンジャーモード';
 
   @override
+  String get aprsAllMessages => 'すべてのメッセージ';
+
+  @override
   String get aprsAddContact => '連絡先を追加...';
 
   @override
@@ -2535,6 +2538,11 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get aprsMissingChannel =>
       '接続中の無線機に「APRS」チャンネルが設定されていません。APRS メッセージを送受信するには APRS チャンネルを追加してください。';
+
+  @override
+  String aprsMissingRoute(String route) {
+    return 'この連絡先の APRS ルート「$route」は存在しません。連絡先を更新するまで、メッセージはデジピーター経路なしで送信されます。';
+  }
 
   @override
   String get aprsSetup => '設定';

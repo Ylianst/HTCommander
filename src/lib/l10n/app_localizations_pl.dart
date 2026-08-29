@@ -2497,6 +2497,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get aprsMessengerMode => 'Tryb komunikatora';
 
   @override
+  String get aprsAllMessages => 'Wszystkie wiadomości';
+
+  @override
   String get aprsAddContact => 'Dodaj kontakt...';
 
   @override
@@ -2591,6 +2594,11 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get aprsMissingChannel =>
       'Na połączonym radiotelefonie nie skonfigurowano kanału „APRS”. Dodaj kanał APRS, aby wysyłać i odbierać wiadomości APRS.';
+
+  @override
+  String aprsMissingRoute(String route) {
+    return 'Trasa APRS „$route” dla tego kontaktu już nie istnieje. Wiadomości będą wysyłane bez ścieżki digipeatera, dopóki nie zaktualizujesz kontaktu.';
+  }
 
   @override
   String get aprsSetup => 'Konfiguruj';

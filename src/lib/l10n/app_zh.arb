@@ -800,6 +800,7 @@
   "aprsShowAll": "显示遥测",
   "aprsShowAprsIs": "显示互联网流量",
   "aprsMessengerMode": "信使模式",
+  "aprsAllMessages": "所有消息",
   "aprsAddContact": "添加联系人...",
   "aprsNoConversations": "暂无会话",
   "aprsSendSms": "发送 SMS 消息...",
@@ -813,6 +814,7 @@
   "aprsIntervalMinute": "1 分钟",
   "aprsIntervalMinutes": "{count} 分钟",
   "aprsMissingChannel": "已连接的电台上未配置“APRS”信道。请添加 APRS 信道以发送和接收 APRS 消息。",
+  "aprsMissingRoute": "此联系人的 APRS 路由“{route}”已不存在。在您更新该联系人之前，消息将不带数字中继路径发送。",
   "aprsSetup": "设置",
   "aprsTypeMessage": "输入消息...",
 

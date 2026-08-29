@@ -1566,6 +1566,7 @@
   "aprsShowAll": "Show Telemetry",
   "aprsShowAprsIs": "Show Internet Traffic",
   "aprsMessengerMode": "Messenger Mode",
+  "aprsAllMessages": "All Messages",
   "aprsAddContact": "Add Contact...",
   "aprsNoConversations": "No conversations yet",
   "aprsSendSms": "Send SMS Message...",
@@ -1609,6 +1610,14 @@
     }
   },
   "aprsMissingChannel": "No \"APRS\" channel is configured on the connected radio. Add an APRS channel to send and receive APRS messages.",
+  "aprsMissingRoute": "The APRS route \"{route}\" for this contact no longer exists. Messages will be sent without a digipeater path until you update the contact.",
+  "@aprsMissingRoute": {
+    "placeholders": {
+      "route": {
+        "type": "String"
+      }
+    }
+  },
   "aprsSetup": "Set up",
   "aprsTypeMessage": "Type a message...",
 

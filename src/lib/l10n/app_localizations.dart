@@ -4576,6 +4576,12 @@ abstract class AppLocalizations {
   /// **'Messenger Mode'**
   String get aprsMessengerMode;
 
+  /// No description provided for @aprsAllMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'All Messages'**
+  String get aprsAllMessages;
+
   /// No description provided for @aprsAddContact.
   ///
   /// In en, this message translates to:
@@ -4743,6 +4749,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No \"APRS\" channel is configured on the connected radio. Add an APRS channel to send and receive APRS messages.'**
   String get aprsMissingChannel;
+
+  /// No description provided for @aprsMissingRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'The APRS route \"{route}\" for this contact no longer exists. Messages will be sent without a digipeater path until you update the contact.'**
+  String aprsMissingRoute(String route);
 
   /// No description provided for @aprsSetup.
   ///

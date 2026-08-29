@@ -800,6 +800,7 @@
   "aprsShowAll": "टेलीमेट्री दिखाएँ",
   "aprsShowAprsIs": "इंटरनेट ट्रैफ़िक दिखाएं",
   "aprsMessengerMode": "मैसेंजर मोड",
+  "aprsAllMessages": "सभी संदेश",
   "aprsAddContact": "संपर्क जोड़ें...",
   "aprsNoConversations": "अभी तक कोई बातचीत नहीं",
   "aprsSendSms": "SMS संदेश भेजें...",
@@ -813,6 +814,7 @@
   "aprsIntervalMinute": "1 मिनट",
   "aprsIntervalMinutes": "{count} मिनट",
   "aprsMissingChannel": "कनेक्टेड रेडियो पर कोई 'APRS' चैनल कॉन्फ़िगर नहीं है। APRS संदेश भेजने और प्राप्त करने के लिए एक APRS चैनल जोड़ें।",
+  "aprsMissingRoute": "इस संपर्क के लिए APRS रूट '{route}' अब मौजूद नहीं है। जब तक आप संपर्क अपडेट नहीं करते, संदेश डिजीपीटर पथ के बिना भेजे जाएंगे।",
   "aprsSetup": "सेटअप",
   "aprsTypeMessage": "एक संदेश लिखें...",
 

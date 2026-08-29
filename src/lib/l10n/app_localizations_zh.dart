@@ -2426,6 +2426,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aprsMessengerMode => '信使模式';
 
   @override
+  String get aprsAllMessages => '所有消息';
+
+  @override
   String get aprsAddContact => '添加联系人...';
 
   @override
@@ -2516,6 +2519,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get aprsMissingChannel =>
       '已连接的电台上未配置“APRS”信道。请添加 APRS 信道以发送和接收 APRS 消息。';
+
+  @override
+  String aprsMissingRoute(String route) {
+    return '此联系人的 APRS 路由“$route”已不存在。在您更新该联系人之前，消息将不带数字中继路径发送。';
+  }
 
   @override
   String get aprsSetup => '设置';

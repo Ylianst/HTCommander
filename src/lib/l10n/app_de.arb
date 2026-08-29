@@ -800,6 +800,7 @@
   "aprsShowAll": "Telemetrie anzeigen",
   "aprsShowAprsIs": "Internetverkehr anzeigen",
   "aprsMessengerMode": "Messenger-Modus",
+  "aprsAllMessages": "Alle Nachrichten",
   "aprsAddContact": "Kontakt hinzufügen...",
   "aprsNoConversations": "Noch keine Unterhaltungen",
   "aprsSendSms": "SMS-Nachricht senden...",
@@ -813,6 +814,7 @@
   "aprsIntervalMinute": "1 Minute",
   "aprsIntervalMinutes": "{count} Minuten",
   "aprsMissingChannel": "Auf dem verbundenen Funkgerät ist kein „APRS“-Kanal konfiguriert. Fügen Sie einen APRS-Kanal hinzu, um APRS-Nachrichten zu senden und zu empfangen.",
+  "aprsMissingRoute": "Die APRS-Route „{route}“ für diesen Kontakt existiert nicht mehr. Nachrichten werden ohne Digipeater-Pfad gesendet, bis Sie den Kontakt aktualisieren.",
   "aprsSetup": "Einrichten",
   "aprsTypeMessage": "Nachricht eingeben...",
 

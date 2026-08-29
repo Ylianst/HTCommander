@@ -800,6 +800,7 @@
   "aprsShowAll": "テレメトリを表示",
   "aprsShowAprsIs": "インターネットトラフィックを表示",
   "aprsMessengerMode": "メッセンジャーモード",
+  "aprsAllMessages": "すべてのメッセージ",
   "aprsAddContact": "連絡先を追加...",
   "aprsNoConversations": "会話はまだありません",
   "aprsSendSms": "SMS メッセージを送信...",
@@ -813,6 +814,7 @@
   "aprsIntervalMinute": "1 分",
   "aprsIntervalMinutes": "{count} 分",
   "aprsMissingChannel": "接続中の無線機に「APRS」チャンネルが設定されていません。APRS メッセージを送受信するには APRS チャンネルを追加してください。",
+  "aprsMissingRoute": "この連絡先の APRS ルート「{route}」は存在しません。連絡先を更新するまで、メッセージはデジピーター経路なしで送信されます。",
   "aprsSetup": "設定",
   "aprsTypeMessage": "メッセージを入力...",
 

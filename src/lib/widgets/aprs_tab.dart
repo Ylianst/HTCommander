@@ -136,15 +136,20 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   bool _historicalLoaded = false;
   bool _aprsIsHistoricalLoaded = false;
 
-  // Messenger mode: a Signal-style conversation list + per-contact chat. When
-  // [_messengerMode] is off the tab shows the classic combined APRS feed.
-  bool _messengerMode = false;
+  // The APRS tab shows a Signal-style conversation list by default. Selecting
+  // "All Messages" opens the combined APRS feed ([_viewAllMessages]); selecting
+  // a contact opens a per-contact conversation ([_selectedContact]). When both
+  // are unset the conversation list is shown.
+  bool _viewAllMessages = false;
   // Selected conversation peer (uppercased callsign). Null shows the list.
   String? _selectedContact;
   // Display names for APRS stations from the address book, keyed by callsign.
   Map<String, String> _contactNames = {};
   // Avatar overrides (chosen logo / custom image) keyed by uppercased callsign.
   Map<String, ({String? icon, String? image})> _contactAvatars = {};
+  // Configured APRS route name for each contact, keyed by contact id. Empty or
+  // missing means the contact has no route preference.
+  Map<String, String> _contactRoutes = {};
   // Uppercased ids of SMS/phone contacts; messages to these route via the SMS
   // gateway instead of being addressed to the id directly.
   Set<String> _smsContacts = {};
@@ -193,8 +198,6 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         (_broker.getValue<int>(0, 'AprsShowTelemetry', 0) ?? 0) != 0;
     _showAprsIs =
         (_broker.getValue<int>(0, 'AprsShowAprsIs', 1) ?? 1) != 0;
-    _messengerMode =
-        (_broker.getValue<int>(0, 'AprsMessengerMode', 0) ?? 0) != 0;
     _selectedRouteIndex = _broker.getValue<int>(0, 'SelectedAprsRoute', 0) ?? 0;
     _parseAndSetRoutes(_broker.getValue<String>(0, 'AprsRoutes', '') ?? '');
     final savedDest = _broker.getValue<String>(0, 'AprsDestination', '') ?? '';
@@ -365,6 +368,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     final dests = <String>['ALL', 'QST', 'CQ'];
     final names = <String, String>{};
     final avatars = <String, ({String? icon, String? image})>{};
+    final routes = <String, String>{};
     final smsContacts = <String>{};
     final addressBookIds = <String>[];
     final raw = _broker.getValueDynamic(0, 'Stations', null);
@@ -394,6 +398,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         final name = (item['Name'] ?? item['name'])?.toString().trim() ?? '';
         if (name.isNotEmpty) names[key] = name;
 
+        final route =
+            (item['APRSRoute'] ?? item['aprsRoute'])?.toString().trim() ?? '';
+        if (route.isNotEmpty) routes[key] = route;
+
         final icon = (item['AvatarIcon'] ?? item['avatarIcon'])?.toString();
         final image = (item['AvatarImage'] ?? item['avatarImage'])?.toString();
         if ((icon != null && icon.isNotEmpty) ||
@@ -408,6 +416,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     _destinations = dests;
     _contactNames = names;
     _contactAvatars = avatars;
+    _contactRoutes = routes;
     _smsContacts = smsContacts;
     _addressBookIds = addressBookIds;
   }
@@ -630,7 +639,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   bool get _canSend =>
       (_hasAprsChannel || _aprsIsTransmitAvailable || _isAprsSatActive) &&
       (!_isRadioLockedForOtherUsage || _isAprsSatActive) &&
-      ((_messengerMode && _selectedContact != null) ||
+      ((_selectedContact != null) ||
           _destinationController.text.trim().isNotEmpty) &&
       _messageController.text.trim().isNotEmpty;
 
@@ -809,7 +818,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   /// Whether [e] should appear in the chat view given the current filters and,
   /// in Messenger mode with a selected contact, the conversation peer.
   bool _entryInCurrentView(_AprsEntry e) {
-    if (_messengerMode && _selectedContact != null) {
+    if (_selectedContact != null) {
       // In a focused conversation, show every message to/from the peer,
       // ignoring the telemetry / internet-traffic toggles (those govern the
       // combined feed). peerCallsign is only set for message packets, so
@@ -1065,6 +1074,38 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     return _aprsRoutes[_selectedRouteIndex].toRouteArray();
   }
 
+  /// Configured route name for a contact, or the empty string when none is set.
+  String _contactRouteName(String callsign) =>
+      _contactRoutes[callsign.toUpperCase()] ?? '';
+
+  /// Route array for a named route, or null when no route with that name exists.
+  List<String>? _routeArrayForName(String name) {
+    for (final r in _aprsRoutes) {
+      if (r.name == name) return r.toRouteArray();
+    }
+    return null;
+  }
+
+  /// True when a per-contact conversation is open, the contact has a route
+  /// preference, but that route no longer exists in the configured routes.
+  bool get _selectedContactRouteMissing {
+    if (_selectedContact == null) return false;
+    final name = _contactRouteName(_selectedContact!);
+    if (name.isEmpty) return false;
+    return _routeArrayForName(name) == null;
+  }
+
+  /// Route to use when sending: a contact's own route while in a conversation,
+  /// otherwise the route chosen in the header dropdown for the "All Messages"
+  /// feed. Falls back to the selected route when the contact has no preference.
+  List<String>? _routeForSending() {
+    if (_selectedContact != null) {
+      final name = _contactRouteName(_selectedContact!);
+      if (name.isNotEmpty) return _routeArrayForName(name);
+    }
+    return _getSelectedRoute();
+  }
+
   /// Semi-transparent overlay shown over the message list while a radio channel
   /// is being dragged onto the tab, hinting that dropping will share it.
   Widget _buildChannelDropOverlay() {
@@ -1116,7 +1157,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   }
 
   void _sendMessage() {
-    final inConversation = _messengerMode && _selectedContact != null;
+    final inConversation = _selectedContact != null;
     // Messages to an SMS/phone contact are relayed through the "SMS" gateway,
     // exactly like the "Send SMS Message..." menu (@<number> <text>).
     final toSms = inConversation && _smsContacts.contains(_selectedContact);
@@ -1156,7 +1197,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         destination: destination,
         message: outgoing,
         radioDeviceId: radioDeviceId,
-        route: _getSelectedRoute(),
+        route: _routeForSending(),
       ),
       store: false,
     );
@@ -1483,28 +1524,23 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     }
   }
 
-  /// Handles a "Message this station" request from the Map tab. In Messenger
-  /// mode it opens the conversation for [data] when the station is a known APRS
-  /// contact; otherwise it drops out of Messenger mode and pre-fills the
-  /// destination in the classic feed. In the classic feed it just pre-fills the
-  /// destination.
+  /// Handles a "Message this station" request from the Map tab. When the
+  /// station is a known APRS contact it opens that conversation; otherwise it
+  /// opens the combined "All Messages" feed and pre-fills the destination.
   void _onMessageStationRequested(int deviceId, String name, dynamic data) {
     if (data is! String || data.trim().isEmpty || !mounted) return;
     final callsign = data.trim().toUpperCase();
-    if (_messengerMode && _isAprsContact(callsign)) {
+    if (_isAprsContact(callsign)) {
       _openConversation(callsign);
-    } else if (_messengerMode) {
-      // No contact for this station: the Messenger conversation list has
-      // nothing to show, so leave Messenger mode and pre-fill the classic feed.
+    } else {
+      // No contact for this station: open the combined feed and pre-fill the
+      // destination so the user can message them.
       setState(() {
-        _messengerMode = false;
+        _viewAllMessages = true;
         _selectedContact = null;
       });
-      _broker.dispatch(deviceId: 0, name: 'AprsMessengerMode', data: 0);
       _setReceiver(callsign);
       _rebuildMessages();
-    } else {
-      _setReceiver(callsign);
     }
   }
 
@@ -1591,36 +1627,37 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     _rebuildMessages();
   }
 
-  void _toggleMessengerMode() {
+  void _openAllMessages() {
     setState(() {
-      _messengerMode = !_messengerMode;
+      _viewAllMessages = true;
       _selectedContact = null;
     });
-    _broker.dispatch(
-      deviceId: 0,
-      name: 'AprsMessengerMode',
-      data: _messengerMode ? 1 : 0,
-    );
     _rebuildMessages();
   }
 
   /// Opens a conversation for [callsign] in Messenger mode, filtering the chat
   /// to that peer.
   void _openConversation(String callsign) {
-    setState(() => _selectedContact = callsign.toUpperCase());
+    setState(() {
+      _viewAllMessages = false;
+      _selectedContact = callsign.toUpperCase();
+    });
     _rebuildMessages();
     _messageFocusNode.requestFocus();
   }
 
   /// Returns to the Messenger conversation list.
   void _closeConversation() {
-    setState(() => _selectedContact = null);
+    setState(() {
+      _selectedContact = null;
+      _viewAllMessages = false;
+    });
     _rebuildMessages();
   }
 
   Future<void> _clearMessages() async {
     final l10n = AppLocalizations.of(context);
-    final inConversation = _messengerMode && _selectedContact != null;
+    final inConversation = _selectedContact != null;
     final confirmed = await DialogHelper.showConfirmDialog(
       context,
       title: l10n.aprsClearTitle,
@@ -1669,23 +1706,6 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         offset.dy,
       ),
       items: [
-        PopupMenuItem<String>(
-          value: 'messengerMode',
-          height: menuItemHeight,
-          padding: menuItemPadding,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                child: _messengerMode
-                    ? const Text('✓', style: TextStyle(fontSize: 14))
-                    : null,
-              ),
-              Text(l10n.aprsMessengerMode),
-            ],
-          ),
-        ),
-        const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
           value: 'showAll',
           height: menuItemHeight,
@@ -1762,8 +1782,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           value: 'clear',
           height: menuItemHeight,
           padding: menuItemPadding,
-          // Nothing to clear while viewing the Messenger conversation list.
-          enabled: !(_messengerMode && _selectedContact == null),
+          // Nothing to clear while viewing the conversation list.
+          enabled: _viewAllMessages || _selectedContact != null,
           child: Row(children: [const SizedBox(width: 20), Text(l10n.tabClear)]),
         ),
         if (windowService.canDetach) ...[
@@ -1781,9 +1801,6 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     ).then((value) {
       if (value == null || !mounted) return;
       switch (value) {
-        case 'messengerMode':
-          _toggleMessengerMode();
-          break;
         case 'showAll':
           _toggleShowAll();
           break;
@@ -1819,8 +1836,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    // Messenger mode, conversation list: header + list, no input panel.
-    if (_messengerMode && _selectedContact == null) {
+    // Conversation list view: header + list, no input panel.
+    if (!_viewAllMessages && _selectedContact == null) {
       return Column(
         children: [
           _buildHeader(),
@@ -1833,6 +1850,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       children: [
         _buildHeader(),
         if (_showMissingChannel) _buildMissingChannelBanner(),
+        if (_selectedContactRouteMissing) _buildMissingRouteBanner(),
         Expanded(
           child: DragTarget<radio.RadioChannelInfo>(
             onWillAcceptWithDetails: (_) => true,
@@ -1849,7 +1867,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
                       onMessageIconTap: _onMessageIconTap,
                     ),
                   ),
-                  if (_messengerMode && _selectedContact != null)
+                  if (_selectedContact != null)
                     _buildConversationAvatarOverlay(),
                   if (channelHover)
                     Positioned.fill(
@@ -2055,20 +2073,16 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     return Column(
       children: [
         Expanded(
-          child: conversations.isEmpty
-              ? Center(
-                  child: Text(
-                    l10n.aprsNoConversations,
-                    style: TextStyle(color: scheme.onSurfaceVariant),
-                  ),
-                )
-              : ListView.separated(
-                  itemCount: conversations.length,
-                  separatorBuilder: (_, _) =>
-                      Divider(height: 1, color: scheme.outlineVariant),
-                  itemBuilder: (context, index) =>
-                      _buildConversationTile(conversations[index]),
-                ),
+          // The "All Messages" entry is always shown first, followed by the
+          // per-contact conversations.
+          child: ListView.separated(
+            itemCount: conversations.length + 1,
+            separatorBuilder: (_, _) =>
+                Divider(height: 1, color: scheme.outlineVariant),
+            itemBuilder: (context, index) => index == 0
+                ? _buildAllMessagesTile()
+                : _buildConversationTile(conversations[index - 1]),
+          ),
         ),
         Divider(height: 1, color: scheme.outlineVariant),
         // Add-contact action, styled like the Contacts tab bottom bar.
@@ -2111,6 +2125,26 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           ),
         ),
       ],
+    );
+  }
+
+  /// The list entry that opens the combined APRS feed (all messages). Shown at
+  /// the top of the conversation list with a generic icon instead of an avatar.
+  Widget _buildAllMessagesTile() {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: scheme.primaryContainer,
+        child: Icon(Icons.forum, color: scheme.onPrimaryContainer),
+      ),
+      title: Text(
+        l10n.aprsAllMessages,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontWeight: FontWeight.w500),
+      ),
+      onTap: _openAllMessages,
     );
   }
 
@@ -2250,6 +2284,36 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     );
   }
 
+  /// Warning shown when the selected contact references an APRS route that no
+  /// longer exists. Matches the style of [_buildMissingChannelBanner].
+  Widget _buildMissingRouteBanner() {
+    final scheme = Theme.of(context).colorScheme;
+    final routeName = _selectedContact != null
+        ? _contactRouteName(_selectedContact!)
+        : '';
+    return Container(
+      width: double.infinity,
+      color: scheme.secondaryContainer,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          Icon(
+            Icons.warning_amber,
+            color: scheme.onSecondaryContainer,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              AppLocalizations.of(context).aprsMissingRoute(routeName),
+              style: TextStyle(color: scheme.onSecondaryContainer, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Opens the APRS channel setup dialog and, on confirmation, writes a new
   /// "APRS" channel to the radio by overwriting the selected channel slot.
   /// Mirrors the C# `aprsSetupButton_Click`.
@@ -2337,15 +2401,19 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       child: LayoutBuilder(
         builder: (context, constraints) {
           final showDropdown =
-              constraints.maxWidth > 250 && _aprsRoutes.length > 1;
-          final inConversation =
-              _messengerMode && _selectedContact != null;
+              _viewAllMessages &&
+              constraints.maxWidth > 250 &&
+              _aprsRoutes.length > 1;
+          final inConversation = _selectedContact != null;
+          // A back arrow is shown for both the "All Messages" feed and a
+          // per-contact conversation so the user can return to the list.
+          final inContent = _viewAllMessages || inConversation;
           final title = inConversation
               ? '${AppLocalizations.of(context).tabAprs} - ${_contactDisplayName(_selectedContact!)}'
               : AppLocalizations.of(context).tabAprs;
           return Row(
             children: [
-              if (inConversation)
+              if (inContent)
                 InkWell(
                   onTap: _closeConversation,
                   borderRadius: BorderRadius.circular(4),
@@ -2354,7 +2422,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
                     child: Icon(Icons.arrow_back, size: 20),
                   ),
                 ),
-              if (inConversation) const SizedBox(width: 4),
+              if (inContent) const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   title,
@@ -2442,7 +2510,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     final scheme = Theme.of(context).colorScheme;
     // In a Messenger conversation the destination is fixed to the selected
     // contact, so the destination combo box is hidden.
-    final inConversation = _messengerMode && _selectedContact != null;
+    final inConversation = _selectedContact != null;
     return Container(
       height: 50,
       decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
@@ -2454,7 +2522,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           // Destination combo box (text input with dropdown)
           if (!inConversation) ...[
             SizedBox(
-              width: 100,
+              width: 120,
               height: 34,
               child: Container(
                 decoration: BoxDecoration(

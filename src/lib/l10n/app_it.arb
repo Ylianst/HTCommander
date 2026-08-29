@@ -792,6 +792,7 @@
   "aprsShowAll": "Mostra telemetria",
   "aprsShowAprsIs": "Mostra traffico internet",
   "aprsMessengerMode": "Modalità messenger",
+  "aprsAllMessages": "Tutti i messaggi",
   "aprsAddContact": "Aggiungi contatto...",
   "aprsNoConversations": "Nessuna conversazione",
   "aprsSendSms": "Invia messaggio SMS...",
@@ -820,6 +821,7 @@
   "aprsIntervalMinute": "1 minuto",
   "aprsIntervalMinutes": "{count} minuti",
   "aprsMissingChannel": "Nessun canale \"APRS\" è configurato sulla radio connessa. Aggiungi un canale APRS per inviare e ricevere messaggi APRS.",
+  "aprsMissingRoute": "Il percorso APRS \"{route}\" per questo contatto non esiste più. I messaggi verranno inviati senza percorso digipeater finché non aggiorni il contatto.",
   "aprsSetup": "Configura",
   "aprsTypeMessage": "Scrivi un messaggio...",
 

@@ -800,6 +800,7 @@
   "aprsShowAll": "Mostrar telemetría",
   "aprsShowAprsIs": "Mostrar tráfico de Internet",
   "aprsMessengerMode": "Modo mensajería",
+  "aprsAllMessages": "Todos los mensajes",
   "aprsAddContact": "Añadir contacto...",
   "aprsNoConversations": "Aún no hay conversaciones",
   "aprsSendSms": "Enviar un mensaje SMS...",
@@ -813,6 +814,7 @@
   "aprsIntervalMinute": "1 minuto",
   "aprsIntervalMinutes": "{count} minutos",
   "aprsMissingChannel": "No hay ningún canal «APRS» configurado en la radio conectada. Agregue un canal APRS para enviar y recibir mensajes APRS.",
+  "aprsMissingRoute": "La ruta APRS «{route}» de este contacto ya no existe. Los mensajes se enviarán sin ruta de digipetidor hasta que actualice el contacto.",
   "aprsSetup": "Configurar",
   "aprsTypeMessage": "Escriba un mensaje...",
 

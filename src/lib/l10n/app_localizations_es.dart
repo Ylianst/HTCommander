@@ -2504,6 +2504,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get aprsMessengerMode => 'Modo mensajería';
 
   @override
+  String get aprsAllMessages => 'Todos los mensajes';
+
+  @override
   String get aprsAddContact => 'Añadir contacto...';
 
   @override
@@ -2598,6 +2601,11 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get aprsMissingChannel =>
       'No hay ningún canal «APRS» configurado en la radio conectada. Agregue un canal APRS para enviar y recibir mensajes APRS.';
+
+  @override
+  String aprsMissingRoute(String route) {
+    return 'La ruta APRS «$route» de este contacto ya no existe. Los mensajes se enviarán sin ruta de digipetidor hasta que actualice el contacto.';
+  }
 
   @override
   String get aprsSetup => 'Configurar';

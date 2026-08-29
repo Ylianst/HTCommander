@@ -2485,6 +2485,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get aprsMessengerMode => 'मैसेंजर मोड';
 
   @override
+  String get aprsAllMessages => 'सभी संदेश';
+
+  @override
   String get aprsAddContact => 'संपर्क जोड़ें...';
 
   @override
@@ -2579,6 +2582,11 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get aprsMissingChannel =>
       'कनेक्टेड रेडियो पर कोई \'APRS\' चैनल कॉन्फ़िगर नहीं है। APRS संदेश भेजने और प्राप्त करने के लिए एक APRS चैनल जोड़ें।';
+
+  @override
+  String aprsMissingRoute(String route) {
+    return 'इस संपर्क के लिए APRS रूट \'$route\' अब मौजूद नहीं है। जब तक आप संपर्क अपडेट नहीं करते, संदेश डिजीपीटर पथ के बिना भेजे जाएंगे।';
+  }
 
   @override
   String get aprsSetup => 'सेटअप';
