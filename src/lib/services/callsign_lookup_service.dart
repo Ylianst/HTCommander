@@ -4,11 +4,13 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -232,8 +234,44 @@ class CallsignLookupService {
 
   bool _initialized = false;
 
+  /// DataBroker key (device 0) for the "auto-update on WiFi" preference.
+  static const String autoUpdateKey = 'CallsignDbAutoUpdate';
+
+  /// DataBroker key (device 0) for the epoch-ms timestamp of the last
+  /// successful background update check.
+  static const String lastAutoCheckKey = 'CallsignDbLastAutoCheck';
+
+  /// Minimum time between background update checks, matching the desktop
+  /// self-update policy.
+  static const Duration _autoUpdateMinInterval = Duration(days: 1);
+
+  /// How often the background scheduler re-checks for a new database while the
+  /// app is running.
+  static const Duration _autoUpdateInterval = Duration(hours: 6);
+
+  /// Periodic background auto-update timer (null when the scheduler is off).
+  Timer? _autoUpdateTimer;
+
+  /// Guards against overlapping auto-update passes.
+  bool _autoUpdating = false;
+
   /// Whether offline callsign lookup is supported on this platform.
   bool get isSupported => !kIsWeb;
+
+  /// Whether the installed databases should be refreshed automatically in the
+  /// background while the app is running, but only over a non-metered
+  /// connection (see [_connectionAllowsUpdate]). Persisted via the DataBroker.
+  bool get autoUpdateOnWifi =>
+      DataBroker.getValue<bool>(deviceId, autoUpdateKey, false) ?? false;
+
+  set autoUpdateOnWifi(bool value) {
+    _broker.dispatch(deviceId: deviceId, name: autoUpdateKey, data: value);
+    if (value) {
+      startAutoUpdateScheduler();
+    } else {
+      stopAutoUpdateScheduler();
+    }
+  }
 
   /// Whether at least one database is loaded and ready for lookups.
   bool get isAvailable => _dbs.isNotEmpty;
@@ -314,6 +352,91 @@ class CallsignLookupService {
       }
     } catch (e) {
       debugPrint('CallsignLookupService: init failed: $e');
+    }
+  }
+
+  /// Starts the periodic background auto-update scheduler if the preference is
+  /// enabled and the platform is supported. Runs one check shortly after start,
+  /// then re-checks every [_autoUpdateInterval]. Safe to call repeatedly.
+  void startAutoUpdateScheduler() {
+    if (!isSupported || !autoUpdateOnWifi) return;
+    _autoUpdateTimer?.cancel();
+    _autoUpdateTimer = Timer.periodic(
+      _autoUpdateInterval,
+      (_) => maybeAutoUpdate(),
+    );
+    // Kick off an initial pass without blocking the caller.
+    unawaited(maybeAutoUpdate());
+  }
+
+  /// Stops the background auto-update scheduler.
+  void stopAutoUpdateScheduler() {
+    _autoUpdateTimer?.cancel();
+    _autoUpdateTimer = null;
+  }
+
+  /// Runs one background auto-update pass: when the preference is enabled and
+  /// the current connection is non-metered, refreshes every installed database
+  /// to the latest manifest. Skips when a check ran within the last 24 hours.
+  /// Errors (offline, network, etc.) are swallowed so a failed background
+  /// attempt is simply retried on the next tick.
+  ///
+  /// Set [force] to bypass the 24-hour throttle (e.g. a manual trigger).
+  Future<void> maybeAutoUpdate({bool force = false}) async {
+    if (!isSupported || !autoUpdateOnWifi || _autoUpdating) return;
+    if (!force) {
+      final lastMs =
+          DataBroker.getValue<int>(deviceId, lastAutoCheckKey, 0) ?? 0;
+      if (lastMs > 0) {
+        final last = DateTime.fromMillisecondsSinceEpoch(lastMs);
+        if (DateTime.now().difference(last) < _autoUpdateMinInterval) return;
+      }
+    }
+    if (!await _connectionAllowsUpdate()) return;
+    _autoUpdating = true;
+    try {
+      for (final source in CallsignDbSource.values) {
+        // Only refresh databases the user has already installed; never pull a
+        // large baseline unattended for a source they never chose.
+        if (!isSourceAvailable(source)) continue;
+        try {
+          final manifest = await fetchManifest(source);
+          await update(source, manifest);
+        } catch (e) {
+          debugPrint(
+            'CallsignLookupService: auto-update failed for ${source.id}: $e',
+          );
+        }
+      }
+      // Record the check time only after a completed pass so a network failure
+      // (which returns early above) lets the next tick retry.
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: lastAutoCheckKey,
+        data: DateTime.now().millisecondsSinceEpoch,
+      );
+    } finally {
+      _autoUpdating = false;
+    }
+  }
+
+  /// Whether the current network connection is safe to download over without
+  /// risking mobile data charges. Any WiFi/ethernet/VPN connection qualifies;
+  /// a cellular-only connection (or no connection) does not.
+  Future<bool> _connectionAllowsUpdate() async {
+    try {
+      final results = await Connectivity().checkConnectivity();
+      return results.any(
+        (r) =>
+            r == ConnectivityResult.wifi ||
+            r == ConnectivityResult.ethernet ||
+            r == ConnectivityResult.vpn,
+      );
+    } catch (e) {
+      // If connectivity can't be determined, err on the side of not spending
+      // the user's mobile data.
+      debugPrint('CallsignLookupService: connectivity check failed: $e');
+      return false;
     }
   }
 

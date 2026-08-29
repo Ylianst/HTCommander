@@ -2462,6 +2462,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get aprsCopyCallsign => 'कॉल साइन कॉपी करें';
 
   @override
+  String get callsignLookup => 'खोजें...';
+
+  @override
   String get aprsCopyChannel => 'चैनल कॉपी करें';
 
   @override
@@ -3604,6 +3607,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get cslViewCallsign => 'कॉलसाइन खोजें...';
 
   @override
+  String get cslAddContact => 'संपर्क के रूप में जोड़ें';
+
+  @override
   String get cslTitle => 'कॉलसाइन खोज';
 
   @override
@@ -3718,4 +3724,11 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get cslDeleteMessage =>
       'डाउनलोड किया गया कॉलसाइन डेटाबेस हटाएं? आप इसे बाद में फिर से डाउनलोड कर सकते हैं।';
+
+  @override
+  String get cslAutoUpdateWifi => 'वाई-फ़ाई पर स्वतः अपडेट';
+
+  @override
+  String get cslAutoUpdateWifiSubtitle =>
+      'इंस्टॉल किए गए डेटाबेस को स्वचालित रूप से अद्यतित रखें, केवल वाई-फ़ाई या वायर्ड कनेक्शन पर, ताकि मोबाइल डेटा शुल्क से बचा जा सके।';
 }

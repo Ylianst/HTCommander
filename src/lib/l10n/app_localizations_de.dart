@@ -2483,6 +2483,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get aprsCopyCallsign => 'Rufzeichen kopieren';
 
   @override
+  String get callsignLookup => 'Nachschlagen...';
+
+  @override
   String get aprsCopyChannel => 'Kanal kopieren';
 
   @override
@@ -3629,6 +3632,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cslViewCallsign => 'Rufzeichen nachschlagen...';
 
   @override
+  String get cslAddContact => 'Als Kontakt hinzufügen';
+
+  @override
   String get cslTitle => 'Rufzeichensuche';
 
   @override
@@ -3743,4 +3749,11 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get cslDeleteMessage =>
       'Heruntergeladene Rufzeichen-Datenbank löschen? Sie können sie später erneut herunterladen.';
+
+  @override
+  String get cslAutoUpdateWifi => 'Automatische Aktualisierung über WLAN';
+
+  @override
+  String get cslAutoUpdateWifiSubtitle =>
+      'Installierte Datenbanken automatisch aktuell halten, nur über WLAN oder kabelgebundene Verbindungen, um mobile Datennutzung zu vermeiden.';
 }

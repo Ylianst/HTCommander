@@ -2481,6 +2481,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get aprsCopyCallsign => 'Copia nominativo';
 
   @override
+  String get callsignLookup => 'Cerca...';
+
+  @override
   String get aprsCopyChannel => 'Copia canale';
 
   @override
@@ -3624,6 +3627,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get cslViewCallsign => 'Cerca nominativo...';
 
   @override
+  String get cslAddContact => 'Aggiungi come contatto';
+
+  @override
   String get cslTitle => 'Ricerca nominativo';
 
   @override
@@ -3738,4 +3744,11 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get cslDeleteMessage =>
       'Eliminare il database dei nominativi scaricato? Potrai scaricarlo di nuovo in seguito.';
+
+  @override
+  String get cslAutoUpdateWifi => 'Aggiornamento automatico tramite Wi-Fi';
+
+  @override
+  String get cslAutoUpdateWifiSubtitle =>
+      'Mantieni aggiornati automaticamente i database installati, solo tramite Wi-Fi o connessioni cablate, per evitare costi di dati mobili.';
 }

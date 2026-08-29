@@ -2452,6 +2452,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aprsCopyCallsign => 'Copy Callsign';
 
   @override
+  String get callsignLookup => 'Lookup...';
+
+  @override
   String get aprsCopyChannel => 'Copy Channel';
 
   @override
@@ -3593,6 +3596,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cslViewCallsign => 'Look Up Callsign...';
 
   @override
+  String get cslAddContact => 'Add as contact';
+
+  @override
   String get cslTitle => 'Callsign Lookup';
 
   @override
@@ -3707,4 +3713,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get cslDeleteMessage =>
       'Delete the downloaded callsign database? You can download it again later.';
+
+  @override
+  String get cslAutoUpdateWifi => 'Auto-update on Wi-Fi';
+
+  @override
+  String get cslAutoUpdateWifiSubtitle =>
+      'Keep installed databases up to date automatically, only over Wi-Fi or wired connections to avoid mobile data charges.';
 }

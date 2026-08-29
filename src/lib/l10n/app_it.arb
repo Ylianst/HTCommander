@@ -785,6 +785,7 @@
   "aprsSetReceiver": "Imposta come ricevitore",
   "aprsCopyMessage": "Copia messaggio",
   "aprsCopyCallsign": "Copia nominativo",
+  "callsignLookup": "Cerca...",
   "aprsCopyChannel": "Copia canale",
   "aprsClearTitle": "Cancella messaggi APRS",
   "aprsClearPrompt": "Cancellare tutti i messaggi APRS? Questo rimuove anche tutti gli indicatori APRS dalla mappa. Questa operazione non può essere annullata.",
@@ -1151,6 +1152,7 @@
   "wxReportMetar": "METAR, stazione ICAO in formato METAR",
   "wxReportCwop": "CWOP, stazione CWOP più vicina",
   "cslViewCallsign": "Cerca nominativo...",
+  "cslAddContact": "Aggiungi come contatto",
   "cslTitle": "Ricerca nominativo",
   "cslLookingUp": "Ricerca di {callsign}...",
   "cslNotFound": "Nessun record trovato per {callsign}.",
@@ -1184,5 +1186,7 @@
   "cslUpToDateButton": "Aggiornato",
   "cslDownloadFailed": "Download non riuscito: {error}",
   "cslDeleteTitle": "Elimina database nominativi",
-  "cslDeleteMessage": "Eliminare il database dei nominativi scaricato? Potrai scaricarlo di nuovo in seguito."
+  "cslDeleteMessage": "Eliminare il database dei nominativi scaricato? Potrai scaricarlo di nuovo in seguito.",
+  "cslAutoUpdateWifi": "Aggiornamento automatico tramite Wi-Fi",
+  "cslAutoUpdateWifiSubtitle": "Mantieni aggiornati automaticamente i database installati, solo tramite Wi-Fi o connessioni cablate, per evitare costi di dati mobili."
 }

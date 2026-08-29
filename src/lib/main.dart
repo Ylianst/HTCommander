@@ -486,6 +486,10 @@ Future<void> _startApp(List<String> args) async {
   // downloaded). Safe no-op on the web where there is no persistent storage.
   await CallsignLookupService.instance.init();
 
+  // Start the background auto-update scheduler (no-op unless the user enabled
+  // "auto-update on WiFi"). Only refreshes over a non-metered connection.
+  CallsignLookupService.instance.startAutoUpdateScheduler();
+
   // Load the bundled offline callsign -> country table into memory. This is a
   // small built-in asset (not a download) so country lookups always work,
   // offline, on every platform.

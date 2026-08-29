@@ -8,10 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'dialog_utils.dart';
+import 'add_station_dialog.dart';
 import '../callsign/callsign_country.dart';
 import '../callsign/callsign_record.dart';
 import '../l10n/app_localizations.dart';
+import '../models/station_info.dart';
 import '../services/callsign_lookup_service.dart';
+import '../services/data_broker_client.dart';
 
 /// Standalone offline callsign lookup dialog.
 ///
@@ -201,6 +204,22 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   if (!showDatabase && _hasResults) ...[
+                    PopupMenuButton<StationType>(
+                      icon: const Icon(Icons.person_add_alt_1),
+                      tooltip: l10n.cslAddContact,
+                      onSelected: _addAsContact,
+                      itemBuilder: (context) => [
+                        PopupMenuItem<StationType>(
+                          value: StationType.generic,
+                          child: Text(l10n.stationTypeOptionVoice),
+                        ),
+                        PopupMenuItem<StationType>(
+                          value: StationType.aprs,
+                          child: Text(l10n.stationTitleAprs),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 4),
                     TextButton(
                       onPressed: _copyAll,
                       style: DialogStyles.secondaryButtonStyle(context),
@@ -306,7 +325,35 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
             const SizedBox(height: 10),
           _buildSourceControl(l10n, scheme, source),
         ],
+        const SizedBox(height: 14),
+        _buildAutoUpdateToggle(l10n, scheme),
       ],
+    );
+  }
+
+  /// "Auto-update on WiFi" preference. When enabled, installed databases are
+  /// refreshed in the background while the app runs, but only over a
+  /// non-metered connection so mobile data is never spent.
+  Widget _buildAutoUpdateToggle(AppLocalizations l10n, ColorScheme scheme) {
+    final service = CallsignLookupService.instance;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: _sectionDecoration(),
+      child: SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        dense: true,
+        value: service.autoUpdateOnWifi,
+        onChanged: (value) =>
+            setState(() => service.autoUpdateOnWifi = value),
+        title: Text(
+          l10n.cslAutoUpdateWifi,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        ),
+        subtitle: Text(
+          l10n.cslAutoUpdateWifiSubtitle,
+          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+        ),
+      ),
     );
   }
 
@@ -628,6 +675,46 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
   /// Whether the query view is currently showing result key/value pairs.
   bool get _hasResults =>
       _searched && !_loading && (_country != null || _result != null);
+
+  /// Adds the looked-up callsign to the address book as a contact of [type].
+  /// Opens the station dialog prefilled with the callsign (editable) so the
+  /// user can review the details before saving. APRS contacts default to a
+  /// station id of zero.
+  Future<void> _addAsContact(StationType type) async {
+    final base = _searchedCallsign.trim().split('-').first;
+    if (base.isEmpty) return;
+    final callsign = type == StationType.aprs ? '$base-0' : base;
+    final result = await showStationDialog(
+      context,
+      fixedType: type,
+      initialCallsign: callsign,
+    );
+    if (result == null || !mounted) return;
+
+    final broker = DataBrokerClient();
+    final stations = <StationInfo>[];
+    final raw = broker.getValueDynamic(0, 'Stations', null);
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map<String, dynamic>) {
+          stations.add(StationInfo.fromJson(item));
+        } else if (item is Map) {
+          stations.add(StationInfo.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+    stations.removeWhere(
+      (s) =>
+          s.callsign == result.callsign && s.stationType == result.stationType,
+    );
+    stations.add(result);
+    broker.dispatch(
+      deviceId: 0,
+      name: 'Stations',
+      data: stations.map((s) => s.toJson()).toList(),
+    );
+    broker.dispose();
+  }
 
   /// Copies every displayed key/value pair as tab-separated lines, matching the
   /// Comms details dialog's "Copy All".

@@ -2474,6 +2474,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get aprsCopyCallsign => 'Kopiuj znak wywoławczy';
 
   @override
+  String get callsignLookup => 'Wyszukaj...';
+
+  @override
   String get aprsCopyChannel => 'Kopiuj kanał';
 
   @override
@@ -3622,6 +3625,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get cslViewCallsign => 'Wyszukaj znak wywoławczy...';
 
   @override
+  String get cslAddContact => 'Dodaj jako kontakt';
+
+  @override
   String get cslTitle => 'Wyszukiwanie znaku wywoławczego';
 
   @override
@@ -3736,4 +3742,11 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get cslDeleteMessage =>
       'Usunąć pobraną bazę danych znaków wywoławczych? Możesz pobrać ją ponownie później.';
+
+  @override
+  String get cslAutoUpdateWifi => 'Automatyczna aktualizacja przez Wi-Fi';
+
+  @override
+  String get cslAutoUpdateWifiSubtitle =>
+      'Automatycznie aktualizuj zainstalowane bazy danych, tylko przez Wi-Fi lub połączenia przewodowe, aby uniknąć opłat za dane komórkowe.';
 }

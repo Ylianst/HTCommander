@@ -15,6 +15,7 @@ import '../dialogs/aprs_location_dialog.dart';
 import '../dialogs/edit_beacon_settings_dialog.dart';
 import '../dialogs/digipeater_dialog.dart';
 import '../dialogs/add_station_dialog.dart';
+import '../dialogs/callsign_lookup_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
@@ -1493,6 +1494,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           value: 'copyCallsign',
           child: Text(AppLocalizations.of(context).aprsCopyCallsign),
         ),
+        PopupMenuItem<String>(
+          value: 'lookup',
+          child: Text(AppLocalizations.of(context).callsignLookup),
+        ),
       ],
     );
 
@@ -1520,6 +1525,12 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         break;
       case 'copyCallsign':
         Clipboard.setData(ClipboardData(text: message.senderCallsign));
+        break;
+      case 'lookup':
+        CallsignLookupDialog.show(
+          context,
+          initialCallsign: message.senderCallsign,
+        );
         break;
     }
   }

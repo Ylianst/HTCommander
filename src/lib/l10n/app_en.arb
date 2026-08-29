@@ -1559,6 +1559,7 @@
   "aprsSetReceiver": "Set as receiver",
   "aprsCopyMessage": "Copy Message",
   "aprsCopyCallsign": "Copy Callsign",
+  "callsignLookup": "Lookup...",
   "aprsCopyChannel": "Copy Channel",
   "aprsClearTitle": "Clear APRS Messages",
   "aprsClearPrompt": "Clear all APRS messages? This also removes all APRS markers from the map. This cannot be undone.",
@@ -2117,6 +2118,7 @@
   "wxReportMetar": "METAR, ICAO station in METAR form",
   "wxReportCwop": "CWOP, Nearest CWOP station",
   "cslViewCallsign": "Look Up Callsign...",
+  "cslAddContact": "Add as contact",
   "cslTitle": "Callsign Lookup",
   "@cslTitle": {
     "description": "Title of the offline callsign lookup dialog"
@@ -2199,5 +2201,10 @@
     }
   },
   "cslDeleteTitle": "Delete Callsign Database",
-  "cslDeleteMessage": "Delete the downloaded callsign database? You can download it again later."
+  "cslDeleteMessage": "Delete the downloaded callsign database? You can download it again later.",
+  "cslAutoUpdateWifi": "Auto-update on Wi-Fi",
+  "@cslAutoUpdateWifi": {
+    "description": "Label for the toggle that enables automatic background callsign database updates over non-metered connections"
+  },
+  "cslAutoUpdateWifiSubtitle": "Keep installed databases up to date automatically, only over Wi-Fi or wired connections to avoid mobile data charges."
 }

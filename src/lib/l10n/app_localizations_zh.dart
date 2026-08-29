@@ -2405,6 +2405,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aprsCopyCallsign => '复制呼号';
 
   @override
+  String get callsignLookup => '查询...';
+
+  @override
   String get aprsCopyChannel => '复制信道';
 
   @override
@@ -3512,6 +3515,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cslViewCallsign => '查询呼号...';
 
   @override
+  String get cslAddContact => '添加为联系人';
+
+  @override
   String get cslTitle => '呼号查询';
 
   @override
@@ -3622,4 +3628,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cslDeleteMessage => '删除已下载的呼号数据库？您可以稍后重新下载。';
+
+  @override
+  String get cslAutoUpdateWifi => '通过 Wi-Fi 自动更新';
+
+  @override
+  String get cslAutoUpdateWifiSubtitle =>
+      '自动保持已安装的数据库为最新，仅通过 Wi-Fi 或有线连接进行，以避免产生移动数据费用。';
 }

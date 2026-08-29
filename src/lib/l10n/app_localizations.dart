@@ -4534,6 +4534,12 @@ abstract class AppLocalizations {
   /// **'Copy Callsign'**
   String get aprsCopyCallsign;
 
+  /// No description provided for @callsignLookup.
+  ///
+  /// In en, this message translates to:
+  /// **'Lookup...'**
+  String get callsignLookup;
+
   /// No description provided for @aprsCopyChannel.
   ///
   /// In en, this message translates to:
@@ -6592,6 +6598,12 @@ abstract class AppLocalizations {
   /// **'Look Up Callsign...'**
   String get cslViewCallsign;
 
+  /// No description provided for @cslAddContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Add as contact'**
+  String get cslAddContact;
+
   /// Title of the offline callsign lookup dialog
   ///
   /// In en, this message translates to:
@@ -6795,6 +6807,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete the downloaded callsign database? You can download it again later.'**
   String get cslDeleteMessage;
+
+  /// Label for the toggle that enables automatic background callsign database updates over non-metered connections
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-update on Wi-Fi'**
+  String get cslAutoUpdateWifi;
+
+  /// No description provided for @cslAutoUpdateWifiSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep installed databases up to date automatically, only over Wi-Fi or wired connections to avoid mobile data charges.'**
+  String get cslAutoUpdateWifiSubtitle;
 }
 
 class _AppLocalizationsDelegate

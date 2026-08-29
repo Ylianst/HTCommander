@@ -18,6 +18,7 @@ import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../aprs/aprs_symbols.dart';
 import '../dialogs/add_station_dialog.dart';
+import '../dialogs/callsign_lookup_dialog.dart';
 import '../gps/gps_data.dart';
 import '../l10n/app_localizations.dart';
 import '../models/aircraft.dart';
@@ -1870,6 +1871,17 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             ],
           ),
         ),
+        PopupMenuItem<String>(
+          value: 'lookup',
+          height: 40,
+          child: Row(
+            children: [
+              const Icon(Icons.badge_outlined, size: 18),
+              const SizedBox(width: 8),
+              Text(l10n.callsignLookup),
+            ],
+          ),
+        ),
       ],
     );
     if (!mounted) return;
@@ -1882,6 +1894,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
         break;
       case 'center':
         _centerOnStation(station);
+        break;
+      case 'lookup':
+        CallsignLookupDialog.show(context, initialCallsign: station.callsign);
         break;
     }
   }

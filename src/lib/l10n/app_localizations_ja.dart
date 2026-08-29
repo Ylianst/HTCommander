@@ -2421,6 +2421,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aprsCopyCallsign => 'コールサインをコピー';
 
   @override
+  String get callsignLookup => '検索...';
+
+  @override
   String get aprsCopyChannel => 'チャンネルをコピー';
 
   @override
@@ -3540,6 +3543,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cslViewCallsign => 'コールサインを検索...';
 
   @override
+  String get cslAddContact => '連絡先として追加';
+
+  @override
   String get cslTitle => 'コールサイン検索';
 
   @override
@@ -3652,4 +3658,11 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cslDeleteMessage => 'ダウンロードしたコールサインデータベースを削除しますか？後で再度ダウンロードできます。';
+
+  @override
+  String get cslAutoUpdateWifi => 'Wi-Fi で自動更新';
+
+  @override
+  String get cslAutoUpdateWifiSubtitle =>
+      'インストール済みのデータベースを自動的に最新の状態に保ちます。モバイルデータ通信料を避けるため、Wi-Fi または有線接続の場合のみ更新します。';
 }

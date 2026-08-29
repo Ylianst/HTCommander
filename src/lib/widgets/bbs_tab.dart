@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'tab_visibility.dart';
+import '../dialogs/callsign_lookup_dialog.dart';
 import '../handlers/bbs_handler.dart';
 import '../l10n/app_localizations.dart';
 import '../radio/radio_models.dart';
@@ -31,7 +32,8 @@ class BbsTab extends StatefulWidget {
   State<BbsTab> createState() => _BbsTabState();
 }
 
-class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
+class _BbsTabState extends State<BbsTab>
+    with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   final DataBrokerClient _broker = DataBrokerClient();
   final List<MergedStationStats> _stations = [];
   final List<BbsTrafficEntry> _traffic = [];
@@ -349,9 +351,9 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin, Tab
             child: Text(
               (r['FriendlyName'] as String?)?.isNotEmpty == true
                   ? r['FriendlyName'] as String
-                  : AppLocalizations.of(context).riRadioFallback(
-                      r['DeviceId'] as int,
-                    ),
+                  : AppLocalizations.of(
+                      context,
+                    ).riRadioFallback(r['DeviceId'] as int),
             ),
           ),
       ],
@@ -506,6 +508,35 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin, Tab
           break;
       }
     });
+  }
+
+  /// Shows a right-click / long-press menu for a station row, offering an
+  /// offline callsign database lookup.
+  void _showStationContextMenu(Offset globalPosition, String callsign) async {
+    final l10n = AppLocalizations.of(context);
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        globalPosition & const Size(1, 1),
+        Offset.zero & MediaQuery.of(context).size,
+      ),
+      items: [
+        PopupMenuItem<String>(
+          enabled: false,
+          height: 28,
+          child: Text(callsign, style: Theme.of(context).textTheme.labelSmall),
+        ),
+        const PopupMenuDivider(height: 8),
+        PopupMenuItem<String>(
+          value: 'lookup',
+          child: Text(l10n.callsignLookup),
+        ),
+      ],
+    );
+    if (selected == null || !mounted) return;
+    if (selected == 'lookup') {
+      CallsignLookupDialog.show(context, initialCallsign: callsign);
+    }
   }
 
   void _sort(int columnIndex) {
@@ -713,83 +744,98 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin, Tab
                     itemBuilder: (context, index) {
                       final station = _stations[index];
                       final isSelected = _selectedStationIndex == index;
-                      return InkWell(
-                        onTap: () {
-                          _stationFocusNode.requestFocus();
-                          _onStationSelected(index);
-                        },
-                        child: Container(
-                          clipBehavior: Clip.hardEdge,
-                          decoration: BoxDecoration(
-                            color: isSelected ? scheme.primaryContainer : null,
-                            border: Border(
-                              bottom: BorderSide(color: scheme.outlineVariant),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              // Icon
-                              SizedBox(
-                                width: 32,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 6,
-                                  ),
-                                  child: Icon(
-                                    Icons.person,
-                                    size: 18,
-                                    color: Colors.blue.shade700,
-                                  ),
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onSecondaryTapUp: (d) => _showStationContextMenu(
+                          d.globalPosition,
+                          station.callsign,
+                        ),
+                        onLongPressStart: (d) => _showStationContextMenu(
+                          d.globalPosition,
+                          station.callsign,
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            _stationFocusNode.requestFocus();
+                            _onStationSelected(index);
+                          },
+                          child: Container(
+                            clipBehavior: Clip.hardEdge,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? scheme.primaryContainer
+                                  : null,
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: scheme.outlineVariant,
                                 ),
                               ),
-                              // Call sign
-                              SizedBox(
-                                width: 100,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 6,
-                                  ),
-                                  child: Text(
-                                    station.callsign,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
+                            ),
+                            child: Row(
+                              children: [
+                                // Icon
+                                SizedBox(
+                                  width: 32,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 6,
+                                    ),
+                                    child: Icon(
+                                      Icons.person,
+                                      size: 18,
+                                      color: Colors.blue.shade700,
                                     ),
                                   ),
                                 ),
-                              ),
-                              // Last seen
-                              SizedBox(
-                                width: 80,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 6,
-                                  ),
-                                  child: Text(
-                                    _formatLastSeen(station.lastSeen),
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                              ),
-                              // Stats (hidden in compact mode)
-                              if (!_isCompact)
-                                Expanded(
+                                // Call sign
+                                SizedBox(
+                                  width: 100,
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 4,
                                       vertical: 6,
                                     ),
                                     child: Text(
-                                      station.statsString,
-                                      overflow: TextOverflow.ellipsis,
+                                      station.callsign,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Last seen
+                                SizedBox(
+                                  width: 80,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 6,
+                                    ),
+                                    child: Text(
+                                      _formatLastSeen(station.lastSeen),
                                       style: const TextStyle(fontSize: 12),
                                     ),
                                   ),
                                 ),
-                            ],
+                                // Stats (hidden in compact mode)
+                                if (!_isCompact)
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 6,
+                                      ),
+                                      child: Text(
+                                        station.statsString,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       );
@@ -815,10 +861,22 @@ class _BbsTabState extends State<BbsTab> with AutomaticKeepAliveClientMixin, Tab
       child: Row(
         children: [
           const SizedBox(width: 32), // Icon column
-          _buildColumnHeader(AppLocalizations.of(context).bbsColCallSign, 0, width: 100),
-          _buildColumnHeader(AppLocalizations.of(context).bbsColLastSeen, 1, width: 80),
+          _buildColumnHeader(
+            AppLocalizations.of(context).bbsColCallSign,
+            0,
+            width: 100,
+          ),
+          _buildColumnHeader(
+            AppLocalizations.of(context).bbsColLastSeen,
+            1,
+            width: 80,
+          ),
           if (!_isCompact)
-            _buildColumnHeader(AppLocalizations.of(context).bbsColStats, 2, flex: 1),
+            _buildColumnHeader(
+              AppLocalizations.of(context).bbsColStats,
+              2,
+              flex: 1,
+            ),
         ],
       ),
     );

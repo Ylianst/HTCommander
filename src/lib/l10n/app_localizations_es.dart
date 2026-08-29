@@ -2481,6 +2481,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get aprsCopyCallsign => 'Copiar el indicativo';
 
   @override
+  String get callsignLookup => 'Buscar...';
+
+  @override
   String get aprsCopyChannel => 'Copiar el canal';
 
   @override
@@ -3626,6 +3629,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get cslViewCallsign => 'Buscar indicativo...';
 
   @override
+  String get cslAddContact => 'Añadir como contacto';
+
+  @override
   String get cslTitle => 'Búsqueda de indicativo';
 
   @override
@@ -3740,4 +3746,11 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get cslDeleteMessage =>
       '¿Eliminar la base de datos de indicativos descargada? Podrá descargarla de nuevo más tarde.';
+
+  @override
+  String get cslAutoUpdateWifi => 'Actualización automática por Wi-Fi';
+
+  @override
+  String get cslAutoUpdateWifiSubtitle =>
+      'Mantén actualizadas automáticamente las bases de datos instaladas, solo por Wi-Fi o conexiones por cable, para evitar cargos de datos móviles.';
 }

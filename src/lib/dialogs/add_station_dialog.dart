@@ -14,6 +14,7 @@ import '../models/station_info.dart';
 import '../models/radio_models.dart';
 import '../radio/ax25_address.dart';
 import '../services/data_broker_client.dart';
+import '../services/callsign_lookup_service.dart';
 import '../widgets/contact_avatar.dart';
 
 /// Shows the add / edit station dialog. When [existing] is provided the dialog
@@ -22,17 +23,23 @@ import '../widgets/contact_avatar.dart';
 ///
 /// When [fixedType] is provided (and [existing] is null) the dialog creates a
 /// new station of that type: the type is locked, but the callsign remains
-/// editable so the user can enter a valid callsign. Returns the resulting
+/// editable so the user can enter a valid callsign. [initialCallsign] prefills
+/// that editable callsign field. Returns the resulting
 /// [StationInfo] or `null` if cancelled.
 Future<StationInfo?> showStationDialog(
   BuildContext context, {
   StationInfo? existing,
   StationType? fixedType,
+  String? initialCallsign,
 }) {
   return showDialog<StationInfo>(
     context: context,
     barrierDismissible: false,
-    builder: (context) => _StationDialog(existing: existing, fixedType: fixedType),
+    builder: (context) => _StationDialog(
+      existing: existing,
+      fixedType: fixedType,
+      initialCallsign: initialCallsign,
+    ),
   );
 }
 
@@ -82,7 +89,8 @@ const List<_ModemOption> _modemOptions = [
 class _StationDialog extends StatefulWidget {
   final StationInfo? existing;
   final StationType? fixedType;
-  const _StationDialog({this.existing, this.fixedType});
+  final String? initialCallsign;
+  const _StationDialog({this.existing, this.fixedType, this.initialCallsign});
 
   @override
   State<_StationDialog> createState() => _StationDialogState();
@@ -90,6 +98,13 @@ class _StationDialog extends StatefulWidget {
 
 class _StationDialogState extends State<_StationDialog> {
   final DataBrokerClient _broker = DataBrokerClient();
+
+  // Focus for the callsign field: when focus leaves it, we auto-fill the name
+  // and description from the offline callsign database (new radio contacts).
+  final FocusNode _callsignFocusNode = FocusNode();
+  // The last callsign auto-filled from the database, so leaving the field again
+  // without changes does not repeat the lookup.
+  String _autoFilledCallsign = '';
 
   late final TextEditingController _callsignController;
   late final TextEditingController _nameController;
@@ -125,7 +140,9 @@ class _StationDialogState extends State<_StationDialog> {
       _stationType = widget.fixedType!;
     }
 
-    _callsignController = TextEditingController(text: s?.callsign ?? '');
+    _callsignController = TextEditingController(
+      text: s?.callsign ?? widget.initialCallsign ?? '',
+    );
     _nameController = TextEditingController(text: s?.name ?? '');
     _descriptionController = TextEditingController(text: s?.description ?? '');
     _ax25DestController = TextEditingController(text: s?.ax25Destination ?? '');
@@ -155,11 +172,13 @@ class _StationDialogState extends State<_StationDialog> {
     _ax25DestController.addListener(_onTextChanged);
     _authPasswordController.addListener(_onTextChanged);
     _channelController.addListener(_onTextChanged);
+    _callsignFocusNode.addListener(_onCallsignFocusChanged);
   }
 
   @override
   void dispose() {
     _broker.dispose();
+    _callsignFocusNode.dispose();
     _callsignController.dispose();
     _nameController.dispose();
     _descriptionController.dispose();
@@ -170,6 +189,43 @@ class _StationDialogState extends State<_StationDialog> {
   }
 
   void _onTextChanged() => setState(() {});
+
+  /// When the callsign field loses focus (the user moves to the next field),
+  /// look the callsign up in the offline database and, when a record is found,
+  /// auto-fill the still-empty Name and Description (station location) fields.
+  void _onCallsignFocusChanged() {
+    if (_callsignFocusNode.hasFocus) return;
+    _autoFillFromCallsign();
+  }
+
+  Future<void> _autoFillFromCallsign() async {
+    // Only radio callsign contacts are looked up (not SMS/email), and only for
+    // new contacts (editing locks the callsign).
+    if (_isEditing || _isSimpleContact) return;
+    final callsign = _callsignController.text.trim().toUpperCase();
+    if (callsign.isEmpty || !_callsignValid) return;
+    // Skip if we already auto-filled for this exact callsign.
+    if (callsign == _autoFilledCallsign) return;
+
+    final result = await CallsignLookupService.instance.lookup(callsign);
+    if (!mounted || result == null) return;
+
+    final record = result.record;
+    var changed = false;
+    if (_nameController.text.trim().isEmpty && record.name.isNotEmpty) {
+      _nameController.text = record.name;
+      changed = true;
+    }
+    if (_descriptionController.text.trim().isEmpty &&
+        record.location.isNotEmpty) {
+      _descriptionController.text = record.location;
+      changed = true;
+    }
+    if (changed) {
+      _autoFilledCallsign = callsign;
+      setState(() {});
+    }
+  }
 
   /// Collects channel names from all connected radios, excluding "APRS".
   void _loadChannelNames() {
@@ -565,6 +621,7 @@ class _StationDialogState extends State<_StationDialog> {
     return TextField(
       controller: _callsignController,
       enabled: !_isEditing,
+      focusNode: _callsignFocusNode,
       keyboardType: _stationType == StationType.sms
           ? TextInputType.phone
           : (_stationType == StationType.email

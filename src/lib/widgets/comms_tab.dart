@@ -15,6 +15,7 @@ import 'chat_widget.dart';
 import 'sarsat_marker.dart';
 import 'radiosonde_marker.dart';
 import '../dialogs/aprs_location_dialog.dart';
+import '../dialogs/callsign_lookup_dialog.dart';
 import '../dialogs/edit_ident_settings_dialog.dart';
 import '../dialogs/image_view_dialog.dart';
 import '../dialogs/message_details_dialog.dart';
@@ -1219,10 +1220,10 @@ class _CommsTabState extends State<CommsTab>
     if (_messages.isEmpty) _loadDecodedTextHistory();
   }
 
-  /// True for APRS traffic on the "APRS" channel, which belongs in the APRS tab
-  /// rather than here.
+  /// True for APRS traffic on the "APRS" or "APRS-IS" channel, which belongs in
+  /// the APRS tab rather than here.
   bool _isAprsChannelEntry(String encoding, String? channel) =>
-      encoding == 'APRS' && channel == 'APRS';
+      encoding == 'APRS' && (channel == 'APRS' || channel == 'APRS-IS');
 
   /// Handles a TextReady event by appending (or updating) a history entry.
   void _onTextReady(int deviceId, String name, Object? data) {
@@ -2264,6 +2265,10 @@ class _CommsTabState extends State<CommsTab>
           value: 'copyCallsign',
           child: Text(AppLocalizations.of(context).aprsCopyCallsign),
         ),
+        PopupMenuItem<String>(
+          value: 'lookup',
+          child: Text(AppLocalizations.of(context).callsignLookup),
+        ),
       ],
     );
 
@@ -2294,6 +2299,12 @@ class _CommsTabState extends State<CommsTab>
         break;
       case 'copyCallsign':
         Clipboard.setData(ClipboardData(text: message.senderCallsign));
+        break;
+      case 'lookup':
+        CallsignLookupDialog.show(
+          context,
+          initialCallsign: message.senderCallsign,
+        );
         break;
     }
   }
