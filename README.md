@@ -68,3 +68,5 @@ This is a demonstration of the older Windows-only version of HTCommander.
 This tool is based on the decoding work done by Kyle Husmann, KC3SLD and this [BenLink](https://github.com/khusmann/benlink) project which decoded the Bluetooth commands for these radios. Also [APRS-Parser](https://github.com/k0qed/aprs-parser) by Lee, K0QED.
 
 Map data provided by [openstreetmap.org](https://openstreetmap.org), the project that creates and distributes free geographic data for the world.
+
+APRS message backfill uses the [aprs.fi](https://aprs.fi) API, courtesy of Heikki Hannikainen, OH7LZB, to retrieve messages received while HTCommander was offline.
