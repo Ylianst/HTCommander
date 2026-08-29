@@ -224,10 +224,9 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
 
   /// Appends [id] to a recipient field, avoiding duplicates.
   void _addRecipient(TextEditingController controller, String id) {
-    final existing = _cleanString(controller.text)
-        .split(';')
-        .where((s) => s.isNotEmpty)
-        .toList();
+    final existing = _cleanString(
+      controller.text,
+    ).split(';').where((s) => s.isNotEmpty).toList();
     if (existing.any((e) => e.toLowerCase() == id.toLowerCase())) return;
     existing.add(id);
     controller.text = existing.join(';');
@@ -418,10 +417,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
         children: [
           Row(
             children: [
-              Text(
-                l10n.mailAttachmentsLabel,
-                style: DialogStyles.labelStyle,
-              ),
+              Text(l10n.mailAttachmentsLabel, style: DialogStyles.labelStyle),
               const Spacer(),
               TextButton.icon(
                 onPressed: _onAddAttachment,
@@ -547,7 +543,9 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                 const SizedBox(height: 8),
                 Text(
                   AppLocalizations.of(context).mailAttachmentDropHint,
-                  style: DialogStyles.titleStyle.copyWith(color: scheme.primary),
+                  style: DialogStyles.titleStyle.copyWith(
+                    color: scheme.primary,
+                  ),
                 ),
               ],
             ),
@@ -608,11 +606,16 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
     final keyboardOpen = viewInsets.bottom > 100;
     // Available height for the dialog after accounting for keyboard and padding.
     final availableHeight = screenHeight - viewInsets.bottom - 48;
-    // On tall screens without keyboard, cap at 620; otherwise use available.
-    final dialogMaxHeight = availableHeight.clamp(200.0, 620.0);
+    // Cap at 620 on tall screens, but never force the dialog taller than the
+    // space above the keyboard, otherwise the top fields (To) get clipped on
+    // short screens or in landscape.
+    final dialogMaxHeight = availableHeight.clamp(160.0, 620.0);
 
     return Dialog(
       backgroundColor: Theme.of(context).colorScheme.surface,
+      // When the keyboard is up the dialog has to shrink; anchor it to the top
+      // so the To field stays visible instead of being clipped off the top.
+      alignment: keyboardOpen ? Alignment.topCenter : null,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       // Add the keyboard inset so the dialog floats above the on-screen
       // keyboard on mobile and its scrollable body stays usable.
@@ -649,169 +652,165 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
                     SizedBox(height: keyboardOpen ? 8 : 16),
                     // Fields section card. The contents scroll so the dialog stays
                     // usable on short displays (e.g. mobile with the keyboard up).
-              Expanded(
-                child: Container(
-                  decoration: _sectionDecoration(),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      // Size the message box to fill the leftover space, but
-                      // keep a sensible minimum so the whole form scrolls when
-                      // vertical space is tight.
-                      final reserved = _showCc ? 300.0 : 200.0;
-                      final messageHeight = (constraints.maxHeight - reserved)
-                          .clamp(120.0, double.infinity);
-                      return SingleChildScrollView(
-                        padding: EdgeInsets.all(keyboardOpen ? 12 : 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  AppLocalizations.of(context).mailColTo,
-                                  style: DialogStyles.labelStyle,
-                                ),
-                                const Spacer(),
-                                _buildAddContactButton(_toController),
-                                if (!_showCc)
-                                  TextButton.icon(
-                                    onPressed: () =>
-                                        setState(() => _showCc = true),
-                                    icon: const Icon(Icons.add, size: 18),
-                                    label: Text(AppLocalizations.of(context).mailAddCc),
-                                    style: TextButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                      ),
-                                      visualDensity: VisualDensity.compact,
-                                      minimumSize: Size.zero,
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            TextField(
-                              controller: _toController,
-                              onEditingComplete: () {
-                                _toController.text = _cleanString(
-                                  _toController.text,
-                                );
-                              },
-                              decoration: _inputDecoration(
-                                fillColor: _toValid
-                                    ? null
-                                    : Theme.of(context)
-                                          .colorScheme
-                                          .errorContainer,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            if (_showCc) ...[
+                    Flexible(
+                      child: Container(
+                        decoration: _sectionDecoration(),
+                        child: SingleChildScrollView(
+                          padding: EdgeInsets.all(keyboardOpen ? 12 : 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Row(
                                 children: [
                                   Text(
-                                    AppLocalizations.of(context).mailCc,
+                                    AppLocalizations.of(context).mailColTo,
                                     style: DialogStyles.labelStyle,
                                   ),
                                   const Spacer(),
-                                  _buildAddContactButton(_ccController),
-                                  IconButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _showCc = false;
-                                        _ccController.clear();
-                                      });
-                                    },
-                                    icon: const Icon(Icons.close, size: 18),
-                                    tooltip: AppLocalizations.of(context).mailRemoveCc,
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                  ),
+                                  _buildAddContactButton(_toController),
+                                  if (!_showCc)
+                                    TextButton.icon(
+                                      onPressed: () =>
+                                          setState(() => _showCc = true),
+                                      icon: const Icon(Icons.add, size: 18),
+                                      label: Text(
+                                        AppLocalizations.of(context).mailAddCc,
+                                      ),
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                        ),
+                                        visualDensity: VisualDensity.compact,
+                                        minimumSize: Size.zero,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                    ),
                                 ],
                               ),
                               const SizedBox(height: 4),
                               TextField(
-                                controller: _ccController,
+                                controller: _toController,
                                 onEditingComplete: () {
-                                  _ccController.text = _cleanString(
-                                    _ccController.text,
+                                  _toController.text = _cleanString(
+                                    _toController.text,
                                   );
                                 },
                                 decoration: _inputDecoration(
-                                  fillColor: _ccValid
+                                  fillColor: _toValid
                                       ? null
-                                      : Theme.of(context)
-                                            .colorScheme
-                                            .errorContainer,
+                                      : Theme.of(
+                                          context,
+                                        ).colorScheme.errorContainer,
                                 ),
                               ),
                               const SizedBox(height: 12),
-                            ],
-                            Text(
-                              AppLocalizations.of(context).mailColSubject,
-                              style: DialogStyles.labelStyle,
-                            ),
-                            const SizedBox(height: 4),
-                            TextField(
-                              controller: _subjectController,
-                              decoration: _inputDecoration(),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              AppLocalizations.of(context).mailMessageLabel,
-                              style: DialogStyles.labelStyle,
-                            ),
-                            const SizedBox(height: 4),
-                            SizedBox(
-                              height: messageHeight,
-                              child: TextField(
+                              if (_showCc) ...[
+                                Row(
+                                  children: [
+                                    Text(
+                                      AppLocalizations.of(context).mailCc,
+                                      style: DialogStyles.labelStyle,
+                                    ),
+                                    const Spacer(),
+                                    _buildAddContactButton(_ccController),
+                                    IconButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _showCc = false;
+                                          _ccController.clear();
+                                        });
+                                      },
+                                      icon: const Icon(Icons.close, size: 18),
+                                      tooltip: AppLocalizations.of(
+                                        context,
+                                      ).mailRemoveCc,
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                TextField(
+                                  controller: _ccController,
+                                  onEditingComplete: () {
+                                    _ccController.text = _cleanString(
+                                      _ccController.text,
+                                    );
+                                  },
+                                  decoration: _inputDecoration(
+                                    fillColor: _ccValid
+                                        ? null
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.errorContainer,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+                              Text(
+                                AppLocalizations.of(context).mailColSubject,
+                                style: DialogStyles.labelStyle,
+                              ),
+                              const SizedBox(height: 4),
+                              TextField(
+                                controller: _subjectController,
+                                decoration: _inputDecoration(),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                AppLocalizations.of(context).mailMessageLabel,
+                                style: DialogStyles.labelStyle,
+                              ),
+                              const SizedBox(height: 4),
+                              TextField(
                                 controller: _bodyController,
-                                expands: true,
+                                minLines: keyboardOpen ? 3 : 6,
                                 maxLines: null,
-                                minLines: null,
                                 textAlignVertical: TextAlignVertical.top,
                                 keyboardType: TextInputType.multiline,
                                 decoration: _inputDecoration(),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                    _buildAttachmentsSection(),
+                    SizedBox(height: keyboardOpen ? 8 : 16),
+                    // Buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: _onCancel,
+                          style: DialogStyles.secondaryButtonStyle(context),
+                          child: Text(
+                            AppLocalizations.of(context).commonCancel,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton(
+                          onPressed: () => _submit(isDraft: true),
+                          style: DialogStyles.secondaryButtonStyle(context),
+                          child: Text(
+                            AppLocalizations.of(context).mailSaveDraft,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: _canSend
+                              ? () => _submit(isDraft: false)
+                              : null,
+                          style: DialogStyles.primaryButtonStyle(context),
+                          child: Text(AppLocalizations.of(context).commonSend),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              _buildAttachmentsSection(),
-              SizedBox(height: keyboardOpen ? 8 : 16),
-              // Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: _onCancel,
-                    style: DialogStyles.secondaryButtonStyle(context),
-                    child: Text(AppLocalizations.of(context).commonCancel),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () => _submit(isDraft: true),
-                    style: DialogStyles.secondaryButtonStyle(context),
-                    child: Text(AppLocalizations.of(context).mailSaveDraft),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _canSend ? () => _submit(isDraft: false) : null,
-                    style: DialogStyles.primaryButtonStyle(context),
-                    child: Text(AppLocalizations.of(context).commonSend),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
               if (_dragging) _buildDropOverlay(),
             ],
           ),
