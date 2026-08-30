@@ -2521,6 +2521,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get aprsNoConversations => 'अभी तक कोई बातचीत नहीं';
 
   @override
+  String get aprsSelectConversation => 'बातचीत चुनें';
+
+  @override
   String get aprsSendSms => 'SMS संदेश भेजें...';
 
   @override
@@ -2530,36 +2533,36 @@ class AppLocalizationsHi extends AppLocalizations {
   String get aprsBeaconSettingsMenu => 'बीकन सेटिंग्स...';
 
   @override
-  String get aprsSoftwareBeaconMenu => 'Software Beacon...';
+  String get aprsSoftwareBeaconMenu => 'सॉफ़्टवेयर बीकन...';
 
   @override
-  String get softwareBeaconTitle => 'Software Beacon';
+  String get softwareBeaconTitle => 'सॉफ़्टवेयर बीकन';
 
   @override
   String get softwareBeaconIntro =>
-      'The software beacon periodically transmits your APRS position or status on the \"APRS\" channel using your callsign. It is always sent over the Internet (APRS-IS), and also over the selected radio when one is chosen.';
+      'सॉफ़्टवेयर बीकन आपके कॉलसाइन का उपयोग करके \"APRS\" चैनल पर समय-समय पर आपकी APRS स्थिति या स्टेटस प्रसारित करता है। कॉन्फ़िगर होने पर इसे इंटरनेट (APRS-IS) के माध्यम से भेजा जाता है, और जब कोई रेडियो चुना जाता है तो चयनित रेडियो के माध्यम से भी।';
 
   @override
-  String get softwareBeaconSymbol => 'APRS Symbol';
+  String get softwareBeaconSymbol => 'APRS प्रतीक';
 
   @override
-  String get softwareBeaconMessage => 'Message';
+  String get softwareBeaconMessage => 'संदेश';
 
   @override
-  String get softwareBeaconMessageHint => 'Optional status text';
+  String get softwareBeaconMessageHint => 'वैकल्पिक स्टेटस टेक्स्ट';
 
   @override
-  String get softwareBeaconIncludeLocation => 'Include my location';
+  String get softwareBeaconIncludeLocation => 'मेरा स्थान शामिल करें';
 
   @override
-  String get softwareBeaconRadio => 'Preferred radio';
+  String get softwareBeaconRadio => 'पसंदीदा रेडियो';
 
   @override
-  String get softwareBeaconInternetOnly => 'Internet only';
+  String get softwareBeaconInternetOnly => 'केवल इंटरनेट';
 
   @override
   String get softwareBeaconNoCallsign =>
-      'Configure your callsign in Settings before using the software beacon.';
+      'सॉफ़्टवेयर बीकन का उपयोग करने से पहले सेटिंग्स में अपना कॉलसाइन कॉन्फ़िगर करें।';
 
   @override
   String get aprsDigipeaterMenu => 'डिजीपीटर...';

@@ -2540,6 +2540,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get aprsNoConversations => 'Nessuna conversazione';
 
   @override
+  String get aprsSelectConversation => 'Seleziona una conversazione';
+
+  @override
   String get aprsSendSms => 'Invia messaggio SMS...';
 
   @override
@@ -2549,36 +2552,36 @@ class AppLocalizationsIt extends AppLocalizations {
   String get aprsBeaconSettingsMenu => 'Impostazioni beacon...';
 
   @override
-  String get aprsSoftwareBeaconMenu => 'Software Beacon...';
+  String get aprsSoftwareBeaconMenu => 'Beacon software...';
 
   @override
-  String get softwareBeaconTitle => 'Software Beacon';
+  String get softwareBeaconTitle => 'Beacon software';
 
   @override
   String get softwareBeaconIntro =>
-      'The software beacon periodically transmits your APRS position or status on the \"APRS\" channel using your callsign. It is always sent over the Internet (APRS-IS), and also over the selected radio when one is chosen.';
+      'Il beacon software trasmette periodicamente la tua posizione o il tuo stato APRS sul canale \"APRS\" utilizzando il tuo nominativo. Viene inviato tramite Internet (APRS-IS) quando configurato e anche tramite la radio selezionata, quando ne viene scelta una.';
 
   @override
-  String get softwareBeaconSymbol => 'APRS Symbol';
+  String get softwareBeaconSymbol => 'Simbolo APRS';
 
   @override
-  String get softwareBeaconMessage => 'Message';
+  String get softwareBeaconMessage => 'Messaggio';
 
   @override
-  String get softwareBeaconMessageHint => 'Optional status text';
+  String get softwareBeaconMessageHint => 'Testo di stato facoltativo';
 
   @override
-  String get softwareBeaconIncludeLocation => 'Include my location';
+  String get softwareBeaconIncludeLocation => 'Includi la mia posizione';
 
   @override
-  String get softwareBeaconRadio => 'Preferred radio';
+  String get softwareBeaconRadio => 'Radio preferita';
 
   @override
-  String get softwareBeaconInternetOnly => 'Internet only';
+  String get softwareBeaconInternetOnly => 'Solo Internet';
 
   @override
   String get softwareBeaconNoCallsign =>
-      'Configure your callsign in Settings before using the software beacon.';
+      'Configura il tuo nominativo nelle Impostazioni prima di usare il beacon software.';
 
   @override
   String get aprsDigipeaterMenu => 'Digipeater...';

@@ -2511,6 +2511,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aprsNoConversations => 'No conversations yet';
 
   @override
+  String get aprsSelectConversation => 'Select a conversation';
+
+  @override
   String get aprsSendSms => 'Send SMS Message...';
 
   @override
@@ -2527,7 +2530,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get softwareBeaconIntro =>
-      'The software beacon periodically transmits your APRS position or status on the \"APRS\" channel using your callsign. It is always sent over the Internet (APRS-IS), and also over the selected radio when one is chosen.';
+      'The software beacon periodically transmits your APRS position or status on the \"APRS\" channel using your callsign. It is sent to the Internet (APRS-IS) when configured, and also over the selected radio when one is chosen.';
 
   @override
   String get softwareBeaconSymbol => 'APRS Symbol';

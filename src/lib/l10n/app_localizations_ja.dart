@@ -2479,6 +2479,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aprsNoConversations => '会話はまだありません';
 
   @override
+  String get aprsSelectConversation => '会話を選択';
+
+  @override
   String get aprsSendSms => 'SMS メッセージを送信...';
 
   @override
@@ -2488,36 +2491,36 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aprsBeaconSettingsMenu => 'ビーコン設定...';
 
   @override
-  String get aprsSoftwareBeaconMenu => 'Software Beacon...';
+  String get aprsSoftwareBeaconMenu => 'ソフトウェアビーコン...';
 
   @override
-  String get softwareBeaconTitle => 'Software Beacon';
+  String get softwareBeaconTitle => 'ソフトウェアビーコン';
 
   @override
   String get softwareBeaconIntro =>
-      'The software beacon periodically transmits your APRS position or status on the \"APRS\" channel using your callsign. It is always sent over the Internet (APRS-IS), and also over the selected radio when one is chosen.';
+      'ソフトウェアビーコンは、あなたのコールサインを使用して「APRS」チャンネルでAPRSの位置またはステータスを定期的に送信します。設定されている場合はインターネット（APRS-IS）経由で送信され、無線機が選択されている場合は選択した無線機経由でも送信されます。';
 
   @override
-  String get softwareBeaconSymbol => 'APRS Symbol';
+  String get softwareBeaconSymbol => 'APRSシンボル';
 
   @override
-  String get softwareBeaconMessage => 'Message';
+  String get softwareBeaconMessage => 'メッセージ';
 
   @override
-  String get softwareBeaconMessageHint => 'Optional status text';
+  String get softwareBeaconMessageHint => '任意のステータステキスト';
 
   @override
-  String get softwareBeaconIncludeLocation => 'Include my location';
+  String get softwareBeaconIncludeLocation => '自分の位置情報を含める';
 
   @override
-  String get softwareBeaconRadio => 'Preferred radio';
+  String get softwareBeaconRadio => '優先する無線機';
 
   @override
-  String get softwareBeaconInternetOnly => 'Internet only';
+  String get softwareBeaconInternetOnly => 'インターネットのみ';
 
   @override
   String get softwareBeaconNoCallsign =>
-      'Configure your callsign in Settings before using the software beacon.';
+      'ソフトウェアビーコンを使用する前に、設定でコールサインを設定してください。';
 
   @override
   String get aprsDigipeaterMenu => 'デジピーター...';

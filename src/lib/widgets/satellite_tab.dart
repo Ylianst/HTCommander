@@ -593,6 +593,16 @@ class _SatelliteTabState extends State<SatelliteTab> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
+          if (showBack)
+            InkWell(
+              onTap: () => setState(() => _narrowShowDetail = false),
+              borderRadius: BorderRadius.circular(4),
+              child: const Padding(
+                padding: EdgeInsets.all(4),
+                child: Icon(Icons.arrow_back, size: 20),
+              ),
+            ),
+          if (showBack) const SizedBox(width: 4),
           Text(
             'Satellite',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
@@ -609,16 +619,6 @@ class _SatelliteTabState extends State<SatelliteTab> {
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
-              ),
-            ),
-          if (showBack)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: IconButton(
-                tooltip: 'Back to satellite list',
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.close, size: 24),
-                onPressed: () => setState(() => _narrowShowDetail = false),
               ),
             ),
           Builder(

@@ -7,6 +7,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 // `Radio` from radio.dart collides with Material's Radio button widget, which
 // this dialog does not use; hide it so the radio model type is unambiguous.
 import 'package:flutter/material.dart' hide Radio;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../radio/ax25_address.dart';
@@ -287,12 +288,29 @@ class BeaconSettingsPanelState extends State<BeaconSettingsPanel>
     // Rebuild unconditionally: acceptability can change even when validity does
     // not (e.g. clearing the field while beaconing is off).
     setState(() => _callsignValid = valid);
-    widget.onChanged?.call();
+    _notifyChanged();
   }
 
   void _onAprsPathChanged() {
     setState(() => _aprsPathValid = _isAprsPathValid(_aprsPathController.text));
-    widget.onChanged?.call();
+    _notifyChanged();
+  }
+
+  /// Notifies the host that settings changed. Setting a controller's text during
+  /// `initState` (via [_selectRadio]) fires its listeners synchronously while
+  /// the host dialog is still building, so defer the callback to the next frame
+  /// to avoid "setState() called during build".
+  void _notifyChanged() {
+    final callback = widget.onChanged;
+    if (callback == null) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) callback();
+      });
+    } else {
+      callback();
+    }
   }
 
   /// Validates the APRS route/path: one, or two comma-separated stations, each

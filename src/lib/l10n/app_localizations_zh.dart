@@ -2462,6 +2462,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aprsNoConversations => '暂无会话';
 
   @override
+  String get aprsSelectConversation => '选择会话';
+
+  @override
   String get aprsSendSms => '发送 SMS 消息...';
 
   @override
@@ -2471,36 +2474,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aprsBeaconSettingsMenu => '信标设置...';
 
   @override
-  String get aprsSoftwareBeaconMenu => 'Software Beacon...';
+  String get aprsSoftwareBeaconMenu => '软件信标...';
 
   @override
-  String get softwareBeaconTitle => 'Software Beacon';
+  String get softwareBeaconTitle => '软件信标';
 
   @override
   String get softwareBeaconIntro =>
-      'The software beacon periodically transmits your APRS position or status on the \"APRS\" channel using your callsign. It is always sent over the Internet (APRS-IS), and also over the selected radio when one is chosen.';
+      '软件信标使用您的呼号定期在\"APRS\"频道上发送您的APRS位置或状态。在已配置时它通过互联网（APRS-IS）发送，并在选择了无线电设备时也通过所选设备发送。';
 
   @override
-  String get softwareBeaconSymbol => 'APRS Symbol';
+  String get softwareBeaconSymbol => 'APRS符号';
 
   @override
-  String get softwareBeaconMessage => 'Message';
+  String get softwareBeaconMessage => '消息';
 
   @override
-  String get softwareBeaconMessageHint => 'Optional status text';
+  String get softwareBeaconMessageHint => '可选状态文本';
 
   @override
-  String get softwareBeaconIncludeLocation => 'Include my location';
+  String get softwareBeaconIncludeLocation => '包含我的位置';
 
   @override
-  String get softwareBeaconRadio => 'Preferred radio';
+  String get softwareBeaconRadio => '首选无线电';
 
   @override
-  String get softwareBeaconInternetOnly => 'Internet only';
+  String get softwareBeaconInternetOnly => '仅互联网';
 
   @override
-  String get softwareBeaconNoCallsign =>
-      'Configure your callsign in Settings before using the software beacon.';
+  String get softwareBeaconNoCallsign => '在使用软件信标之前，请在设置中配置您的呼号。';
 
   @override
   String get aprsDigipeaterMenu => '数字中继器...';

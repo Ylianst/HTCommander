@@ -4642,6 +4642,12 @@ abstract class AppLocalizations {
   /// **'No conversations yet'**
   String get aprsNoConversations;
 
+  /// No description provided for @aprsSelectConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a conversation'**
+  String get aprsSelectConversation;
+
   /// No description provided for @aprsSendSms.
   ///
   /// In en, this message translates to:
@@ -4675,7 +4681,7 @@ abstract class AppLocalizations {
   /// No description provided for @softwareBeaconIntro.
   ///
   /// In en, this message translates to:
-  /// **'The software beacon periodically transmits your APRS position or status on the \"APRS\" channel using your callsign. It is always sent over the Internet (APRS-IS), and also over the selected radio when one is chosen.'**
+  /// **'The software beacon periodically transmits your APRS position or status on the \"APRS\" channel using your callsign. It is sent to the Internet (APRS-IS) when configured, and also over the selected radio when one is chosen.'**
   String get softwareBeaconIntro;
 
   /// No description provided for @softwareBeaconSymbol.

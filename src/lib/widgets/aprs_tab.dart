@@ -1905,6 +1905,19 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Match the Satellite tab: side-by-side (list + content) when very
+        // wide, single-view switch otherwise, using the same 720px trigger.
+        final wide = constraints.maxWidth >= 720;
+        return wide ? _buildWideLayout(context) : _buildNarrowLayout(context);
+      },
+    );
+  }
+
+  /// Narrow (single-column) layout: the conversation list OR the selected
+  /// content (all messages / a conversation) takes over the whole tab.
+  Widget _buildNarrowLayout(BuildContext context) {
     // Conversation list view: header + list, no input panel.
     if (!_viewAllMessages && _selectedContact == null) {
       return Column(
@@ -1919,6 +1932,48 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       children: [
         _buildHeader(),
         if (_showMissingChannel) _buildMissingChannelBanner(),
+        Expanded(child: _buildConversationContent(context)),
+      ],
+    );
+  }
+
+  /// Wide layout: the conversation list is pinned on the left and the selected
+  /// content (all messages / a conversation) is shown on the right.
+  Widget _buildWideLayout(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final hasContent = _viewAllMessages || _selectedContact != null;
+    return Column(
+      children: [
+        _buildHeader(wide: true),
+        if (_showMissingChannel) _buildMissingChannelBanner(),
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(width: 320, child: _buildMessengerList()),
+              const VerticalDivider(width: 1),
+              Expanded(
+                child: hasContent
+                    ? _buildConversationContent(context)
+                    : Center(
+                        child: Text(
+                          AppLocalizations.of(context).aprsSelectConversation,
+                          style: TextStyle(color: scheme.onSurfaceVariant),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The selected content (all messages / a conversation): the chat feed with
+  /// its optional missing-route banner, avatar overlay and input panel.
+  Widget _buildConversationContent(BuildContext context) {
+    return Column(
+      children: [
         if (_selectedContactRouteMissing) _buildMissingRouteBanner(),
         Expanded(
           child: DragTarget<radio.RadioChannelInfo>(
@@ -1951,6 +2006,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       ],
     );
   }
+
 
   // ---------------------------------------------------------------------------
   // Messenger mode
@@ -2203,6 +2259,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
     return ListTile(
+      selected: _viewAllMessages,
+      selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.4),
       leading: CircleAvatar(
         backgroundColor: scheme.primaryContainer,
         child: Icon(Icons.forum, color: scheme.onPrimaryContainer),
@@ -2225,6 +2283,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         : (c.lastFromMe ? '→ ${c.lastMessage}' : c.lastMessage);
     final avatar = _avatarDataFor(c.callsign);
     return ListTile(
+      selected: !_viewAllMessages && _selectedContact == c.callsign,
+      selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.4),
       leading: ContactAvatar(
         callsign: c.callsign,
         avatarIcon: avatar.icon,
@@ -2460,7 +2520,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader({bool wide = false}) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 40,
@@ -2475,8 +2535,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
               _aprsRoutes.length > 1;
           final inConversation = _selectedContact != null;
           // A back arrow is shown for both the "All Messages" feed and a
-          // per-contact conversation so the user can return to the list.
-          final inContent = _viewAllMessages || inConversation;
+          // per-contact conversation so the user can return to the list. In the
+          // wide layout the list stays visible, so no back button is needed.
+          final inContent = !wide && (_viewAllMessages || inConversation);
           final title = inConversation
               ? '${AppLocalizations.of(context).tabAprs} - ${_contactDisplayName(_selectedContact!)}'
               : AppLocalizations.of(context).tabAprs;
