@@ -4032,29 +4032,56 @@ class _MainFormState extends State<MainForm>
   }
 
   Widget _buildStatusBar() {
+    final theme = Theme.of(context);
+    final mq = MediaQuery.of(context);
+    // iPhones without a home button have rounded screen corners, which clip
+    // content placed at the extreme bottom-left / bottom-right edges. Such
+    // devices report a non-zero bottom safe-area inset. On those, center the
+    // status text and battery level so they are not hidden by the rounding.
+    final bool roundedScreen =
+        !kIsWeb && Platform.isIOS && mq.viewPadding.bottom > 0;
+
+    final Text statusText = Text(
+      _statusText,
+      style: theme.textTheme.bodySmall,
+    );
+    final bool showBattery =
+        _currentRadioDeviceId > 0 && _batteryPercentage >= 0;
+    final Text? batteryText = showBattery
+        ? Text(
+            AppLocalizations.of(context).statusBattery(_batteryPercentage),
+            style: theme.textTheme.bodySmall,
+          )
+        : null;
+
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+        color: theme.colorScheme.surfaceContainerHighest,
+        border: Border(
+          top: BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              _statusText,
-              style: Theme.of(context).textTheme.bodySmall,
+      child: roundedScreen
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(child: statusText),
+                if (batteryText != null) ...[
+                  const SizedBox(width: 12),
+                  batteryText,
+                ],
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(child: statusText),
+                // Battery percentage on the right (only show when connected and
+                // battery info available)
+                if (batteryText != null) batteryText,
+              ],
             ),
-          ),
-          // Battery percentage on the right (only show when connected and battery info available)
-          if (_currentRadioDeviceId > 0 && _batteryPercentage >= 0)
-            Text(
-              AppLocalizations.of(context).statusBattery(_batteryPercentage),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-        ],
-      ),
     );
   }
 
