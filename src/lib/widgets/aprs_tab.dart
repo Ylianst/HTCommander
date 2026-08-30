@@ -1000,7 +1000,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
 
     var removedLaterDuplicate = false;
     if (aprsPacket.dataType == PacketDataType.message) {
-      final laterDuplicates = <_AprsEntry>[];
+      final duplicatesToRemove = <_AprsEntry>[];
       for (final n in _entries) {
         if (n.aprsPacket.dataType != PacketDataType.message ||
             n.senderCallsign != entry.senderCallsign ||
@@ -1010,11 +1010,24 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
                 entry.aprsPacket.messageData.msgText) {
           continue;
         }
+        final incomingFromIs = entry.aprsPacket.fromAprsIs;
+        final existingFromIs = n.aprsPacket.fromAprsIs;
+        if (incomingFromIs != existingFromIs) {
+          // One copy is a locally-recorded RF message, the other an
+          // internet-recovered echo (e.g. from the aprs.fi backfill) of the
+          // same message. Always keep the RF copy: it is the authoritative
+          // local record and must never be dropped just because aprs.fi echoed
+          // it back with a slightly different timestamp.
+          if (incomingFromIs) return; // existing RF copy wins; ignore the echo.
+          duplicatesToRemove.add(n); // incoming RF replaces the internet copy.
+          continue;
+        }
+        // Same origin: collapse retransmissions, keeping the oldest copy.
         if (!n.time.isAfter(entry.time)) return;
-        laterDuplicates.add(n);
+        duplicatesToRemove.add(n);
       }
-      if (laterDuplicates.isNotEmpty) {
-        _entries.removeWhere(laterDuplicates.contains);
+      if (duplicatesToRemove.isNotEmpty) {
+        _entries.removeWhere(duplicatesToRemove.contains);
         removedLaterDuplicate = true;
       }
     } else {
