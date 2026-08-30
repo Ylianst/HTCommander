@@ -15,11 +15,15 @@ limitations under the License.
 */
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/aprs/aprs_packet.dart';
+import 'package:htcommander/aprsis/aprsfi_client.dart';
 import 'package:htcommander/aprsis/aprsis_client.dart';
 import 'package:htcommander/aprsis/tnc2_codec.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 /// In-memory fake transport so the client's protocol logic can be exercised
 /// without a real socket.
@@ -62,6 +66,63 @@ AprsPacket _parseTnc2(String line) {
 }
 
 void main() {
+  group('AprsFiClient', () {
+    test('keeps the earliest identical retransmission', () async {
+      final client = MockClient((_) async {
+        return http.Response(
+          jsonEncode({
+            'result': 'ok',
+            'entries': [
+              {
+                'messageid': '3',
+                'time': '1788036963',
+                'srccall': 'KC1MUR-5',
+                'dst': 'KK7VZT-7',
+                'message': 'I really like the msg view :)',
+              },
+              {
+                'messageid': '2',
+                'time': '1788022543',
+                'srccall': 'KC1MUR-5',
+                'dst': 'KK7VZT-7',
+                'message': 'I really like the msg view :)',
+              },
+              {
+                'messageid': '1',
+                'time': '1788021592',
+                'srccall': 'KC1MUR-5',
+                'dst': 'KK7VZT-7',
+                'message': 'I really like the msg view :)',
+              },
+              {
+                'messageid': '4',
+                'time': '1788037000',
+                'srccall': 'KC1MUR-5',
+                'dst': 'KK7VZT-7',
+                'message': 'A different message',
+              },
+            ],
+          }),
+          200,
+        );
+      });
+
+      final result = await AprsFiClient.fetchMessages(
+        apiKey: 'test-key',
+        dstCallsign: 'KK7VZT-7',
+        client: client,
+      );
+
+      expect(result.ok, isTrue);
+      expect(result.messages, hasLength(2));
+      final duplicate = result.messages.singleWhere(
+        (message) => message.message == 'I really like the msg view :)',
+      );
+      expect(duplicate.messageId, '1');
+      expect(duplicate.time.millisecondsSinceEpoch, 1788021592000);
+    });
+  });
+
   group('Tnc2Codec', () {
     test('decodes source, destination, path and info', () {
       final packet = Tnc2Codec.decode(

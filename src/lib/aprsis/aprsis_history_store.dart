@@ -158,6 +158,20 @@ class AprsIsHistoryStore {
     }
   }
 
+  /// Deletes all persisted records so cleared internet history cannot reload
+  /// on the next launch. Safe when persistence is unavailable (web / error).
+  void clear() {
+    final file = _file;
+    if (file == null) return;
+    try {
+      if (file.existsSync()) file.deleteSync();
+      _lineCount = 0;
+      _appendsSinceCompact = 0;
+    } catch (e) {
+      debugPrint('AprsIsHistoryStore: clear failed: $e');
+    }
+  }
+
   /// Rewrites the file to the last [_maxEntries] raw lines. Done synchronously
   /// so it cannot interleave with the synchronous appends that share the file.
   void _compactSync() {

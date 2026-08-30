@@ -115,11 +115,6 @@ class AprsIsManager {
   /// Guards against overlapping aprs.fi backfill requests.
   bool _mergingAprsFi = false;
 
-  /// Time window within which an aprs.fi message is considered a duplicate of
-  /// an internet message we already have (accounts for clock skew between our
-  /// receive time and aprs.fi's timestamp).
-  static const Duration _aprsFiDedupWindow = Duration(minutes: 2);
-
   /// Subscribes to settings + RF frames and opens the client when enabled.
   void init() {
     if (_initialized) return;
@@ -170,6 +165,14 @@ class AprsIsManager {
       deviceId: 1,
       name: 'RequestAprsIsPackets',
       callback: _onRequestAprsIsPackets,
+    );
+
+    // A UI clear must also wipe persisted internet history; otherwise a later
+    // duplicate copy of a message would reload from disk on the next launch.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'ClearAprsPackets',
+      callback: _onClearAprsPackets,
     );
 
     // Re-run the aprs.fi backfill whenever the API key or our callsign changes
@@ -224,6 +227,13 @@ class AprsIsManager {
       data: List<AprsPacket>.from(_historyPackets),
       store: false,
     );
+  }
+
+  /// Clears in-memory and persisted internet history when the user clears APRS
+  /// messages, so a cleared message cannot reload from disk on the next launch.
+  void _onClearAprsPackets(int deviceId, String name, Object? data) {
+    _historyPackets.clear();
+    _history.clear();
   }
 
   // ---------------------------------------------------------------------------
@@ -362,8 +372,9 @@ class AprsIsManager {
     return true;
   }
 
-  /// Whether an internet message with the same source, addressee and text
-  /// already exists within [_aprsFiDedupWindow] of [time].
+  /// Whether the retained internet history already contains the same message
+  /// at or before [time]. A later retransmission must not block an older
+  /// aprs.fi copy, because the oldest copy is the canonical one.
   bool _isDuplicateAprsFiMessage(
     String src,
     String addressee,
@@ -377,11 +388,27 @@ class AprsIsManager {
       if (packet.addresses[1].callSignWithId.toUpperCase() != src) continue;
       if (p.messageData.addressee.toUpperCase() != addressee) continue;
       if (p.messageData.msgText != text) continue;
-      if ((packet.time.difference(time)).abs() <= _aprsFiDedupWindow) {
+      if (!packet.time.isAfter(time)) {
         return true;
       }
     }
     return false;
+  }
+
+  /// Whether a live APRS-IS message duplicates one already in history (same
+  /// source, addressee and text). Used to drop a sender's retransmissions.
+  bool _isLiveMessageDuplicate(AprsPacket aprs, AX25Packet ax25) {
+    final src = ax25.addresses.length >= 2
+        ? ax25.addresses[1].callSignWithId.toUpperCase()
+        : '';
+    final addressee = aprs.messageData.addressee.trim().toUpperCase();
+    if (src.isEmpty || addressee.isEmpty) return false;
+    return _isDuplicateAprsFiMessage(
+      src,
+      addressee,
+      aprs.messageData.msgText,
+      ax25.time,
+    );
   }
 
   bool _readEnabled() =>
@@ -583,6 +610,20 @@ class AprsIsManager {
     if (aprs == null) return;
     aprs.fromAprsIs = true;
 
+    final messageData = aprs.messageData;
+
+    // A sender that never sees our ACK repeats the same message for hours.
+    // Drop those retransmissions so the message keeps its first-seen time
+    // instead of resurfacing at each newer copy; the ACK below still fires.
+    if (aprs.dataType == PacketDataType.message &&
+        messageData.msgType != MessageType.mtAck &&
+        messageData.msgType != MessageType.mtRej &&
+        messageData.msgText.isNotEmpty &&
+        _isLiveMessageDuplicate(aprs, ax25)) {
+      _maybeAckOverAprsIs(aprs, ax25);
+      return;
+    }
+
     // Persist to the append-only internet history so it survives a restart,
     // and keep it in the in-memory list served to late-loading tabs.
     _history.append(ax25.time, tnc2Line);
@@ -601,7 +642,6 @@ class AprsIsManager {
       store: false,
     );
 
-    final messageData = aprs.messageData;
     if (aprs.dataType == PacketDataType.message &&
         messageData.msgType != MessageType.mtAck &&
         messageData.msgType != MessageType.mtRej &&

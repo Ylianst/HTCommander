@@ -339,19 +339,22 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: _sectionDecoration(),
-      child: SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        dense: true,
-        value: service.autoUpdateOnWifi,
-        onChanged: (value) =>
-            setState(() => service.autoUpdateOnWifi = value),
-        title: Text(
-          l10n.cslAutoUpdateWifi,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-        ),
-        subtitle: Text(
-          l10n.cslAutoUpdateWifiSubtitle,
-          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+      child: Material(
+        type: MaterialType.transparency,
+        child: SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          value: service.autoUpdateOnWifi,
+          onChanged: (value) =>
+              setState(() => service.autoUpdateOnWifi = value),
+          title: Text(
+            l10n.cslAutoUpdateWifi,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+          ),
+          subtitle: Text(
+            l10n.cslAutoUpdateWifiSubtitle,
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+          ),
         ),
       ),
     );

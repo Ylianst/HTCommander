@@ -198,7 +198,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     _showAllMessages =
         (_broker.getValue<int>(0, 'AprsShowTelemetry', 0) ?? 0) != 0;
     _showAprsIs =
-        (_broker.getValue<int>(0, 'AprsShowAprsIs', 1) ?? 1) != 0;
+      (_broker.getValue<int>(0, 'AprsShowAprsIs', 1) ?? 1) != 0;
     _selectedRouteIndex = _broker.getValue<int>(0, 'SelectedAprsRoute', 0) ?? 0;
     _parseAndSetRoutes(_broker.getValue<String>(0, 'AprsRoutes', '') ?? '');
     final savedDest = _broker.getValue<String>(0, 'AprsDestination', '') ?? '';
@@ -929,17 +929,6 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           }
         }
       }
-
-      // Drop exact duplicates already shown.
-      if (messageId != null) {
-        for (final n in _entries) {
-          if (n.messageId == messageId &&
-              n.routingString == routingString &&
-              n.messageText == messageText) {
-            return;
-          }
-        }
-      }
     } else {
       // Non-message packets (status, telemetry, etc.).
       if (aprsPacket.weather != null && aprsPacket.weather!.hasData) {
@@ -985,16 +974,36 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       peerCallsign: peerCallsign,
     );
 
-    // Drop duplicates within the last 5 minutes. Compare the sender callsign
-    // too so symbol-only beacons (empty text, no message id) from different
-    // stations are not collapsed into one.
-    for (final n in _entries) {
-      if (entry.messageId == n.messageId &&
-          entry.messageText == n.messageText &&
-          entry.senderCallsign == n.senderCallsign &&
-          n.time.add(const Duration(minutes: 5)).compareTo(packet.time) > 0 &&
-          entry.time != n.time) {
-        return;
+    var removedLaterDuplicate = false;
+    if (aprsPacket.dataType == PacketDataType.message) {
+      final laterDuplicates = <_AprsEntry>[];
+      for (final n in _entries) {
+        if (n.aprsPacket.dataType != PacketDataType.message ||
+            n.senderCallsign != entry.senderCallsign ||
+            n.aprsPacket.messageData.addressee.toUpperCase() !=
+                entry.aprsPacket.messageData.addressee.toUpperCase() ||
+            n.aprsPacket.messageData.msgText !=
+                entry.aprsPacket.messageData.msgText) {
+          continue;
+        }
+        if (!n.time.isAfter(entry.time)) return;
+        laterDuplicates.add(n);
+      }
+      if (laterDuplicates.isNotEmpty) {
+        _entries.removeWhere(laterDuplicates.contains);
+        removedLaterDuplicate = true;
+      }
+    } else {
+      // Keep the short duplicate window for beacons and other non-message
+      // packets, where identical content can be a legitimate later update.
+      for (final n in _entries) {
+        if (entry.messageId == n.messageId &&
+            entry.messageText == n.messageText &&
+            entry.senderCallsign == n.senderCallsign &&
+            n.time.add(const Duration(minutes: 5)).compareTo(packet.time) > 0 &&
+            entry.time != n.time) {
+          return;
+        }
       }
     }
 
@@ -1024,7 +1033,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     // Pruning shifts entry indices, so a full rebuild is required then instead
     // of a cheap append; likewise when the entry slotted in out of order.
     final pruned = _pruneAprsIsHistory();
-    if (pruned || !appendedAtEnd) {
+    if (pruned || removedLaterDuplicate || !appendedAtEnd) {
       _rebuildMessages();
     } else {
       _appendMessage(_entries.length - 1, entry);
