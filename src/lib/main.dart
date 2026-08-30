@@ -4079,7 +4079,7 @@ class _MainFormState extends State<MainForm>
                 Expanded(child: statusText),
                 // Battery percentage on the right (only show when connected and
                 // battery info available)
-                if (batteryText != null) batteryText,
+                ?batteryText,
               ],
             ),
     );
