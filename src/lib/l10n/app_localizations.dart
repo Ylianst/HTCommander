@@ -4657,8 +4657,68 @@ abstract class AppLocalizations {
   /// No description provided for @aprsBeaconSettingsMenu.
   ///
   /// In en, this message translates to:
-  /// **'Beacon Settings...'**
+  /// **'Radio Beacon...'**
   String get aprsBeaconSettingsMenu;
+
+  /// No description provided for @aprsSoftwareBeaconMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Software Beacon...'**
+  String get aprsSoftwareBeaconMenu;
+
+  /// No description provided for @softwareBeaconTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Software Beacon'**
+  String get softwareBeaconTitle;
+
+  /// No description provided for @softwareBeaconIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'The software beacon periodically transmits your APRS position or status on the \"APRS\" channel using your callsign. It is always sent over the Internet (APRS-IS), and also over the selected radio when one is chosen.'**
+  String get softwareBeaconIntro;
+
+  /// No description provided for @softwareBeaconSymbol.
+  ///
+  /// In en, this message translates to:
+  /// **'APRS Symbol'**
+  String get softwareBeaconSymbol;
+
+  /// No description provided for @softwareBeaconMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get softwareBeaconMessage;
+
+  /// No description provided for @softwareBeaconMessageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional status text'**
+  String get softwareBeaconMessageHint;
+
+  /// No description provided for @softwareBeaconIncludeLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Include my location'**
+  String get softwareBeaconIncludeLocation;
+
+  /// No description provided for @softwareBeaconRadio.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferred radio'**
+  String get softwareBeaconRadio;
+
+  /// No description provided for @softwareBeaconInternetOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Internet only'**
+  String get softwareBeaconInternetOnly;
+
+  /// No description provided for @softwareBeaconNoCallsign.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure your callsign in Settings before using the software beacon.'**
+  String get softwareBeaconNoCallsign;
 
   /// No description provided for @aprsDigipeaterMenu.
   ///

@@ -2549,6 +2549,38 @@ class AppLocalizationsIt extends AppLocalizations {
   String get aprsBeaconSettingsMenu => 'Impostazioni beacon...';
 
   @override
+  String get aprsSoftwareBeaconMenu => 'Software Beacon...';
+
+  @override
+  String get softwareBeaconTitle => 'Software Beacon';
+
+  @override
+  String get softwareBeaconIntro =>
+      'The software beacon periodically transmits your APRS position or status on the \"APRS\" channel using your callsign. It is always sent over the Internet (APRS-IS), and also over the selected radio when one is chosen.';
+
+  @override
+  String get softwareBeaconSymbol => 'APRS Symbol';
+
+  @override
+  String get softwareBeaconMessage => 'Message';
+
+  @override
+  String get softwareBeaconMessageHint => 'Optional status text';
+
+  @override
+  String get softwareBeaconIncludeLocation => 'Include my location';
+
+  @override
+  String get softwareBeaconRadio => 'Preferred radio';
+
+  @override
+  String get softwareBeaconInternetOnly => 'Internet only';
+
+  @override
+  String get softwareBeaconNoCallsign =>
+      'Configure your callsign in Settings before using the software beacon.';
+
+  @override
   String get aprsDigipeaterMenu => 'Digipeater...';
 
   @override

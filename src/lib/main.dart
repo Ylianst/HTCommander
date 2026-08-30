@@ -28,6 +28,7 @@ import 'handlers/frame_deduplicator.dart';
 import 'handlers/packet_store.dart';
 import 'handlers/aprs_handler.dart';
 import 'handlers/digipeater_handler.dart';
+import 'handlers/software_beacon_handler.dart';
 import 'handlers/airplane_handler.dart';
 import 'handlers/satellite_handler.dart';
 import 'handlers/comms_handler.dart';
@@ -318,6 +319,13 @@ Future<void> _startApp(List<String> args) async {
   final digipeaterHandler = DigipeaterHandler();
   digipeaterHandler.init();
   DataBroker.addDataHandler('DigipeaterHandler', digipeaterHandler);
+
+  // Register the software beacon handler so that, when an interval is set, the
+  // app periodically transmits its own APRS position/status beacon over the
+  // selected radio's "APRS" channel and gates it to the Internet (APRS-IS).
+  final softwareBeaconHandler = SoftwareBeaconHandler();
+  softwareBeaconHandler.init();
+  DataBroker.addDataHandler('SoftwareBeaconHandler', softwareBeaconHandler);
 
   // Register the airplane handler so that, when a Dump1090 server is configured
   // and airplane display is enabled, aircraft are polled and dispatched on the

@@ -13,6 +13,7 @@ import '../dialogs/aprs_weather_dialog.dart';
 import '../dialogs/dialog_utils.dart';
 import '../dialogs/aprs_location_dialog.dart';
 import '../dialogs/edit_beacon_settings_dialog.dart';
+import '../dialogs/software_beacon_dialog.dart';
 import '../dialogs/digipeater_dialog.dart';
 import '../dialogs/add_station_dialog.dart';
 import '../dialogs/callsign_lookup_dialog.dart';
@@ -575,6 +576,17 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       }
     }
     return ids;
+  }
+
+  /// True when at least one radio is fully connected (not merely connecting).
+  /// The beacon/digipeater dialogs need a live radio to talk to, so their menu
+  /// items must stay disabled while a connection is still in progress.
+  bool _hasFullyConnectedRadio() {
+    for (final id in _connectedRadioDeviceIds()) {
+      final state = _broker.getValue<String>(id, 'State');
+      if (state == 'Connected') return true;
+    }
+    return false;
   }
 
   bool _radioHasAprsChannel(int deviceId) {
@@ -1808,9 +1820,17 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           value: 'beaconSettings',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _connectedRadioDeviceIds().isNotEmpty,
+          enabled: _hasFullyConnectedRadio(),
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.aprsBeaconSettingsMenu)],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'softwareBeacon',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.aprsSoftwareBeaconMenu)],
           ),
         ),
         PopupMenuItem<String>(
@@ -1818,7 +1838,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           height: menuItemHeight,
           padding: menuItemPadding,
           enabled:
-              _connectedRadioDeviceIds().isNotEmpty && !_isRadioLockedForOtherUsage,
+              _hasFullyConnectedRadio() && !_isRadioLockedForOtherUsage,
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.aprsDigipeaterMenu)],
           ),
@@ -1861,6 +1881,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           break;
         case 'beaconSettings':
           if (context.mounted) showEditBeaconSettingsDialog(context);
+          break;
+        case 'softwareBeacon':
+          if (context.mounted) showSoftwareBeaconDialog(context);
           break;
         case 'digipeater':
           if (context.mounted) showDigipeaterDialog(context);
