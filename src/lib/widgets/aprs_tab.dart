@@ -268,6 +268,18 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       callback: _onMessageStationRequested,
     );
 
+    // Re-tapping the APRS tab icon while it is already active returns the view
+    // to the conversation list.
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'AprsShowContactList',
+      callback: (_, _, _) {
+        if (!mounted) return;
+        if (_selectedContact == null && !_viewAllMessages) return;
+        _closeConversation();
+      },
+    );
+
     // Subscribe to settings changes from device 0.
     _broker.subscribeMultiple(
       deviceId: 0,
@@ -1678,7 +1690,6 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       _selectedContact = callsign.toUpperCase();
     });
     _rebuildMessages();
-    _messageFocusNode.requestFocus();
   }
 
   /// Returns to the Messenger conversation list.

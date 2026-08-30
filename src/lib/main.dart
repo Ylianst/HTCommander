@@ -3761,7 +3761,20 @@ class _MainFormState extends State<MainForm>
                         );
                       },
                       child: InkWell(
-                        onTap: () => _tabController.animateTo(index),
+                        onTap: () {
+                          // Re-tapping the already-selected APRS tab returns it
+                          // to the conversation list.
+                          if (_tabController.index == index &&
+                              tab.label == 'APRS') {
+                            _broker.dispatch(
+                              deviceId: 1,
+                              name: 'AprsShowContactList',
+                              data: null,
+                              store: false,
+                            );
+                          }
+                          _tabController.animateTo(index);
+                        },
                         child: Stack(
                           children: [
                             // Selection marker on the leading edge, matching the
