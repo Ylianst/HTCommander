@@ -49,4 +49,9 @@ class HostBridge {
       path: _webSocketPath,
     ).toString();
   }
+
+  /// Whether a device-0 setting is shared between the host and the browser.
+  /// Transient per-instance UI selection state (`Selected*`: current tab, radio,
+  /// satellite, APRS route) is excluded so it does not bleed across the bridge.
+  static bool isSyncedSetting(String name) => !name.startsWith('Selected');
 }

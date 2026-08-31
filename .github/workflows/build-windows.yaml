@@ -27,6 +27,22 @@ jobs:
         working-directory: src
         run: flutter build windows --release
 
+      - name: Build and stage web app
+        working-directory: src
+        shell: pwsh
+        run: |
+          # Compile the Flutter web UI (hosted variant) and stage it next to the
+          # executable so the desktop app can serve it over the built-in web
+          # server. Shared pubspec assets (assets/assets) are dropped because the
+          # desktop app serves them from its own bundle.
+          flutter build web --base-href / --dart-define=HTC_HOSTED=true --no-wasm-dry-run
+          $dest = "build/windows/${{ matrix.arch }}/runner/Release/web_app"
+          if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Copy-Item -Recurse -Force build/web/* $dest
+          $dup = Join-Path $dest 'assets/assets'
+          if (Test-Path $dup) { Remove-Item -Recurse -Force $dup }
+
       - name: Sign Windows executable
         uses: azure/trusted-signing-action@v0.4.0
         with:

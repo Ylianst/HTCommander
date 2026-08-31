@@ -80,6 +80,16 @@ class DataBroker {
   /// The role this broker plays in a multi-window session.
   DataBrokerRole _role = DataBrokerRole.standalone;
 
+  /// When true (the HTCommander-hosted web build), device-0 settings are neither
+  /// read from nor written to local storage; instead they are seeded from, and
+  /// forwarded to, the desktop host over the WebSocket bridge (see
+  /// [onDevice0Write] and [applyHostDevice0]).
+  bool _device0RemoteMode = false;
+
+  /// Hosted web client only: invoked for every local device-0 write so the
+  /// change can be forwarded to the desktop host. Set by the bridge wiring.
+  static void Function(String name, Object? data)? onDevice0Write;
+
   /// Host only: push channels to each detached child window, keyed by windowId.
   /// Used to forward dispatches from the main window to detached windows.
   final Map<String, WindowMethodChannel> _childChannels = {};
@@ -125,6 +135,23 @@ class DataBroker {
   /// Whether this broker is a detached client window.
   static bool get isClient => _instance._role == DataBrokerRole.client;
 
+  /// Whether device-0 settings are proxied to the desktop host (hosted web
+  /// build) instead of stored locally.
+  static bool get device0RemoteMode => _instance._device0RemoteMode;
+
+  /// Enables/disables device-0 remote mode (hosted web build). When enabled,
+  /// device-0 values are not persisted to or read from local storage.
+  static void setDevice0RemoteMode(bool enabled) {
+    _instance._device0RemoteMode = enabled;
+  }
+
+  /// Applies a device-0 value received from the desktop host into the local
+  /// store and notifies subscribers, without persisting it or forwarding it
+  /// back to the host. Used by the hosted web client to seed/track settings.
+  static void applyHostDevice0(String name, Object? data) {
+    _instance._applyLocal(0, name, data, true);
+  }
+
   /// Private constructor for singleton
   DataBroker._internal();
 
@@ -169,6 +196,13 @@ class DataBroker {
         broker._sendToHost(deviceId, name, data, store);
         break;
     }
+
+    // Hosted web client: proxy device-0 settings to the desktop host instead of
+    // keeping them local. Host-originated changes are applied via
+    // [applyHostDevice0] (which bypasses [dispatch]), so this never loops.
+    if (broker._device0RemoteMode && deviceId == 0 && store) {
+      onDevice0Write?.call(name, data);
+    }
   }
 
   /// Stores a value (when [store] is true) and notifies matching subscribers.
@@ -181,10 +215,12 @@ class DataBroker {
       _dataStore[key] = data;
 
       // Persist to SharedPreferences if device 0. Only the host (or a
-      // standalone window) owns persistence; clients rely on the host.
+      // standalone window) owns persistence; clients rely on the host, and a
+      // hosted web client proxies device 0 to the desktop host.
       if (deviceId == 0 &&
           _prefs != null &&
-          _role != DataBrokerRole.client) {
+          _role != DataBrokerRole.client &&
+          !_device0RemoteMode) {
         _persistValue(name, data);
       }
     }
@@ -375,7 +411,7 @@ class DataBroker {
     }
 
     // For device 0, try loading from SharedPreferences if not in memory
-    if (deviceId == 0 && broker._prefs != null) {
+    if (deviceId == 0 && broker._prefs != null && !broker._device0RemoteMode) {
       final loadedValue = broker._loadPersistedValue<T>(name, defaultValue);
       if (loadedValue != null) {
         // Cache in memory for subsequent access
@@ -401,7 +437,7 @@ class DataBroker {
     }
 
     // For device 0, try loading from SharedPreferences if not in memory.
-    if (deviceId == 0 && broker._prefs != null) {
+    if (deviceId == 0 && broker._prefs != null && !broker._device0RemoteMode) {
       final loadedValue = broker._loadPersistedValueDynamic(name);
       if (loadedValue != null) {
         // Cache in memory for subsequent access.
@@ -427,8 +463,12 @@ class DataBroker {
     final removed = broker._dataStore.remove(key) != null;
 
     // Also remove from SharedPreferences if device 0
-    if (deviceId == 0 && broker._prefs != null) {
+    if (deviceId == 0 && broker._prefs != null && !broker._device0RemoteMode) {
       broker._prefs!.remove('databroker_$name');
+    }
+    // Hosted web client: proxy the removal to the desktop host.
+    if (broker._device0RemoteMode && deviceId == 0) {
+      onDevice0Write?.call(name, null);
     }
 
     return removed;

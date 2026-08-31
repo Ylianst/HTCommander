@@ -54,6 +54,20 @@ jobs:
         working-directory: src
         run: flutter build linux --release
 
+      - name: Build and stage web app
+        working-directory: src
+        run: |
+          # Compile the Flutter web UI (hosted variant) and stage it next to the
+          # executable inside the bundle so the desktop app can serve it. Shared
+          # pubspec assets (assets/assets) are dropped because the desktop app
+          # serves them from its own bundle.
+          flutter build web --base-href / --dart-define=HTC_HOSTED=true --no-wasm-dry-run
+          DEST="build/linux/${{ matrix.arch }}/release/bundle/web_app"
+          rm -rf "$DEST"
+          mkdir -p "$DEST"
+          cp -r build/web/. "$DEST/"
+          rm -rf "$DEST/assets/assets"
+
       - name: Package tar.gz
         run: |
           cd src/build/linux/${{ matrix.arch }}/release/bundle

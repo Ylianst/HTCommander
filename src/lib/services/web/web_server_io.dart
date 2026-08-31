@@ -301,8 +301,9 @@ class WebServer {
   /// Resolves the Flutter web build directory, or `null` if none is found.
   ///
   /// Search order: the `webAppPath` setting (device 0), a `web_app` folder next
-  /// to the executable, and `build/web` under the working directory (dev
-  /// convenience). A directory only qualifies if it contains `index.html`.
+  /// to the executable (Windows/Linux) or in the app bundle's `Resources`
+  /// (macOS), and `build/web` under the working directory (dev convenience). A
+  /// directory only qualifies if it contains `index.html`.
   Directory? _resolveWebAppDir() {
     final cached = _webAppDir;
     if (cached != null && File('${cached.path}${Platform.pathSeparator}'
@@ -311,16 +312,20 @@ class WebServer {
       return cached;
     }
 
+    final sep = Platform.pathSeparator;
     final candidates = <String>[];
     final configured = _broker.getValue<String>(0, 'webAppPath', '') ?? '';
     if (configured.isNotEmpty) candidates.add(configured);
     try {
       final exeDir = File(Platform.resolvedExecutable).parent.path;
-      candidates.add('$exeDir${Platform.pathSeparator}web_app');
+      candidates.add('$exeDir${sep}web_app');
+      // macOS .app bundle: the web build is staged under Contents/Resources
+      // (Contents/MacOS holds the executable) so it is sealed by code signing.
+      candidates.add('$exeDir$sep..${sep}Resources${sep}web_app');
     } catch (_) {
       // resolvedExecutable may be unavailable in some test hosts.
     }
-    candidates.add('build${Platform.pathSeparator}web');
+    candidates.add('build${sep}web');
 
     for (final path in candidates) {
       final dir = Directory(path);

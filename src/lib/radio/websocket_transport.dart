@@ -26,6 +26,7 @@ both web and dart:io) but is only instantiated on the web build.
 */
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -47,9 +48,29 @@ class WebSocketRadioTransport implements RadioTransport {
   /// remainder is a JSON payload of the host's comms/APRS history).
   static const String _kHistoryPrefix = 'history:';
 
+  /// Prefix of the full device-0 settings snapshot the host sends on connect
+  /// (JSON object of name -> value).
+  static const String _kSettingsPrefix = 'settings:';
+
+  /// Prefix of a single device-0 setting change pushed by the host
+  /// (JSON `{"name":...,"value":...}`).
+  static const String _kSettingPrefix = 'setting:';
+
+  /// Prefix the client uses to push a single device-0 setting change to the
+  /// host (JSON `{"name":...,"value":...}`).
+  static const String _kSetSettingPrefix = 'setsetting:';
+
   /// Invoked with the raw JSON payload when the host sends a `history:` message.
   /// Wired up by [BluetoothService] to seed the comms/APRS tabs.
   void Function(String json)? onHistory;
+
+  /// Invoked with the raw JSON payload for a full device-0 settings snapshot
+  /// (`settings:`). Wired up by [BluetoothService].
+  void Function(String json)? onSettingsSnapshot;
+
+  /// Invoked with the raw JSON payload for a single device-0 setting change
+  /// pushed by the host (`setting:`). Wired up by [BluetoothService].
+  void Function(String json)? onSetting;
 
   /// How long to wait for the host to report a ready radio before failing the
   /// connect attempt.
@@ -180,6 +201,14 @@ class WebSocketRadioTransport implements RadioTransport {
       onHistory?.call(message.substring(_kHistoryPrefix.length));
       return;
     }
+    if (message.startsWith(_kSettingsPrefix)) {
+      onSettingsSnapshot?.call(message.substring(_kSettingsPrefix.length));
+      return;
+    }
+    if (message.startsWith(_kSettingPrefix)) {
+      onSetting?.call(message.substring(_kSettingPrefix.length));
+      return;
+    }
     if (message == _kWasConnected) {
       _setState(TransportState.connected);
       _completeConnect(true);
@@ -244,6 +273,22 @@ class WebSocketRadioTransport implements RadioTransport {
     if (channel == null || _state != TransportState.connected) return false;
     try {
       channel.sink.add(data);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Forwards a device-0 setting change to the host (`setsetting:`). The socket
+  /// need only be open (not radio-ready), so settings still sync when no radio
+  /// is shared. Returns false if the socket is not available.
+  bool sendSetting(String name, Object? value) {
+    final channel = _channel;
+    if (channel == null) return false;
+    try {
+      channel.sink.add(
+        '$_kSetSettingPrefix${jsonEncode(<String, Object?>{'name': name, 'value': value})}',
+      );
       return true;
     } catch (_) {
       return false;

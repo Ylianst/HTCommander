@@ -246,6 +246,13 @@ Future<void> _startApp(List<String> args) async {
   // Initialize the DataBroker for cross-component communication
   await DataBroker.initialize();
 
+  // When this is the web build served by the desktop app, device-0 settings are
+  // read from and written to the host over the bridge instead of being saved in
+  // the browser. Enable this before handlers read any settings.
+  if (HostBridge.isHosted) {
+    DataBroker.setDevice0RemoteMode(true);
+  }
+
   // Register cross-window serializers so detached windows can rebuild typed
   // values. Must happen before this window becomes a host or a client.
   registerBrokerSerializers();

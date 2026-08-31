@@ -27,6 +27,7 @@ import '../aprs/aprs_packet.dart';
 import '../services/bluetooth_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/host_bridge.dart';
 import '../services/web/web_server.dart';
 
 /// Manages the lifecycle of the [WebServer] and bridges WebSocket clients to the
@@ -73,6 +74,13 @@ class WebServerHandler {
       deviceId: 1,
       name: 'AprsPacketList',
       callback: _onAprsPacketList,
+    );
+    // Mirror device-0 setting changes to connected browsers so the hosted web
+    // UI stays in sync with the desktop app's settings.
+    _broker.subscribe(
+      deviceId: 0,
+      name: DataBroker.allNames,
+      callback: _onHostSettingChanged,
     );
     // Radio state changes (per radio device) drive the web UI status.
     _broker.subscribe(
@@ -195,6 +203,8 @@ class WebServerHandler {
     if (_disposed) return;
     // Report the current radio status to the freshly connected browser.
     client.sendText(_stateMessageFor(_currentRadioState));
+    // Sync the host's device-0 settings so the web UI matches the desktop app.
+    _sendSettingsTo(client);
     // Seed the browser's Comms/APRS tabs with the host's stored history.
     _sendHistoryTo(client);
   }
@@ -203,6 +213,67 @@ class WebServerHandler {
     if (_disposed) return;
     if (data is List) {
       _lastAprsPacketList = data.whereType<AprsPacket>().toList(growable: false);
+    }
+  }
+
+  /// Broadcasts a device-0 setting change to every connected browser so the web
+  /// UI tracks the desktop app's settings live. Transient UI selection state is
+  /// excluded (see [HostBridge.isSyncedSetting]).
+  void _onHostSettingChanged(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (!HostBridge.isSyncedSetting(name)) return;
+    final server = _server;
+    if (server == null || server.clientCount == 0) return;
+    final encoded = _encodeSetting(name, data);
+    if (encoded == null) return;
+    server.broadcastText('setting:$encoded');
+  }
+
+  /// Sends the host's full device-0 settings snapshot to [client].
+  void _sendSettingsTo(WebSocketClient client) {
+    try {
+      final safe = <String, Object?>{};
+      DataBroker.getDeviceValues(0).forEach((name, value) {
+        if (!HostBridge.isSyncedSetting(name)) return;
+        try {
+          jsonEncode(value); // Only include JSON-serializable settings.
+          safe[name] = value;
+        } catch (_) {
+          // Skip values that cannot be represented on the wire.
+        }
+      });
+      if (safe.isEmpty) return;
+      client.sendText('settings:${jsonEncode(safe)}');
+    } catch (ex) {
+      _broker.logError('[WebServer] Failed to send settings: $ex');
+    }
+  }
+
+  /// Encodes a single device-0 setting as `{"name":...,"value":...}`, or null
+  /// if the value is not JSON-serializable.
+  String? _encodeSetting(String name, Object? data) {
+    try {
+      return jsonEncode(<String, Object?>{'name': name, 'value': data});
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Applies a device-0 setting change pushed by a browser, persisting it on the
+  /// host (which also re-broadcasts it to the other clients).
+  void _applyClientSetting(String json) {
+    try {
+      final data = jsonDecode(json);
+      if (data is! Map) return;
+      final name = data['name'];
+      if (name is! String || !HostBridge.isSyncedSetting(name)) return;
+      Object? value = data['value'];
+      if (value is List && value.every((e) => e is String)) {
+        value = value.cast<String>();
+      }
+      _broker.dispatch(deviceId: 0, name: name, data: value, store: true);
+    } catch (ex) {
+      _broker.logError('[WebServer] Failed to apply client setting: $ex');
     }
   }
 
@@ -240,6 +311,10 @@ class WebServerHandler {
 
   void _onTextMessage(WebSocketClient client, String message) {
     if (_disposed) return;
+    if (message.startsWith('setsetting:')) {
+      _applyClientSetting(message.substring('setsetting:'.length));
+      return;
+    }
     final target = _targetRadioDeviceId;
     switch (message) {
       case 'connect':

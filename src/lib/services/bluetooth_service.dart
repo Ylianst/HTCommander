@@ -72,6 +72,10 @@ class BluetoothService {
   // Connected radios: deviceId -> RadioTransport (BLE or Classic)
   final Map<int, RadioTransport> _connectedRadios = {};
 
+  // Hosted web build: the active WebSocket transport to the desktop host, used
+  // to forward device-0 setting changes. Null when not hosted / not connected.
+  WebSocketRadioTransport? _hostTransport;
+
   // Radio instances: deviceId -> Radio
   final Map<int, Radio> _radioInstances = {};
 
@@ -189,6 +193,11 @@ class BluetoothService {
       // Seed the comms/APRS tabs with the host's history when it arrives. Set
       // before connect() so the snapshot the host sends on connect isn't missed.
       transport.onHistory = _onHostHistory;
+      // Sync device-0 settings with the host instead of local storage.
+      transport.onSettingsSnapshot = _onHostSettingsSnapshot;
+      transport.onSetting = _onHostSetting;
+      _hostTransport = transport;
+      DataBroker.onDevice0Write = _forwardSettingToHost;
       final discovered = DiscoveredDevice(
         id: HostBridge.webSocketUrl,
         name: friendlyName,
@@ -273,6 +282,50 @@ class BluetoothService {
     } catch (e) {
       _broker.logError('[BT] Failed to parse host history: $e');
     }
+  }
+
+  /// Applies the host's full device-0 settings snapshot (hosted web build).
+  void _onHostSettingsSnapshot(String json) {
+    try {
+      final data = jsonDecode(json);
+      if (data is! Map) return;
+      data.forEach((key, value) {
+        if (key is String && HostBridge.isSyncedSetting(key)) {
+          DataBroker.applyHostDevice0(key, _normalizeSetting(value));
+        }
+      });
+    } catch (e) {
+      _broker.logError('[BT] Failed to parse host settings: $e');
+    }
+  }
+
+  /// Applies a single device-0 setting change pushed by the host.
+  void _onHostSetting(String json) {
+    try {
+      final data = jsonDecode(json);
+      if (data is! Map) return;
+      final name = data['name'];
+      if (name is! String || !HostBridge.isSyncedSetting(name)) return;
+      DataBroker.applyHostDevice0(name, _normalizeSetting(data['value']));
+    } catch (e) {
+      _broker.logError('[BT] Failed to parse host setting: $e');
+    }
+  }
+
+  /// Forwards a local device-0 write to the host (hosted web build). Transient
+  /// UI selection state is kept local.
+  void _forwardSettingToHost(String name, Object? data) {
+    if (!HostBridge.isSyncedSetting(name)) return;
+    _hostTransport?.sendSetting(name, data);
+  }
+
+  /// Restores `List<String>` typing lost when a setting round-trips through
+  /// JSON, so typed reads (e.g. `getValue<List<String>>`) still match.
+  static Object? _normalizeSetting(Object? value) {
+    if (value is List && value.every((e) => e is String)) {
+      return value.cast<String>();
+    }
+    return value;
   }
 
   Future<int?> _connectToRadioPlatform(
