@@ -47,10 +47,10 @@ The following features are available on Windows, Linux, macOS, Android.
 
 - [Bluetooth Audio](https://ylianst.github.io/HTCommanderSite/features/bluetooth-audio.html). Uses audio connectivity to listen and transmit with your computer speakers, microphone or headset.
 - [SSTV](https://ylianst.github.io/HTCommanderSite/features/sstv.html) send and receive images. Reception is auto-detected, drag & drop to sent.
+- [Speech-to-Text](https://ylianst.github.io/HTCommanderSite/features/voice.html). Converts speech-to-text and text-to-speech.
 
 The following are for desktop platforms only: Windows, Linux, macOS.
 
-- [Speech-to-Text](https://ylianst.github.io/HTCommanderSite/features/voice.html). Converts speech-to-text and text-to-speech.
 - [AGWPE Protocol](https://ylianst.github.io/HTCommanderSite/features/agwpe.html). Supports routing other application's traffic over the radio using the AGWPE protocol.
 
 ### Technology Blog
