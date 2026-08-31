@@ -948,6 +948,6 @@ these commands, encoded exactly as described above.
 [radio_models.dart](../../src/lib/radio/radio_models.dart),
 [tnc_data_fragment.dart](../../src/lib/radio/tnc_data_fragment.dart),
 [utils.dart](../../src/lib/radio/utils.dart), and
-[radio.dart](../../src/lib/radio/radio.dart). The browser mirror in
-[radio.js](../../src/assets/web/radio.js) implements the same formats for the web
-client.*
+[radio.dart](../../src/lib/radio/radio.dart). The Flutter web client shares this
+same Dart implementation, reaching a desktop-hosted radio over a WebSocket
+bridge ([web_server_io.dart](../../src/lib/services/web/web_server_io.dart)).*

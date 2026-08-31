@@ -3,11 +3,13 @@ Copyright 2026 Ylian Saint-Hilaire
 Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 
-Ported from the C# `HTCommander.HttpsWebSocketServer`. A minimal HTTP + WebSocket
-server that serves the bundled web UI (originally the C# `HTCommander/web`
-folder, now packaged as Flutter assets under `assets/web/`) and bridges the
-radio to connected browsers over a WebSocket at `/websocket.aspx`. Bound to all
-interfaces (`anyIPv4`) to match the C# `http://+` prefix.
+A minimal HTTP + WebSocket server that serves the Flutter web build (see
+[_resolveWebAppDir]) and bridges the radio to connected browsers over a
+WebSocket at `/websocket.aspx`. Bound to all interfaces (`anyIPv4`).
+
+The served Flutter UI connects back over that WebSocket to share the host's
+radio instead of using the browser's Web Bluetooth (see
+radio/websocket_transport.dart).
 
 This class is only responsible for transport (HTTP static files + WebSocket
 framing). The bridge logic that connects WebSocket clients to the radio lives in
@@ -67,15 +69,12 @@ class WebSocketClient {
   }
 }
 
-/// Serves the bundled static web UI over HTTP and bridges the radio over a
+/// Serves the Flutter web build over HTTP and bridges the radio over a
 /// WebSocket on desktop platforms.
 class WebServer {
   WebServer(this.port) : _broker = DataBrokerClient();
 
-  /// Root asset prefix where the web UI is bundled (see `pubspec.yaml`).
-  static const String _assetBase = 'assets/web';
-
-  /// The WebSocket endpoint the browser connects to (see `index.html`).
+  /// The WebSocket endpoint the browser connects to.
   static const String _webSocketPath = '/websocket.aspx';
 
   final int port;
@@ -85,6 +84,11 @@ class WebServer {
   bool _running = false;
   int _nextClientId = 1;
   final Map<int, WebSocketClient> _clients = <int, WebSocketClient>{};
+
+  /// Cached, resolved Flutter web build directory. Null until first resolved;
+  /// only cached once a valid build is found so a build produced after startup
+  /// is still picked up.
+  Directory? _webAppDir;
 
   /// Raised when a new WebSocket client connects.
   WebSocketClientCallback? onClientConnected;
@@ -218,17 +222,27 @@ class WebServer {
   Future<void> _handleHttpRequest(HttpRequest request) async {
     final response = request.response;
     try {
+      final dir = _resolveWebAppDir();
+      if (dir == null) {
+        response.statusCode = HttpStatus.notFound;
+        response.headers.contentType = ContentType.text;
+        response.write(
+          '404 - Flutter web build not found. Run tools/build_web_app.ps1 or '
+          'place the build under a "web_app" folder next to the app.',
+        );
+        await response.close();
+        return;
+      }
+
       var urlPath = request.uri.path;
       if (urlPath == '/' || urlPath.isEmpty) urlPath = '/index.html';
-
-      // Decode and normalize to a relative asset path using forward slashes
-      // (Flutter asset keys always use '/').
-      final relativePath = Uri.decodeComponent(
-        urlPath.startsWith('/') ? urlPath.substring(1) : urlPath,
-      );
+      final rel = urlPath.startsWith('/') ? urlPath.substring(1) : urlPath;
+      final relativePath = Uri.decodeComponent(rel);
 
       // Security check: prevent path traversal.
-      if (relativePath.contains('..') || relativePath.contains('\\')) {
+      if (relativePath.contains('..') ||
+          relativePath.contains('\\') ||
+          relativePath.startsWith('/')) {
         response.statusCode = HttpStatus.badRequest;
         response.headers.contentType = ContentType.text;
         response.write('400 - Bad Request');
@@ -236,9 +250,29 @@ class WebServer {
         return;
       }
 
-      final assetKey = _resolveAssetKey(relativePath);
-      var bytes = await _tryLoadAsset(assetKey);
-      if (bytes == null) {
+      // De-duplication: the app's own pubspec assets (declared under `assets/`)
+      // are bundled into the Flutter web build under `assets/assets/...`, which
+      // is byte-identical to what the desktop app already carries in its asset
+      // bundle. Serve those straight from `rootBundle` so the staged web build
+      // need not ship a second copy (see tools/build_web_app.ps1). Engine files
+      // (manifests, fonts, packages) live under a single `assets/` and are left
+      // to the web build, which tree-shakes them per platform.
+      if (relativePath.startsWith('assets/assets/')) {
+        final bundleKey = relativePath.substring('assets/'.length);
+        final bundled = await _tryLoadAsset(bundleKey);
+        if (bundled != null) {
+          response.statusCode = HttpStatus.ok;
+          response.headers.contentType = _contentTypeFor(relativePath);
+          response.headers.contentLength = bundled.length;
+          response.add(bundled);
+          await response.close();
+          return;
+        }
+      }
+
+      final file = File('${dir.path}${Platform.pathSeparator}'
+          '${relativePath.replaceAll('/', Platform.pathSeparator)}');
+      if (!file.existsSync()) {
         response.statusCode = HttpStatus.notFound;
         response.headers.contentType = ContentType.text;
         response.write('404 - File Not Found');
@@ -246,13 +280,7 @@ class WebServer {
         return;
       }
 
-      // Enable the page's WebSocket bridge mode (mirrors the C# server, which
-      // rewrites `index.html` so the browser talks to this server instead of
-      // using standalone Web Bluetooth).
-      if (urlPath == '/index.html') {
-        bytes = _enableWebSocketMode(bytes);
-      }
-
+      final bytes = await file.readAsBytes();
       response.statusCode = HttpStatus.ok;
       response.headers.contentType = _contentTypeFor(relativePath);
       response.headers.contentLength = bytes.length;
@@ -270,35 +298,44 @@ class WebServer {
     }
   }
 
-  /// Rewrites the served `index.html` to put the page into WebSocket bridge
-  /// mode (`var websocketMode = true;`).
-  List<int> _enableWebSocketMode(List<int> bytes) {
+  /// Resolves the Flutter web build directory, or `null` if none is found.
+  ///
+  /// Search order: the `webAppPath` setting (device 0), a `web_app` folder next
+  /// to the executable, and `build/web` under the working directory (dev
+  /// convenience). A directory only qualifies if it contains `index.html`.
+  Directory? _resolveWebAppDir() {
+    final cached = _webAppDir;
+    if (cached != null && File('${cached.path}${Platform.pathSeparator}'
+            'index.html')
+        .existsSync()) {
+      return cached;
+    }
+
+    final candidates = <String>[];
+    final configured = _broker.getValue<String>(0, 'webAppPath', '') ?? '';
+    if (configured.isNotEmpty) candidates.add(configured);
     try {
-      final html = String.fromCharCodes(bytes);
-      final patched = html.replaceFirst(
-        'var websocketMode = false;',
-        'var websocketMode = true;',
-      );
-      return patched.codeUnits;
+      final exeDir = File(Platform.resolvedExecutable).parent.path;
+      candidates.add('$exeDir${Platform.pathSeparator}web_app');
     } catch (_) {
-      return bytes;
+      // resolvedExecutable may be unavailable in some test hosts.
     }
+    candidates.add('build${Platform.pathSeparator}web');
+
+    for (final path in candidates) {
+      final dir = Directory(path);
+      if (dir.existsSync() &&
+          File('${dir.path}${Platform.pathSeparator}index.html')
+              .existsSync()) {
+        _webAppDir = dir;
+        return dir;
+      }
+    }
+    return null;
   }
 
-  /// Maps a web URL relative path to a bundled asset key. Most paths resolve
-  /// under [_assetBase], but a few files are shared with the main Flutter app
-  /// assets so the duplicate copy doesn't need to be bundled twice.
-  static String _resolveAssetKey(String relativePath) {
-    // The web UI's `images/radio.png` is byte-identical to the app's
-    // `assets/images/Radio.png`. Serve the shared app asset instead of
-    // bundling a duplicate under `assets/web/images/`.
-    if (relativePath == 'images/radio.png') {
-      return 'assets/images/Radio.png';
-    }
-    return '$_assetBase/$relativePath';
-  }
-
-  /// Loads a bundled asset, returning its bytes or `null` if it does not exist.
+  /// Loads a bundled asset (from the desktop app's own asset bundle),
+  /// returning its bytes or `null` if it does not exist.
   Future<List<int>?> _tryLoadAsset(String assetKey) async {
     try {
       final data = await rootBundle.load(assetKey);

@@ -264,6 +264,10 @@ don't expose the Bluetooth APIs the app needs.
 flutter build web --release
 ```
 
+When served by the desktop app instead, the web UI connects back over a
+WebSocket to share the host's radio (no Web Bluetooth needed). Build that variant
+with `tools/build_web_app.ps1`, which passes `--dart-define=HTC_HOSTED=true`.
+
 The static site is emitted to `build/web/`. Serve it with any static host, or run
 `flutter run -d chrome` during development.
 

@@ -1135,6 +1135,15 @@ class _CommsTabState extends State<CommsTab>
   /// Binds (or re-binds) the STT model status listener for the currently
   /// selected model and updates [_sttModelReady].
   void _initSttModelStatus() {
+    // Speech-to-text is not available on the web build (no on-device recognizer
+    // and no bundled model), and probing platform/model state there hits
+    // dart:io, so report it as not ready and skip the platform checks.
+    if (kIsWeb) {
+      _sttStatusNotifier?.removeListener(_onSttModelStatusChanged);
+      _sttStatusNotifier = null;
+      _sttModelReady = false;
+      return;
+    }
     // Android feeds PCM into the OS on-device recognizer, which downloads no
     // model into the app; readiness is a stable device capability (Android 13+
     // with an on-device recognizer), independent of whether speech-to-text is

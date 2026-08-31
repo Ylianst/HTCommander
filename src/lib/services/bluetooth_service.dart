@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:typed_data';
 
@@ -18,9 +19,11 @@ import '../radio/radio_models.dart' show RadioState;
 import '../radio/radio_audio_stub.dart'
     if (dart.library.io) '../radio/radio_audio.dart';
 import '../radio/radio_transport.dart';
+import '../radio/websocket_transport.dart';
 import 'bluetooth_classic_macos.dart';
 import 'data_broker.dart';
 import 'data_broker_client.dart';
+import 'host_bridge.dart';
 
 part 'radio_bluetooth_common.dart';
 part 'radio_bluetooth_web.dart';
@@ -162,6 +165,114 @@ class BluetoothService {
       _rememberConnectedRadio(macAddress);
     }
     return deviceId;
+  }
+
+  /// Connects to the radio shared by the desktop HTCommander app that served
+  /// this web build, over the `/websocket.aspx` bridge, instead of using the
+  /// browser's Web Bluetooth. Only meaningful on the hosted web deployment
+  /// ([HostBridge.isHosted]). Returns the device id on success, or null if the
+  /// bridge is unreachable or the host is not sharing a radio.
+  Future<int?> connectToHostRadio() async {
+    if (!HostBridge.isHosted) return null;
+
+    // Reuse an existing host connection if one is already established.
+    for (final entry in _connectedRadios.entries) {
+      if (entry.value is WebSocketRadioTransport) return entry.key;
+    }
+
+    const String friendlyName = 'Shared Radio (host)';
+    const String macAddress = 'HOST';
+
+    try {
+      final deviceId = _getNextDeviceId();
+      final transport = WebSocketRadioTransport();
+      // Seed the comms/APRS tabs with the host's history when it arrives. Set
+      // before connect() so the snapshot the host sends on connect isn't missed.
+      transport.onHistory = _onHostHistory;
+      final discovered = DiscoveredDevice(
+        id: HostBridge.webSocketUrl,
+        name: friendlyName,
+        type: BluetoothType.ble,
+      );
+
+      _connectedRadios[deviceId] = transport;
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: 'FriendlyName',
+        data: friendlyName,
+        store: true,
+      );
+      _publishConnectedRadios();
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: 'State',
+        data: 'Connecting',
+        store: true,
+      );
+
+      final success = await transport.connect(discovered);
+      if (!success) {
+        _connectedRadios.remove(deviceId);
+        _broker.dispatch(
+          deviceId: deviceId,
+          name: 'State',
+          data: 'UnableToConnect',
+          store: true,
+        );
+        _publishConnectedRadios();
+        await transport.dispose();
+        return null;
+      }
+
+      final radio = Radio(deviceId: deviceId, macAddress: macAddress);
+      radio.updateFriendlyName(friendlyName);
+      _radioInstances[deviceId] = radio;
+      await radio.connect(transport);
+
+      // Clean up if the host stops sharing the radio (bridge closes).
+      _watchTransportDisconnect(deviceId, transport);
+
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: 'MacAddress',
+        data: macAddress,
+        store: true,
+      );
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: 'FriendlyName',
+        data: friendlyName,
+        store: true,
+      );
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: 'State',
+        data: 'Connected',
+        store: true,
+      );
+      _publishConnectedRadios();
+      return deviceId;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Handles the host's one-shot history snapshot (JSON) by republishing it on
+  /// the DataBroker so the comms/APRS handlers can seed their tabs.
+  void _onHostHistory(String json) {
+    try {
+      final data = jsonDecode(json);
+      if (data is Map) {
+        _broker.dispatch(
+          deviceId: 1,
+          name: 'WebHistorySnapshot',
+          data: data,
+          store: false,
+        );
+      }
+    } catch (e) {
+      _broker.logError('[BT] Failed to parse host history: $e');
+    }
   }
 
   Future<int?> _connectToRadioPlatform(

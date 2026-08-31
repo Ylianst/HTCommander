@@ -68,6 +68,7 @@ import 'audio_rx/audio_rx_manager_stub.dart'
 import 'services/bluetooth_service.dart';
 import 'callsign/callsign_country.dart';
 import 'services/callsign_lookup_service.dart';
+import 'services/host_bridge.dart';
 import 'services/crash_logger.dart';
 import 'services/data_broker.dart';
 import 'services/data_broker_client.dart';
@@ -460,7 +461,7 @@ Future<void> _startApp(List<String> args) async {
   }
 
   // Register the web server handler (desktop only) so that, when enabled in
-  // settings, the bundled static web UI is served over HTTP. Not available on
+  // settings, the Flutter web UI is served over HTTP. Not available on
   // web/iOS/Android.
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     final webServerHandler = WebServerHandler();
@@ -1298,7 +1299,16 @@ class _MainFormState extends State<MainForm>
     // once a day). Deferred to after the first frame so a dialog can be shown.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _checkForUpdatesInBackground();
-      if (mounted) unawaited(_autoReconnectRadios());
+      if (mounted) {
+        // On the HTCommander-hosted web build, connect to the host's shared
+        // radio over the WebSocket bridge; otherwise auto-reconnect over
+        // Bluetooth.
+        if (HostBridge.isHosted) {
+          unawaited(_connectHostRadioIfHosted());
+        } else {
+          unawaited(_autoReconnectRadios());
+        }
+      }
     });
   }
 
@@ -1324,6 +1334,24 @@ class _MainFormState extends State<MainForm>
     final hiddenTabsStr =
         DataBroker.getValue<String>(0, 'HiddenTabs', '') ?? '';
     _hiddenTabs = hiddenTabsStr.isEmpty ? {} : hiddenTabsStr.split(',').toSet();
+  }
+
+  /// On the HTCommander-hosted web build, connect to the host's shared radio
+  /// over the WebSocket bridge instead of scanning Bluetooth. Retries while the
+  /// page is open and no radio is connected, so loading the page before the
+  /// host has a radio still connects once one becomes available.
+  Future<void> _connectHostRadioIfHosted() async {
+    final bluetoothService = BluetoothService();
+    while (mounted && _connectedRadioIds.isEmpty) {
+      try {
+        final id = await bluetoothService.connectToHostRadio();
+        if (id != null) return;
+      } catch (e) {
+        _broker.logError('Host radio connect failed: $e');
+      }
+      if (!mounted) return;
+      await Future<void>.delayed(const Duration(seconds: 3));
+    }
   }
 
   /// Silently reconnect to the radios that were connected when the app last

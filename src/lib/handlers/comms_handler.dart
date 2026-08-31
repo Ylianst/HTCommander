@@ -427,6 +427,14 @@ class CommsHandler {
       callback: _onClearVoiceText,
     );
 
+    // One-shot history snapshot from the desktop host (web build served by the
+    // desktop app). Seeds past comms events so the Comms tab isn't empty.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WebHistorySnapshot',
+      callback: _onWebHistorySnapshot,
+    );
+
     // Radio / audio state across all devices.
     _broker.subscribe(
       deviceId: DataBroker.allDevices,
@@ -3224,6 +3232,36 @@ class CommsHandler {
       data: historyCopy,
       store: true,
     );
+  }
+
+  /// Seeds the decoded-text history from the desktop host's snapshot (web build
+  /// only). Only applied once, while the local history is still empty, so it
+  /// never clobbers messages decoded live after connecting.
+  void _onWebHistorySnapshot(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (_decodedTextHistory.isNotEmpty) return;
+    if (data is! Map) return;
+    final decoded = data['decodedText'];
+    if (decoded is! List) return;
+
+    for (final raw in decoded) {
+      if (raw is! Map) continue;
+      try {
+        _decodedTextHistory.add(
+          DecodedTextEntry.fromJson(raw.cast<String, dynamic>()),
+        );
+      } catch (_) {
+        // Skip malformed entries.
+      }
+    }
+    while (_decodedTextHistory.length > _maxHistorySize) {
+      _decodedTextHistory.removeAt(0);
+    }
+    if (_decodedTextHistory.isEmpty) return;
+
+    _dispatchDecodedTextHistory();
+    _voiceTextHistoryLoaded = true;
+    _dispatchVoiceTextHistoryLoaded();
   }
 
   void _dispatchCurrentEntry() {

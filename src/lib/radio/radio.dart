@@ -2742,8 +2742,8 @@ class Radio implements FirmwareRadio {
 
     // Bridge: forward the raw, un-framed GATT command frame
     // (`[group_hi, group_lo, cmd_hi, cmd_lo, payload...]`) to any listeners.
-    // The web server WebSocket bridge relays these to browsers, which parse
-    // them with the same format via radio.js `handleNotificationsEx()`.
+    // The web server WebSocket bridge relays these to the Flutter web client,
+    // which decodes them with this same code via WebSocketRadioTransport.
     _dispatch('RawCommandRx', cmd, store: false);
 
     final parsed = GaiaProtocol.parseResponse(cmd);

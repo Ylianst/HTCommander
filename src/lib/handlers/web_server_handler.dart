@@ -3,14 +3,13 @@ Copyright 2026 Ylian Saint-Hilaire
 Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 
-Ported from the C# `HTCommander` web server wiring and the WebSocket bridge in
-`HttpsWebSocketServer.HandleWebSocketClientAsync`. Owns the [WebServer] and
-starts / stops it based on the `webServerEnabled` / `webServerPort` settings
-(DataBroker device 0). Beyond serving the bundled static web UI, it bridges the
-browser to the radio over a WebSocket:
+Owns the [WebServer] and starts / stops it based on the `webServerEnabled` /
+`webServerPort` settings (DataBroker device 0). Beyond serving the Flutter web
+build, it bridges the browser to the radio over a WebSocket:
 
   * Raw radio response frames (`RawCommandRx`) are forwarded to all browsers as
-    binary messages, which the page parses with `handleNotificationsEx()`.
+    binary messages, which the Flutter web client decodes with the same radio
+    code via `WebSocketRadioTransport`.
   * Binary messages from a browser are the raw GATT command frames the radio
     expects; they are dispatched to the radio as `SendRawCommand`.
   * Text control messages (`connect` / `disconnect`) drive the desktop radio
@@ -21,8 +20,10 @@ The web server feature is desktop-only; on the web the [WebServer] facade
 resolves to an inert stub.
 */
 
+import 'dart:convert';
 import 'dart:typed_data';
 
+import '../aprs/aprs_packet.dart';
 import '../services/bluetooth_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -39,6 +40,10 @@ class WebServerHandler {
   bool _enabled = false;
   int _port = 8080;
   bool _disposed = false;
+
+  /// Latest APRS packet list seen on the broker, cached so it can be snapshotted
+  /// to a browser on connect. Refreshed on demand via `RequestAprsPackets`.
+  List<AprsPacket>? _lastAprsPacketList;
 
   /// Device IDs of the currently connected radios. The first entry is the radio
   /// bridged to WebSocket clients.
@@ -61,6 +66,13 @@ class WebServerHandler {
       deviceId: 1,
       name: 'ConnectedRadios',
       callback: _onConnectedRadiosChanged,
+    );
+    // Cache the APRS packet list so it can be snapshotted to browsers on
+    // connect (it is dispatched on demand via `RequestAprsPackets`).
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'AprsPacketList',
+      callback: _onAprsPacketList,
     );
     // Radio state changes (per radio device) drive the web UI status.
     _broker.subscribe(
@@ -183,6 +195,47 @@ class WebServerHandler {
     if (_disposed) return;
     // Report the current radio status to the freshly connected browser.
     client.sendText(_stateMessageFor(_currentRadioState));
+    // Seed the browser's Comms/APRS tabs with the host's stored history.
+    _sendHistoryTo(client);
+  }
+
+  void _onAprsPacketList(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (data is List) {
+      _lastAprsPacketList = data.whereType<AprsPacket>().toList(growable: false);
+    }
+  }
+
+  /// Sends a one-shot snapshot of the host's comms/APRS history to [client] so
+  /// past events appear in the browser's tabs. The comms history is read from
+  /// the broker; the APRS list is refreshed on demand (a synchronous dispatch
+  /// updates [_lastAprsPacketList]) and serialized.
+  void _sendHistoryTo(WebSocketClient client) {
+    try {
+      final decoded = _broker.getValueDynamic(1, 'DecodedTextHistory', null);
+
+      // Ask the APRS handler to (re)publish its list; the callback is invoked
+      // synchronously, refreshing the cache before we read it below.
+      _broker.dispatch(
+        deviceId: 1,
+        name: 'RequestAprsPackets',
+        data: null,
+        store: false,
+      );
+      final aprs = _lastAprsPacketList
+          ?.map((p) => p.toJson())
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+
+      final payload = <String, Object?>{
+        if (decoded is List) 'decodedText': decoded,
+        if (aprs != null && aprs.isNotEmpty) 'aprs': aprs,
+      };
+      if (payload.isEmpty) return;
+      client.sendText('history:${jsonEncode(payload)}');
+    } catch (ex) {
+      _broker.logError('[WebServer] Failed to send history: $ex');
+    }
   }
 
   void _onTextMessage(WebSocketClient client, String message) {

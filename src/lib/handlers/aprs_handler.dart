@@ -96,6 +96,14 @@ class AprsHandler {
       callback: _onClearAprsPackets,
     );
 
+    // One-shot history snapshot from the desktop host (web build served by the
+    // desktop app). Seeds past APRS packets so the APRS tab isn't empty.
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'WebHistorySnapshot',
+      callback: _onWebHistorySnapshot,
+    );
+
     // Station list (auth passwords) from device 0.
     _broker.subscribe(
       deviceId: 0,
@@ -377,6 +385,43 @@ class AprsHandler {
   void _onRequestAprsPackets(int deviceId, String name, Object? data) {
     if (_disposed) return;
     if (!_storeReady) return;
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'AprsPacketList',
+      data: List<AprsPacket>.from(_aprsFrames),
+      store: false,
+    );
+  }
+
+  /// Seeds the APRS frame history from the desktop host's snapshot (web build
+  /// only). Applied once while the local history is empty, then published so the
+  /// APRS tab renders the past packets.
+  void _onWebHistorySnapshot(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (_aprsFrames.isNotEmpty) return;
+    if (data is! Map) return;
+    final aprs = data['aprs'];
+    if (aprs is! List) return;
+
+    for (final raw in aprs) {
+      if (raw is! Map) continue;
+      try {
+        final pkt = AprsPacket.fromJson(raw.cast<String, dynamic>());
+        if (pkt.packet != null) _aprsFrames.add(pkt);
+      } catch (_) {
+        // Skip malformed packets.
+      }
+    }
+    _trimFrames();
+    if (_aprsFrames.isEmpty) return;
+
+    _storeReady = true;
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'AprsStoreReady',
+      data: true,
+      store: false,
+    );
     _broker.dispatch(
       deviceId: _aprsDeviceId,
       name: 'AprsPacketList',

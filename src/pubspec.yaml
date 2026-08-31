@@ -69,6 +69,11 @@ dependencies:
   sensors_plus: ^7.1.0
   flutter_local_notifications: ^22.3.0
   connectivity_plus: ^7.3.1
+  # Cross-platform (web + dart:io) WebSocket client. On the web build served by
+  # the desktop app, the Flutter UI connects back to the host over this to share
+  # the host's radio via the existing /websocket.aspx bridge, instead of using
+  # the browser's Web Bluetooth. See lib/radio/websocket_transport.dart.
+  web_socket_channel: ^3.0.1
 
 dev_dependencies:
   flutter_test:
@@ -154,9 +159,6 @@ flutter:
   assets:
     - assets/images/
     - assets/images/tabs/
-    # Static web UI served by the desktop web server (ported from the C#
-    # HTCommander/web folder). Bundled so it ships on Windows/macOS/Linux.
-    - assets/web/
     # Offline callsign -> country/DXCC-entity table (AD1C country-files.com),
     # gzip-compressed JSON loaded into memory at startup. See tools/build_cty.py.
     - assets/callsign/
