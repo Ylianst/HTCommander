@@ -4,7 +4,9 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
+import '../services/bluetooth_service.dart';
 import '../services/data_broker_client.dart';
+import '../services/host_bridge.dart';
 import '../models/radio_models.dart';
 import '../radio/radio_models.dart' as radio;
 import '../dialogs/radio_channel_dialog.dart';
@@ -189,6 +191,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       name: 'ConnectedRadios',
       callback: _onConnectedRadiosChanged,
     );
+    // Hosted web build: the desktop host's radio list drives the switcher.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'HostRadioList',
+      callback: _onConnectedRadiosChanged,
+    );
     // Track EchoLink's online state (device 200) regardless of which radio this
     // panel shows, so the switcher lists EchoLink only while it is connected.
     _echoLinkRadioConnected = _isEchoLinkOnlineState(
@@ -239,6 +247,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       _broker.subscribe(
         deviceId: 1,
         name: 'ConnectedRadios',
+        callback: _onConnectedRadiosChanged,
+      );
+      _broker.subscribe(
+        deviceId: 1,
+        name: 'HostRadioList',
         callback: _onConnectedRadiosChanged,
       );
       _broker.subscribe(
@@ -804,6 +817,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   /// Returns the de-duplicated list of currently connected radios (device 1's
   /// `ConnectedRadios`), preserving order.
   List<ConnectedRadioInfo> _connectedRadios() {
+    // On the hosted web build the switcher offers the desktop host's radios
+    // (only the host can switch which one it shares), not the single bridged one.
+    if (HostBridge.isHosted) return _hostSwitchableRadios();
     final radios = _broker.getJsonListValue<ConnectedRadioInfo>(
       1,
       'ConnectedRadios',
@@ -832,6 +848,47 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     return unique;
   }
 
+  /// Hosted web build: the desktop host's radios (device 1 `HostRadioList`).
+  List<ConnectedRadioInfo> _hostSwitchableRadios() {
+    final data = _broker.getValueDynamic(1, 'HostRadioList', null);
+    final out = <ConnectedRadioInfo>[];
+    if (data is Map && data['radios'] is List) {
+      for (final r in (data['radios'] as List)) {
+        if (r is Map && r['deviceId'] is int) {
+          final name = r['name'];
+          out.add(ConnectedRadioInfo(
+            deviceId: r['deviceId'] as int,
+            friendlyName: (name is String && name.isNotEmpty)
+                ? name
+                : 'Radio ${r['deviceId']}',
+          ));
+        }
+      }
+    }
+    return out;
+  }
+
+  /// The device id currently marked as selected in the switcher. On the hosted
+  /// web build this is the host's selected radio; otherwise the panel's radio.
+  int _switcherSelectedId() {
+    if (HostBridge.isHosted) {
+      final data = _broker.getValueDynamic(1, 'HostRadioList', null);
+      if (data is Map && data['selected'] is int) return data['selected'] as int;
+      return -1;
+    }
+    return widget.deviceId;
+  }
+
+  /// Switches the active radio. On the hosted web build this asks the desktop
+  /// host to change its shared radio; otherwise it sets the local preferred one.
+  void _selectSwitchableRadio(int id) {
+    if (HostBridge.isHosted) {
+      BluetoothService().selectHostRadio(id);
+    } else {
+      _broker.dispatch(deviceId: 1, name: 'SetPreferredRadio', data: id);
+    }
+  }
+
   /// Shows a context menu listing all connected radios (with a checkmark next to
   /// the currently displayed / preferred one) and switches to the chosen radio
   /// by dispatching `SetPreferredRadio` to the main form. Does nothing unless at
@@ -842,6 +899,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   ) async {
     final radios = _connectedRadios();
     if (radios.length < 2) return;
+    final currentId = _switcherSelectedId();
 
     final overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
@@ -859,7 +917,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
               children: [
                 SizedBox(
                   width: 24,
-                  child: r.deviceId == widget.deviceId
+                  child: r.deviceId == currentId
                       ? const Icon(Icons.check, size: 18)
                       : null,
                 ),
@@ -874,8 +932,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       ],
     );
 
-    if (selected != null && selected != widget.deviceId) {
-      _broker.dispatch(deviceId: 1, name: 'SetPreferredRadio', data: selected);
+    if (selected != null && selected != currentId) {
+      _selectSwitchableRadio(selected);
     }
   }
 

@@ -7,7 +7,9 @@ import '../l10n/app_localizations.dart';
 import '../radio/radio_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/host_bridge.dart';
 import '../services/window_service.dart';
+import 'host_managed_banner.dart';
 
 /// BBS traffic entry
 class BbsTrafficEntry {
@@ -180,7 +182,8 @@ class _BbsTabState extends State<BbsTab>
     return result;
   }
 
-  bool get _buttonEnabled => _isActive || _availableRadios.isNotEmpty;
+  bool get _buttonEnabled =>
+      !HostBridge.isHosted && (_isActive || _availableRadios.isNotEmpty);
 
   // ---------------------------------------------------------------------------
   // Stats
@@ -592,6 +595,12 @@ class _BbsTabState extends State<BbsTab>
     return Column(
       children: [
         _buildHeader(),
+        if (HostBridge.isHosted)
+          const HostManagedBanner(
+            message:
+                'The BBS runs on the desktop HTCommander host. Start or stop it '
+                'there; this page only mirrors the host.',
+          ),
         Expanded(
           child: _viewTraffic
               ? LayoutBuilder(

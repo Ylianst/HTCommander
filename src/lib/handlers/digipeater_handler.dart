@@ -120,16 +120,17 @@ class DigipeaterHandler {
   }
 
   void _applyLock(DigipeaterConfig config, {required bool lock}) {
-    if (config.radioDeviceId <= 0) return;
-    final channelId = _getAprsChannelId(config.radioDeviceId);
+    final radioId = _resolveRadioId(config);
+    if (radioId <= 0) return;
+    final channelId = _getAprsChannelId(radioId);
     if (channelId < 0) {
       _broker.logError(
-        'Digipeater: No APRS channel found on radio ${config.radioDeviceId}',
+        'Digipeater: No APRS channel found on radio $radioId',
       );
       return;
     }
     _broker.dispatch(
-      deviceId: config.radioDeviceId,
+      deviceId: radioId,
       name: 'SetLock',
       data: SetLockData(
         usage: DigipeaterConstants.lockUsage,
@@ -141,13 +142,45 @@ class DigipeaterHandler {
   }
 
   void _applyUnlock(DigipeaterConfig config) {
-    if (config.radioDeviceId <= 0) return;
+    final radioId = _resolveRadioId(config);
+    if (radioId <= 0) return;
     _broker.dispatch(
-      deviceId: config.radioDeviceId,
+      deviceId: radioId,
       name: 'SetUnlock',
       data: SetUnlockData(usage: DigipeaterConstants.lockUsage),
       store: false,
     );
+  }
+
+  /// Resolves the configured target radio to a currently-connected radio. When
+  /// the configured [DigipeaterConfig.radioDeviceId] is not connected (e.g. the
+  /// hosted web build picked its own device id, or a radio reconnected with a
+  /// new id) this falls back to the first connected radio that has an APRS
+  /// channel, mirroring the software beacon. Returns -1 when none qualifies.
+  int _resolveRadioId(DigipeaterConfig config) {
+    final preferred = config.radioDeviceId;
+    if (preferred <= 0) return -1;
+    final connected = _connectedRadioIds();
+    if (connected.contains(preferred) && _getAprsChannelId(preferred) >= 0) {
+      return preferred;
+    }
+    for (final id in connected) {
+      if (_getAprsChannelId(id) >= 0) return id;
+    }
+    return -1;
+  }
+
+  List<int> _connectedRadioIds() {
+    final ids = <int>[];
+    final raw = _broker.getValueDynamic(1, 'ConnectedRadios', null);
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map && item['DeviceId'] is int) {
+          ids.add(item['DeviceId'] as int);
+        }
+      }
+    }
+    return ids;
   }
 
   /// Returns the channel id of the "APRS" channel for [radioDeviceId], or -1.
@@ -171,7 +204,8 @@ class DigipeaterHandler {
     if (frame.channelName != 'APRS') return;
 
     final radioDeviceId = frame.radioDeviceId ?? deviceId;
-    if (_config.radioDeviceId > 0 && radioDeviceId != _config.radioDeviceId) {
+    final targetRadioId = _resolveRadioId(_config);
+    if (targetRadioId <= 0 || radioDeviceId != targetRadioId) {
       return;
     }
 

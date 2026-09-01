@@ -325,6 +325,14 @@ decisions that keep the radio responsive.
    move it into a dedicated background isolate with playback fed straight from the
    worker. Written before the work begins.
 
+2. **[The Same App, Two Homes: Running HTCommander's Web UI Inside the Desktop](web-hosted-in-desktop.md)**
+   Why the desktop app serves its own web page, how a browser tab shares the
+   desktop's already-connected radio over a WebSocket bridge instead of Web
+   Bluetooth, the difference between the stand-alone web build and the
+   HTCommander-hosted one, and the design rule that keeps them from fighting over
+   the radio: the host does all the autonomous work while the browser only syncs,
+   displays, and forwards the operator's own actions.
+
 ---
 
 ## Building & Contributing

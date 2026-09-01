@@ -20,6 +20,7 @@ import '../radio/radio_audio_stub.dart'
     if (dart.library.io) '../radio/radio_audio.dart';
 import '../radio/radio_transport.dart';
 import '../radio/websocket_transport.dart';
+import '../models/aircraft.dart';
 import '../models/station_info.dart';
 import '../winlink/winlink_mail.dart';
 import 'bluetooth_classic_macos.dart';
@@ -77,6 +78,10 @@ class BluetoothService {
   // Hosted web build: the active WebSocket transport to the desktop host, used
   // to forward device-0 setting changes. Null when not hosted / not connected.
   WebSocketRadioTransport? _hostTransport;
+
+  // Hosted web build: device id of the single bridged radio, or -1. The radio is
+  // only listed in ConnectedRadios while the host reports it as present.
+  int _hostRadioDeviceId = -1;
 
   // Hosted web build: whether the mail / Winlink forwarding subscriptions have
   // been wired up (only done once for the lifetime of the process).
@@ -185,16 +190,15 @@ class BluetoothService {
   Future<int?> connectToHostRadio() async {
     if (!HostBridge.isHosted) return null;
 
-    // Reuse an existing host connection if one is already established.
-    for (final entry in _connectedRadios.entries) {
-      if (entry.value is WebSocketRadioTransport) return entry.key;
-    }
+    // Reuse the existing host session if one is already established.
+    if (_hostTransport != null) return _hostRadioDeviceId;
 
-    const String friendlyName = 'Shared Radio (host)';
+    const String friendlyName = 'Host radio';
     const String macAddress = 'HOST';
 
     try {
       final deviceId = _getNextDeviceId();
+      _hostRadioDeviceId = deviceId;
       final transport = WebSocketRadioTransport();
       // Seed the comms/APRS tabs with the host's history when it arrives. Set
       // before connect() so the snapshot the host sends on connect isn't missed.
@@ -208,6 +212,12 @@ class BluetoothService {
       transport.onMail = _onHostMail;
       transport.onWinlinkState = _onHostWinlinkState;
       transport.onWinlinkError = _onHostWinlinkError;
+      // Mirror the host's airplanes: only the host can reach the Dump1090 server.
+      transport.onAirplanes = _onHostAirplanes;
+      // Relay the host's radio state: whether it has a shared radio, and the
+      // list of radios (name + selection) so the browser can show and switch it.
+      transport.onRadioPresence = _onHostRadioPresence;
+      transport.onRadioList = _onHostRadioList;
       _hostTransport = transport;
       DataBroker.onDevice0Write = _forwardSettingToHost;
       _wireMailSyncForwarding();
@@ -216,43 +226,6 @@ class BluetoothService {
         name: friendlyName,
         type: BluetoothType.ble,
       );
-
-      _connectedRadios[deviceId] = transport;
-      _broker.dispatch(
-        deviceId: deviceId,
-        name: 'FriendlyName',
-        data: friendlyName,
-        store: true,
-      );
-      _publishConnectedRadios();
-      _broker.dispatch(
-        deviceId: deviceId,
-        name: 'State',
-        data: 'Connecting',
-        store: true,
-      );
-
-      final success = await transport.connect(discovered);
-      if (!success) {
-        _connectedRadios.remove(deviceId);
-        _broker.dispatch(
-          deviceId: deviceId,
-          name: 'State',
-          data: 'UnableToConnect',
-          store: true,
-        );
-        _publishConnectedRadios();
-        await transport.dispose();
-        return null;
-      }
-
-      final radio = Radio(deviceId: deviceId, macAddress: macAddress);
-      radio.updateFriendlyName(friendlyName);
-      _radioInstances[deviceId] = radio;
-      await radio.connect(transport);
-
-      // Clean up if the host stops sharing the radio (bridge closes).
-      _watchTransportDisconnect(deviceId, transport);
 
       _broker.dispatch(
         deviceId: deviceId,
@@ -266,18 +239,95 @@ class BluetoothService {
         data: friendlyName,
         store: true,
       );
+
+      // Establish the persistent session (the socket keeps itself open and
+      // reconnects). The radio is not shown until the host reports one present.
+      await transport.connect(discovered);
+
+      final radio = Radio(deviceId: deviceId, macAddress: macAddress);
+      radio.updateFriendlyName(friendlyName);
+      _radioInstances[deviceId] = radio;
+      await radio.connect(transport);
+
+      return deviceId;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Hosted web: the host reports whether it currently has a shared radio. The
+  /// bridged radio is added to / removed from `ConnectedRadios` accordingly,
+  /// while the session (socket) stays open either way.
+  void _onHostRadioPresence(bool present) {
+    final deviceId = _hostRadioDeviceId;
+    final transport = _hostTransport;
+    if (deviceId <= 0 || transport == null) return;
+    if (present) {
+      _connectedRadios[deviceId] = transport;
       _broker.dispatch(
         deviceId: deviceId,
         name: 'State',
         data: 'Connected',
         store: true,
       );
-      _publishConnectedRadios();
-      return deviceId;
-    } catch (_) {
-      return null;
+    } else {
+      _connectedRadios.remove(deviceId);
+      _broker.dispatch(
+        deviceId: deviceId,
+        name: 'State',
+        data: 'Disconnected',
+        store: true,
+      );
+    }
+    _publishConnectedRadios();
+  }
+
+  /// Hosted web: applies the host's radio list. Updates the bridged radio's
+  /// displayed name to the host's selected radio and republishes the full list
+  /// (device 1 `HostRadioList`) for the radio switcher.
+  void _onHostRadioList(String json) {
+    try {
+      final data = jsonDecode(json);
+      if (data is! Map) return;
+      final selected = data['selected'];
+      final radios = data['radios'];
+      if (radios is List && _hostRadioDeviceId > 0) {
+        for (final r in radios) {
+          if (r is Map && r['deviceId'] == selected) {
+            final name = r['name'];
+            if (name is String && name.isNotEmpty) {
+              _broker.dispatch(
+                deviceId: _hostRadioDeviceId,
+                name: 'FriendlyName',
+                data: name,
+                store: true,
+              );
+              _radioInstances[_hostRadioDeviceId]?.updateFriendlyName(name);
+              if (_connectedRadios.containsKey(_hostRadioDeviceId)) {
+                _publishConnectedRadios();
+              }
+            }
+          }
+        }
+      }
+      _broker.dispatch(
+        deviceId: 1,
+        name: 'HostRadioList',
+        data: data,
+        store: false,
+      );
+    } catch (e) {
+      _broker.logError('[BT] Failed to parse host radio list: $e');
     }
   }
+
+  /// Hosted web: asks the desktop host to disconnect the radio it is sharing.
+  /// The browser session stays open.
+  void requestHostDisconnect() => _hostTransport?.requestHostDisconnect();
+
+  /// Hosted web: asks the desktop host to switch the shared (preferred) radio.
+  void selectHostRadio(int hostDeviceId) =>
+      _hostTransport?.selectHostRadio(hostDeviceId);
 
   /// Handles the host's one-shot history snapshot (JSON) by republishing it on
   /// the DataBroker so the comms/APRS handlers can seed their tabs.
@@ -398,6 +448,27 @@ class BluetoothService {
       data: message,
       store: false,
     );
+  }
+
+  /// Applies the host's airplane (Dump1090) snapshot by republishing it on the
+  /// local broker so the map tab shows the same aircraft as the desktop host.
+  void _onHostAirplanes(String json) {
+    try {
+      final decoded = jsonDecode(json);
+      if (decoded is! List) return;
+      final aircraft = decoded
+          .whereType<Map>()
+          .map((e) => Aircraft.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'Airplanes',
+        data: aircraft,
+        store: false,
+      );
+    } catch (e) {
+      _broker.logError('[BT] Failed to parse host airplanes: $e');
+    }
   }
 
   /// Forwards a local mail mutation to the host (hosted web build).
@@ -718,13 +789,17 @@ class BluetoothService {
       final transport = entry.value;
       final device = transport.connectedDevice;
       final classicMac = _classicConnections[entry.key];
+      // The hosted bridge's DiscoveredDevice name is a fixed placeholder; use
+      // the broker FriendlyName, which tracks the host's selected radio name.
+      final isHostRadio = entry.key == _hostRadioDeviceId;
       byDeviceId[entry.key] = {
         'DeviceId': entry.key,
         'MacAddress': device?.id ?? classicMac ?? '',
-        'FriendlyName':
-            device?.name ??
-            DataBroker.getValue<String>(entry.key, 'FriendlyName', '') ??
-            '',
+        'FriendlyName': isHostRadio
+            ? (DataBroker.getValue<String>(entry.key, 'FriendlyName', '') ?? '')
+            : (device?.name ??
+                  DataBroker.getValue<String>(entry.key, 'FriendlyName', '') ??
+                  ''),
         'State': transport.state.name,
       };
     }

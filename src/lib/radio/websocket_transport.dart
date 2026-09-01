@@ -71,6 +71,17 @@ class WebSocketRadioTransport implements RadioTransport {
   /// Prefix of a Winlink error message pushed by the host.
   static const String _kWinlinkErrorPrefix = 'winlinkerror:';
 
+  /// Prefix of the host's airplane (Dump1090) snapshot: a JSON array of
+  /// `Aircraft` maps. Sent on connect and on each successful host poll. Only the
+  /// desktop host can reach the (LAN) Dump1090 server, so the browser mirrors
+  /// the host instead of polling itself.
+  static const String _kAirplanesPrefix = 'airplanes:';
+
+  /// Prefix of the host's radio list (JSON `{selected, radios:[{deviceId,name}]}`).
+  /// Sent on connect and whenever the host's radios or selection change, so the
+  /// browser can show the bridged radio's name and offer a radio switcher.
+  static const String _kRadioListPrefix = 'radiolist:';
+
   /// Prefix the client uses to push a mail operation to the host
   /// (JSON `{"op":...}`).
   static const String _kMailOpPrefix = 'mailop:';
@@ -105,9 +116,23 @@ class WebSocketRadioTransport implements RadioTransport {
   /// (`winlinkerror:`). Wired up by [BluetoothService].
   void Function(String message)? onWinlinkError;
 
-  /// How long to wait for the host to report a ready radio before failing the
-  /// connect attempt.
-  static const Duration _connectTimeout = Duration(seconds: 15);
+  /// Invoked with the raw JSON payload (array of aircraft) for the host's
+  /// airplane snapshot (`airplanes:`). Wired up by [BluetoothService].
+  void Function(String json)? onAirplanes;
+
+  /// Invoked when the host reports whether it currently has a shared radio
+  /// (`wasconnected` -> true, `disconnected` -> false). The session/socket stays
+  /// open across false, so the browser mirrors the host live. Wired up by
+  /// [BluetoothService].
+  void Function(bool present)? onRadioPresence;
+
+  /// Invoked with the raw JSON payload for the host's radio list (`radiolist:`).
+  /// Wired up by [BluetoothService].
+  void Function(String json)? onRadioList;
+
+  /// How long to wait before retrying the socket after it drops or fails to
+  /// open. The session persists across radio comings and goings.
+  static const Duration _reconnectDelay = Duration(seconds: 3);
 
   final _stateController = StreamController<TransportState>.broadcast();
   final _dataController = StreamController<Uint8List>.broadcast();
@@ -118,9 +143,13 @@ class WebSocketRadioTransport implements RadioTransport {
   TransportState _state = TransportState.disconnected;
   DiscoveredDevice? _connectedDevice;
 
-  /// Completes once the host reports a ready radio (`wasconnected`), or with
-  /// `false` if the socket closes / times out first.
-  Completer<bool>? _connectCompleter;
+  /// Whether the session is wanted. While true the transport keeps the socket
+  /// open and reconnects it if it drops, independent of whether the host has a
+  /// radio to share. Cleared only by [disconnect] / [dispose].
+  bool _sessionActive = false;
+
+  /// Pending socket reconnect scheduled after a drop or a failed open.
+  Timer? _reconnectTimer;
 
   @override
   TransportState get state => _state;
@@ -153,61 +182,61 @@ class WebSocketRadioTransport implements RadioTransport {
   @override
   Future<void> stopScan() async {}
 
-  /// Connects to the host bridge. [device.id] must be the WebSocket URL
-  /// (`ws://host:port/websocket.aspx`). Returns `true` once the host reports a
-  /// ready radio, or `false` if the socket fails or no radio becomes available
-  /// within [_connectTimeout].
+  /// Establishes the host session. [device.id] must be the WebSocket URL
+  /// (`ws://host:port/websocket.aspx`). Returns `true` once the session is
+  /// wanted and the socket open has been kicked off; the socket then stays open
+  /// (reconnecting if it drops) regardless of whether the host has a radio.
+  /// Radio availability is reported separately via [onRadioPresence].
   @override
   Future<bool> connect(DiscoveredDevice device) async {
-    if (_state == TransportState.connected ||
-        _state == TransportState.connecting) {
+    if (_sessionActive) {
       return _state == TransportState.connected;
     }
-
-    _setState(TransportState.connecting);
-    final completer = Completer<bool>();
-    _connectCompleter = completer;
-
-    final Uri uri;
     try {
-      uri = Uri.parse(device.id);
+      Uri.parse(device.id);
     } catch (_) {
       _setState(TransportState.disconnected);
       return false;
     }
+    _connectedDevice = device;
+    _sessionActive = true;
+    _setState(TransportState.connecting);
+    await _openSocket();
+    return true;
+  }
 
+  /// Opens (or reopens) the WebSocket. On failure schedules a reconnect while
+  /// the session is still wanted.
+  Future<void> _openSocket() async {
+    if (!_sessionActive) return;
+    final device = _connectedDevice;
+    if (device == null) return;
+    _cleanupChannel();
+    _setState(TransportState.connecting);
     try {
-      final channel = WebSocketChannel.connect(uri);
+      final channel = WebSocketChannel.connect(Uri.parse(device.id));
       _channel = channel;
-      // `ready` throws if the handshake fails; guard so connect returns false
-      // rather than propagating.
+      // `ready` throws if the handshake fails; guard so a failure schedules a
+      // retry rather than propagating.
       await channel.ready;
-
       _sub = channel.stream.listen(
         _onMessage,
         onError: (Object _) => _onSocketClosed(),
         onDone: _onSocketClosed,
         cancelOnError: false,
       );
-      _connectedDevice = device;
     } catch (_) {
       _cleanupChannel();
-      _setState(TransportState.disconnected);
-      _completeConnect(false);
-      return false;
+      _scheduleReconnect();
     }
+  }
 
-    // Fail the connect if the host never reports a ready radio in time.
-    unawaited(
-      Future<void>.delayed(_connectTimeout).then((_) {
-        if (!completer.isCompleted) {
-          _completeConnect(false);
-          disconnect();
-        }
-      }),
-    );
-
-    return completer.future;
+  void _scheduleReconnect() {
+    if (!_sessionActive) return;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(_reconnectDelay, () {
+      if (_sessionActive) unawaited(_openSocket());
+    });
   }
 
   void _onMessage(dynamic message) {
@@ -254,44 +283,52 @@ class WebSocketRadioTransport implements RadioTransport {
       onWinlinkError?.call(message.substring(_kWinlinkErrorPrefix.length));
       return;
     }
-    if (message == _kWasConnected) {
-      _setState(TransportState.connected);
-      _completeConnect(true);
-    } else if (message == _kDisconnected) {
-      // Only tear down once we were actually connected to a host radio. The
-      // host sends the current state right after the socket opens, so an early
-      // `disconnected` simply means no radio is shared yet - keep waiting for
-      // the connect timeout instead of dropping the socket immediately.
-      if (_state == TransportState.connected) {
-        _setState(TransportState.disconnected);
-        _cleanupChannel();
-      }
+    if (message.startsWith(_kAirplanesPrefix)) {
+      onAirplanes?.call(message.substring(_kAirplanesPrefix.length));
+      return;
     }
-    // `connecting` is ignored: the transport only reports connected once the
-    // host radio is ready (`wasconnected`), so early command frames are not
-    // lost.
+    if (message.startsWith(_kRadioListPrefix)) {
+      onRadioList?.call(message.substring(_kRadioListPrefix.length));
+      return;
+    }
+    if (message == _kWasConnected) {
+      // The host has a shared radio ready: the pipe can carry radio frames.
+      _setState(TransportState.connected);
+      onRadioPresence?.call(true);
+    } else if (message == _kDisconnected) {
+      // The host has no shared radio. Keep the session/socket open (so settings,
+      // mail, airplanes and the radio list still sync and a radio can appear
+      // later) but report the radio as gone rather than tearing down.
+      if (_state != TransportState.connecting) {
+        _setState(TransportState.connecting);
+      }
+      onRadioPresence?.call(false);
+    }
+    // `connecting` keeps the transport waiting; command frames are only sent
+    // once the host reports a ready radio (`wasconnected`).
   }
 
   void _onSocketClosed() {
-    _completeConnect(false);
-    if (_state != TransportState.disconnected) {
-      _setState(TransportState.disconnected);
-    }
     _cleanupChannel();
-  }
-
-  void _completeConnect(bool success) {
-    final completer = _connectCompleter;
-    if (completer != null && !completer.isCompleted) {
-      completer.complete(success);
+    if (!_sessionActive) {
+      _setState(TransportState.disconnected);
+      return;
     }
+    // The session is still wanted: report the radio as gone and retry the socket
+    // so the browser reconnects automatically once the host is reachable again.
+    _setState(TransportState.connecting);
+    onRadioPresence?.call(false);
+    _scheduleReconnect();
   }
 
   @override
   Future<void> disconnect() async {
-    // Closing the browser socket only detaches this client; it deliberately
-    // does not tell the host to disconnect its (shared) radio.
-    _completeConnect(false);
+    // Ends the whole browser session. Closing the socket only detaches this
+    // client; it deliberately does not tell the host to drop its shared radio.
+    _sessionActive = false;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _connectedDevice = null;
     _setState(TransportState.disconnecting);
     _cleanupChannel();
     _setState(TransportState.disconnected);
@@ -302,7 +339,6 @@ class WebSocketRadioTransport implements RadioTransport {
     _sub = null;
     final channel = _channel;
     _channel = null;
-    _connectedDevice = null;
     if (channel != null) {
       try {
         channel.sink.close();
@@ -318,6 +354,25 @@ class WebSocketRadioTransport implements RadioTransport {
     if (channel == null || _state != TransportState.connected) return false;
     try {
       channel.sink.add(data);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Asks the host to disconnect the radio it is currently sharing. The browser
+  /// session stays open; the host reports the radio as gone afterwards.
+  bool requestHostDisconnect() => _sendControl('disconnect');
+
+  /// Asks the host to switch the shared (preferred) radio to [hostDeviceId].
+  bool selectHostRadio(int hostDeviceId) =>
+      _sendControl('selectradio:$hostDeviceId');
+
+  bool _sendControl(String message) {
+    final channel = _channel;
+    if (channel == null) return false;
+    try {
+      channel.sink.add(message);
       return true;
     } catch (_) {
       return false;
@@ -380,6 +435,9 @@ class WebSocketRadioTransport implements RadioTransport {
 
   @override
   Future<void> dispose() async {
+    _sessionActive = false;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     _cleanupChannel();
     await _stateController.close();
     await _dataController.close();

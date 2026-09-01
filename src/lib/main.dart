@@ -324,23 +324,35 @@ Future<void> _startApp(List<String> args) async {
   // Register the digipeater handler so that, when enabled, APRS frames on the
   // "APRS" channel are conditionally repeated (WIDEn-N New Paradigm plus custom
   // aliases) and the radio is locked to the APRS channel.
-  final digipeaterHandler = DigipeaterHandler();
-  digipeaterHandler.init();
-  DataBroker.addDataHandler('DigipeaterHandler', digipeaterHandler);
+  // Skipped on the hosted web build: the desktop host runs the digipeater, so
+  // running it here too would repeat every frame twice over the shared radio.
+  if (!HostBridge.isHosted) {
+    final digipeaterHandler = DigipeaterHandler();
+    digipeaterHandler.init();
+    DataBroker.addDataHandler('DigipeaterHandler', digipeaterHandler);
+  }
 
   // Register the software beacon handler so that, when an interval is set, the
   // app periodically transmits its own APRS position/status beacon over the
   // selected radio's "APRS" channel and gates it to the Internet (APRS-IS).
-  final softwareBeaconHandler = SoftwareBeaconHandler();
-  softwareBeaconHandler.init();
-  DataBroker.addDataHandler('SoftwareBeaconHandler', softwareBeaconHandler);
+  // Skipped on the hosted web build: the desktop host emits the beacon, so a
+  // second timer here would double-beacon over the shared radio.
+  if (!HostBridge.isHosted) {
+    final softwareBeaconHandler = SoftwareBeaconHandler();
+    softwareBeaconHandler.init();
+    DataBroker.addDataHandler('SoftwareBeaconHandler', softwareBeaconHandler);
+  }
 
   // Register the airplane handler so that, when a Dump1090 server is configured
   // and airplane display is enabled, aircraft are polled and dispatched on the
   // "Airplanes" event for the map tab.
-  final airplaneHandler = AirplaneHandler();
-  airplaneHandler.init();
-  DataBroker.addDataHandler('AirplaneHandler', airplaneHandler);
+  // Skipped on the hosted web build: the browser cannot reach the (LAN) Dump1090
+  // server, so the desktop host polls it and syncs the aircraft over the bridge.
+  if (!HostBridge.isHosted) {
+    final airplaneHandler = AirplaneHandler();
+    airplaneHandler.init();
+    DataBroker.addDataHandler('AirplaneHandler', airplaneHandler);
+  }
 
   // Register the satellite handler so that amateur satellites are tracked from
   // cached/seed TLEs, their live positions and upcoming passes published for
@@ -354,16 +366,21 @@ Future<void> _startApp(List<String> args) async {
   // Register the software modem handler so that incoming radio audio is decoded
   // into TNC data frames using AFSK 1200, PSK 2400/4800 or G3RUH 9600
   // modulation via the hamlib library, and outgoing packets are encoded to PCM.
-  final softwareModem = SoftwareModem();
-  softwareModem.init();
-  DataBroker.addDataHandler('SoftwareModem', softwareModem);
+  // Skipped on the hosted web build: raw audio is not bridged to the browser,
+  // so the host owns all software-modem encode/decode work.
+  if (!HostBridge.isHosted) {
+    final softwareModem = SoftwareModem();
+    softwareModem.init();
+    DataBroker.addDataHandler('SoftwareModem', softwareModem);
 
-  // Register the Audio Receive Device manager so that user-configured sound-card
-  // inputs are captured and decoded (receive-only) through the software modem,
-  // with their frames attributed to the device itself or a paired radio.
-  final audioRxManager = AudioRxManager(softwareModem);
-  audioRxManager.init();
-  DataBroker.addDataHandler('AudioRxManager', audioRxManager);
+    // Register the Audio Receive Device manager so that user-configured
+    // sound-card inputs are captured and decoded (receive-only) through the
+    // software modem, with their frames attributed to the device itself or a
+    // paired radio. Depends on the software modem, so it is host-only as well.
+    final audioRxManager = AudioRxManager(softwareModem);
+    audioRxManager.init();
+    DataBroker.addDataHandler('AudioRxManager', audioRxManager);
+  }
 
   // Register the comms handler so that audio from radios can be turned into a
   // decoded text history and the comms tab can drive speech-to-text state.
@@ -426,9 +443,13 @@ Future<void> _startApp(List<String> args) async {
   // Register the BBS handler so that the BBS tab can activate a bulletin-board /
   // Winlink server on a radio. It creates per-radio BBS instances on CreateBbs,
   // locks the radio for "BBS" usage, and aggregates station statistics.
-  final bbsHandler = BbsHandler();
-  bbsHandler.init();
-  DataBroker.addDataHandler('BbsHandler', bbsHandler);
+  // Skipped on the hosted web build: the desktop host runs the BBS server, so a
+  // second instance here would answer inbound connections over the shared radio.
+  if (!HostBridge.isHosted) {
+    final bbsHandler = BbsHandler();
+    bbsHandler.init();
+    DataBroker.addDataHandler('BbsHandler', bbsHandler);
+  }
 
   // Register the debug log handler so that LogInfo/LogError messages are
   // captured into DebugLogEntries from application startup, regardless of
@@ -440,11 +461,15 @@ Future<void> _startApp(List<String> args) async {
   // Register the torrent handler so that the Torrent tab can share, request and
   // transfer files over a radio locked to the "Torrent" usage. Its store is
   // initialized first so that previously shared files are restored on launch.
-  final torrentStore = TorrentStore();
-  await torrentStore.init();
-  final torrentHandler = TorrentHandler(store: torrentStore);
-  torrentHandler.init();
-  DataBroker.addDataHandler('TorrentHandler', torrentHandler);
+  // Skipped on the hosted web build: the desktop host serves torrent requests,
+  // so a second instance here would answer them twice over the shared radio.
+  if (!HostBridge.isHosted) {
+    final torrentStore = TorrentStore();
+    await torrentStore.init();
+    final torrentHandler = TorrentHandler(store: torrentStore);
+    torrentHandler.init();
+    DataBroker.addDataHandler('TorrentHandler', torrentHandler);
+  }
 
   // Register the mail store so that Winlink mail is persisted to disk and made
   // available to the mail tab and the Winlink client. Must be initialized
@@ -935,6 +960,11 @@ class _MainFormState extends State<MainForm>
   // Connected radios tracking (list of device IDs)
   List<int> _connectedRadioIds = [];
 
+  // Hosted web build: the host's radios (each {deviceId, name}) and which one is
+  // bridged, so the browser can show the current radio and offer a switcher.
+  List<Map<String, dynamic>> _hostRadioList = const [];
+  int _hostSelectedRadioId = -1;
+
   // Whether the internet-only EchoLink radio (device 200) is available. It is
   // deliberately kept out of `ConnectedRadios` so the data tabs never target
   // it, but it can still be selected as the displayed radio.
@@ -1093,6 +1123,14 @@ class _MainFormState extends State<MainForm>
       deviceId: 1,
       name: 'ConnectedRadios',
       callback: _onConnectedRadiosChanged,
+    );
+
+    // Hosted web build: the host's radio list (name + selection) drives the
+    // current radio name and the radio switcher.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'HostRadioList',
+      callback: _onHostRadioListChanged,
     );
 
     // Subscribe to EchoLink availability (device 1) so it can be offered as a
@@ -1348,21 +1386,15 @@ class _MainFormState extends State<MainForm>
     _hiddenTabs = hiddenTabsStr.isEmpty ? {} : hiddenTabsStr.split(',').toSet();
   }
 
-  /// On the HTCommander-hosted web build, connect to the host's shared radio
-  /// over the WebSocket bridge instead of scanning Bluetooth. Retries while the
-  /// page is open and no radio is connected, so loading the page before the
-  /// host has a radio still connects once one becomes available.
+  /// On the HTCommander-hosted web build, establish the persistent session to
+  /// the host over the WebSocket bridge. The session keeps itself open (and
+  /// reconnects if the socket drops) and relays the host's radio state, so no
+  /// polling / retry loop is needed here.
   Future<void> _connectHostRadioIfHosted() async {
-    final bluetoothService = BluetoothService();
-    while (mounted && _connectedRadioIds.isEmpty) {
-      try {
-        final id = await bluetoothService.connectToHostRadio();
-        if (id != null) return;
-      } catch (e) {
-        _broker.logError('Host radio connect failed: $e');
-      }
-      if (!mounted) return;
-      await Future<void>.delayed(const Duration(seconds: 3));
+    try {
+      await BluetoothService().connectToHostRadio();
+    } catch (e) {
+      _broker.logError('Host radio connect failed: $e');
     }
   }
 
@@ -1540,6 +1572,30 @@ class _MainFormState extends State<MainForm>
         );
       }
     }
+  }
+
+  /// Hosted web build: the desktop host's radio list changed. Tracks the radios
+  /// and which one is bridged so the File menu can offer a switcher.
+  void _onHostRadioListChanged(int deviceId, String name, Object? data) {
+    if (!mounted || data is! Map) return;
+    final radiosRaw = data['radios'];
+    final radios = <Map<String, dynamic>>[];
+    if (radiosRaw is List) {
+      for (final r in radiosRaw) {
+        if (r is Map && r['deviceId'] is int) {
+          radios.add(<String, dynamic>{
+            'deviceId': r['deviceId'],
+            'name': (r['name'] is String && (r['name'] as String).isNotEmpty)
+                ? r['name']
+                : 'Radio ${r['deviceId']}',
+          });
+        }
+      }
+    }
+    setState(() {
+      _hostRadioList = radios;
+      _hostSelectedRadioId = data['selected'] is int ? data['selected'] : -1;
+    });
   }
 
   /// Sets the preferred (active) radio to [radioId] and notifies the rest of the
@@ -1944,56 +2000,68 @@ class _MainFormState extends State<MainForm>
     );
   }
 
+  /// Dispatches a software-modem control change. On the hosted web build the
+  /// software modem runs on the desktop host, so the persisted [setting] is
+  /// written (the settings bridge forwards it to the host, which applies and
+  /// re-broadcasts it) instead of the local [command] event that only a local
+  /// SoftwareModem handler would consume.
+  void _dispatchModemControl({
+    required String command,
+    required String setting,
+    required Object? value,
+  }) {
+    if (HostBridge.isHosted) {
+      _broker.dispatch(deviceId: 0, name: setting, data: value, store: true);
+    } else {
+      _broker.dispatch(deviceId: 0, name: command, data: value, store: false);
+    }
+  }
+
   /// Set the software modem mode via the DataBroker.
   void _setSoftwareModemMode(String mode) {
-    _broker.dispatch(
-      deviceId: 0,
-      name: 'SetSoftwareModemMode',
-      data: mode,
-      store: false,
+    _dispatchModemControl(
+      command: 'SetSoftwareModemMode',
+      setting: 'SoftwareModemMode',
+      value: mode,
     );
   }
 
   /// Toggle FX.25 FEC on the software modem via the DataBroker. When disabled,
   /// packets are sent as plain AX.25 (no FEC).
   void _toggleSoftwareModemFec() {
-    _broker.dispatch(
-      deviceId: 0,
-      name: 'SetSoftwareModemFec',
-      data: !_softwareModemFec,
-      store: false,
+    _dispatchModemControl(
+      command: 'SetSoftwareModemFec',
+      setting: 'SoftwareModemFec',
+      value: !_softwareModemFec,
     );
   }
 
   /// Set the DART transmit level ('0'..'5' or 'F') via the DataBroker.
   void _setDartTxLevel(String level) {
-    _broker.dispatch(
-      deviceId: 0,
-      name: 'SetDartTxMode',
-      data: level,
-      store: false,
+    _dispatchModemControl(
+      command: 'SetDartTxMode',
+      setting: 'DartTxMode',
+      value: level,
     );
   }
 
   /// Set the independent APRS modem mode ('None' or 'AFSK1200') via the
   /// DataBroker.
   void _setAprsModemMode(String mode) {
-    _broker.dispatch(
-      deviceId: 0,
-      name: 'SetAprsSoftwareModemMode',
-      data: mode,
-      store: false,
+    _dispatchModemControl(
+      command: 'SetAprsSoftwareModemMode',
+      setting: 'AprsSoftwareModemMode',
+      value: mode,
     );
   }
 
   /// Toggle FX.25 FEC on the APRS modem via the DataBroker (independent of the
   /// general software modem's FEC setting).
   void _toggleAprsModemFec() {
-    _broker.dispatch(
-      deviceId: 0,
-      name: 'SetAprsSoftwareModemFec',
-      data: !_aprsModemFec,
-      store: false,
+    _dispatchModemControl(
+      command: 'SetAprsSoftwareModemFec',
+      setting: 'AprsSoftwareModemFec',
+      value: !_aprsModemFec,
     );
   }
 
@@ -3038,6 +3106,23 @@ class _MainFormState extends State<MainForm>
                     label: _radioMenuLabel(radioId),
                     onPressed: () => _setPreferredRadio(radioId),
                     checked: radioId == _currentRadioDeviceId,
+                  ),
+              ],
+            ),
+          // Hosted web build: switch which of the desktop host's radios is
+          // shared over the bridge.
+          if (HostBridge.isHosted && _hostRadioList.length >= 2)
+            AppSubmenu(
+              label: l10n.menuRadios,
+              children: [
+                for (final r in _hostRadioList)
+                  AppMenuAction(
+                    label: (r['name'] as String?) ?? 'Radio ${r['deviceId']}',
+                    onPressed: () {
+                      final id = r['deviceId'];
+                      if (id is int) BluetoothService().selectHostRadio(id);
+                    },
+                    checked: r['deviceId'] == _hostSelectedRadioId,
                   ),
               ],
             ),
@@ -4441,6 +4526,17 @@ class _MainFormState extends State<MainForm>
     if (_connectedRadioIds.isEmpty) return;
 
     final bluetoothService = BluetoothService();
+
+    // On the hosted web build, "Disconnect" means disconnect the radio on the
+    // desktop host, not tear down this browser's session.
+    if (HostBridge.isHosted) {
+      _broker.logInfo('Requesting host radio disconnect...');
+      setState(() {
+        _statusText = AppLocalizations.of(context).statusDisconnecting;
+      });
+      bluetoothService.requestHostDisconnect();
+      return;
+    }
 
     // If only one radio, disconnect it directly
     if (_connectedRadioIds.length == 1) {

@@ -18,6 +18,7 @@ import '../radio/radio.dart';
 import '../radio/tnc_data_fragment.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/host_bridge.dart';
 import '../services/notification_service.dart';
 
 /// A data handler that processes APRS packets from the "APRS" channel.
@@ -522,6 +523,9 @@ class AprsHandler {
     AprsPacket aprsPacket,
     AX25Packet ax25Packet,
   ) {
+    // The desktop host raises the notification; on the hosted web build it would
+    // be a duplicate of the host's own pop-up.
+    if (HostBridge.isHosted) return;
     if (aprsPacket.dataType != PacketDataType.message) return;
     final messageData = aprsPacket.messageData;
     if (messageData.msgType == MessageType.mtAck) return;
@@ -556,6 +560,9 @@ class AprsHandler {
     TncDataFragment frame,
     int radioDeviceId,
   ) {
+    // The desktop host auto-acknowledges incoming messages; on the hosted web
+    // build a second ACK would be transmitted over the shared radio.
+    if (HostBridge.isHosted) return;
     if (aprsPacket.dataType != PacketDataType.message) return;
     if (aprsPacket.messageData.msgType == MessageType.mtAck) return;
     if (aprsPacket.messageData.msgType == MessageType.mtRej) return;

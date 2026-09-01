@@ -24,6 +24,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../aprs/aprs_packet.dart';
+import '../models/aircraft.dart';
 import '../models/station_info.dart';
 import '../services/bluetooth_service.dart';
 import '../services/data_broker.dart';
@@ -48,6 +49,11 @@ class WebServerHandler {
   /// to a browser on connect. Refreshed on demand via `RequestAprsPackets`.
   List<AprsPacket>? _lastAprsPacketList;
 
+  /// Latest airplane list polled by the host's AirplaneHandler, cached so it can
+  /// be snapshotted to a browser on connect. Browsers cannot reach the (LAN)
+  /// Dump1090 server, so they mirror the host's polling.
+  List<Aircraft>? _lastAirplanes;
+
   /// Latest Winlink mail list seen on the broker, cached so it can be
   /// snapshotted to a browser on connect. Refreshed on demand via `MailGetAll`.
   List<WinLinkMail>? _lastMailList;
@@ -56,6 +62,13 @@ class WebServerHandler {
   /// bridged to WebSocket clients.
   final List<int> _connectedRadios = <int>[];
 
+  /// Friendly names of the connected radios, keyed by device id.
+  final Map<int, String> _radioNames = <int, String>{};
+
+  /// The host's selected radio device id (device 1 `SelectedRadioDeviceId`), or
+  /// -1. The bridged radio follows this selection when it is connected.
+  int _selectedRadioDeviceId = -1;
+
   /// Initializes the handler: loads settings, subscribes to changes, and starts
   /// the server if enabled.
   void init() {
@@ -63,6 +76,8 @@ class WebServerHandler {
     _port = _broker.getValue<int>(0, 'webServerPort', 8080) ?? 8080;
 
     _refreshConnectedRadios();
+    _selectedRadioDeviceId =
+        _broker.getValue<int>(1, 'SelectedRadioDeviceId', -1) ?? -1;
 
     _broker.subscribeMultiple(
       deviceId: 0,
@@ -74,12 +89,24 @@ class WebServerHandler {
       name: 'ConnectedRadios',
       callback: _onConnectedRadiosChanged,
     );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'SelectedRadioDeviceId',
+      callback: _onSelectedRadioChanged,
+    );
     // Cache the APRS packet list so it can be snapshotted to browsers on
     // connect (it is dispatched on demand via `RequestAprsPackets`).
     _broker.subscribe(
       deviceId: 1,
       name: 'AprsPacketList',
       callback: _onAprsPacketList,
+    );
+    // Airplanes (Dump1090) polled by the host: cache and push to browsers, which
+    // cannot reach the LAN Dump1090 server themselves.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'Airplanes',
+      callback: _onAirplanes,
     );
     // Cache the Winlink mail list (dispatched on demand via `MailGetAll`) and
     // push a fresh snapshot to browsers whenever the host's mail changes.
@@ -128,9 +155,16 @@ class WebServerHandler {
     if (_enabled) _startServer();
   }
 
-  /// The radio device bridged to WebSocket clients, or `-1` if none.
-  int get _targetRadioDeviceId =>
-      _connectedRadios.isNotEmpty ? _connectedRadios.first : -1;
+  /// The radio device bridged to WebSocket clients, or `-1` if none. Follows the
+  /// host's selected radio when it is connected, otherwise the first connected
+  /// radio.
+  int get _targetRadioDeviceId {
+    if (_selectedRadioDeviceId > 0 &&
+        _connectedRadios.contains(_selectedRadioDeviceId)) {
+      return _selectedRadioDeviceId;
+    }
+    return _connectedRadios.isNotEmpty ? _connectedRadios.first : -1;
+  }
 
   // ---------------------------------------------------------------------------
   // Settings / radio tracking
@@ -163,14 +197,37 @@ class WebServerHandler {
     if (_disposed) return;
     final previousTarget = _targetRadioDeviceId;
     _refreshConnectedRadios();
+    _broadcastRadioList();
     if (_targetRadioDeviceId != previousTarget) {
-      // The bridged radio changed; refresh every browser's status.
-      _server?.broadcastText(_stateMessageFor(_currentRadioState));
+      _repointBrowsers();
     }
+  }
+
+  /// The host's selected radio changed; re-point the bridge if needed and push
+  /// the updated radio list / status to browsers.
+  void _onSelectedRadioChanged(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    final previousTarget = _targetRadioDeviceId;
+    _selectedRadioDeviceId = data is int ? data : -1;
+    _broadcastRadioList();
+    if (_targetRadioDeviceId != previousTarget) {
+      _repointBrowsers();
+    }
+  }
+
+  /// Re-points every browser at the (possibly new) bridged radio. A
+  /// disconnect/reconnect cycle makes the client re-fetch the radio's device
+  /// info, channels, settings and status.
+  void _repointBrowsers() {
+    final server = _server;
+    if (server == null || server.clientCount == 0) return;
+    server.broadcastText('disconnected');
+    server.broadcastText(_stateMessageFor(_currentRadioState));
   }
 
   void _refreshConnectedRadios() {
     _connectedRadios.clear();
+    _radioNames.clear();
     final radios = _broker.getValueDynamic(1, 'ConnectedRadios', null);
     if (radios is List) {
       for (final item in radios) {
@@ -178,9 +235,31 @@ class WebServerHandler {
         final deviceId = item['DeviceId'] ?? item['deviceId'];
         if (deviceId is int && deviceId > 0) {
           _connectedRadios.add(deviceId);
+          final n = item['FriendlyName'] ?? item['friendlyName'];
+          if (n is String && n.isNotEmpty) _radioNames[deviceId] = n;
         }
       }
     }
+  }
+
+  /// Broadcasts the host's radio list (ids + names + which one is bridged) so
+  /// browsers can show the current radio name and offer a radio switcher.
+  void _broadcastRadioList() {
+    final server = _server;
+    if (server == null || server.clientCount == 0) return;
+    server.broadcastText(_encodeRadioList());
+  }
+
+  String _encodeRadioList() {
+    final radios = _connectedRadios
+        .map(
+          (id) => <String, Object?>{
+            'deviceId': id,
+            'name': _radioNames[id] ?? 'Radio $id',
+          },
+        )
+        .toList(growable: false);
+    return 'radiolist:${jsonEncode(<String, Object?>{'selected': _targetRadioDeviceId, 'radios': radios})}';
   }
 
   /// The current state string of the bridged radio (e.g. `Connected`).
@@ -233,6 +312,9 @@ class WebServerHandler {
     if (_disposed) return;
     // Report the current radio status to the freshly connected browser.
     client.sendText(_stateMessageFor(_currentRadioState));
+    // Send the host's radio list so the browser shows the current radio name
+    // and can offer a radio switcher.
+    client.sendText(_encodeRadioList());
     // Sync the host's device-0 settings so the web UI matches the desktop app.
     _sendSettingsTo(client);
     // Seed the browser's Comms/APRS tabs with the host's stored history.
@@ -240,6 +322,8 @@ class WebServerHandler {
     // Send the host's authoritative Winlink mail so the browser's mail tab
     // mirrors the desktop app rather than keeping its own (empty) store.
     _sendMailTo(client);
+    // Send the host's latest airplanes so the browser's map shows them.
+    _sendAirplanesTo(client);
   }
 
   void _onAprsPacketList(int deviceId, String name, Object? data) {
@@ -247,6 +331,33 @@ class WebServerHandler {
     if (data is List) {
       _lastAprsPacketList = data.whereType<AprsPacket>().toList(growable: false);
     }
+  }
+
+  /// Caches the host's airplane list and broadcasts it to every connected
+  /// browser as an `airplanes:` snapshot.
+  void _onAirplanes(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (data is! List) return;
+    _lastAirplanes = data.whereType<Aircraft>().toList(growable: false);
+    final server = _server;
+    if (server == null || server.clientCount == 0) return;
+    server.broadcastText(_encodeAirplanes(_lastAirplanes!));
+  }
+
+  /// Sends the host's cached airplane snapshot to [client].
+  void _sendAirplanesTo(WebSocketClient client) {
+    final airplanes = _lastAirplanes;
+    if (airplanes == null || airplanes.isEmpty) return;
+    try {
+      client.sendText(_encodeAirplanes(airplanes));
+    } catch (ex) {
+      _broker.logError('[WebServer] Failed to send airplanes: $ex');
+    }
+  }
+
+  String _encodeAirplanes(List<Aircraft> airplanes) {
+    final list = airplanes.map((a) => a.toJson()).toList(growable: false);
+    return 'airplanes:${jsonEncode(list)}';
   }
 
   void _onMailList(int deviceId, String name, Object? data) {
@@ -338,10 +449,47 @@ class WebServerHandler {
       if (value is List && value.every((e) => e is String)) {
         value = value.cast<String>();
       }
+      // Software-modem controls must reconfigure the live modem, so dispatch the
+      // command the host's SoftwareModem consumes (it persists the setting
+      // itself) rather than writing the raw setting value.
+      final modemCommand = _modemSettingCommands[name];
+      if (modemCommand != null) {
+        _broker.dispatch(
+          deviceId: 0,
+          name: modemCommand,
+          data: value,
+          store: false,
+        );
+        return;
+      }
       _broker.dispatch(deviceId: 0, name: name, data: value, store: true);
     } catch (ex) {
       _broker.logError('[WebServer] Failed to apply client setting: $ex');
     }
+  }
+
+  /// Device-0 software-modem settings a browser can change, mapped to the
+  /// command event the host's SoftwareModem consumes to apply them live.
+  static const Map<String, String> _modemSettingCommands = <String, String>{
+    'SoftwareModemMode': 'SetSoftwareModemMode',
+    'SoftwareModemFec': 'SetSoftwareModemFec',
+    'DartTxMode': 'SetDartTxMode',
+    'AprsSoftwareModemMode': 'SetAprsSoftwareModemMode',
+    'AprsSoftwareModemFec': 'SetAprsSoftwareModemFec',
+  };
+
+  /// Applies a radio-switch request from a browser: makes the requested radio
+  /// the host's preferred (selected) radio, which re-points the bridge.
+  void _applyClientSelectRadio(String idStr) {
+    if (_disposed) return;
+    final id = int.tryParse(idStr.trim());
+    if (id == null || id <= 0 || !_connectedRadios.contains(id)) return;
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'SetPreferredRadio',
+      data: id,
+      store: false,
+    );
   }
 
   /// Applies a mail operation pushed by a browser to the host's mail store. The
@@ -492,6 +640,10 @@ class WebServerHandler {
     if (_disposed) return;
     if (message.startsWith('setsetting:')) {
       _applyClientSetting(message.substring('setsetting:'.length));
+      return;
+    }
+    if (message.startsWith('selectradio:')) {
+      _applyClientSelectRadio(message.substring('selectradio:'.length));
       return;
     }
     if (message.startsWith('mailop:')) {

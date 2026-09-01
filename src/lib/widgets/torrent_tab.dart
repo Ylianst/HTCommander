@@ -23,8 +23,10 @@ import '../models/torrent_file.dart';
 import '../radio/radio.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/host_bridge.dart';
 import '../services/window_service.dart';
 import '../utils/compression.dart';
+import 'host_managed_banner.dart';
 import 'torrent_blocks_view.dart';
 
 /// A read-only view of a torrent file decoded from the DataBroker map
@@ -384,6 +386,7 @@ class _TorrentTabState extends State<TorrentTab>
   /// is enabled only when exactly one radio is connected and it is either free
   /// or already locked to Torrent.
   bool get _activateEnabled {
+    if (HostBridge.isHosted) return false;
     if (_connectedRadios.length != 1) return false;
     final lock = _lockStates[_connectedRadios.first];
     if (lock != null && lock.isLocked && lock.usage == 'Torrent') return true;
@@ -674,6 +677,12 @@ class _TorrentTabState extends State<TorrentTab>
     return Column(
       children: [
         _buildHeader(),
+        if (HostBridge.isHosted)
+          const HostManagedBanner(
+            message:
+                'File sharing runs on the desktop HTCommander host. Add or share '
+                'files there; this page only mirrors the host.',
+          ),
         Expanded(
           child: _showDetails
               ? LayoutBuilder(
@@ -723,7 +732,7 @@ class _TorrentTabState extends State<TorrentTab>
                 SizedBox(
                   height: 28,
                   child: ElevatedButton(
-                    onPressed: _onAddFile,
+                    onPressed: HostBridge.isHosted ? null : _onAddFile,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       textStyle: const TextStyle(fontSize: 12),
