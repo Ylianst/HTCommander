@@ -24,11 +24,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../aprs/aprs_packet.dart';
+import '../models/station_info.dart';
 import '../services/bluetooth_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/host_bridge.dart';
 import '../services/web/web_server.dart';
+import '../winlink/winlink_mail.dart';
 
 /// Manages the lifecycle of the [WebServer] and bridges WebSocket clients to the
 /// radio, based on app settings.
@@ -45,6 +47,10 @@ class WebServerHandler {
   /// Latest APRS packet list seen on the broker, cached so it can be snapshotted
   /// to a browser on connect. Refreshed on demand via `RequestAprsPackets`.
   List<AprsPacket>? _lastAprsPacketList;
+
+  /// Latest Winlink mail list seen on the broker, cached so it can be
+  /// snapshotted to a browser on connect. Refreshed on demand via `MailGetAll`.
+  List<WinLinkMail>? _lastMailList;
 
   /// Device IDs of the currently connected radios. The first entry is the radio
   /// bridged to WebSocket clients.
@@ -74,6 +80,30 @@ class WebServerHandler {
       deviceId: 1,
       name: 'AprsPacketList',
       callback: _onAprsPacketList,
+    );
+    // Cache the Winlink mail list (dispatched on demand via `MailGetAll`) and
+    // push a fresh snapshot to browsers whenever the host's mail changes.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MailList',
+      callback: _onMailList,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MailsChanged',
+      callback: _onMailsChanged,
+    );
+    // Relay Winlink transfer status / errors to browsers so the hosted mail tab
+    // reflects the sync the host is running on their behalf.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkStateMessage',
+      callback: _onWinlinkStateMessage,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkError',
+      callback: _onWinlinkError,
     );
     // Mirror device-0 setting changes to connected browsers so the hosted web
     // UI stays in sync with the desktop app's settings.
@@ -207,6 +237,9 @@ class WebServerHandler {
     _sendSettingsTo(client);
     // Seed the browser's Comms/APRS tabs with the host's stored history.
     _sendHistoryTo(client);
+    // Send the host's authoritative Winlink mail so the browser's mail tab
+    // mirrors the desktop app rather than keeping its own (empty) store.
+    _sendMailTo(client);
   }
 
   void _onAprsPacketList(int deviceId, String name, Object? data) {
@@ -214,6 +247,40 @@ class WebServerHandler {
     if (data is List) {
       _lastAprsPacketList = data.whereType<AprsPacket>().toList(growable: false);
     }
+  }
+
+  void _onMailList(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (data is List) {
+      _lastMailList = data.whereType<WinLinkMail>().toList(growable: false);
+    }
+  }
+
+  /// Broadcasts the host's Winlink mail snapshot to every connected browser
+  /// whenever the host's mail store changes.
+  void _onMailsChanged(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    final server = _server;
+    if (server == null || server.clientCount == 0) return;
+    server.broadcastText(_encodeMailSnapshot());
+  }
+
+  /// Relays a Winlink transfer status message to browsers (empty clears it).
+  void _onWinlinkStateMessage(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    final server = _server;
+    if (server == null || server.clientCount == 0) return;
+    final message = data is String ? data : '';
+    server.broadcastText('winlinkstate:$message');
+  }
+
+  /// Relays a Winlink error message to browsers.
+  void _onWinlinkError(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (data is! String || data.isEmpty) return;
+    final server = _server;
+    if (server == null || server.clientCount == 0) return;
+    server.broadcastText('winlinkerror:$data');
   }
 
   /// Broadcasts a device-0 setting change to every connected browser so the web
@@ -277,6 +344,118 @@ class WebServerHandler {
     }
   }
 
+  /// Applies a mail operation pushed by a browser to the host's mail store. The
+  /// store re-emits `MailsChanged`, which broadcasts the updated snapshot back
+  /// to every browser.
+  void _applyClientMailOp(String json) {
+    try {
+      final data = jsonDecode(json);
+      if (data is! Map) return;
+      switch (data['op']) {
+        case 'add':
+        case 'update':
+          final mail = data['mail'];
+          if (mail is Map) {
+            _broker.dispatch(
+              deviceId: 0,
+              name: data['op'] == 'add' ? 'MailAdd' : 'MailUpdate',
+              data: WinLinkMail.fromJson(mail.cast<String, dynamic>()),
+              store: false,
+            );
+          }
+          break;
+        case 'delete':
+          final mid = data['mid'];
+          if (mid is String && mid.isNotEmpty) {
+            _broker.dispatch(
+              deviceId: 0,
+              name: 'MailDelete',
+              data: mid,
+              store: false,
+            );
+          }
+          break;
+        case 'move':
+          final mid = data['mid'];
+          final mailbox = data['mailbox'];
+          if (mid is String && mailbox is String) {
+            _broker.dispatch(
+              deviceId: 0,
+              name: 'MailMove',
+              data: <String, Object?>{'MID': mid, 'Mailbox': mailbox},
+              store: false,
+            );
+          }
+          break;
+      }
+    } catch (ex) {
+      _broker.logError('[WebServer] Failed to apply client mail op: $ex');
+    }
+  }
+
+  /// Applies a Winlink sync request pushed by a browser. Internet syncs are
+  /// forwarded verbatim; radio syncs are re-targeted at the host's own bridged
+  /// radio (the browser's radio id is meaningless here).
+  void _applyClientWinlinkSync(String json) {
+    try {
+      final data = jsonDecode(json);
+      if (data is! Map) return;
+      final server = data['Server'];
+      if (server is String && server.isNotEmpty) {
+        _broker.dispatch(
+          deviceId: 1,
+          name: 'WinlinkSync',
+          data: <String, Object?>{
+            'Server': server,
+            'Port': (data['Port'] as num?)?.toInt() ?? 8772,
+            'UseTls': data['UseTls'] is bool ? data['UseTls'] : true,
+          },
+          store: false,
+        );
+        return;
+      }
+      final station = data['Station'];
+      if (station is Map) {
+        final target = _targetRadioDeviceId;
+        if (target < 0) return;
+        _broker.dispatch(
+          deviceId: 1,
+          name: 'WinlinkSync',
+          data: <String, Object?>{
+            'RadioId': target,
+            'Station': StationInfo.fromJson(station.cast<String, dynamic>()),
+          },
+          store: false,
+        );
+      }
+    } catch (ex) {
+      _broker.logError('[WebServer] Failed to apply client winlink sync: $ex');
+    }
+  }
+
+  /// Sends the host's current Winlink mail snapshot to [client].
+  void _sendMailTo(WebSocketClient client) {
+    try {
+      client.sendText(_encodeMailSnapshot());
+    } catch (ex) {
+      _broker.logError('[WebServer] Failed to send mail: $ex');
+    }
+  }
+
+  /// Refreshes the cached mail list (a synchronous `MailGetAll` dispatch updates
+  /// [_lastMailList]) and encodes it as a `mail:` snapshot message.
+  String _encodeMailSnapshot() {
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'MailGetAll',
+      data: null,
+      store: false,
+    );
+    final mails = _lastMailList ?? const <WinLinkMail>[];
+    final list = mails.map((m) => m.toJson()).toList(growable: false);
+    return 'mail:${jsonEncode(list)}';
+  }
+
   /// Sends a one-shot snapshot of the host's comms/APRS history to [client] so
   /// past events appear in the browser's tabs. The comms history is read from
   /// the broker; the APRS list is refreshed on demand (a synchronous dispatch
@@ -313,6 +492,23 @@ class WebServerHandler {
     if (_disposed) return;
     if (message.startsWith('setsetting:')) {
       _applyClientSetting(message.substring('setsetting:'.length));
+      return;
+    }
+    if (message.startsWith('mailop:')) {
+      _applyClientMailOp(message.substring('mailop:'.length));
+      return;
+    }
+    if (message.startsWith('winlinksync:')) {
+      _applyClientWinlinkSync(message.substring('winlinksync:'.length));
+      return;
+    }
+    if (message.startsWith('winlinkdisconnect:')) {
+      _broker.dispatch(
+        deviceId: 1,
+        name: 'WinlinkDisconnect',
+        data: true,
+        store: false,
+      );
       return;
     }
     final target = _targetRadioDeviceId;

@@ -453,9 +453,14 @@ Future<void> _startApp(List<String> args) async {
   await mailStore.initialize();
 
   // Start the Winlink client so that it listens for WinlinkSync requests from
-  // the mail tab (Connect -> Internet / Radio) and runs the B2F protocol.
-  final winlinkClient = WinlinkClient();
-  DataBroker.addDataHandler('WinlinkClient', winlinkClient);
+  // the mail tab (Connect -> Internet / Radio) and runs the B2F protocol. On the
+  // hosted web build the desktop host performs all Winlink operations and syncs
+  // the resulting mail over the bridge, so no local client is created there;
+  // mail mutations and sync requests are forwarded to the host instead.
+  if (!HostBridge.isHosted) {
+    final winlinkClient = WinlinkClient();
+    DataBroker.addDataHandler('WinlinkClient', winlinkClient);
+  }
 
   // Register the AGWPE server handler (desktop only) so that, when enabled in
   // settings, an AGW Packet Engine (AGWPE) TCP server is exposed for external

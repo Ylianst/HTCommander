@@ -20,6 +20,8 @@ import '../radio/radio_audio_stub.dart'
     if (dart.library.io) '../radio/radio_audio.dart';
 import '../radio/radio_transport.dart';
 import '../radio/websocket_transport.dart';
+import '../models/station_info.dart';
+import '../winlink/winlink_mail.dart';
 import 'bluetooth_classic_macos.dart';
 import 'data_broker.dart';
 import 'data_broker_client.dart';
@@ -75,6 +77,10 @@ class BluetoothService {
   // Hosted web build: the active WebSocket transport to the desktop host, used
   // to forward device-0 setting changes. Null when not hosted / not connected.
   WebSocketRadioTransport? _hostTransport;
+
+  // Hosted web build: whether the mail / Winlink forwarding subscriptions have
+  // been wired up (only done once for the lifetime of the process).
+  bool _mailSyncSubscribed = false;
 
   // Radio instances: deviceId -> Radio
   final Map<int, Radio> _radioInstances = {};
@@ -196,8 +202,15 @@ class BluetoothService {
       // Sync device-0 settings with the host instead of local storage.
       transport.onSettingsSnapshot = _onHostSettingsSnapshot;
       transport.onSetting = _onHostSetting;
+      // Sync Winlink mail with the host: the host owns the mail store and runs
+      // all Winlink operations; the client mirrors the host's mail and forwards
+      // mutations / sync requests over the bridge.
+      transport.onMail = _onHostMail;
+      transport.onWinlinkState = _onHostWinlinkState;
+      transport.onWinlinkError = _onHostWinlinkError;
       _hostTransport = transport;
       DataBroker.onDevice0Write = _forwardSettingToHost;
+      _wireMailSyncForwarding();
       final discovered = DiscoveredDevice(
         id: HostBridge.webSocketUrl,
         name: friendlyName,
@@ -317,6 +330,137 @@ class BluetoothService {
   void _forwardSettingToHost(String name, Object? data) {
     if (!HostBridge.isSyncedSetting(name)) return;
     _hostTransport?.sendSetting(name, data);
+  }
+
+  /// Subscribes to the local mail-mutation and Winlink events so the hosted web
+  /// build forwards them to the desktop host instead of acting on them locally.
+  /// Wired up once; the callbacks are no-ops when no host transport is active.
+  void _wireMailSyncForwarding() {
+    if (_mailSyncSubscribed) return;
+    _mailSyncSubscribed = true;
+    _broker.subscribeMultiple(
+      deviceId: 0,
+      names: <String>['MailAdd', 'MailUpdate', 'MailDelete', 'MailMove'],
+      callback: _onLocalMailOp,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkSync',
+      callback: _onLocalWinlinkSync,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkDisconnect',
+      callback: _onLocalWinlinkDisconnect,
+    );
+  }
+
+  /// Applies the host's authoritative mail snapshot by replacing the local
+  /// (in-memory) mail store cache, so the mail tab shows the host's mail.
+  void _onHostMail(String json) {
+    try {
+      final data = jsonDecode(json);
+      if (data is! List) return;
+      final mails = <WinLinkMail>[];
+      for (final item in data) {
+        if (item is Map) {
+          mails.add(WinLinkMail.fromJson(item.cast<String, dynamic>()));
+        }
+      }
+      _broker.dispatch(
+        deviceId: 0,
+        name: 'MailReplaceAll',
+        data: mails,
+        store: false,
+      );
+    } catch (e) {
+      _broker.logError('[BT] Failed to parse host mail: $e');
+    }
+  }
+
+  /// Applies a Winlink transfer status message pushed by the host (empty clears
+  /// the status).
+  void _onHostWinlinkState(String message) {
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'WinlinkStateMessage',
+      data: message.isEmpty ? null : message,
+      store: false,
+    );
+  }
+
+  /// Applies a Winlink error message pushed by the host.
+  void _onHostWinlinkError(String message) {
+    if (message.isEmpty) return;
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'WinlinkError',
+      data: message,
+      store: false,
+    );
+  }
+
+  /// Forwards a local mail mutation to the host (hosted web build).
+  void _onLocalMailOp(int deviceId, String name, Object? data) {
+    final transport = _hostTransport;
+    if (transport == null) return;
+    switch (name) {
+      case 'MailAdd':
+      case 'MailUpdate':
+        if (data is WinLinkMail) {
+          transport.sendMailOp(<String, Object?>{
+            'op': name == 'MailAdd' ? 'add' : 'update',
+            'mail': data.toJson(),
+          });
+        }
+        break;
+      case 'MailDelete':
+        if (data is String && data.isNotEmpty) {
+          transport.sendMailOp(<String, Object?>{'op': 'delete', 'mid': data});
+        }
+        break;
+      case 'MailMove':
+        if (data is Map) {
+          final mid = data['MID'];
+          final mailbox = data['Mailbox'];
+          if (mid is String && mailbox is String) {
+            transport.sendMailOp(<String, Object?>{
+              'op': 'move',
+              'mid': mid,
+              'mailbox': mailbox,
+            });
+          }
+        }
+        break;
+    }
+  }
+
+  /// Forwards a Winlink sync request to the host so the desktop performs the
+  /// actual B2F session. Radio syncs let the host pick its own bridged radio;
+  /// the [StationInfo] is serialized to JSON for the wire.
+  void _onLocalWinlinkSync(int deviceId, String name, Object? data) {
+    final transport = _hostTransport;
+    if (transport == null || data is! Map) return;
+    final server = data['Server'];
+    if (server is String && server.isNotEmpty) {
+      transport.sendWinlinkSync(<String, Object?>{
+        'Server': server,
+        'Port': data['Port'],
+        'UseTls': data['UseTls'],
+      });
+      return;
+    }
+    final station = data['Station'];
+    if (station is StationInfo) {
+      transport.sendWinlinkSync(<String, Object?>{
+        'Station': station.toJson(),
+      });
+    }
+  }
+
+  /// Forwards a Winlink disconnect / cancel request to the host.
+  void _onLocalWinlinkDisconnect(int deviceId, String name, Object? data) {
+    _hostTransport?.sendWinlinkDisconnect();
   }
 
   /// Restores `List<String>` typing lost when a setting round-trips through

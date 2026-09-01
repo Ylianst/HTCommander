@@ -98,6 +98,13 @@ class MailStore implements IMailStore {
       callback: _onMailDelete,
     );
     _broker!.subscribe(deviceId: 0, name: 'MailMove', callback: _onMailMove);
+    // Replaces the whole cache with a snapshot. Used by the hosted web build to
+    // apply the desktop host's authoritative mail list received over the bridge.
+    _broker!.subscribe(
+      deviceId: 0,
+      name: 'MailReplaceAll',
+      callback: _onMailReplaceAll,
+    );
     _broker!.subscribe(
       deviceId: 0,
       name: 'MailGetAll',
@@ -165,6 +172,16 @@ class MailStore implements IMailStore {
     } catch (_) {
       // Ignore errors
     }
+  }
+
+  void _onMailReplaceAll(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    if (data is! List) return;
+    _cachedMails
+      ..clear()
+      ..addAll(data.whereType<WinLinkMail>());
+    _saveToFile();
+    _notifyMailsChanged();
   }
 
   void _onMailGetAll(int deviceId, String name, Object? data) {

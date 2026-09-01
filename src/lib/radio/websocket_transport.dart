@@ -60,6 +60,27 @@ class WebSocketRadioTransport implements RadioTransport {
   /// host (JSON `{"name":...,"value":...}`).
   static const String _kSetSettingPrefix = 'setsetting:';
 
+  /// Prefix of the host's authoritative Winlink mail snapshot (JSON array of
+  /// [WinLinkMail] maps). Sent on connect and whenever the host's mail changes.
+  static const String _kMailPrefix = 'mail:';
+
+  /// Prefix of a Winlink transfer status message pushed by the host. The
+  /// remainder is the raw status string (empty clears the status).
+  static const String _kWinlinkStatePrefix = 'winlinkstate:';
+
+  /// Prefix of a Winlink error message pushed by the host.
+  static const String _kWinlinkErrorPrefix = 'winlinkerror:';
+
+  /// Prefix the client uses to push a mail operation to the host
+  /// (JSON `{"op":...}`).
+  static const String _kMailOpPrefix = 'mailop:';
+
+  /// Prefix the client uses to ask the host to start a Winlink sync (JSON).
+  static const String _kWinlinkSyncPrefix = 'winlinksync:';
+
+  /// Prefix the client uses to ask the host to disconnect an active sync.
+  static const String _kWinlinkDisconnectPrefix = 'winlinkdisconnect:';
+
   /// Invoked with the raw JSON payload when the host sends a `history:` message.
   /// Wired up by [BluetoothService] to seed the comms/APRS tabs.
   void Function(String json)? onHistory;
@@ -71,6 +92,18 @@ class WebSocketRadioTransport implements RadioTransport {
   /// Invoked with the raw JSON payload for a single device-0 setting change
   /// pushed by the host (`setting:`). Wired up by [BluetoothService].
   void Function(String json)? onSetting;
+
+  /// Invoked with the raw JSON payload (array of mails) for the host's Winlink
+  /// mail snapshot (`mail:`). Wired up by [BluetoothService].
+  void Function(String json)? onMail;
+
+  /// Invoked with the raw Winlink transfer status string pushed by the host
+  /// (`winlinkstate:`). Wired up by [BluetoothService].
+  void Function(String message)? onWinlinkState;
+
+  /// Invoked with the raw Winlink error string pushed by the host
+  /// (`winlinkerror:`). Wired up by [BluetoothService].
+  void Function(String message)? onWinlinkError;
 
   /// How long to wait for the host to report a ready radio before failing the
   /// connect attempt.
@@ -209,6 +242,18 @@ class WebSocketRadioTransport implements RadioTransport {
       onSetting?.call(message.substring(_kSettingPrefix.length));
       return;
     }
+    if (message.startsWith(_kMailPrefix)) {
+      onMail?.call(message.substring(_kMailPrefix.length));
+      return;
+    }
+    if (message.startsWith(_kWinlinkStatePrefix)) {
+      onWinlinkState?.call(message.substring(_kWinlinkStatePrefix.length));
+      return;
+    }
+    if (message.startsWith(_kWinlinkErrorPrefix)) {
+      onWinlinkError?.call(message.substring(_kWinlinkErrorPrefix.length));
+      return;
+    }
     if (message == _kWasConnected) {
       _setState(TransportState.connected);
       _completeConnect(true);
@@ -289,6 +334,41 @@ class WebSocketRadioTransport implements RadioTransport {
       channel.sink.add(
         '$_kSetSettingPrefix${jsonEncode(<String, Object?>{'name': name, 'value': value})}',
       );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Forwards a mail operation (add / update / delete / move) to the host so it
+  /// mutates its authoritative mail store. Returns false if the socket is not
+  /// available.
+  bool sendMailOp(Map<String, Object?> op) => _sendText(_kMailOpPrefix, op);
+
+  /// Asks the host to start a Winlink sync (internet or radio) on the client's
+  /// behalf. Returns false if the socket is not available.
+  bool sendWinlinkSync(Map<String, Object?> data) =>
+      _sendText(_kWinlinkSyncPrefix, data);
+
+  /// Asks the host to disconnect / cancel an active Winlink sync.
+  bool sendWinlinkDisconnect() {
+    final channel = _channel;
+    if (channel == null) return false;
+    try {
+      channel.sink.add(_kWinlinkDisconnectPrefix);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Sends [prefix] followed by the JSON encoding of [payload]. The socket need
+  /// only be open (not radio-ready). Returns false if unavailable.
+  bool _sendText(String prefix, Map<String, Object?> payload) {
+    final channel = _channel;
+    if (channel == null) return false;
+    try {
+      channel.sink.add('$prefix${jsonEncode(payload)}');
       return true;
     } catch (_) {
       return false;
