@@ -5,10 +5,11 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'dart:convert';
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show MethodCall;
 import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data_broker_client.dart';
@@ -155,12 +156,150 @@ class DataBroker {
   /// Private constructor for singleton
   DataBroker._internal();
 
+  /// File name of the shared_preferences store (Windows/Linux file backend).
+  static const String _prefsFileName = 'shared_preferences.json';
+
+  /// File name of the hourly backup copy of the preferences store.
+  static const String _prefsBackupFileName = 'shared_preferences.backup.json';
+
+  /// Minimum spacing between on-disk preference backups.
+  static const Duration _prefsBackupInterval = Duration(hours: 1);
+
+  /// When the last successful preferences backup was written (host only).
+  DateTime? _lastPrefsBackup;
+
   /// Initializes the data broker with persistent storage.
   /// Must be called once at app startup before using the broker.
   static Future<void> initialize() async {
     if (_instance._initialized) return;
-    _instance._prefs = await SharedPreferences.getInstance();
+    try {
+      _instance._prefs = await SharedPreferences.getInstance();
+    } on FormatException catch (e) {
+      // A corrupted on-disk preferences store (e.g. the shared_preferences.json
+      // file left in a half-written/garbage state by an unclean shutdown or
+      // power loss) makes getInstance() throw and would otherwise prevent the
+      // app from ever starting again -- even after an uninstall/reinstall,
+      // since the file lives in the user's roaming app data. Recover by trying
+      // the hourly backup copy first, and only falling back to a clean store.
+      debugPrint('DataBroker: preferences store corrupted, recovering: $e');
+      await _recoverCorruptPreferences();
+    }
     _instance._initialized = true;
+  }
+
+  /// Recovers from a corrupt preferences store: quarantine the bad main file,
+  /// try to restore the hourly backup copy, and only if that is missing or also
+  /// corrupt fall back to a clean store (device-0 settings reset to defaults).
+  static Future<void> _recoverCorruptPreferences() async {
+    // Move the corrupt main store aside so a fresh/restored one can take over.
+    await _quarantineCorruptPreferences();
+
+    // Prefer the last good backup over losing all settings.
+    if (await _restoreBackupPreferences()) {
+      try {
+        _instance._prefs = await SharedPreferences.getInstance();
+        // Don't immediately re-backup the just-restored data.
+        _instance._lastPrefsBackup = DateTime.now();
+        debugPrint('DataBroker: recovered preferences from backup');
+        return;
+      } on FormatException catch (e) {
+        // The backup was also corrupt: set it aside and start clean below.
+        debugPrint('DataBroker: backup preferences also corrupt: $e');
+        await _quarantineCorruptPreferences();
+      } catch (e) {
+        debugPrint('DataBroker: failed to load restored backup: $e');
+        await _quarantineCorruptPreferences();
+      }
+    }
+
+    // Last resort: start clean rather than blocking startup.
+    try {
+      _instance._prefs = await SharedPreferences.getInstance();
+    } catch (e) {
+      debugPrint('DataBroker: preferences unavailable after reset: $e');
+      _instance._prefs = null;
+    }
+  }
+
+  /// Renames a corrupt `shared_preferences.json` to `.corrupt` so a fresh store
+  /// is created on the next [SharedPreferences.getInstance] call. Only the
+  /// Windows/Linux file backend can produce a parse error here; macOS, iOS,
+  /// Android and web use native stores where the file is absent (no-op).
+  static Future<void> _quarantineCorruptPreferences() async {
+    if (kIsWeb) return;
+    try {
+      final dir = await getApplicationSupportDirectory();
+      final file = File(
+        '${dir.path}${Platform.pathSeparator}$_prefsFileName',
+      );
+      if (!await file.exists()) return;
+      final backupPath = '${file.path}.corrupt';
+      final backup = File(backupPath);
+      if (await backup.exists()) await backup.delete();
+      await file.rename(backupPath);
+    } catch (e) {
+      debugPrint('DataBroker: failed to quarantine preferences: $e');
+    }
+  }
+
+  /// Copies the hourly backup copy over the (already quarantined) main store so
+  /// the next [SharedPreferences.getInstance] loads the last good settings.
+  /// Returns true only when a valid backup was restored in place.
+  static Future<bool> _restoreBackupPreferences() async {
+    if (kIsWeb) return false;
+    try {
+      final dir = await getApplicationSupportDirectory();
+      final sep = Platform.pathSeparator;
+      final backup = File('${dir.path}$sep$_prefsBackupFileName');
+      if (!await backup.exists()) return false;
+      final content = await backup.readAsString();
+      // Only restore a backup that is itself valid JSON.
+      try {
+        jsonDecode(content);
+      } on FormatException {
+        return false;
+      }
+      final main = File('${dir.path}$sep$_prefsFileName');
+      await main.writeAsString(content, flush: true);
+      return true;
+    } catch (e) {
+      debugPrint('DataBroker: failed to restore backup preferences: $e');
+      return false;
+    }
+  }
+
+  /// Writes a backup copy of the preferences store at most once per hour. Called
+  /// after device-0 writes (host/standalone only). Skips the copy when the main
+  /// file is missing or not valid JSON so a good backup is never clobbered by a
+  /// half-written or corrupt store.
+  Future<void> _maybeBackupPreferences() async {
+    if (kIsWeb) return;
+    final now = DateTime.now();
+    final last = _lastPrefsBackup;
+    if (last != null && now.difference(last) < _prefsBackupInterval) return;
+    // Reserve the slot up front so bursts of writes trigger only one backup.
+    _lastPrefsBackup = now;
+    try {
+      final dir = await getApplicationSupportDirectory();
+      final sep = Platform.pathSeparator;
+      final main = File('${dir.path}$sep$_prefsFileName');
+      if (!await main.exists()) return;
+      final content = await main.readAsString();
+      // Never overwrite a good backup with a corrupt/partly-written main file.
+      try {
+        jsonDecode(content);
+      } on FormatException {
+        return;
+      }
+      // Write atomically: temp file then rename over the previous backup.
+      final tmp = File('${dir.path}${sep}shared_preferences.backup.tmp');
+      await tmp.writeAsString(content, flush: true);
+      final backup = File('${dir.path}$sep$_prefsBackupFileName');
+      if (await backup.exists()) await backup.delete();
+      await tmp.rename(backup.path);
+    } catch (e) {
+      debugPrint('DataBroker: failed to back up preferences: $e');
+    }
   }
 
   /// Checks if the broker has been initialized.
@@ -222,6 +361,9 @@ class DataBroker {
           _role != DataBrokerRole.client &&
           !_device0RemoteMode) {
         _persistValue(name, data);
+        // Keep a rolling on-disk backup (throttled to once an hour) so a
+        // corrupt store can be recovered on next launch. Fire-and-forget.
+        unawaited(_maybeBackupPreferences());
       }
     }
 
