@@ -4,6 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'dart:async' show unawaited;
 import 'dart:convert';
 import 'dart:io' show File, Platform;
 import 'package:flutter/foundation.dart';
