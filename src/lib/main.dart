@@ -75,6 +75,7 @@ import 'services/callsign_lookup_service.dart';
 import 'services/host_bridge.dart';
 import 'services/crash_logger.dart';
 import 'services/data_broker.dart';
+import 'services/settings_migration.dart';
 import 'services/data_broker_client.dart';
 import 'services/data_broker_serializers.dart';
 import 'services/history_limiter.dart';
@@ -222,6 +223,13 @@ class _StartupFailureApp extends StatelessWidget {
 /// Application entry point, executed inside the guarded zone set up by [main].
 Future<void> _startApp(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Recover settings/data orphaned by the Windows CompanyName rename
+  // (com.example -> com.meshcentral). Must run before anything reads or writes
+  // the (new) application-support folder, i.e. before the crash log and the
+  // preferences store are opened below. No-op on non-Windows and after the
+  // first successful import.
+  await SettingsMigration.run();
 
   // Resolve the on-disk crash log as early as possible so any failure during
   // the initialization below is still recorded. Works on every non-web
