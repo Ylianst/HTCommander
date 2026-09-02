@@ -94,7 +94,7 @@ application-support directory:
 
 | Platform | Where to find `htcommander_crash.log` |
 |---|---|
-| **Windows** | `%APPDATA%\com.example\htcommander\` — paste `%APPDATA%` into the Explorer address bar and open `com.example\htcommander` |
+| **Windows** | `%APPDATA%\com.meshcentral\htcommander\` — paste `%APPDATA%` into the Explorer address bar and open `com.meshcentral\htcommander` |
 | **macOS** | `~/Library/Application Support/com.meshcentral.htcommander/` — in Finder, use **Go → Go to Folder…** and paste the path |
 | **Linux** | `~/.local/share/htcommander/` (or `$XDG_DATA_HOME/htcommander/` if set) |
 | **Android** | the app's private support directory (retrievable over `adb`, see below) |
