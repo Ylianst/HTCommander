@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 3,
+  "packageId": "com.htcommander.app",
+  "appName": "htcommander",
+  "version": "0.1.58",
+  "buildNumber": 60,
+  "platform": "windows",
+  "channel": "stable",
+  "artifact": {
+    "kind": "zip",
+    "url": "https://github.com/Ylianst/HTCommander/releases/download/v0.1.58/htcommander-0.1.58-windows-x64.zip",
+    "sha256": "fe587061cf53cd45227f151f5d9ff61a4e341a3a5305afae37c9f034d56d6d84",
+    "length": 50068091
+  },
+  "install": {
+    "strategy": "wholeDirectoryReplace"
+  },
+  "minimumUpdaterVersion": "2.0.0",
+  "generatedAt": "2026-09-02T01:54:46.567634Z"
+}
