@@ -302,6 +302,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         'AllowTransmit',
         'AprsIsEnabled',
         'Stations',
+        'AprsCloudAvatars',
       ],
       callback: _onSettingsChanged,
     );
@@ -457,6 +458,29 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     _contactRoutes = routes;
     _smsContacts = smsContacts;
     _addressBookIds = addressBookIds;
+    _mergeCloudAvatars();
+  }
+
+  /// Merges avatars learned from cloud-push notifications into [_contactAvatars]
+  /// as a fallback, so a sender's avatar shows even when they are not in the
+  /// address book. Address-book entries always win, so a user's own overrides
+  /// are never replaced.
+  void _mergeCloudAvatars() {
+    final raw = _broker.getValueDynamic(0, 'AprsCloudAvatars', null);
+    if (raw is! Map) return;
+    raw.forEach((k, v) {
+      final key = '$k'.toUpperCase();
+      if (key.isEmpty || _contactAvatars.containsKey(key) || v is! Map) return;
+      final icon = v['icon']?.toString();
+      final image = v['image']?.toString();
+      final hasIcon = icon != null && icon.isNotEmpty;
+      final hasImage = image != null && image.isNotEmpty;
+      if (!hasIcon && !hasImage) return;
+      _contactAvatars[key] = (
+        icon: hasIcon ? icon : null,
+        image: hasImage ? image : null,
+      );
+    });
   }
 
   void _onSettingsChanged(int deviceId, String name, Object? data) {
@@ -482,6 +506,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           _aprsIsEnabled = v != 0;
           break;
         case 'Stations':
+          _loadStationDestinations();
+          break;
+        case 'AprsCloudAvatars':
           _loadStationDestinations();
           break;
       }
