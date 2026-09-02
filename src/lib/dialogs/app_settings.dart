@@ -34,6 +34,12 @@ class AppSettings {
   bool aprsIsGateToRf;
   String aprsIsPasscode;
 
+  // APRS cloud notifications (HTCloudServer push) - APRS tab. When enabled the
+  // app registers with aprs.meshcentral.com and receives pushed APRS messages
+  // addressed to its station. Requires APRS-IS to be configured (valid
+  // passcode). Android-only at runtime.
+  bool aprsCloudNotifications;
+
   // APRS.fi API key used to backfill missed APRS messages - APRS tab
   String aprsFiApiKey;
 
@@ -140,6 +146,7 @@ class AppSettings {
     this.aprsIsRangeKm = 0,
     this.aprsIsGateToRf = false,
     this.aprsIsPasscode = '',
+    this.aprsCloudNotifications = false,
     this.aprsFiApiKey = '',
     this.voiceLanguage = 'auto',
     this.voiceModel = 'sense-voice',
@@ -186,6 +193,7 @@ class AppSettings {
     int? aprsIsRangeKm,
     bool? aprsIsGateToRf,
     String? aprsIsPasscode,
+    bool? aprsCloudNotifications,
     String? aprsFiApiKey,
     String? voiceLanguage,
     String? voiceModel,
@@ -231,6 +239,8 @@ class AppSettings {
       aprsIsRangeKm: aprsIsRangeKm ?? this.aprsIsRangeKm,
       aprsIsGateToRf: aprsIsGateToRf ?? this.aprsIsGateToRf,
       aprsIsPasscode: aprsIsPasscode ?? this.aprsIsPasscode,
+      aprsCloudNotifications:
+          aprsCloudNotifications ?? this.aprsCloudNotifications,
       aprsFiApiKey: aprsFiApiKey ?? this.aprsFiApiKey,
       voiceLanguage: voiceLanguage ?? this.voiceLanguage,
       voiceModel: voiceModel ?? this.voiceModel,
@@ -303,6 +313,8 @@ class AppSettings {
           (DataBroker.getValue<int>(0, 'AprsIsGateToRf', 0) ?? 0) == 1,
       aprsIsPasscode:
           DataBroker.getValue<String>(0, 'AprsIsPasscode', '') ?? '',
+      aprsCloudNotifications:
+          (DataBroker.getValue<int>(0, 'AprsCloudNotifications', 0) ?? 0) == 1,
       aprsFiApiKey:
           DataBroker.getValue<String>(0, 'AprsFiApiKey', '') ?? '',
       voiceLanguage:
@@ -407,6 +419,11 @@ class AppSettings {
       deviceId: 0,
       name: 'AprsIsPasscode',
       data: aprsIsPasscode,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'AprsCloudNotifications',
+      data: aprsCloudNotifications ? 1 : 0,
     );
     DataBroker.dispatch(
       deviceId: 0,

@@ -674,6 +674,14 @@ class AppLocalizationsZh extends AppLocalizations {
       '为过去一小时内本地收听到的电台，将来自互联网的消息通过射频发送。需要具有 APRS 频道的无线电。';
 
   @override
+  String get settingsAprsCloudNotifications =>
+      'Push notifications (aprs.meshcentral.com)';
+
+  @override
+  String get settingsAprsCloudNotificationsHelp =>
+      'Register with the aprs.meshcentral.com server to receive APRS messages addressed to your station as push notifications, even when the app is closed. Requires APRS-IS to be enabled with a valid passcode.';
+
+  @override
   String get settingsAprsFiTitle => 'APRS.fi 回填';
 
   @override

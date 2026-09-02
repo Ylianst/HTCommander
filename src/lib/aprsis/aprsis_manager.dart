@@ -31,6 +31,7 @@ limitations under the License.
 //
 
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 
 import '../aprs/aprs_events.dart';
@@ -176,10 +177,16 @@ class AprsIsManager {
     );
 
     // Re-run the aprs.fi backfill whenever the API key or our callsign changes
-    // (e.g. after the settings dialog is closed).
+    // (e.g. after the settings dialog is closed). Also re-checked when cloud
+    // push is toggled, since it gates whether aprs.fi runs at all.
     _broker.subscribeMultiple(
       deviceId: 0,
-      names: const ['AprsFiApiKey', 'CallSign', 'StationId'],
+      names: const [
+        'AprsFiApiKey',
+        'CallSign',
+        'StationId',
+        'AprsCloudNotifications',
+      ],
       callback: (_, _, _) => unawaited(_mergeFromAprsFi()),
     );
 
@@ -247,6 +254,12 @@ class AprsIsManager {
   /// key is configured.
   Future<void> _mergeFromAprsFi() async {
     if (_mergingAprsFi || !_historyReady) return;
+    // When cloud push (aprs.meshcentral.com) is enabled it supplies the same
+    // message backlog more reliably, so skip the redundant aprs.fi backfill.
+    if (Platform.isAndroid &&
+        (_broker.getValue<int>(0, 'AprsCloudNotifications', 0) ?? 0) == 1) {
+      return;
+    }
     final apiKey =
         (_broker.getValue<String>(0, 'AprsFiApiKey', '') ?? '').trim();
     final self = _readCallsignWithId();

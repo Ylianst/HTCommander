@@ -573,6 +573,8 @@
   "settingsAprsIsRangeHelp": "Receive APRS traffic within this range of your last confirmed GPS position, obtained from a radio or serial GPS.",
   "settingsAprsIsGateToRf": "Gate internet messages to RF (IGate)",
   "settingsAprsIsGateToRfHelp": "Transmit messages from the internet on RF for stations heard locally within the last hour. Requires a radio with an APRS channel.",
+  "settingsAprsCloudNotifications": "Push notifications (aprs.meshcentral.com)",
+  "settingsAprsCloudNotificationsHelp": "Register with the aprs.meshcentral.com server to receive APRS messages addressed to your station as push notifications, even when the app is closed. Requires APRS-IS to be enabled with a valid passcode.",
   "settingsAprsFiTitle": "APRS.fi backfill",
   "settingsAprsFiIntro": "Provide your personal aprs.fi API key to pull in APRS messages addressed to you that were received while this app was offline. Messages are merged with the ones you already have.",
   "settingsAprsFiApiKey": "aprs.fi API key",

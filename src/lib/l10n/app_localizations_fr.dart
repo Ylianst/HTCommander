@@ -691,6 +691,14 @@ class AppLocalizationsFr extends AppLocalizations {
       'Transmettez les messages Internet sur la RF pour les stations entendues localement au cours de la dernière heure. Nécessite une radio avec un canal APRS.';
 
   @override
+  String get settingsAprsCloudNotifications =>
+      'Push notifications (aprs.meshcentral.com)';
+
+  @override
+  String get settingsAprsCloudNotificationsHelp =>
+      'Register with the aprs.meshcentral.com server to receive APRS messages addressed to your station as push notifications, even when the app is closed. Requires APRS-IS to be enabled with a valid passcode.';
+
+  @override
   String get settingsAprsFiTitle => 'Récupération APRS.fi';
 
   @override

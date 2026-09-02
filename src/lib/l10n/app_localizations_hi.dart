@@ -690,6 +690,14 @@ class AppLocalizationsHi extends AppLocalizations {
       'पिछले एक घंटे में स्थानीय रूप से सुने गए स्टेशनों के लिए इंटरनेट से संदेशों को RF पर प्रसारित करें। इसके लिए APRS चैनल वाले रेडियो की आवश्यकता होती है।';
 
   @override
+  String get settingsAprsCloudNotifications =>
+      'Push notifications (aprs.meshcentral.com)';
+
+  @override
+  String get settingsAprsCloudNotificationsHelp =>
+      'Register with the aprs.meshcentral.com server to receive APRS messages addressed to your station as push notifications, even when the app is closed. Requires APRS-IS to be enabled with a valid passcode.';
+
+  @override
   String get settingsAprsFiTitle => 'APRS.fi बैकफ़िल';
 
   @override

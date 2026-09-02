@@ -1372,6 +1372,18 @@ abstract class AppLocalizations {
   /// **'Transmit messages from the internet on RF for stations heard locally within the last hour. Requires a radio with an APRS channel.'**
   String get settingsAprsIsGateToRfHelp;
 
+  /// No description provided for @settingsAprsCloudNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notifications (aprs.meshcentral.com)'**
+  String get settingsAprsCloudNotifications;
+
+  /// No description provided for @settingsAprsCloudNotificationsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Register with the aprs.meshcentral.com server to receive APRS messages addressed to your station as push notifications, even when the app is closed. Requires APRS-IS to be enabled with a valid passcode.'**
+  String get settingsAprsCloudNotificationsHelp;
+
   /// No description provided for @settingsAprsFiTitle.
   ///
   /// In en, this message translates to:

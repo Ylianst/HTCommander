@@ -1847,6 +1847,51 @@ class _SettingsDialogState extends State<SettingsDialog>
           ),
           const SizedBox(height: 4),
           Text(l10n.settingsAprsIsGateToRfHelp, style: _secondaryStyle()),
+          const SizedBox(height: 16),
+          // Cloud push notifications via aprs.meshcentral.com. Only available
+          // once APRS-IS is enabled with a valid passcode (used to authenticate
+          // with the server); otherwise the toggle is disabled and forced off.
+          Builder(
+            builder: (context) {
+              final cloudAvailable = _settings.aprsIsEnabled && passcodeValid;
+              if (!cloudAvailable && _settings.aprsCloudNotifications) {
+                // Keep the stored value consistent when the prerequisite is lost.
+                _settings.aprsCloudNotifications = false;
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _settings.aprsCloudNotifications,
+                        onChanged: cloudAvailable
+                            ? (value) => setState(
+                                  () => _settings.aprsCloudNotifications =
+                                      value ?? false,
+                                )
+                            : null,
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: cloudAvailable
+                              ? () => setState(
+                                    () => _settings.aprsCloudNotifications =
+                                        !_settings.aprsCloudNotifications,
+                                  )
+                              : null,
+                          child: Text(l10n.settingsAprsCloudNotifications),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(l10n.settingsAprsCloudNotificationsHelp,
+                      style: _secondaryStyle()),
+                ],
+              );
+            },
+          ),
           const Divider(height: 32),
           Text(l10n.settingsAprsFiTitle, style: _sectionTitleStyle()),
           const SizedBox(height: 8),

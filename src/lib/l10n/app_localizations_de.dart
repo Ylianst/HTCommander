@@ -693,6 +693,14 @@ class AppLocalizationsDe extends AppLocalizations {
       'Übertragen Sie Nachrichten aus dem Internet auf HF für Stationen, die in der letzten Stunde lokal gehört wurden. Erfordert ein Funkgerät mit einem APRS-Kanal.';
 
   @override
+  String get settingsAprsCloudNotifications =>
+      'Push notifications (aprs.meshcentral.com)';
+
+  @override
+  String get settingsAprsCloudNotificationsHelp =>
+      'Register with the aprs.meshcentral.com server to receive APRS messages addressed to your station as push notifications, even when the app is closed. Requires APRS-IS to be enabled with a valid passcode.';
+
+  @override
   String get settingsAprsFiTitle => 'APRS.fi-Nachladen';
 
   @override

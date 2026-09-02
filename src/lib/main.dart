@@ -50,6 +50,10 @@ import 'echolink/echolink_manager_stub.dart'
 // glue is never compiled for the browser.
 import 'aprsis/aprsis_manager_stub.dart'
     if (dart.library.io) 'aprsis/aprsis_manager.dart';
+// APRS cloud push (Firebase Cloud Messaging) relies on dart:io + native
+// Firebase; use a no-op stub on web so it is never compiled for the browser.
+import 'services/aprs_cloud_service_stub.dart'
+    if (dart.library.io) 'services/aprs_cloud_service.dart';
 // AllStarLink relies on dart:io UDP sockets + native audio; use a no-op stub on
 // web so the IAX2 internet-radio glue is never compiled for the browser.
 import 'allstar/allstar_manager_stub.dart'
@@ -425,6 +429,14 @@ Future<void> _startApp(List<String> args) async {
   final aprsIsManager = AprsIsManager();
   aprsIsManager.init();
   DataBroker.addDataHandler('AprsIsManager', aprsIsManager);
+
+  // Register the APRS cloud push service (Android only) so that, when the user
+  // enables push notifications in Settings, the app registers with
+  // aprs.meshcentral.com and receives APRS messages addressed to its station as
+  // push notifications - even when the app is closed. A no-op on other
+  // platforms and on web.
+  AprsCloudService.instance.init();
+  DataBroker.addDataHandler('AprsCloudService', AprsCloudService.instance);
 
   // Register the GPS serial handler so that an external GPS receiver connected
   // to a serial port is read, its NMEA sentences parsed, and a GpsData object

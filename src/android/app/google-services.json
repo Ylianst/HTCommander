@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "500053986858",
+    "project_id": "aprs-meshcentral-com",
+    "storage_bucket": "aprs-meshcentral-com.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:500053986858:android:a76c9c4c3118f08dcefd53",
+        "android_client_info": {
+          "package_name": "com.meshcentral.htcommander"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcFlUFlTmeUVnsW1z5919Qm5Vh16Fm9j8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
