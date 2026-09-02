@@ -25,6 +25,11 @@ jobs:
 
       - name: Build Windows
         working-directory: src
+        env:
+          # Firebase C++ SDK ships a CMakeLists.txt with cmake_minimum_required
+          # below 3.5, which CMake 4.x (on windows-latest) rejects. This env var
+          # tells CMake to assume a 3.5 policy minimum so the build configures.
+          CMAKE_POLICY_VERSION_MINIMUM: "3.5"
         run: flutter build windows --release
 
       - name: Build and stage web app
