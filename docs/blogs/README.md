@@ -160,6 +160,23 @@ the no-encryption rules.
 
 ---
 
+## Notifications & Cloud
+
+Reaching a phone that isn't running the app — and keeping the companion server
+cheap while doing it.
+
+1. **[When the App Is Closed: Push Notifications, Sync, and Avatars for APRS](push-notifications.md)**
+   How HTCloudServer catches APRS messages addressed to your station and pushes
+   them to your phone via FCM/APNs: the passcode registration, the `g/`-only
+   APRS-IS filter that ignores everything but your messages, duplicate
+   suppression and push coalescing, the `since`-cursor sync that fills any gaps,
+   and the avatar system — change-detected uploads (an icon needs no image hash),
+   avatars that piggyback on the push within the ~4 KB budget, a two-byte
+   tombstone when one is cleared, and a hash-then-fetch path so desktops pull an
+   image only when it changed. Every decision bent toward moving the fewest bytes.
+
+---
+
 ## Home Automation & Integrations
 
 Connecting HTCommander to the wider ecosystem of tools operators already run.
