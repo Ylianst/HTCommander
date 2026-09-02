@@ -2159,8 +2159,11 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     }
 
     // Prefer an existing contact matching this peer. SMS peers are the phone
-    // number's digits, so match SMS contacts by their digits-only id.
-    final isSms = _smsContacts.contains(callsign);
+    // number's digits, so match SMS contacts by their digits-only id. A peer
+    // that is all digits is an SMS phone number even when not yet saved as a
+    // contact, so a new one opens as an SMS (not APRS) contact.
+    final isSms =
+        _smsContacts.contains(callsign) || _looksLikePhoneNumber(callsign);
     StationInfo? existing;
     for (final s in stations) {
       final sid = isSms ? _digitsOnly(s.callsign) : s.callsign.toUpperCase();
@@ -2201,6 +2204,12 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
 
   /// Digits-only form of a phone number, used as the SMS conversation key.
   String _digitsOnly(String s) => s.replaceAll(RegExp(r'[^0-9]'), '');
+
+  /// Whether [peer] looks like an SMS phone-number conversation key. SMS peers
+  /// are threaded under the phone number's digits, whereas APRS callsigns
+  /// always contain letters, so an all-digits peer is a phone number.
+  bool _looksLikePhoneNumber(String peer) =>
+      peer.isNotEmpty && RegExp(r'^\d+$').hasMatch(peer);
 
   /// Whether [callsign] is the APRS SMS gateway (SMS / SMSGTE, any SSID).
   bool _senderIsSmsGateway(String callsign) {
