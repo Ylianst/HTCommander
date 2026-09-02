@@ -27,6 +27,7 @@ import 'bluetooth_classic_macos.dart';
 import 'data_broker.dart';
 import 'data_broker_client.dart';
 import 'host_bridge.dart';
+import 'web/host_audio_player.dart';
 
 part 'radio_bluetooth_common.dart';
 part 'radio_bluetooth_web.dart';
@@ -82,6 +83,11 @@ class BluetoothService {
   // Hosted web build: device id of the single bridged radio, or -1. The radio is
   // only listed in ConnectedRadios while the host reports it as present.
   int _hostRadioDeviceId = -1;
+
+  // Hosted web build: plays the host's mirrored audio in the browser, and
+  // whether the user has turned that on. No-op off the web.
+  final HostAudioPlayer _hostAudio = HostAudioPlayer();
+  bool _hostAudioEnabled = false;
 
   // Hosted web build: whether the mail / Winlink forwarding subscriptions have
   // been wired up (only done once for the lifetime of the process).
@@ -218,9 +224,21 @@ class BluetoothService {
       // list of radios (name + selection) so the browser can show and switch it.
       transport.onRadioPresence = _onHostRadioPresence;
       transport.onRadioList = _onHostRadioList;
+      // Play the host's mirrored audio in the browser (when the user enables it).
+      transport.onAudioFrame = _onHostAudioFrame;
       _hostTransport = transport;
       DataBroker.onDevice0Write = _forwardSettingToHost;
       _wireMailSyncForwarding();
+      // Apply the browser's own (local) output volume to mirrored playback and
+      // track changes; it is independent of the host's output volume.
+      _hostAudio.volume =
+          (_broker.getValue<double>(0, 'OutputVolume', 1.0) ?? 1.0)
+              .clamp(0.0, 1.0);
+      _broker.subscribe(
+        deviceId: 0,
+        name: 'OutputVolume',
+        callback: _onHostAudioVolumeChanged,
+      );
       final discovered = DiscoveredDevice(
         id: HostBridge.webSocketUrl,
         name: friendlyName,
@@ -328,6 +346,42 @@ class BluetoothService {
   /// Hosted web: asks the desktop host to switch the shared (preferred) radio.
   void selectHostRadio(int hostDeviceId) =>
       _hostTransport?.selectHostRadio(hostDeviceId);
+
+  /// Hosted web: plays a mirrored host audio frame in the browser when the user
+  /// has enabled listening.
+  void _onHostAudioFrame(Uint8List frame) {
+    if (!_hostAudioEnabled || frame.length < 6) return;
+    final channels = frame[1];
+    final sampleRate = frame[2] | (frame[3] << 8);
+    final pcmBytes = frame.sublist(4);
+    final pcm = Int16List.view(
+      pcmBytes.buffer,
+      pcmBytes.offsetInBytes,
+      pcmBytes.length ~/ 2,
+    );
+    _hostAudio.feed(pcm, sampleRate, channels);
+  }
+
+  /// Hosted web: applies the browser's local output volume to mirrored playback.
+  void _onHostAudioVolumeChanged(int deviceId, String name, Object? data) {
+    final v = data is num ? data.toDouble() : null;
+    if (v != null) _hostAudio.volume = v.clamp(0.0, 1.0);
+  }
+
+  /// Hosted web: whether browser playback of the host's audio is enabled.
+  bool get hostAudioEnabled => _hostAudioEnabled;
+
+  /// Hosted web: enables/disables playing the host's audio in the browser. Must
+  /// be called from a user gesture the first time (browser autoplay policy).
+  Future<void> setHostAudioEnabled(bool on) async {
+    _hostAudioEnabled = on;
+    if (on) {
+      await _hostAudio.resume();
+    } else {
+      await _hostAudio.suspend();
+    }
+    _hostTransport?.setAudioStreaming(on);
+  }
 
   /// Handles the host's one-shot history snapshot (JSON) by republishing it on
   /// the DataBroker so the comms/APRS handlers can seed their tabs.

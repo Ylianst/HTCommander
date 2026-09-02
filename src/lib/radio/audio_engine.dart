@@ -561,18 +561,10 @@ class AudioEngine {
 
       if (!isOnMuteChannel) {
         if (!_isMuted && !isTransmit) {
-          // Scale by output volume for playback (software volume control).
-          final Int16List playbackPcm = Int16List(samples.length);
-          for (int i = 0; i < samples.length; i++) {
-            int v = (samples[i] * _outputVolume).round();
-            if (v > 32767) {
-              v = 32767;
-            } else if (v < -32768) {
-              v = -32768;
-            }
-            playbackPcm[i] = v;
-          }
-          _emitReceivePlayback(playbackPcm);
+          // Output volume is applied at the shared PcmPlayer (after the web
+          // mirror tap) so the browser can receive full-volume audio; emit the
+          // raw decoded PCM for playback here.
+          _emitReceivePlayback(Int16List.fromList(samples));
         }
         _recorder?.write(Int16List.fromList(samples));
       }

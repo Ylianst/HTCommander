@@ -50,8 +50,22 @@ class HostBridge {
     ).toString();
   }
 
+  /// Device-0 settings that stay local on each side (host app prefs / browser
+  /// localStorage) instead of syncing across the bridge, so the host and the
+  /// hosted web page keep independent values. `OutputVolume` is the application
+  /// output volume: each side controls (and can mute) its own playback.
+  static bool isLocalOnlySetting(String name) => name == 'OutputVolume';
+
   /// Whether a device-0 setting is shared between the host and the browser.
   /// Transient per-instance UI selection state (`Selected*`: current tab, radio,
-  /// satellite, APRS route) is excluded so it does not bleed across the bridge.
-  static bool isSyncedSetting(String name) => !name.startsWith('Selected');
+  /// satellite, APRS route) and local-only settings (see [isLocalOnlySetting])
+  /// are excluded so they do not bleed across the bridge.
+  static bool isSyncedSetting(String name) =>
+      !name.startsWith('Selected') && !isLocalOnlySetting(name);
+
+  /// First byte of a host->browser audio frame over the bridge, distinguishing
+  /// it from radio command frames (which always start with 0x00). The frame is
+  /// `[magic, channels, sampleRateLo, sampleRateHi]` then little-endian 16-bit
+  /// interleaved PCM.
+  static const int audioFrameMagic = 0xF1;
 }

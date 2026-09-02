@@ -153,6 +153,9 @@ class RadioAudio {
     // Initialize output volume / mute from stored values. The output volume is
     // persisted globally (device 0) by the Audio tab so it survives restarts.
     _outputVolume = _broker.getValue<double>(0, 'OutputVolume', 1.0) ?? 1.0;
+    // Apply it at the shared player (after the web-mirror tap) as the host's
+    // master output volume.
+    PcmPlayer.hostOutputVolume = _outputVolume;
     _isMuted = _broker.getValue<bool>(deviceId, 'Mute', false) ?? false;
   }
 
@@ -354,6 +357,7 @@ class RadioAudio {
     }
     if (vol == null) return;
     _outputVolume = vol;
+    PcmPlayer.hostOutputVolume = vol;
     _sendToEngine(<String, Object?>{'cmd': 'setVolume', 'value': vol});
     _broker.dispatch(
       deviceId: deviceId,

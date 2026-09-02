@@ -935,6 +935,7 @@ class _MainFormState extends State<MainForm>
       false; // GPS enabled state of the currently displayed radio
   String _softwareModemMode = 'none'; // Current software modem mode
   bool _softwareModemFec = true; // FX.25 FEC on transmit (software modem)
+  bool _hostAudioEnabled = false; // Hosted web: play the host's mirrored audio
   String _dartTxLevel = '0'; // DART transmit level ('0'..'5' or 'F')
   String _aprsModemMode = 'none'; // APRS modem mode ('none' or 'afsk1200')
   bool _aprsModemFec = true; // FX.25 FEC on transmit (APRS modem)
@@ -1998,6 +1999,16 @@ class _MainFormState extends State<MainForm>
       data: !currentlyEnabled,
       store: false,
     );
+  }
+
+  /// Hosted web build: toggles playing the desktop host's mirrored audio in this
+  /// browser. Runs from the menu tap (a user gesture) so the browser allows the
+  /// audio context to start.
+  Future<void> _onToggleHostAudio() async {
+    final on = !_hostAudioEnabled;
+    await BluetoothService().setHostAudioEnabled(on);
+    if (!mounted) return;
+    setState(() => _hostAudioEnabled = on);
   }
 
   /// Dispatches a software-modem control change. On the hosted web build the
@@ -3212,6 +3223,19 @@ class _MainFormState extends State<MainForm>
       ),
       // Audio menu (hidden on web and iOS: no audio channel over BLE
       // control-only transport).
+      // Hosted web build: the desktop Audio menu is hidden (no local audio); a
+      // single toggle plays the host's mirrored audio in this browser instead.
+      if (HostBridge.isHosted)
+        AppSubmenu(
+          label: l10n.menuAudio,
+          children: [
+            AppMenuAction(
+              label: 'Play Host Audio',
+              onPressed: _onToggleHostAudio,
+              checked: _hostAudioEnabled,
+            ),
+          ],
+        ),
       if (!kIsWeb && !Platform.isIOS)
         AppSubmenu(
           label: l10n.menuAudio,
@@ -3711,6 +3735,31 @@ class _MainFormState extends State<MainForm>
               ),
             ],
           ),
+          // Hosted web build: a tappable headphone indicator showing whether
+          // the host's mirrored audio is playing in this browser. Overlaid on
+          // the menu bar's empty right side so it never covers menu items.
+          if (HostBridge.isHosted)
+            Positioned(
+              top: 0,
+              bottom: 0,
+              right: _isCompactMode ? 44 : 8,
+              child: Center(
+                child: IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: _hostAudioEnabled
+                      ? 'Host audio on — tap to mute'
+                      : 'Host audio off — tap to listen',
+                  icon: Icon(
+                    _hostAudioEnabled ? Icons.headset : Icons.headset_off,
+                    size: 20,
+                    color: _hostAudioEnabled
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                  onPressed: _onToggleHostAudio,
+                ),
+              ),
+            ),
           // Toggle the right-side tab list (only meaningful in compact mode).
           // Overlaid on top of the menu bar so the menu keeps its normal layout.
           if (_isCompactMode)

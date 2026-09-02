@@ -21,6 +21,7 @@ import '../radio/pcm_player.dart';
 import '../services/audio_output_devices.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/host_bridge.dart';
 import '../services/microphone_capture.dart';
 import '../services/shared_microphone.dart';
 import '../services/system_audio.dart';
@@ -1406,6 +1407,25 @@ class _AudioTabState extends State<AudioTab>
                     _buildSectionTitle(AppLocalizations.of(context).audioDartQuality),
                     DartAnalysisSection(analysis: _dartAnalysis),
                   ],
+                ],
+                // Hosted web build: the desktop audio sections don't apply, but
+                // the Application volume controls this browser's playback of the
+                // host's mirrored audio — independent of the host's own volume and
+                // saved locally in the browser.
+                if (HostBridge.isHosted) ...[
+                  const SizedBox(height: 16),
+                  _buildSectionTitle(
+                    AppLocalizations.of(context).audioSectionComputer,
+                  ),
+                  _buildSliderRow(
+                    label: AppLocalizations.of(context).audioApplication,
+                    value: _appVolume,
+                    min: 0,
+                    max: 1,
+                    valueLabel: '${(_appVolume * 100).round()}%',
+                    enabled: true,
+                    onChanged: _onAppVolumeChanged,
+                  ),
                 ],
               ],
               ),

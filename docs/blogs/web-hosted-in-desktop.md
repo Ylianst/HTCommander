@@ -51,7 +51,7 @@ flowchart LR
     B2["Browser tab\n(thin client)"]
     D["HTCommander desktop\n(the brain)"]
     R2["Benshi radio"]
-    B2 -- "WebSocket bridge\n/websocket.aspx" --- D
+    B2 -- "WebSocket bridge\n(frames · state · audio)" --- D
     D -- "Bluetooth (SBC audio + GATT)" --- R2
   end
 ```
@@ -72,7 +72,7 @@ That opens up some genuinely useful setups:
 - **A phone or tablet as a second screen** for a radio that stays plugged into a
   desktop or a shack computer.
 - **Remote operating on the local network** — leave the radio and the desktop in
-  the garage, sit on the couch with a tablet.
+  the garage, sit on the couch with a tablet and still *hear* the radio.
 - **A shared station** where several people around the room can each pull up the
   APRS tab, the map, or the messages on their own device.
 
@@ -100,17 +100,21 @@ plain two-way pipe of raw radio frames:
   hands them straight to the radio.
 - **Desktop → browser:** binary messages are the radio's response frames. The
   browser decodes them with the same radio code it would use for a Web Bluetooth
-  notification.
+  notification. (One kind of binary message is *not* a radio frame — mirrored
+  audio — but it's tagged with a magic first byte, and radio frames always start
+  with `0x00`, so the two can never be confused. More on that below.)
 - **A few text messages** ride alongside for control and sync: `wasconnected` /
   `connecting` / `disconnected` report whether a radio is available, and a set of
-  prefixed messages (`settings:`, `history:`, `mail:`, `airplanes:`, and friends)
-  carry state the browser can't compute for itself.
+  prefixed messages (`settings:`, `history:`, `mail:`, `airplanes:`, `radiolist:`,
+  and friends) carry state the browser can't compute for itself.
 
 On the client side this is a custom `RadioTransport` — a `WebSocketRadioTransport`
-that opens the socket, waits for the host to say `wasconnected`, and from then on
-pumps bytes both directions. As far as the rest of the app is concerned, it's just
-another radio that happens to live at the other end of a WebSocket instead of a
-Bluetooth link.
+that opens the socket and, from then on, pumps bytes both directions. It's a
+*persistent session*: the socket stays open (and reconnects itself if it drops)
+whether or not the host currently has a radio, so the browser keeps mirroring the
+desktop live rather than spinning on a reconnect loop. As far as the rest of the
+app is concerned, it's just another radio that happens to live at the other end of
+a WebSocket instead of a Bluetooth link.
 
 ### Knowing which world you're in
 
@@ -220,13 +224,85 @@ instead of dead buttons that pretend to work.
 
 ---
 
+## Relaying the radio, not just its data
+
+Early on, the browser treated "the host has no radio" as a *failed connection* and
+kept retrying — you'd load the page and watch it spin, reconnecting every few
+seconds, even though the host was perfectly reachable and simply had no radio
+plugged in yet. That's backwards. The browser isn't connecting to a radio; it's
+connecting to the *desktop*, which may or may not have a radio at any moment. So
+the session was split from the radio: the socket stays up as a stable channel, and
+the host just *tells* the browser what its radio situation is. No radio on the
+host now shows a calm "no radio" state, and the moment the desktop connects one,
+the browser lights up — no reconnect dance.
+
+Once the session relays state instead of just data, three things fall out of it
+naturally:
+
+- **The real radio's name.** Instead of a generic "shared radio" label, the
+  browser shows the actual name of whatever radio the desktop has selected.
+- **Switching radios.** If the desktop has more than one radio connected, the host
+  sends the browser its radio list, and the browser's normal radio switcher (the
+  File menu and the Radio tab's name dropdown) lets you pick which one the desktop
+  shares. Choosing a different radio tells the host to re-point the bridge, and the
+  browser re-fetches the new radio's channels and status.
+- **Disconnect means disconnect *the radio*.** Hitting File → Disconnect in the
+  browser used to tear down the browser's own session — surprising, since you were
+  really trying to disconnect the radio. Now it asks the desktop to drop its radio;
+  the browser session stays open and simply shows "no radio" afterwards, exactly as
+  if you'd unplugged it on the desktop.
+
+---
+
+## Hearing the radio in the browser
+
+A screen is only half the station — you want to *hear* it too. On the desktop,
+every source of audio the app plays — received radio audio, the transmit monitor,
+EchoLink, AllStarLink — is mixed down through one shared PCM player before it
+reaches the speaker. That single choke point turned out to be the perfect place to
+tap: one hook there captures **everything** the desktop plays, no matter which
+feature produced it, and streams it to any browser that's asked to listen.
+
+The audio rides the same WebSocket as tagged binary frames — a tiny header
+(`magic`, channel count, sample rate) followed by raw 16-bit PCM. Because radio
+command frames always begin with `0x00` and the audio magic byte doesn't, the
+transport tells them apart with a single byte compare and routes audio to the
+browser's player instead of the radio decoder.
+
+In the browser, playback uses the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API):
+each incoming buffer becomes an `AudioBuffer` scheduled back-to-back on the audio
+context's clock, with a small pre-roll so a little network jitter doesn't cause a
+dropout. Browsers won't start audio without a user gesture, so it's **opt-in** — a
+"Play Host Audio" toggle (and a headphone indicator up in the menu bar) turns it
+on from a click, which both satisfies the autoplay rule and tells the host to only
+bother streaming to browsers that actually want it.
+
+The nicest part is what this makes possible with **volume**. The "Application
+Volume" slider used to be applied deep in the audio pipeline, before our tap — so
+if you turned the desktop down, the browser went quiet too. We moved the volume to
+the *playback* stage on each side, and made the setting **local to each side**: the
+desktop keeps its level in its own preferences, and the browser saves its own in
+the browser's local storage instead of syncing it across the bridge. The mirrored
+stream now leaves the host at full volume, and each end applies its own level. So
+you can **mute the desktop and keep listening on your phone**, or the other way
+around — the two are genuinely independent. (One deliberate consequence: on the
+desktop this slider became a true master output volume, so it now also rides
+EchoLink and AllStarLink audio, which it previously left alone.)
+
+---
+
 ## The honest ledger
 
 A few rough edges remain, in the tradition of these posts:
 
-- **The software modem is host-only, by physics.** Decoding it needs the raw SBC
-  audio stream, and that audio isn't sent over the bridge — only control frames
-  are. The desktop runs the modem; the browser reflects its settings.
+- **The software modem is host-only, by physics.** We mirror the audio the
+  desktop *plays*, but the modem needs the raw, pre-decode SBC audio stream to
+  *demodulate* — and that lower-level stream isn't bridged, only the played-back
+  PCM and the control frames are. So the desktop runs the modem; the browser
+  reflects its settings and hears the result, but can't decode on its own.
+- **Audio is a one-way mirror, and opt-in.** The browser plays what the desktop
+  plays; it can't independently pick a different source to monitor, and (per the
+  browser's autoplay rules) nothing is heard until you click "Play Host Audio".
 - **BBS and file transfer are "managed on host" for now.** Their live,
   per-connection state isn't bridged yet, so the browser shows status rather than
   offering full remote control. Building that sync — the way mail already

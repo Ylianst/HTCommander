@@ -23,9 +23,12 @@ resolves to an inert stub.
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../aprs/aprs_packet.dart';
 import '../models/aircraft.dart';
 import '../models/station_info.dart';
+import '../radio/pcm_player.dart';
 import '../services/bluetooth_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -68,6 +71,10 @@ class WebServerHandler {
   /// The host's selected radio device id (device 1 `SelectedRadioDeviceId`), or
   /// -1. The bridged radio follows this selection when it is connected.
   int _selectedRadioDeviceId = -1;
+
+  /// Browsers that opted in to receive the host's played audio, keyed by client
+  /// id. Populated by `audioon` / cleared by `audiooff` / disconnect.
+  final Map<int, WebSocketClient> _audioClients = <int, WebSocketClient>{};
 
   /// Initializes the handler: loads settings, subscribes to changes, and starts
   /// the server if enabled.
@@ -646,6 +653,14 @@ class WebServerHandler {
       _applyClientSelectRadio(message.substring('selectradio:'.length));
       return;
     }
+    if (message == 'audioon') {
+      _audioClients[client.id] = client;
+      return;
+    }
+    if (message == 'audiooff') {
+      _audioClients.remove(client.id);
+      return;
+    }
     if (message.startsWith('mailop:')) {
       _applyClientMailOp(message.substring('mailop:'.length));
       return;
@@ -706,17 +721,47 @@ class WebServerHandler {
     if (_server != null) return;
     final server = WebServer(_port);
     server.onClientConnected = _onClientConnected;
+    server.onClientDisconnected = _onClientDisconnected;
     server.onTextMessage = _onTextMessage;
     server.onBinaryMessage = _onBinaryMessage;
     _server = server;
     server.start();
+    // Mirror all host PCM playback (radio, transmit, EchoLink, AllStarLink) to
+    // opted-in browsers. Desktop only; the web build never plays local audio.
+    if (!kIsWeb) PcmPlayer.playbackTap = _onHostPcm;
   }
 
   void _stopServer() {
     final server = _server;
     if (server == null) return;
+    if (PcmPlayer.playbackTap == _onHostPcm) PcmPlayer.playbackTap = null;
+    _audioClients.clear();
     _server = null;
     server.dispose();
+  }
+
+  void _onClientDisconnected(WebSocketClient client) {
+    if (_disposed) return;
+    _audioClients.remove(client.id);
+  }
+
+  /// Mirrors a buffer of host playback audio to every opted-in browser as a
+  /// tagged binary frame (`[magic, channels, rateLo, rateHi]` + PCM).
+  void _onHostPcm(Int16List pcm, int sampleRate, int channels) {
+    if (_disposed || _audioClients.isEmpty) return;
+    final pcmBytes = pcm.buffer.asUint8List(
+      pcm.offsetInBytes,
+      pcm.lengthInBytes,
+    );
+    final msg = Uint8List(4 + pcmBytes.length);
+    msg[0] = HostBridge.audioFrameMagic;
+    msg[1] = channels & 0xFF;
+    msg[2] = sampleRate & 0xFF;
+    msg[3] = (sampleRate >> 8) & 0xFF;
+    msg.setRange(4, msg.length, pcmBytes);
+    for (final client in _audioClients.values) {
+      client.sendBinary(msg);
+    }
   }
 
   /// Stops the server and releases all resources.

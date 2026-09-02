@@ -31,6 +31,7 @@ import 'dart:typed_data';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../services/host_bridge.dart';
 import 'radio_transport.dart';
 
 /// A [RadioTransport] that bridges to a host HTCommander over a WebSocket.
@@ -129,6 +130,10 @@ class WebSocketRadioTransport implements RadioTransport {
   /// Invoked with the raw JSON payload for the host's radio list (`radiolist:`).
   /// Wired up by [BluetoothService].
   void Function(String json)? onRadioList;
+
+  /// Invoked with a raw host->browser audio frame (`[magic, channels, rateLo,
+  /// rateHi]` + PCM). Wired up by [BluetoothService].
+  void Function(Uint8List frame)? onAudioFrame;
 
   /// How long to wait before retrying the socket after it drops or fails to
   /// open. The session persists across radio comings and goings.
@@ -254,6 +259,12 @@ class WebSocketRadioTransport implements RadioTransport {
       return;
     }
     if (bytes.isEmpty) return;
+    // Host->browser audio frames are tagged with a magic first byte; radio
+    // command frames always start with 0x00, so there is no ambiguity.
+    if (bytes[0] == HostBridge.audioFrameMagic) {
+      onAudioFrame?.call(bytes);
+      return;
+    }
     if (!_dataController.isClosed) _dataController.add(bytes);
   }
 
@@ -367,6 +378,9 @@ class WebSocketRadioTransport implements RadioTransport {
   /// Asks the host to switch the shared (preferred) radio to [hostDeviceId].
   bool selectHostRadio(int hostDeviceId) =>
       _sendControl('selectradio:$hostDeviceId');
+
+  /// Asks the host to start or stop streaming its played audio to this browser.
+  bool setAudioStreaming(bool on) => _sendControl(on ? 'audioon' : 'audiooff');
 
   bool _sendControl(String message) {
     final channel = _channel;

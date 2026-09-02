@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data_broker_client.dart';
+import 'host_bridge.dart';
 
 /// Callback type for data broker subscriptions.
 /// Parameters: deviceId, name, data
@@ -340,7 +341,12 @@ class DataBroker {
     // Hosted web client: proxy device-0 settings to the desktop host instead of
     // keeping them local. Host-originated changes are applied via
     // [applyHostDevice0] (which bypasses [dispatch]), so this never loops.
-    if (broker._device0RemoteMode && deviceId == 0 && store) {
+    // Local-only settings (e.g. OutputVolume) stay on this side and are not
+    // forwarded, so the host and browser keep independent values.
+    if (broker._device0RemoteMode &&
+        deviceId == 0 &&
+        store &&
+        !HostBridge.isLocalOnlySetting(name)) {
       onDevice0Write?.call(name, data);
     }
   }
@@ -360,7 +366,7 @@ class DataBroker {
       if (deviceId == 0 &&
           _prefs != null &&
           _role != DataBrokerRole.client &&
-          !_device0RemoteMode) {
+          (!_device0RemoteMode || HostBridge.isLocalOnlySetting(name))) {
         _persistValue(name, data);
         // Keep a rolling on-disk backup (throttled to once an hour) so a
         // corrupt store can be recovered on next launch. Fire-and-forget.
@@ -554,7 +560,9 @@ class DataBroker {
     }
 
     // For device 0, try loading from SharedPreferences if not in memory
-    if (deviceId == 0 && broker._prefs != null && !broker._device0RemoteMode) {
+    if (deviceId == 0 &&
+        broker._prefs != null &&
+        (!broker._device0RemoteMode || HostBridge.isLocalOnlySetting(name))) {
       final loadedValue = broker._loadPersistedValue<T>(name, defaultValue);
       if (loadedValue != null) {
         // Cache in memory for subsequent access
@@ -580,7 +588,9 @@ class DataBroker {
     }
 
     // For device 0, try loading from SharedPreferences if not in memory.
-    if (deviceId == 0 && broker._prefs != null && !broker._device0RemoteMode) {
+    if (deviceId == 0 &&
+        broker._prefs != null &&
+        (!broker._device0RemoteMode || HostBridge.isLocalOnlySetting(name))) {
       final loadedValue = broker._loadPersistedValueDynamic(name);
       if (loadedValue != null) {
         // Cache in memory for subsequent access.
@@ -606,11 +616,16 @@ class DataBroker {
     final removed = broker._dataStore.remove(key) != null;
 
     // Also remove from SharedPreferences if device 0
-    if (deviceId == 0 && broker._prefs != null && !broker._device0RemoteMode) {
+    if (deviceId == 0 &&
+        broker._prefs != null &&
+        (!broker._device0RemoteMode || HostBridge.isLocalOnlySetting(name))) {
       broker._prefs!.remove('databroker_$name');
     }
-    // Hosted web client: proxy the removal to the desktop host.
-    if (broker._device0RemoteMode && deviceId == 0) {
+    // Hosted web client: proxy the removal to the desktop host (local-only
+    // settings stay on this side).
+    if (broker._device0RemoteMode &&
+        deviceId == 0 &&
+        !HostBridge.isLocalOnlySetting(name)) {
       onDevice0Write?.call(name, null);
     }
 

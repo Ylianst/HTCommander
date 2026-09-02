@@ -75,6 +75,10 @@ dependencies:
   # the browser's Web Bluetooth. See lib/radio/websocket_transport.dart.
   web_socket_channel: ^3.0.1
 
+  # Web platform bindings (Web Audio API) used to play the desktop host's
+  # mirrored audio in the browser. See lib/services/web/host_audio_player_web.dart.
+  web: ^1.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

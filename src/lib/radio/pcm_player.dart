@@ -26,6 +26,19 @@ typedef PcmFeedCallback = void Function(int remainingFrames);
 /// selection. Unsupported platforms (web) are
 /// no-ops so callers degrade gracefully instead of crashing.
 abstract class PcmPlayer {
+  /// Optional tap invoked with every 16-bit PCM buffer fed to the shared output
+  /// device, alongside its current sample rate and channel count. Used to mirror
+  /// host playback (radio RX, transmit, EchoLink, AllStarLink, ...) to hosted
+  /// web browsers; set by the web server handler on desktop. Kept lightweight —
+  /// it runs on the audio feed path.
+  static void Function(Int16List pcm, int sampleRate, int channels)?
+  playbackTap;
+
+  /// Host application output volume (0.0-1.0), applied to every buffer AFTER
+  /// [playbackTap]. This lets the web mirror receive full-volume audio while the
+  /// host speaker honors the level, so the two sides can be muted independently.
+  static double hostOutputVolume = 1.0;
+
   /// Returns a reference-counted handle onto the single process-wide audio
   /// device.
   ///
@@ -362,7 +375,31 @@ class _RefCountedPcmPlayer implements PcmPlayer {
   @override
   Future<void> feed(Int16List pcm) {
     if (!_deviceOpen) return Future<void>.value();
+    final tap = PcmPlayer.playbackTap;
+    if (tap != null) {
+      tap(pcm, _rate ?? 32000, _channels ?? 1);
+    }
+    // Apply the host output volume after the mirror tap so the browser receives
+    // full-volume audio and the two sides mute/adjust independently.
+    final vol = PcmPlayer.hostOutputVolume;
+    if (vol < 0.999) {
+      pcm = _scalePcm(pcm, vol);
+    }
     return _shared.feed(pcm);
+  }
+
+  static Int16List _scalePcm(Int16List pcm, double volume) {
+    final out = Int16List(pcm.length);
+    for (var i = 0; i < pcm.length; i++) {
+      var v = (pcm[i] * volume).round();
+      if (v > 32767) {
+        v = 32767;
+      } else if (v < -32768) {
+        v = -32768;
+      }
+      out[i] = v;
+    }
+    return out;
   }
 
   @override
