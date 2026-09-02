@@ -1848,11 +1848,15 @@ class _SettingsDialogState extends State<SettingsDialog>
           const SizedBox(height: 4),
           Text(l10n.settingsAprsIsGateToRfHelp, style: _secondaryStyle()),
           const SizedBox(height: 16),
-          // Cloud push notifications via aprs.meshcentral.com. Only available
-          // once APRS-IS is enabled with a valid passcode (used to authenticate
-          // with the server); otherwise the toggle is disabled and forced off.
+          // Cloud push notifications via aprs.meshcentral.com. FCM-backed and
+          // only implemented on Android, so the toggle is hidden elsewhere.
+          // Available once APRS-IS is enabled with a valid passcode (used to
+          // authenticate with the server); otherwise disabled and forced off.
           Builder(
             builder: (context) {
+              if (kIsWeb || !Platform.isAndroid) {
+                return const SizedBox.shrink();
+              }
               final cloudAvailable = _settings.aprsIsEnabled && passcodeValid;
               if (!cloudAvailable && _settings.aprsCloudNotifications) {
                 // Keep the stored value consistent when the prerequisite is lost.

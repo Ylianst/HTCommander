@@ -691,11 +691,11 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get settingsAprsCloudNotifications =>
-      'Push notifications (aprs.meshcentral.com)';
+      'पुश सूचनाएं (aprs.meshcentral.com)';
 
   @override
   String get settingsAprsCloudNotificationsHelp =>
-      'Register with the aprs.meshcentral.com server to receive APRS messages addressed to your station as push notifications, even when the app is closed. Requires APRS-IS to be enabled with a valid passcode.';
+      'अपने स्टेशन को संबोधित APRS संदेशों को पुश सूचनाओं के रूप में प्राप्त करने के लिए aprs.meshcentral.com सर्वर पर पंजीकरण करें, तब भी जब ऐप बंद हो। इसके लिए एक वैध पासकोड के साथ APRS-IS सक्षम होना आवश्यक है।';
 
   @override
   String get settingsAprsFiTitle => 'APRS.fi बैकफ़िल';

@@ -692,11 +692,11 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get settingsAprsCloudNotifications =>
-      'Push notifications (aprs.meshcentral.com)';
+      'Notifications push (aprs.meshcentral.com)';
 
   @override
   String get settingsAprsCloudNotificationsHelp =>
-      'Register with the aprs.meshcentral.com server to receive APRS messages addressed to your station as push notifications, even when the app is closed. Requires APRS-IS to be enabled with a valid passcode.';
+      'Enregistrez-vous auprès du serveur aprs.meshcentral.com pour recevoir les messages APRS adressés à votre station sous forme de notifications push, même lorsque l\'application est fermée. Nécessite que l\'APRS-IS soit activé avec un code d\'accès valide.';
 
   @override
   String get settingsAprsFiTitle => 'Récupération APRS.fi';

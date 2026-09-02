@@ -681,12 +681,11 @@ class AppLocalizationsJa extends AppLocalizations {
       '過去1時間以内にローカルで受信した局に対して、インターネットからのメッセージをRFで送信します。APRSチャンネルを備えた無線機が必要です。';
 
   @override
-  String get settingsAprsCloudNotifications =>
-      'Push notifications (aprs.meshcentral.com)';
+  String get settingsAprsCloudNotifications => 'プッシュ通知 (aprs.meshcentral.com)';
 
   @override
   String get settingsAprsCloudNotificationsHelp =>
-      'Register with the aprs.meshcentral.com server to receive APRS messages addressed to your station as push notifications, even when the app is closed. Requires APRS-IS to be enabled with a valid passcode.';
+      'aprs.meshcentral.com サーバーに登録すると、アプリを閉じている場合でも、あなたの局宛てのAPRSメッセージをプッシュ通知として受信できます。有効なパスコードでAPRS-ISが有効になっている必要があります。';
 
   @override
   String get settingsAprsFiTitle => 'APRS.fi バックフィル';
