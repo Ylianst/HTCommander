@@ -56,6 +56,11 @@
   "commonClose": "Zamknij",
   "commonCancel": "Anuluj",
   "commonOk": "OK",
+  "stationConnectErrorTitle": "Nie można połączyć",
+  "stationConnectErrorEdit": "Edytuj kontakt",
+  "stationConnectErrorRegion": "Region „{region}” skonfigurowany dla tego kontaktu nie został znaleziony w radiotelefonie. Czy chcesz edytować kontakt?",
+  "stationConnectErrorChannel": "Kanał „{channel}” skonfigurowany dla tego kontaktu nie został znaleziony w radiotelefonie. Czy chcesz edytować kontakt?",
+  "stationConnectErrorNoChannel": "Dla tego kontaktu nie skonfigurowano żadnego kanału. Czy chcesz edytować kontakt?",
 
   "aboutCheckForUpdates": "Sprawdź aktualizacje",
   "aboutVersionAuthor": "Wersja {version}\nYlian Saint-Hilaire, KK7VZT\nOtwarte oprogramowanie, licencja Apache 2.0",

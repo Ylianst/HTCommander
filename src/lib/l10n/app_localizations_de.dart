@@ -121,6 +121,26 @@ class AppLocalizationsDe extends AppLocalizations {
   String get commonOk => 'OK';
 
   @override
+  String get stationConnectErrorTitle => 'Verbindung nicht möglich';
+
+  @override
+  String get stationConnectErrorEdit => 'Kontakt bearbeiten';
+
+  @override
+  String stationConnectErrorRegion(String region) {
+    return 'Die für diesen Kontakt konfigurierte Region „$region“ wurde auf dem Funkgerät nicht gefunden. Möchten Sie den Kontakt bearbeiten?';
+  }
+
+  @override
+  String stationConnectErrorChannel(String channel) {
+    return 'Der für diesen Kontakt konfigurierte Kanal „$channel“ wurde auf dem Funkgerät nicht gefunden. Möchten Sie den Kontakt bearbeiten?';
+  }
+
+  @override
+  String get stationConnectErrorNoChannel =>
+      'Für diesen Kontakt ist kein Kanal konfiguriert. Möchten Sie den Kontakt bearbeiten?';
+
+  @override
   String get aboutCheckForUpdates => 'Nach Updates suchen';
 
   @override

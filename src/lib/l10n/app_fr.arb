@@ -56,6 +56,11 @@
   "commonClose": "Fermer",
   "commonCancel": "Annuler",
   "commonOk": "OK",
+  "stationConnectErrorTitle": "Connexion impossible",
+  "stationConnectErrorEdit": "Modifier le contact",
+  "stationConnectErrorRegion": "La région « {region} » configurée pour ce contact est introuvable sur la radio. Voulez-vous modifier le contact ?",
+  "stationConnectErrorChannel": "Le canal « {channel} » configuré pour ce contact est introuvable sur la radio. Voulez-vous modifier le contact ?",
+  "stationConnectErrorNoChannel": "Aucun canal n'est configuré pour ce contact. Voulez-vous modifier le contact ?",
 
   "aboutCheckForUpdates": "Rechercher des mises à jour",
   "aboutVersionAuthor": "Version {version}\nYlian Saint-Hilaire, KK7VZT\nLogiciel libre, licence Apache 2.0",

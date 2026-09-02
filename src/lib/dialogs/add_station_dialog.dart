@@ -43,6 +43,71 @@ Future<StationInfo?> showStationDialog(
   );
 }
 
+/// Shows a connection-error dialog for [station] with a quick action to edit the
+/// contact. Used when a Terminal / Winlink station can't be reached because its
+/// configured region or channel no longer exists on the radio.
+///
+/// When the user chooses to edit, the station editor opens and any change is
+/// persisted to the `Stations` value (device 0). Returns the updated station if
+/// it was edited, otherwise `null`.
+Future<StationInfo?> showStationConnectErrorDialog(
+  BuildContext context, {
+  required StationInfo station,
+  required String message,
+}) async {
+  final l10n = AppLocalizations.of(context);
+  final edit = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(l10n.stationConnectErrorTitle),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(l10n.commonClose),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(l10n.stationConnectErrorEdit),
+        ),
+      ],
+    ),
+  );
+  if (edit != true || !context.mounted) return null;
+
+  final updated = await showStationDialog(context, existing: station);
+  if (updated == null) return null;
+
+  final broker = DataBrokerClient();
+  try {
+    final stations = <StationInfo>[];
+    final raw = broker.getValueDynamic(0, 'Stations', null);
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is StationInfo) {
+          stations.add(item);
+        } else if (item is Map) {
+          stations.add(StationInfo.fromJson(item.cast<String, dynamic>()));
+        }
+      }
+    }
+    stations.removeWhere(
+      (s) =>
+          s.callsign == station.callsign &&
+          s.stationType == station.stationType,
+    );
+    stations.add(updated);
+    broker.dispatch(
+      deviceId: 0,
+      name: 'Stations',
+      data: stations.map((s) => s.toJson()).toList(),
+    );
+  } finally {
+    broker.dispose();
+  }
+  return updated;
+}
+
 /// A selectable station type (mirrors the 4 options in the C# combo box).
 class _TypeOption {
   final StationType type;
@@ -124,6 +189,10 @@ class _StationDialogState extends State<_StationDialog> {
   String? _avatarImage;
 
   List<String> _channelNames = [];
+  // Maps a channel name to the name of the region it currently belongs to, so
+  // the chosen channel's region can be persisted with the station.
+  final Map<String, String> _channelRegions = {};
+  String _channelRegion = '';
   List<String> _aprsRouteNames = [];
 
   bool get _isEditing => widget.existing != null;
@@ -163,6 +232,7 @@ class _StationDialogState extends State<_StationDialog> {
           (s.authPassword?.isNotEmpty ?? false);
       _avatarIcon = s.avatarIcon;
       _avatarImage = s.avatarImage;
+      _channelRegion = s.channelRegion;
     }
 
     _loadChannelNames();
@@ -299,6 +369,19 @@ class _StationDialogState extends State<_StationDialog> {
         if (item is! Map) continue;
         final deviceId = item['DeviceId'];
         if (deviceId is! int || deviceId <= 0) continue;
+        // Region the radio is currently on, so each channel it reports can be
+        // tagged with the region it belongs to.
+        final htStatus = _broker.getValueDynamic(deviceId, 'HtStatus');
+        final currRegion =
+            (htStatus is Map ? htStatus['currRegion'] as int? : null) ?? 0;
+        final regionNames = _broker.getValueDynamic(deviceId, 'RegionNames');
+        final regionName =
+            (regionNames is List &&
+                currRegion >= 0 &&
+                currRegion < regionNames.length &&
+                regionNames[currRegion] is String)
+            ? regionNames[currRegion] as String
+            : '';
         final channels = _broker.getJsonListValue<RadioChannelInfo>(
           deviceId,
           'Channels',
@@ -309,6 +392,9 @@ class _StationDialogState extends State<_StationDialog> {
           if (channel.name.isEmpty) continue;
           if (channel.name.toUpperCase() == 'APRS') continue;
           names.add(channel.name);
+          if (regionName.isNotEmpty) {
+            _channelRegions.putIfAbsent(channel.name, () => regionName);
+          }
         }
       }
     }
@@ -562,6 +648,7 @@ class _StationDialogState extends State<_StationDialog> {
         stationType: StationType.winlink,
         terminalProtocol: TerminalProtocol.x25Session,
         channel: _channelController.text.trim(),
+        channelRegion: _channelRegion,
         modem: _modem,
         avatarIcon: _avatarIcon,
         avatarImage: _avatarImage,
@@ -575,6 +662,7 @@ class _StationDialogState extends State<_StationDialog> {
       aprsRoute: _aprsRoute,
       terminalProtocol: _terminalProtocol,
       channel: _channelController.text.trim(),
+      channelRegion: _channelRegion,
       ax25Destination: _ax25DestController.text.trim(),
       authPassword: (_stationType == StationType.aprs && _useAuth)
           ? _authPasswordController.text
@@ -902,7 +990,10 @@ class _StationDialogState extends State<_StationDialog> {
       ],
       onChanged: (value) {
         if (value != null) {
-          setState(() => _channelController.text = value);
+          setState(() {
+            _channelController.text = value;
+            _channelRegion = _channelRegions[value] ?? _channelRegion;
+          });
         }
       },
     );

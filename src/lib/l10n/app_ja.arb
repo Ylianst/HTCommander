@@ -56,6 +56,11 @@
   "commonClose": "閉じる",
   "commonCancel": "キャンセル",
   "commonOk": "OK",
+  "stationConnectErrorTitle": "接続できません",
+  "stationConnectErrorEdit": "連絡先を編集",
+  "stationConnectErrorRegion": "この連絡先に設定されたリージョン「{region}」が無線機で見つかりませんでした。連絡先を編集しますか？",
+  "stationConnectErrorChannel": "この連絡先に設定されたチャンネル「{channel}」が無線機で見つかりませんでした。連絡先を編集しますか？",
+  "stationConnectErrorNoChannel": "この連絡先にはチャンネルが設定されていません。連絡先を編集しますか？",
 
   "aboutCheckForUpdates": "更新を確認",
   "aboutVersionAuthor": "バージョン {version}\nYlian Saint-Hilaire, KK7VZT\nオープンソース、Apache 2.0 ライセンス",

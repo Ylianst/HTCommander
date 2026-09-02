@@ -56,6 +56,11 @@
   "commonClose": "关闭",
   "commonCancel": "取消",
   "commonOk": "确定",
+  "stationConnectErrorTitle": "无法连接",
+  "stationConnectErrorEdit": "编辑联系人",
+  "stationConnectErrorRegion": "在电台上找不到为此联系人配置的分区“{region}”。要编辑该联系人吗？",
+  "stationConnectErrorChannel": "在电台上找不到为此联系人配置的信道“{channel}”。要编辑该联系人吗？",
+  "stationConnectErrorNoChannel": "尚未为此联系人配置信道。要编辑该联系人吗？",
 
   "aboutCheckForUpdates": "检查更新",
   "aboutVersionAuthor": "版本 {version}\nYlian Saint-Hilaire, KK7VZT\n开源，Apache 2.0 许可证",

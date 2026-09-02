@@ -56,6 +56,11 @@
   "commonClose": "Cerrar",
   "commonCancel": "Cancelar",
   "commonOk": "Aceptar",
+  "stationConnectErrorTitle": "No se puede conectar",
+  "stationConnectErrorEdit": "Editar contacto",
+  "stationConnectErrorRegion": "No se encontró en la radio la región «{region}» configurada para este contacto. ¿Desea editar el contacto?",
+  "stationConnectErrorChannel": "No se encontró en la radio el canal «{channel}» configurado para este contacto. ¿Desea editar el contacto?",
+  "stationConnectErrorNoChannel": "No hay ningún canal configurado para este contacto. ¿Desea editar el contacto?",
 
   "aboutCheckForUpdates": "Buscar actualizaciones",
   "aboutVersionAuthor": "Versión {version}\nYlian Saint-Hilaire, KK7VZT\nCódigo abierto, licencia Apache 2.0",

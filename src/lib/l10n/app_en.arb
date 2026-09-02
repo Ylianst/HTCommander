@@ -138,6 +138,37 @@
     "description": "Generic confirm/OK button."
   },
 
+  "stationConnectErrorTitle": "Cannot Connect",
+  "@stationConnectErrorTitle": {
+    "description": "Title of the dialog shown when a Terminal/Winlink station can't be reached because its region or channel is missing."
+  },
+  "stationConnectErrorEdit": "Edit Contact",
+  "@stationConnectErrorEdit": {
+    "description": "Button that opens the contact editor from the connection-error dialog."
+  },
+  "stationConnectErrorRegion": "The region \"{region}\" configured for this contact could not be found on the radio. Would you like to edit the contact?",
+  "@stationConnectErrorRegion": {
+    "description": "Message shown when a station's stored region no longer exists on the radio.",
+    "placeholders": {
+      "region": {
+        "type": "String"
+      }
+    }
+  },
+  "stationConnectErrorChannel": "The channel \"{channel}\" configured for this contact could not be found on the radio. Would you like to edit the contact?",
+  "@stationConnectErrorChannel": {
+    "description": "Message shown when a station's stored channel can't be found on the radio.",
+    "placeholders": {
+      "channel": {
+        "type": "String"
+      }
+    }
+  },
+  "stationConnectErrorNoChannel": "No channel is configured for this contact. Would you like to edit the contact?",
+  "@stationConnectErrorNoChannel": {
+    "description": "Message shown when a Winlink station has no channel configured."
+  },
+
   "aboutCheckForUpdates": "Check for Updates",
   "@aboutCheckForUpdates": {
     "description": "Button in the About dialog to check for application updates."

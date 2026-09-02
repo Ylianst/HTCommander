@@ -121,6 +121,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commonOk => '确定';
 
   @override
+  String get stationConnectErrorTitle => '无法连接';
+
+  @override
+  String get stationConnectErrorEdit => '编辑联系人';
+
+  @override
+  String stationConnectErrorRegion(String region) {
+    return '在电台上找不到为此联系人配置的分区“$region”。要编辑该联系人吗？';
+  }
+
+  @override
+  String stationConnectErrorChannel(String channel) {
+    return '在电台上找不到为此联系人配置的信道“$channel”。要编辑该联系人吗？';
+  }
+
+  @override
+  String get stationConnectErrorNoChannel => '尚未为此联系人配置信道。要编辑该联系人吗？';
+
+  @override
   String get aboutCheckForUpdates => '检查更新';
 
   @override

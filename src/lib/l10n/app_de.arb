@@ -56,6 +56,11 @@
   "commonClose": "Schließen",
   "commonCancel": "Abbrechen",
   "commonOk": "OK",
+  "stationConnectErrorTitle": "Verbindung nicht möglich",
+  "stationConnectErrorEdit": "Kontakt bearbeiten",
+  "stationConnectErrorRegion": "Die für diesen Kontakt konfigurierte Region „{region}“ wurde auf dem Funkgerät nicht gefunden. Möchten Sie den Kontakt bearbeiten?",
+  "stationConnectErrorChannel": "Der für diesen Kontakt konfigurierte Kanal „{channel}“ wurde auf dem Funkgerät nicht gefunden. Möchten Sie den Kontakt bearbeiten?",
+  "stationConnectErrorNoChannel": "Für diesen Kontakt ist kein Kanal konfiguriert. Möchten Sie den Kontakt bearbeiten?",
 
   "aboutCheckForUpdates": "Nach Updates suchen",
   "aboutVersionAuthor": "Version {version}\nYlian Saint-Hilaire, KK7VZT\nOpen Source, Apache 2.0-Lizenz",

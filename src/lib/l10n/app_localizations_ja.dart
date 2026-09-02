@@ -121,6 +121,26 @@ class AppLocalizationsJa extends AppLocalizations {
   String get commonOk => 'OK';
 
   @override
+  String get stationConnectErrorTitle => '接続できません';
+
+  @override
+  String get stationConnectErrorEdit => '連絡先を編集';
+
+  @override
+  String stationConnectErrorRegion(String region) {
+    return 'この連絡先に設定されたリージョン「$region」が無線機で見つかりませんでした。連絡先を編集しますか？';
+  }
+
+  @override
+  String stationConnectErrorChannel(String channel) {
+    return 'この連絡先に設定されたチャンネル「$channel」が無線機で見つかりませんでした。連絡先を編集しますか？';
+  }
+
+  @override
+  String get stationConnectErrorNoChannel =>
+      'この連絡先にはチャンネルが設定されていません。連絡先を編集しますか？';
+
+  @override
   String get aboutCheckForUpdates => '更新を確認';
 
   @override

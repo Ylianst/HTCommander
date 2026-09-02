@@ -328,6 +328,36 @@ abstract class AppLocalizations {
   /// **'OK'**
   String get commonOk;
 
+  /// Title of the dialog shown when a Terminal/Winlink station can't be reached because its region or channel is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot Connect'**
+  String get stationConnectErrorTitle;
+
+  /// Button that opens the contact editor from the connection-error dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Contact'**
+  String get stationConnectErrorEdit;
+
+  /// Message shown when a station's stored region no longer exists on the radio.
+  ///
+  /// In en, this message translates to:
+  /// **'The region \"{region}\" configured for this contact could not be found on the radio. Would you like to edit the contact?'**
+  String stationConnectErrorRegion(String region);
+
+  /// Message shown when a station's stored channel can't be found on the radio.
+  ///
+  /// In en, this message translates to:
+  /// **'The channel \"{channel}\" configured for this contact could not be found on the radio. Would you like to edit the contact?'**
+  String stationConnectErrorChannel(String channel);
+
+  /// Message shown when a Winlink station has no channel configured.
+  ///
+  /// In en, this message translates to:
+  /// **'No channel is configured for this contact. Would you like to edit the contact?'**
+  String get stationConnectErrorNoChannel;
+
   /// Button in the About dialog to check for application updates.
   ///
   /// In en, this message translates to:

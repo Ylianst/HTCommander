@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'tab_visibility.dart';
 
 import '../dialogs/active_station_selector_dialog.dart';
+import '../dialogs/add_station_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../models/radio_models.dart';
 import '../models/station_info.dart';
@@ -26,6 +27,7 @@ import '../radio/yapp_transfer.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
+import '../utils/station_channel_resolver.dart';
 
 /// Represents a piece of text with a specific color in the terminal.
 class TerminalTextSpan {
@@ -168,6 +170,11 @@ class _TerminalTabState extends State<TerminalTab>
       name: 'UniqueDataFrame',
       callback: _onUniqueDataFrame,
     );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'LockChannelResolveFailed',
+      callback: _onLockChannelResolveFailed,
+    );
   }
 
   @override
@@ -255,6 +262,38 @@ class _TerminalTabState extends State<TerminalTab>
     final packet = AX25Packet.decode(data);
     if (packet == null) return;
     _processIncomingPacket(packet);
+  }
+
+  /// A radio reported that the connected station's channel could not be found in
+  /// the region it switched to (a cross-region channel that no longer exists).
+  /// Aborts the connection and offers to fix the contact.
+  void _onLockChannelResolveFailed(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    if (data is! Map || data['usage'] != 'Terminal') return;
+    if (deviceId != _connectedRadioId) return;
+    final station = _connectedStation;
+
+    // Release the radio and tear down any pending session.
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'SetUnlock',
+      data: SetUnlockData(usage: 'Terminal'),
+      store: false,
+    );
+    _session?.dispose();
+    _session = null;
+    setState(() {
+      _connectedStation = null;
+      _connectedRadioId = -1;
+    });
+
+    if (station == null) return;
+    final l10n = AppLocalizations.of(context);
+    showStationConnectErrorDialog(
+      context,
+      station: station,
+      message: l10n.stationConnectErrorChannel(station.channel),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -398,22 +437,25 @@ class _TerminalTabState extends State<TerminalTab>
   void _connectToStation(int radioId, StationInfo station) {
     if (radioId <= 0) return;
 
-    // Resolve the channel id from the station's channel name.
-    int channelId = -1;
-    if (station.channel.isNotEmpty) {
-      final channels = _broker.getJsonListValue<RadioChannelInfo>(
-        radioId,
-        'Channels',
-        (json) => RadioChannelInfo.fromJson(json),
+    // Validate the station's region/channel up front so a missing region or
+    // channel offers a quick way to fix the contact instead of failing quietly.
+    final res = resolveStationChannel(_broker, radioId, station);
+    final l10n = AppLocalizations.of(context);
+    if (res.status == StationChannelStatus.regionMissing) {
+      showStationConnectErrorDialog(
+        context,
+        station: station,
+        message: l10n.stationConnectErrorRegion(station.channelRegion),
       );
-      if (channels != null) {
-        for (var i = 0; i < channels.length; i++) {
-          if (channels[i].name == station.channel) {
-            channelId = i;
-            break;
-          }
-        }
-      }
+      return;
+    }
+    if (res.status == StationChannelStatus.channelMissing) {
+      showStationConnectErrorDialog(
+        context,
+        station: station,
+        message: l10n.stationConnectErrorChannel(station.channel),
+      );
+      return;
     }
 
     // Lock the radio to Terminal usage, carrying the contact's modem so the
@@ -424,8 +466,9 @@ class _TerminalTabState extends State<TerminalTab>
       name: 'SetLock',
       data: SetLockData(
         usage: 'Terminal',
-        regionId: -1,
-        channelId: channelId,
+        regionId: res.regionId,
+        channelId: res.channelId,
+        channelName: res.channelName,
         modem: station.modem,
       ),
       store: false,
@@ -438,7 +481,8 @@ class _TerminalTabState extends State<TerminalTab>
 
     _broker.logInfo(
       '[TerminalTab] Connecting to station ${station.callsign} on radio '
-      '$radioId (Channel: $channelId)',
+      '$radioId (Channel: ${res.channelId >= 0 ? res.channelId : res.channelName}, '
+      'Region: ${res.regionId})',
     );
 
     // For the connected-mode protocol, start an AX.25 session handshake.

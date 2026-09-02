@@ -38,6 +38,11 @@ class StationInfo {
   String aprsRoute;
   TerminalProtocol terminalProtocol;
   String channel;
+
+  /// Name of the radio region the [channel] belongs to. Empty when unknown
+  /// (older contacts or free-text channels). Used to switch the radio to the
+  /// correct region before a Terminal / Winlink connection.
+  String channelRegion;
   String ax25Destination;
   bool waitForConnection;
   String? authPassword;
@@ -66,6 +71,7 @@ class StationInfo {
     this.aprsRoute = '',
     this.terminalProtocol = TerminalProtocol.x25Session,
     this.channel = '',
+    this.channelRegion = '',
     this.ax25Destination = '',
     this.waitForConnection = false,
     this.authPassword,
@@ -90,6 +96,7 @@ class StationInfo {
     String? aprsRoute,
     TerminalProtocol? terminalProtocol,
     String? channel,
+    String? channelRegion,
     String? ax25Destination,
     bool? waitForConnection,
     String? authPassword,
@@ -105,6 +112,7 @@ class StationInfo {
       aprsRoute: aprsRoute ?? this.aprsRoute,
       terminalProtocol: terminalProtocol ?? this.terminalProtocol,
       channel: channel ?? this.channel,
+      channelRegion: channelRegion ?? this.channelRegion,
       ax25Destination: ax25Destination ?? this.ax25Destination,
       waitForConnection: waitForConnection ?? this.waitForConnection,
       authPassword: authPassword ?? this.authPassword,
@@ -125,6 +133,7 @@ class StationInfo {
       'APRSRoute': aprsRoute,
       'TerminalProtocol': terminalProtocol.index,
       'Channel': channel,
+      'ChannelRegion': channelRegion,
       'AX25Destination': ax25Destination,
       'WaitForConnection': waitForConnection,
       'AuthPassword': authPassword,
@@ -187,6 +196,8 @@ class StationInfo {
         json['TerminalProtocol'] ?? json['terminalProtocol'],
       ),
       channel: (json['Channel'] ?? json['channel'] ?? '').toString(),
+      channelRegion:
+          (json['ChannelRegion'] ?? json['channelRegion'] ?? '').toString(),
       ax25Destination:
           (json['AX25Destination'] ?? json['ax25Destination'] ?? '').toString(),
       waitForConnection:
@@ -232,6 +243,7 @@ class StationInfo {
       sb.writeln('APRSRoute=${station.aprsRoute}');
       sb.writeln('TerminalProtocol=${station.terminalProtocol.index}');
       sb.writeln('Channel=${station.channel}');
+      sb.writeln('ChannelRegion=${station.channelRegion}');
       sb.writeln('AX25Destination=${station.ax25Destination}');
       sb.writeln('AuthPassword=${station.authPassword ?? ''}');
       sb.writeln('Modem=${station.modem}');
@@ -287,6 +299,9 @@ class StationInfo {
             break;
           case 'Channel':
             current.channel = value;
+            break;
+          case 'ChannelRegion':
+            current.channelRegion = value;
             break;
           case 'AX25Destination':
             current.ax25Destination = value;

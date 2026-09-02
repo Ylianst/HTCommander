@@ -98,6 +98,14 @@ class SetLockData {
   final int regionId;
   final int channelId;
 
+  /// Optional channel name to lock onto. When [regionId] selects a region other
+  /// than the current one, that region's channels are not loaded yet, so the
+  /// channel id cannot be resolved up front. In that case the radio switches
+  /// region, waits for the new channel list, then resolves this name to a
+  /// channel id. Ignored when empty or when [channelId] is already valid for the
+  /// current region.
+  final String? channelName;
+
   /// Optional modem override for the duration of the lock (e.g. 'Hardware',
   /// 'AFSK1200', 'PSK2400', 'DART'). `null` keeps the global software modem
   /// setting.
@@ -107,6 +115,7 @@ class SetLockData {
     required this.usage,
     this.regionId = -1,
     this.channelId = -1,
+    this.channelName,
     this.modem,
   });
 }
@@ -205,6 +214,12 @@ class Radio implements FirmwareRadio {
   int _savedChannelId = -1;
   bool _savedScan = false;
   int _savedDualWatch = 0;
+
+  // When a lock requests a region switch plus a channel identified by name, the
+  // target region's channels are not loaded until after the switch. This holds
+  // that channel name so [_handleReadRfCh] can resolve it once the new region's
+  // channels finish loading. Null when no resolution is pending.
+  String? _pendingLockChannelName;
 
   // Counts satellite-tracking updates sent since the current Satellite lock, so
   // the first couple carry the 0x0A03 mode-entry flags (then 0x0A00).
@@ -790,9 +805,25 @@ class Radio implements FirmwareRadio {
     final targetRegionId = lockData.regionId >= 0
         ? lockData.regionId
         : htStatus!.currRegion;
-    final targetChannelId = lockData.channelId >= 0
+    final bool regionSwitch = targetRegionId != htStatus!.currRegion;
+
+    int targetChannelId = lockData.channelId >= 0
         ? lockData.channelId
         : settings!.channelA;
+
+    // Resolve a channel requested by name. When staying on the current region
+    // the channel list is already loaded so resolve now; when switching region
+    // defer until the new region's channels arrive (see [_handleReadRfCh]).
+    _pendingLockChannelName = null;
+    final chName = lockData.channelName;
+    if (chName != null && chName.isNotEmpty && lockData.channelId < 0) {
+      if (regionSwitch) {
+        _pendingLockChannelName = chName;
+      } else {
+        final ch = getChannelByName(chName);
+        if (ch != null) targetChannelId = ch.channelId;
+      }
+    }
 
     _lockState = RadioLockState(
       isLocked: true,
@@ -809,13 +840,19 @@ class Radio implements FirmwareRadio {
     );
 
     // Apply lock settings
-    if (targetRegionId != htStatus!.currRegion) {
+    if (regionSwitch) {
       setRegion(targetRegionId);
     }
 
+    // When a channel-by-name resolution is pending, the target region's channel
+    // list has not loaded yet; keep the current channel for now and let
+    // [_handleReadRfCh] write the resolved channel once the list arrives. Scan
+    // and dual-watch are still turned off immediately.
     writeSettings(
       settings!.toByteArrayWith(
-        channelA: targetChannelId,
+        channelA: _pendingLockChannelName != null
+            ? settings!.channelA
+            : targetChannelId,
         doubleChannel: 0,
         scan: false,
       ),
@@ -830,6 +867,8 @@ class Radio implements FirmwareRadio {
     final unlockData = data;
     if (_lockState!.usage != unlockData.usage) return;
     if (settings == null) return;
+
+    _pendingLockChannelName = null;
 
     _debug(
       "Radio unlocked from usage '${unlockData.usage}' - Restoring previous settings",
@@ -873,6 +912,61 @@ class Radio implements FirmwareRadio {
       channelId: -1,
     );
     _dispatch('LockState', unlockedState.toJson());
+  }
+
+  /// Resolves a channel-by-name lock request that was deferred until the
+  /// switched-to region's channels finished loading. Writes the resolved
+  /// channel and updates the lock state so incoming frames are tagged with the
+  /// correct channel. A no-op when nothing is pending or the radio is unlocked.
+  void _applyPendingLockChannel() {
+    final chName = _pendingLockChannelName;
+    if (chName == null) return;
+    _pendingLockChannelName = null;
+
+    final lock = _lockState;
+    if (lock == null || !lock.isLocked || settings == null) return;
+
+    final ch = getChannelByName(chName);
+    if (ch == null) {
+      _debug(
+        "Locked channel '$chName' not found in region ${htStatus?.currRegion} "
+        "- keeping current channel",
+      );
+      // Tell the UI the configured channel is missing in the switched-to region
+      // so it can offer to fix the contact. The lock stays on the current
+      // channel until the caller unlocks.
+      _dispatch(
+        'LockChannelResolveFailed',
+        {
+          'usage': lock.usage,
+          'channel': chName,
+          'region': htStatus?.currRegion,
+        },
+        store: false,
+      );
+      return;
+    }
+
+    _lockState = RadioLockState(
+      isLocked: true,
+      usage: lock.usage,
+      regionId: lock.regionId,
+      channelId: ch.channelId,
+      modem: lock.modem,
+    );
+    _dispatch('LockState', _lockState!.toJson());
+    _debug(
+      "Resolved locked channel '$chName' to id ${ch.channelId} in region "
+      "${htStatus?.currRegion}",
+    );
+
+    writeSettings(
+      settings!.toByteArrayWith(
+        channelA: ch.channelId,
+        doubleChannel: 0,
+        scan: false,
+      ),
+    );
   }
 
   /// Applies one live satellite-tracking frame: names the bird and steers the
@@ -3046,6 +3140,7 @@ class Radio implements FirmwareRadio {
           'Channels',
           channels!.where((c) => c != null).map((c) => c!.toJson()).toList(),
         );
+        _applyPendingLockChannel();
       }
     }
   }

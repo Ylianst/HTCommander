@@ -56,6 +56,11 @@
   "commonClose": "बंद करें",
   "commonCancel": "रद्द करें",
   "commonOk": "ठीक है",
+  "stationConnectErrorTitle": "कनेक्ट नहीं हो सकता",
+  "stationConnectErrorEdit": "संपर्क संपादित करें",
+  "stationConnectErrorRegion": "इस संपर्क के लिए कॉन्फ़िगर किया गया क्षेत्र '{region}' रेडियो पर नहीं मिला। क्या आप संपर्क संपादित करना चाहेंगे?",
+  "stationConnectErrorChannel": "इस संपर्क के लिए कॉन्फ़िगर किया गया चैनल '{channel}' रेडियो पर नहीं मिला। क्या आप संपर्क संपादित करना चाहेंगे?",
+  "stationConnectErrorNoChannel": "इस संपर्क के लिए कोई चैनल कॉन्फ़िगर नहीं किया गया है। क्या आप संपर्क संपादित करना चाहेंगे?",
 
   "aboutCheckForUpdates": "अपडेट के लिए जाँचें",
   "aboutVersionAuthor": "संस्करण {version}\nYlian Saint-Hilaire, KK7VZT\nओपन सोर्स, Apache 2.0 लाइसेंस",

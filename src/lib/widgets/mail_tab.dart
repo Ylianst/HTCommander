@@ -16,8 +16,10 @@ import '../dialogs/add_station_dialog.dart';
 import '../dialogs/dialog_utils.dart';
 import '../l10n/app_localizations.dart';
 import '../models/station_info.dart';
+import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
+import '../utils/station_channel_resolver.dart';
 import '../winlink/winlink_mail.dart';
 
 /// Email message data
@@ -93,6 +95,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
   // Contacts used to resolve an avatar for a mail's correspondent.
   List<StationInfo> _stations = const [];
 
+  // The Winlink station a radio connection is currently being started for, so a
+  // cross-region channel-resolve failure can offer to edit the right contact.
+  StationInfo? _connectingStation;
+
   // Transient status shown in the bottom panel while mail is being processed.
   String? _transferStatus;
   // Persistent error shown in the bottom panel until the user dismisses it.
@@ -131,6 +137,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
       deviceId: 1,
       name: 'WinlinkError',
       callback: _onWinlinkError,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'LockChannelResolveFailed',
+      callback: _onLockChannelResolveFailed,
     );
     _broker.subscribe(
       deviceId: 0,
@@ -639,12 +650,67 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
       context,
       stationType: StationType.winlink,
     );
-    if (station == null) return;
+    if (station == null || !mounted) return;
+
+    // Validate the station's region/channel up front so a missing region or
+    // channel offers a quick way to fix the contact instead of failing quietly.
+    final l10n = AppLocalizations.of(context);
+    if (station.channel.isEmpty) {
+      await showStationConnectErrorDialog(
+        context,
+        station: station,
+        message: l10n.stationConnectErrorNoChannel,
+      );
+      return;
+    }
+    final res = resolveStationChannel(_broker, radioId, station);
+    if (res.status == StationChannelStatus.regionMissing) {
+      await showStationConnectErrorDialog(
+        context,
+        station: station,
+        message: l10n.stationConnectErrorRegion(station.channelRegion),
+      );
+      return;
+    }
+    if (res.status == StationChannelStatus.channelMissing) {
+      await showStationConnectErrorDialog(
+        context,
+        station: station,
+        message: l10n.stationConnectErrorChannel(station.channel),
+      );
+      return;
+    }
+
+    _connectingStation = station;
     _broker.dispatch(
       deviceId: 1,
       name: 'WinlinkSync',
       data: {'RadioId': radioId, 'Station': station},
       store: false,
+    );
+  }
+
+  /// A radio reported that the station's channel could not be found in the
+  /// region it switched to (a cross-region channel that no longer exists).
+  /// Offers to fix the contact that was being connected to.
+  void _onLockChannelResolveFailed(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    if (data is! Map || data['usage'] != 'Winlink') return;
+    final station = _connectingStation;
+    _connectingStation = null;
+    if (station == null) return;
+    // Abort the half-established connection before prompting to edit.
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'WinlinkDisconnect',
+      data: true,
+      store: false,
+    );
+    final l10n = AppLocalizations.of(context);
+    showStationConnectErrorDialog(
+      context,
+      station: station,
+      message: l10n.stationConnectErrorChannel(station.channel),
     );
   }
 

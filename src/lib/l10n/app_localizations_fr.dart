@@ -121,6 +121,26 @@ class AppLocalizationsFr extends AppLocalizations {
   String get commonOk => 'OK';
 
   @override
+  String get stationConnectErrorTitle => 'Connexion impossible';
+
+  @override
+  String get stationConnectErrorEdit => 'Modifier le contact';
+
+  @override
+  String stationConnectErrorRegion(String region) {
+    return 'La région « $region » configurée pour ce contact est introuvable sur la radio. Voulez-vous modifier le contact ?';
+  }
+
+  @override
+  String stationConnectErrorChannel(String channel) {
+    return 'Le canal « $channel » configuré pour ce contact est introuvable sur la radio. Voulez-vous modifier le contact ?';
+  }
+
+  @override
+  String get stationConnectErrorNoChannel =>
+      'Aucun canal n\'est configuré pour ce contact. Voulez-vous modifier le contact ?';
+
+  @override
   String get aboutCheckForUpdates => 'Rechercher des mises à jour';
 
   @override

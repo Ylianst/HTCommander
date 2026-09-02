@@ -179,12 +179,37 @@ class WinlinkClient {
 
     // Get the current region from HtStatus
     final htStatusJson = _broker.getValueDynamic(radioId, 'HtStatus');
-    final regionId =
+    final currRegion =
         (htStatusJson is Map ? htStatusJson['currRegion'] as int? : null) ?? 0;
 
-    // Look up the channel ID from the channel name
+    // Resolve the region the station's channel lives in. Falls back to the
+    // current region when the station has no stored region or the name can't be
+    // matched (older contacts, renamed regions).
+    int targetRegion = currRegion;
+    if (station.channelRegion.isNotEmpty) {
+      final regionNames = _broker.getValueDynamic(radioId, 'RegionNames');
+      if (regionNames is List) {
+        final idx = regionNames.indexOf(station.channelRegion);
+        if (idx >= 0) targetRegion = idx;
+      }
+    }
+
+    // A Winlink station must have a channel configured.
+    if (station.channel.isEmpty) {
+      _broker.logError(
+        "[WinlinkClient] Channel '' not found on radio $radioId",
+      );
+      _errorMessage("Channel '' not found on radio.");
+      return;
+    }
+
+    // When the channel lives in the current region, resolve its id from the
+    // loaded channel list now. When it lives in another region that list isn't
+    // loaded yet, so pass the channel name to the lock and let the radio resolve
+    // it after switching region.
     int channelId = -1;
-    if (station.channel.isNotEmpty) {
+    String? channelName;
+    if (targetRegion == currRegion) {
       final channels = _broker.getValueDynamic(radioId, 'Channels');
       if (channels is List) {
         for (int i = 0; i < channels.length; i++) {
@@ -195,19 +220,21 @@ class WinlinkClient {
           }
         }
       }
-    }
-
-    // If no channel found, report error and don't lock the radio
-    if (channelId < 0) {
-      _broker.logError(
-        "[WinlinkClient] Channel '${station.channel}' not found on radio $radioId",
-      );
-      _errorMessage("Channel '${station.channel}' not found on radio.");
-      return;
+      // If no channel found, report error and don't lock the radio
+      if (channelId < 0) {
+        _broker.logError(
+          "[WinlinkClient] Channel '${station.channel}' not found on radio $radioId",
+        );
+        _errorMessage("Channel '${station.channel}' not found on radio.");
+        return;
+      }
+    } else {
+      channelName = station.channel;
     }
 
     _broker.logInfo(
-      '[WinlinkClient] Locking radio $radioId for Winlink, channel $channelId, region $regionId',
+      '[WinlinkClient] Locking radio $radioId for Winlink, channel '
+      '${channelId >= 0 ? channelId : channelName}, region $targetRegion',
     );
 
     // Store the radio for later unlock
@@ -218,8 +245,9 @@ class WinlinkClient {
     // software modem setting. 'Hardware' maps to the radio's built-in TNC.
     final lockData = SetLockData(
       usage: 'Winlink',
-      regionId: regionId,
+      regionId: targetRegion,
       channelId: channelId,
+      channelName: channelName,
       modem: station.modem,
     );
     _broker.dispatch(

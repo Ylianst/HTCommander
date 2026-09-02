@@ -121,6 +121,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonOk => 'OK';
 
   @override
+  String get stationConnectErrorTitle => 'Cannot Connect';
+
+  @override
+  String get stationConnectErrorEdit => 'Edit Contact';
+
+  @override
+  String stationConnectErrorRegion(String region) {
+    return 'The region \"$region\" configured for this contact could not be found on the radio. Would you like to edit the contact?';
+  }
+
+  @override
+  String stationConnectErrorChannel(String channel) {
+    return 'The channel \"$channel\" configured for this contact could not be found on the radio. Would you like to edit the contact?';
+  }
+
+  @override
+  String get stationConnectErrorNoChannel =>
+      'No channel is configured for this contact. Would you like to edit the contact?';
+
+  @override
   String get aboutCheckForUpdates => 'Check for Updates';
 
   @override

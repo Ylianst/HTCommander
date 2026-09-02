@@ -121,6 +121,26 @@ class AppLocalizationsPl extends AppLocalizations {
   String get commonOk => 'OK';
 
   @override
+  String get stationConnectErrorTitle => 'Nie można połączyć';
+
+  @override
+  String get stationConnectErrorEdit => 'Edytuj kontakt';
+
+  @override
+  String stationConnectErrorRegion(String region) {
+    return 'Region „$region” skonfigurowany dla tego kontaktu nie został znaleziony w radiotelefonie. Czy chcesz edytować kontakt?';
+  }
+
+  @override
+  String stationConnectErrorChannel(String channel) {
+    return 'Kanał „$channel” skonfigurowany dla tego kontaktu nie został znaleziony w radiotelefonie. Czy chcesz edytować kontakt?';
+  }
+
+  @override
+  String get stationConnectErrorNoChannel =>
+      'Dla tego kontaktu nie skonfigurowano żadnego kanału. Czy chcesz edytować kontakt?';
+
+  @override
   String get aboutCheckForUpdates => 'Sprawdź aktualizacje';
 
   @override

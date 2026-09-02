@@ -121,6 +121,26 @@ class AppLocalizationsHi extends AppLocalizations {
   String get commonOk => 'ठीक है';
 
   @override
+  String get stationConnectErrorTitle => 'कनेक्ट नहीं हो सकता';
+
+  @override
+  String get stationConnectErrorEdit => 'संपर्क संपादित करें';
+
+  @override
+  String stationConnectErrorRegion(String region) {
+    return 'इस संपर्क के लिए कॉन्फ़िगर किया गया क्षेत्र \'$region\' रेडियो पर नहीं मिला। क्या आप संपर्क संपादित करना चाहेंगे?';
+  }
+
+  @override
+  String stationConnectErrorChannel(String channel) {
+    return 'इस संपर्क के लिए कॉन्फ़िगर किया गया चैनल \'$channel\' रेडियो पर नहीं मिला। क्या आप संपर्क संपादित करना चाहेंगे?';
+  }
+
+  @override
+  String get stationConnectErrorNoChannel =>
+      'इस संपर्क के लिए कोई चैनल कॉन्फ़िगर नहीं किया गया है। क्या आप संपर्क संपादित करना चाहेंगे?';
+
+  @override
   String get aboutCheckForUpdates => 'अपडेट के लिए जाँचें';
 
   @override
