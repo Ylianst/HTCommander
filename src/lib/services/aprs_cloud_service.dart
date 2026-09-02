@@ -36,10 +36,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:http/http.dart' as http;
 
-import '../aprs/aprs_events.dart';
-import '../aprs/aprs_packet.dart';
 import '../aprs/aprs_util.dart';
-import '../aprsis/tnc2_codec.dart';
 import 'data_broker_client.dart';
 
 /// Background isolate handler for FCM messages received while the app is not in
@@ -352,40 +349,24 @@ class AprsCloudService {
       final key = '$peer\u0000$seqId\u0000$text\u0000${time.millisecondsSinceEpoch}';
       if (!_markInjected(key)) continue;
 
-      // Rebuild a TNC2 line and decode it so the message flows through the same
-      // pipeline as APRS-IS traffic: it lands in the APRS tab under the sender's
-      // conversation (via AprsFrame) and is de-duplicated against any RF or
-      // APRS-IS copy of the same message.
+      // Rebuild a TNC2 line and hand it to the APRS-IS manager, which persists
+      // it (so it survives a restart) and surfaces it to the APRS + Comms tabs
+      // exactly like live APRS-IS traffic: it lands in the APRS tab under the
+      // sender's conversation and is de-duplicated against any RF or APRS-IS
+      // copy. Dispatching a transient frame here instead would not persist and
+      // would be lost whenever the APRS tab was not already listening.
       final line = _buildMessageTnc2Line(
         source: peer,
         addressee: self,
         text: text,
         seqId: seqId,
       );
-      final ax25 = Tnc2Codec.decode(line, time: time);
-      final aprs = ax25 == null ? null : AprsPacket.parse(ax25);
-      if (ax25 != null && aprs != null) {
-        aprs.fromAprsIs = true;
-        _broker.dispatch(
-          deviceId: _aprsDeviceId,
-          name: 'AprsFrame',
-          data: AprsFrameEventArgs(aprs, ax25, null),
-          store: false,
-        );
-      }
-
-      // Also surface to the Comms tab. The OS notification already announced the
-      // push, so suppress a second (in-app) notification here.
       _broker.dispatch(
         deviceId: _aprsDeviceId,
-        name: 'AprsMessageReceived',
+        name: 'IngestCloudMessage',
         data: <String, Object?>{
-          'text': text,
-          'channel': 'APRS-IS',
+          'line': line,
           'time': time.millisecondsSinceEpoch,
-          'source': peer,
-          'destination': self,
-          'suppressNotification': true,
         },
         store: false,
       );
@@ -407,23 +388,30 @@ class AprsCloudService {
   /// Pulls the latest messages, then navigates to the sender's APRS
   /// conversation. Invoked when the user taps a push notification.
   Future<void> _handleNotificationTap(RemoteMessage message) async {
-    await _syncNow();
-    final from = (message.data['from'] as String?)?.trim() ?? '';
-    if (from.isEmpty) return;
+    // Switch to the APRS tab immediately — before the sync round-trip — so a
+    // tap always lands the user there even if the network is slow or the
+    // notification carries no sender.
     _broker.dispatch(
       deviceId: 0,
       name: 'RequestSelectTab',
       data: 'APRS',
       store: false,
     );
-    // Defer opening the conversation until the APRS tab has (re)built and
-    // subscribed, mirroring how the Map tab starts a conversation.
+    await _syncNow();
+    // `fromCall` (not the FCM-reserved `from`) carries the sender callsign.
+    final from = (message.data['fromCall'] as String?)?.trim() ?? '';
+    if (from.isEmpty) return;
+    // Ask the APRS tab to open the sender's conversation. A retained signal
+    // (store: true) is used so the tab opens it even when it is being built for
+    // the first time as a result of the tab switch above — a plain broadcast
+    // would be missed by the not-yet-subscribed tab. The tab clears the signal
+    // once consumed.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _broker.dispatch(
-        deviceId: 0,
-        name: 'AprsMessageStation',
+        deviceId: _aprsDeviceId,
+        name: 'AprsOpenConversation',
         data: from,
-        store: false,
+        store: true,
       );
     });
   }

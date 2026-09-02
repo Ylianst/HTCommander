@@ -269,6 +269,17 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       callback: _onMessageStationRequested,
     );
 
+    // Cloud push (HTCloudServer) asks us to open a sender's conversation when a
+    // notification is tapped. The request may arrive before this tab is built
+    // (the tap also switches to this tab), so it is sent as a retained signal:
+    // handled live here for an already-open tab, and read once in initState
+    // below for a freshly-built tab.
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'AprsOpenConversation',
+      callback: _onOpenConversationRequested,
+    );
+
     // Re-tapping the APRS tab icon while it is already active returns the view
     // to the conversation list.
     _broker.subscribe(
@@ -348,6 +359,19 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       data: null,
       store: false,
     );
+
+    // If a cloud-push notification tap requested opening a conversation before
+    // this tab existed, the request was retained on the broker. Consume it now.
+    final pendingOpen =
+        (_broker.getValue<String>(_aprsDeviceId, 'AprsOpenConversation', '') ??
+                '')
+            .trim();
+    if (pendingOpen.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _onOpenConversationRequested(
+            _aprsDeviceId, 'AprsOpenConversation', pendingOpen);
+      });
+    }
   }
 
   @override
@@ -1614,6 +1638,20 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       _setReceiver(callsign);
       _rebuildMessages();
     }
+  }
+
+  /// Opens the conversation requested by a cloud-push notification tap, then
+  /// clears the retained request so a later rebuild of this tab does not
+  /// reopen it.
+  void _onOpenConversationRequested(int deviceId, String name, dynamic data) {
+    if (data is! String || data.trim().isEmpty) return;
+    _broker.dispatch(
+      deviceId: _aprsDeviceId,
+      name: 'AprsOpenConversation',
+      data: '',
+      store: true,
+    );
+    _onMessageStationRequested(0, name, data);
   }
 
   /// Whether [callsign] (upper-cased) is a known APRS contact in the address

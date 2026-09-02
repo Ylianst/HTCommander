@@ -176,6 +176,16 @@ class AprsIsManager {
       callback: _onClearAprsPackets,
     );
 
+    // Messages delivered by the cloud push service (HTCloudServer) are handed
+    // here so they are persisted and surfaced exactly like live APRS-IS
+    // traffic, instead of being dispatched as transient frames that never
+    // survive a restart.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'IngestCloudMessage',
+      callback: _onIngestCloudMessage,
+    );
+
     // Re-run the aprs.fi backfill whenever the API key or our callsign changes
     // (e.g. after the settings dialog is closed). Also re-checked when cloud
     // push is toggled, since it gates whether aprs.fi runs at all.
@@ -383,6 +393,62 @@ class AprsIsManager {
       store: false,
     );
     return true;
+  }
+
+  /// Ingests a message delivered out-of-band by the cloud push service
+  /// (HTCloudServer). The payload is a map with the TNC2 `line` and its `time`
+  /// (epoch ms). The message is de-duplicated against the internet history,
+  /// persisted so it survives a restart, and surfaced to the APRS + Comms tabs
+  /// like live APRS-IS traffic. No ACK or down-gate is attempted here — the
+  /// cloud server owns those.
+  void _onIngestCloudMessage(int deviceId, String name, Object? data) {
+    if (data is! Map) return;
+    final line = (data['line'] as String?)?.trim() ?? '';
+    if (line.isEmpty) return;
+    final tsRaw = data['time'];
+    final time = tsRaw is int
+        ? DateTime.fromMillisecondsSinceEpoch(tsRaw)
+        : DateTime.now();
+
+    final ax25 = Tnc2Codec.decode(line, time: time);
+    if (ax25 == null) return;
+    final aprs = AprsPacket.parse(ax25);
+    if (aprs == null || aprs.dataType != PacketDataType.message) return;
+    aprs.fromAprsIs = true;
+
+    // Drop a copy we already hold (the same message may also have arrived over
+    // a live APRS-IS connection, or via an overlapping sync/register pull).
+    if (_isLiveMessageDuplicate(aprs, ax25)) return;
+
+    _history.append(ax25.time, line);
+    _historyPackets.add(aprs);
+    while (_historyPackets.length > _maxHistoryInMemory) {
+      _historyPackets.removeAt(0);
+    }
+
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'AprsFrame',
+      data: AprsFrameEventArgs(aprs, ax25, null),
+      store: false,
+    );
+
+    final source = ax25.addresses.length >= 2
+        ? ax25.addresses[1].callSignWithId
+        : '';
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'AprsMessageReceived',
+      data: <String, Object?>{
+        'text': aprs.messageData.msgText,
+        'channel': 'APRS-IS',
+        'time': ax25.time.millisecondsSinceEpoch,
+        'source': source,
+        'destination': aprs.messageData.addressee,
+        'suppressNotification': true,
+      },
+      store: false,
+    );
   }
 
   /// Whether the retained internet history already contains the same message
