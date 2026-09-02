@@ -227,6 +227,8 @@
   "settingsAprsIsRangeHelp": "Ricevi il traffico APRS entro questo raggio dalla tua ultima posizione GPS confermata, ottenuta da una radio o da un GPS seriale.",
   "settingsAprsIsGateToRf": "Instrada i messaggi da internet all'RF (IGate)",
   "settingsAprsIsGateToRfHelp": "Trasmetti sull'RF i messaggi provenienti da internet per le stazioni ascoltate localmente nell'ultima ora. Richiede una radio con un canale APRS.",
+  "settingsAprsCloudNotifications": "Notifiche push (aprs.meshcentral.com)",
+  "settingsAprsCloudNotificationsHelp": "Registrati al server aprs.meshcentral.com per ricevere come notifiche push i messaggi APRS indirizzati alla tua stazione, anche quando l'app è chiusa. Richiede che APRS-IS sia abilitato con un passcode valido.",
   "settingsAprsFiTitle": "Recupero da APRS.fi",
   "settingsAprsFiIntro": "Fornisci la tua chiave API personale di aprs.fi per recuperare i messaggi APRS indirizzati a te ricevuti mentre questa app era offline. I messaggi vengono uniti a quelli che hai già.",
   "settingsAprsFiApiKey": "Chiave API aprs.fi",

@@ -236,6 +236,8 @@
   "settingsAprsIsRangeHelp": "接收距离您最后确认的 GPS 位置（从无线电或串行 GPS 获取）此范围内的 APRS 流量。",
   "settingsAprsIsGateToRf": "将互联网消息转发到射频 (IGate)",
   "settingsAprsIsGateToRfHelp": "为过去一小时内本地收听到的电台，将来自互联网的消息通过射频发送。需要具有 APRS 频道的无线电。",
+  "settingsAprsCloudNotifications": "推送通知 (aprs.meshcentral.com)",
+  "settingsAprsCloudNotificationsHelp": "在 aprs.meshcentral.com 服务器上注册，即可将发送到您电台的 APRS 消息作为推送通知接收，即使应用已关闭。需要启用 APRS-IS 并提供有效的通行码。",
   "settingsAprsFiTitle": "APRS.fi 回填",
   "settingsAprsFiIntro": "提供您的个人 aprs.fi API 密钥，以拉取在本应用离线期间收到的、发送给您的 APRS 消息。消息将与您已有的消息合并。",
   "settingsAprsFiApiKey": "aprs.fi API 密钥",

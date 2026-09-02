@@ -236,6 +236,8 @@
   "settingsAprsIsRangeHelp": "Empfangen Sie APRS-Verkehr innerhalb dieses Bereichs Ihrer letzten bestätigten GPS-Position, die von einem Funkgerät oder seriellen GPS stammt.",
   "settingsAprsIsGateToRf": "Internet-Nachrichten an HF weiterleiten (IGate)",
   "settingsAprsIsGateToRfHelp": "Übertragen Sie Nachrichten aus dem Internet auf HF für Stationen, die in der letzten Stunde lokal gehört wurden. Erfordert ein Funkgerät mit einem APRS-Kanal.",
+  "settingsAprsCloudNotifications": "Push-Benachrichtigungen (aprs.meshcentral.com)",
+  "settingsAprsCloudNotificationsHelp": "Registrieren Sie sich beim Server aprs.meshcentral.com, um APRS-Nachrichten, die an Ihre Station adressiert sind, als Push-Benachrichtigungen zu erhalten, auch wenn die App geschlossen ist. Erfordert aktiviertes APRS-IS mit einem gültigen Passcode.",
   "settingsAprsFiTitle": "APRS.fi-Nachladen",
   "settingsAprsFiIntro": "Geben Sie Ihren persönlichen aprs.fi-API-Schlüssel ein, um an Sie gerichtete APRS-Nachrichten abzurufen, die empfangen wurden, während diese App offline war. Die Nachrichten werden mit den bereits vorhandenen zusammengeführt.",
   "settingsAprsFiApiKey": "aprs.fi-API-Schlüssel",
