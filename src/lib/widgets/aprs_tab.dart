@@ -1671,14 +1671,18 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   /// clears the retained request so a later rebuild of this tab does not
   /// reopen it.
   void _onOpenConversationRequested(int deviceId, String name, dynamic data) {
-    if (data is! String || data.trim().isEmpty) return;
+    if (data is! String || data.trim().isEmpty || !mounted) return;
     _broker.dispatch(
       deviceId: _aprsDeviceId,
       name: 'AprsOpenConversation',
       data: '',
       store: true,
     );
-    _onMessageStationRequested(0, name, data);
+    // A notification tap always corresponds to a message received from this
+    // peer, so open that peer's conversation directly — even when the sender
+    // is not a saved address-book contact but only has a message thread, and
+    // even when that thread has not finished loading yet on a cold start.
+    _openConversation(data.trim().toUpperCase());
   }
 
   /// Whether [callsign] (upper-cased) is a known APRS contact in the address
