@@ -428,15 +428,20 @@ class AprsCloudService {
     }
   }
 
-  /// Surfaces received messages to the APRS + Comms tabs. Backlog is injected
-  /// without raising notifications (they are old); live pushes are already
-  /// announced by the OS notification.
+  /// Surfaces messages to the APRS + Comms tabs. Both messages addressed to us
+  /// (`received`) and messages we sent (`sent`) are injected, so a restart
+  /// restores the full conversation - the server is the only backlog source
+  /// once cloud push replaces the aprs.fi backfill. Backlog is injected without
+  /// raising notifications (they are old); live pushes are already announced by
+  /// the OS notification.
   void _injectMessages(Object? messages) {
     if (messages is! List) return;
     final self = _localCallsignWithId;
     for (final raw in messages) {
       if (raw is! Map) continue;
-      if ((raw['direction'] as String?) != 'received') continue;
+      final direction = raw['direction'] as String?;
+      final bool sent = direction == 'sent';
+      if (!sent && direction != 'received') continue;
       final type = raw['type'] as String?;
       if (type == 'ack' || type == 'rej') continue;
       final text = (raw['text'] as String?) ?? '';
@@ -451,19 +456,22 @@ class AprsCloudService {
 
       // Skip anything already surfaced this session (repeated sync/register
       // pulls, or a copy already delivered by the live APRS-IS connection).
-      final key =
-          '$peer\u0000$seqId\u0000$text\u0000${time.millisecondsSinceEpoch}';
+      // Direction is part of the key so a sent and a received copy of the same
+      // text between the same peers are never conflated.
+      final key = '$direction\u0000$peer\u0000$seqId\u0000$text'
+          '\u0000${time.millisecondsSinceEpoch}';
       if (!_markInjected(key)) continue;
 
       // Rebuild a TNC2 line and hand it to the APRS-IS manager, which persists
       // it (so it survives a restart) and surfaces it to the APRS + Comms tabs
       // exactly like live APRS-IS traffic: it lands in the APRS tab under the
-      // sender's conversation and is de-duplicated against any RF or APRS-IS
-      // copy. Dispatching a transient frame here instead would not persist and
-      // would be lost whenever the APRS tab was not already listening.
+      // peer's conversation and is de-duplicated against any RF or APRS-IS copy.
+      // For a received message the peer is the sender; for one we sent it is the
+      // addressee, so the source/addressee are swapped and a `sent` flag tells
+      // the manager to render (and reload) it as an outgoing message.
       final line = _buildMessageTnc2Line(
-        source: peer,
-        addressee: self,
+        source: sent ? self : peer,
+        addressee: sent ? peer : self,
         text: text,
         seqId: seqId,
       );
@@ -473,6 +481,7 @@ class AprsCloudService {
         data: <String, Object?>{
           'line': line,
           'time': time.millisecondsSinceEpoch,
+          'sent': sent,
         },
         store: false,
       );
