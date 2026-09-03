@@ -91,7 +91,6 @@ class _SettingsDialogState extends State<SettingsDialog>
   // selected and the server/port are managed automatically.
   bool _aprsIsCustomServer = false;
 
-
   // Dump1090 "Test Connection" state.
   bool _airplaneTesting = false;
   String _airplaneTestResult = '';
@@ -141,10 +140,28 @@ class _SettingsDialogState extends State<SettingsDialog>
   /// internet-service "Servers" / "Map" tabs are hidden. On Android/iOS the
   /// "Servers" tab is hidden. All tabs remain visible on desktop platforms.
   List<String> get _visibleTabs {
-    const all = ['License', 'APRS', 'Comms', 'Winlink', 'EchoLink', 'AllStar', 'Servers', 'Map', 'Limits', 'Application'];
+    const all = [
+      'License',
+      'APRS',
+      'Comms',
+      'Winlink',
+      'EchoLink',
+      'AllStar',
+      'Servers',
+      'Map',
+      'Limits',
+      'Application',
+    ];
     if (kIsWeb) {
       return all
-          .where((t) => t != 'Comms' && t != 'Servers' && t != 'Map' && t != 'EchoLink' && t != 'AllStar')
+          .where(
+            (t) =>
+                t != 'Comms' &&
+                t != 'Servers' &&
+                t != 'Map' &&
+                t != 'EchoLink' &&
+                t != 'AllStar',
+          )
           .toList();
     }
     if (defaultTargetPlatform == TargetPlatform.android ||
@@ -246,13 +263,16 @@ class _SettingsDialogState extends State<SettingsDialog>
       text: _broker.getValue<String>(0, allStarNodePasswordKey, '') ?? '',
     );
     _allStarBindPortController = TextEditingController(
-      text: (_broker.getValue<int>(0, allStarBindPortKey, iax2DefaultPort) ??
-              iax2DefaultPort)
-          .toString(),
+      text:
+          (_broker.getValue<int>(0, allStarBindPortKey, iax2DefaultPort) ??
+                  iax2DefaultPort)
+              .toString(),
     );
     _allStarRegMethod = allStarRegMethodFromString(
-        _broker.getValue<String>(0, allStarRegMethodKey, 'iax'));
-    _allStarAllowWt = _broker.getValue<bool>(0, allStarAllowWtKey, false) ?? false;
+      _broker.getValue<String>(0, allStarRegMethodKey, 'iax'),
+    );
+    _allStarAllowWt =
+        _broker.getValue<bool>(0, allStarAllowWtKey, false) ?? false;
     _aprsIsServerController = TextEditingController(
       text: _settings.aprsIsServer,
     );
@@ -262,8 +282,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     // A stored server/port that doesn't match a well-known region (on the
     // default port) starts the section in "Custom" mode so the user's manual
     // configuration stays visible and editable.
-    _aprsIsCustomServer = !(_settings.aprsIsPort == _aprsIsDefaultPort &&
-        _aprsIsRegionHosts.contains(_settings.aprsIsServer));
+    _aprsIsCustomServer =
+        !(_settings.aprsIsPort == _aprsIsDefaultPort &&
+            _aprsIsRegionHosts.contains(_settings.aprsIsServer));
     _aprsIsPasscodeController = TextEditingController(
       text: _settings.aprsIsPasscode,
     );
@@ -312,8 +333,7 @@ class _SettingsDialogState extends State<SettingsDialog>
   /// Loads the available text-to-speech voices for the Voice settings tab.
   Future<void> _loadVoices() async {
     final available = await TtsService.instance.isAvailable();
-    final instructions =
-        available ? '' : TtsService.instance.setupInstructions;
+    final instructions = available ? '' : TtsService.instance.setupInstructions;
     final voices = List<Map<String, String>>.from(
       await TtsService.instance.getVoices(),
     );
@@ -478,15 +498,17 @@ class _SettingsDialogState extends State<SettingsDialog>
 
     if (result.success) {
       _broker.dispatch(
-          deviceId: 0,
-          name: allStarPasswordKey,
-          data: _allStarPasswordController.text,
-          store: true);
+        deviceId: 0,
+        name: allStarPasswordKey,
+        data: _allStarPasswordController.text,
+        store: true,
+      );
       _broker.dispatch(
-          deviceId: 0,
-          name: allStarWtTokenKey,
-          data: result.token,
-          store: true);
+        deviceId: 0,
+        name: allStarWtTokenKey,
+        data: result.token,
+        store: true,
+      );
     }
     setState(() {
       _allStarTesting = false;
@@ -506,12 +528,12 @@ class _SettingsDialogState extends State<SettingsDialog>
     final l10n = AppLocalizations.of(context);
     final EchoLinkAccountResult? result =
         await showDialog<EchoLinkAccountResult>(
-      context: context,
-      builder: (_) => EchoLinkCreateAccountDialog(
-        callsign: _settings.callSign,
-        location: _echoLinkLocationController.text,
-      ),
-    );
+          context: context,
+          builder: (_) => EchoLinkCreateAccountDialog(
+            callsign: _settings.callSign,
+            location: _echoLinkLocationController.text,
+          ),
+        );
     if (result == null || !mounted) return;
 
     // Persist the chosen password: the Save handler reads this controller, and
@@ -628,7 +650,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context).settingsTestConnectionFailedTitle),
+        title: Text(
+          AppLocalizations.of(context).settingsTestConnectionFailedTitle,
+        ),
         content: SingleChildScrollView(child: SelectableText(error)),
         actions: [
           TextButton(
@@ -764,8 +788,7 @@ class _SettingsDialogState extends State<SettingsDialog>
           ),
         );
       }
-      if (_settings.maxPackets > 0 &&
-          counts.packets > _settings.maxPackets) {
+      if (_settings.maxPackets > 0 && counts.packets > _settings.maxPackets) {
         deletions.add(
           l10n.settingsDeletePackets(counts.packets - _settings.maxPackets),
         );
@@ -820,30 +843,35 @@ class _SettingsDialogState extends State<SettingsDialog>
 
     // Persist AllStarLink node-hosting configuration (device 0).
     _broker.dispatch(
-        deviceId: 0,
-        name: allStarNodeNumberKey,
-        data: _allStarNodeNumberController.text.trim(),
-        store: true);
+      deviceId: 0,
+      name: allStarNodeNumberKey,
+      data: _allStarNodeNumberController.text.trim(),
+      store: true,
+    );
     _broker.dispatch(
-        deviceId: 0,
-        name: allStarNodePasswordKey,
-        data: _allStarNodePasswordController.text,
-        store: true);
+      deviceId: 0,
+      name: allStarNodePasswordKey,
+      data: _allStarNodePasswordController.text,
+      store: true,
+    );
     _broker.dispatch(
-        deviceId: 0,
-        name: allStarBindPortKey,
-        data: int.tryParse(_allStarBindPortController.text) ?? iax2DefaultPort,
-        store: true);
+      deviceId: 0,
+      name: allStarBindPortKey,
+      data: int.tryParse(_allStarBindPortController.text) ?? iax2DefaultPort,
+      store: true,
+    );
     _broker.dispatch(
-        deviceId: 0,
-        name: allStarRegMethodKey,
-        data: allStarRegMethodToString(_allStarRegMethod),
-        store: true);
+      deviceId: 0,
+      name: allStarRegMethodKey,
+      data: allStarRegMethodToString(_allStarRegMethod),
+      store: true,
+    );
     _broker.dispatch(
-        deviceId: 0,
-        name: allStarAllowWtKey,
-        data: _allStarAllowWt,
-        store: true);
+      deviceId: 0,
+      name: allStarAllowWtKey,
+      data: _allStarAllowWt,
+      store: true,
+    );
 
     // Apply the selected application language (persists and rebuilds the app).
     LocaleController.instance.setLanguage(_settings.language);
@@ -930,9 +958,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                 indicatorColor: scheme.primary,
                 indicatorSize: TabBarIndicatorSize.label,
                 dividerColor: Colors.transparent,
-                tabs: _visibleTabs
-                    .map((t) => Tab(text: _tabTitle(t)))
-                    .toList(),
+                tabs: _visibleTabs.map((t) => Tab(text: _tabTitle(t))).toList(),
               ),
               const SizedBox(height: 8),
               // Tab content
@@ -981,10 +1007,7 @@ class _SettingsDialogState extends State<SettingsDialog>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.settingsLanguage,
-                  style: _sectionTitleStyle(),
-                ),
+                Text(l10n.settingsLanguage, style: _sectionTitleStyle()),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: _settings.language,
@@ -1037,10 +1060,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                   },
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  l10n.settingsLanguageHint,
-                  style: _hintStyle(),
-                ),
+                Text(l10n.settingsLanguageHint, style: _hintStyle()),
               ],
             ),
           ),
@@ -1052,10 +1072,7 @@ class _SettingsDialogState extends State<SettingsDialog>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.settingsThemeMode,
-                  style: _sectionTitleStyle(),
-                ),
+                Text(l10n.settingsThemeMode, style: _sectionTitleStyle()),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: _settings.themeMode,
@@ -1082,10 +1099,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                   },
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  l10n.settingsThemeModeHint,
-                  style: _hintStyle(),
-                ),
+                Text(l10n.settingsThemeModeHint, style: _hintStyle()),
               ],
             ),
           ),
@@ -1178,8 +1192,7 @@ class _SettingsDialogState extends State<SettingsDialog>
       clipboardImage = null;
     }
     if (!mounted) return;
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final hasCustom = _avatarIcon != null || _avatarImage != null;
     final selected = await showMenu<String>(
       context: context,
@@ -1240,10 +1253,7 @@ class _SettingsDialogState extends State<SettingsDialog>
   Future<void> _chooseAvatarImage() async {
     FilePickerResult? result;
     try {
-      result = await FilePicker.pickFiles(
-        type: FileType.image,
-        withData: true,
-      );
+      result = await FilePicker.pickFiles(type: FileType.image, withData: true);
     } catch (_) {
       return;
     }
@@ -1420,10 +1430,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                   ],
                 ),
                 if (_settings.callSign.length < 3)
-                  Text(
-                    l10n.settingsCallSignHelp,
-                    style: _hintStyle(),
-                  ),
+                  Text(l10n.settingsCallSignHelp, style: _hintStyle()),
               ],
             ),
           ),
@@ -1545,10 +1552,7 @@ class _SettingsDialogState extends State<SettingsDialog>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.settingsAprsIntro,
-            style: DialogStyles.bodyStyle,
-          ),
+          Text(l10n.settingsAprsIntro, style: DialogStyles.bodyStyle),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(16),
@@ -1556,16 +1560,15 @@ class _SettingsDialogState extends State<SettingsDialog>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.settingsAprsRoutes,
-                  style: _sectionTitleStyle(),
-                ),
+                Text(l10n.settingsAprsRoutes, style: _sectionTitleStyle()),
                 const SizedBox(height: 8),
                 // Routes list
                 Container(
                   height: 200,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Material(
@@ -1668,17 +1671,17 @@ class _SettingsDialogState extends State<SettingsDialog>
                 value: _settings.aprsIsEnabled,
                 onChanged: canToggle
                     ? (value) => setState(
-                          () => _settings.aprsIsEnabled = value ?? false,
-                        )
+                        () => _settings.aprsIsEnabled = value ?? false,
+                      )
                     : null,
               ),
               Expanded(
                 child: GestureDetector(
                   onTap: canToggle
                       ? () => setState(
-                            () => _settings.aprsIsEnabled =
-                                !_settings.aprsIsEnabled,
-                          )
+                          () => _settings.aprsIsEnabled =
+                              !_settings.aprsIsEnabled,
+                        )
                       : null,
                   child: Text(l10n.settingsAprsIsEnable),
                 ),
@@ -1689,8 +1692,10 @@ class _SettingsDialogState extends State<SettingsDialog>
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(l10n.settingsAprsIsPasscodeFor(account),
-                  style: DialogStyles.labelStyle),
+              Text(
+                l10n.settingsAprsIsPasscodeFor(account),
+                style: DialogStyles.labelStyle,
+              ),
               const SizedBox(height: 4),
               TextField(
                 controller: _aprsIsPasscodeController,
@@ -1701,15 +1706,16 @@ class _SettingsDialogState extends State<SettingsDialog>
                 readOnly: _settings.aprsIsEnabled && passcodeValid,
                 obscureText: _settings.aprsIsEnabled && passcodeValid,
                 keyboardType: TextInputType.number,
-                decoration: _inputDecoration(
-                  hintText: l10n.settingsAprsIsPasscodeHint,
-                ).copyWith(
-                  // Highlight the field in light red when a passcode is
-                  // entered but does not match the call sign.
-                  fillColor: (passcodeEntered && !passcodeValid)
-                      ? const Color(0xFFFFCDD2)
-                      : null,
-                ),
+                decoration:
+                    _inputDecoration(
+                      hintText: l10n.settingsAprsIsPasscodeHint,
+                    ).copyWith(
+                      // Highlight the field in light red when a passcode is
+                      // entered but does not match the call sign.
+                      fillColor: (passcodeEntered && !passcodeValid)
+                          ? const Color(0xFFFFCDD2)
+                          : null,
+                    ),
               ),
             ],
           ),
@@ -1717,8 +1723,10 @@ class _SettingsDialogState extends State<SettingsDialog>
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(l10n.settingsAprsIsServerRegion,
-                  style: DialogStyles.labelStyle),
+              Text(
+                l10n.settingsAprsIsServerRegion,
+                style: DialogStyles.labelStyle,
+              ),
               const SizedBox(height: 4),
               DropdownButtonFormField<String>(
                 initialValue: _aprsIsCustomServer
@@ -1728,15 +1736,15 @@ class _SettingsDialogState extends State<SettingsDialog>
                 items: _aprsIsRegionItems(l10n),
                 onChanged: hasCallSign
                     ? (value) => setState(() {
-                          if (value == null || value.isEmpty) {
-                            _aprsIsCustomServer = true;
-                          } else {
-                            _aprsIsCustomServer = false;
-                            _aprsIsServerController.text = value;
-                            _aprsIsPortController.text =
-                                _aprsIsDefaultPort.toString();
-                          }
-                        })
+                        if (value == null || value.isEmpty) {
+                          _aprsIsCustomServer = true;
+                        } else {
+                          _aprsIsCustomServer = false;
+                          _aprsIsServerController.text = value;
+                          _aprsIsPortController.text = _aprsIsDefaultPort
+                              .toString();
+                        }
+                      })
                     : null,
               ),
               if (_aprsIsCustomServer) ...[
@@ -1749,8 +1757,10 @@ class _SettingsDialogState extends State<SettingsDialog>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(l10n.settingsAprsIsServer,
-                              style: DialogStyles.labelStyle),
+                          Text(
+                            l10n.settingsAprsIsServer,
+                            style: DialogStyles.labelStyle,
+                          ),
                           const SizedBox(height: 4),
                           TextField(
                             controller: _aprsIsServerController,
@@ -1773,8 +1783,10 @@ class _SettingsDialogState extends State<SettingsDialog>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(l10n.settingsPort,
-                              style: DialogStyles.labelStyle),
+                          Text(
+                            l10n.settingsPort,
+                            style: DialogStyles.labelStyle,
+                          ),
                           const SizedBox(height: 4),
                           TextField(
                             controller: _aprsIsPortController,
@@ -1805,16 +1817,17 @@ class _SettingsDialogState extends State<SettingsDialog>
               Text(l10n.settingsAprsIsRange, style: DialogStyles.labelStyle),
               const SizedBox(height: 4),
               DropdownButtonFormField<int>(
-                initialValue: _aprsIsRangeItems(l10n)
-                        .any((e) => e.value == _settings.aprsIsRangeKm)
+                initialValue:
+                    _aprsIsRangeItems(
+                      l10n,
+                    ).any((e) => e.value == _settings.aprsIsRangeKm)
                     ? _settings.aprsIsRangeKm
                     : 0,
                 decoration: _inputDecoration(),
                 items: _aprsIsRangeItems(l10n),
                 onChanged: hasCallSign
-                    ? (value) => setState(
-                          () => _settings.aprsIsRangeKm = value ?? 0,
-                        )
+                    ? (value) =>
+                          setState(() => _settings.aprsIsRangeKm = value ?? 0)
                     : null,
               ),
             ],
@@ -1828,17 +1841,17 @@ class _SettingsDialogState extends State<SettingsDialog>
                 value: _settings.aprsIsGateToRf,
                 onChanged: hasCallSign
                     ? (value) => setState(
-                          () => _settings.aprsIsGateToRf = value ?? false,
-                        )
+                        () => _settings.aprsIsGateToRf = value ?? false,
+                      )
                     : null,
               ),
               Expanded(
                 child: GestureDetector(
                   onTap: hasCallSign
                       ? () => setState(
-                            () => _settings.aprsIsGateToRf =
-                                !_settings.aprsIsGateToRf,
-                          )
+                          () => _settings.aprsIsGateToRf =
+                              !_settings.aprsIsGateToRf,
+                        )
                       : null,
                   child: Text(l10n.settingsAprsIsGateToRf),
                 ),
@@ -1848,13 +1861,13 @@ class _SettingsDialogState extends State<SettingsDialog>
           const SizedBox(height: 4),
           Text(l10n.settingsAprsIsGateToRfHelp, style: _secondaryStyle()),
           const SizedBox(height: 16),
-          // Cloud push notifications via aprs.meshcentral.com. FCM-backed and
-          // only implemented on Android, so the toggle is hidden elsewhere.
+          // Cloud push notifications via aprs.meshcentral.com. Available on
+          // Android through FCM and iOS through APNs.
           // Available once APRS-IS is enabled with a valid passcode (used to
           // authenticate with the server); otherwise disabled and forced off.
           Builder(
             builder: (context) {
-              if (kIsWeb || !Platform.isAndroid) {
+              if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
                 return const SizedBox.shrink();
               }
               final cloudAvailable = _settings.aprsIsEnabled && passcodeValid;
@@ -1871,18 +1884,18 @@ class _SettingsDialogState extends State<SettingsDialog>
                         value: _settings.aprsCloudNotifications,
                         onChanged: cloudAvailable
                             ? (value) => setState(
-                                  () => _settings.aprsCloudNotifications =
-                                      value ?? false,
-                                )
+                                () => _settings.aprsCloudNotifications =
+                                    value ?? false,
+                              )
                             : null,
                       ),
                       Expanded(
                         child: GestureDetector(
                           onTap: cloudAvailable
                               ? () => setState(
-                                    () => _settings.aprsCloudNotifications =
-                                        !_settings.aprsCloudNotifications,
-                                  )
+                                  () => _settings.aprsCloudNotifications =
+                                      !_settings.aprsCloudNotifications,
+                                )
                               : null,
                           child: Text(l10n.settingsAprsCloudNotifications),
                         ),
@@ -1890,8 +1903,10 @@ class _SettingsDialogState extends State<SettingsDialog>
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(l10n.settingsAprsCloudNotificationsHelp,
-                      style: _secondaryStyle()),
+                  Text(
+                    l10n.settingsAprsCloudNotificationsHelp,
+                    style: _secondaryStyle(),
+                  ),
                 ],
               );
             },
@@ -1903,7 +1918,10 @@ class _SettingsDialogState extends State<SettingsDialog>
           const SizedBox(height: 4),
           InkWell(
             onTap: () => _launchUrl('https://aprs.fi/account/'),
-            child: const Text('aprs.fi/account/', style: DialogStyles.linkStyle),
+            child: const Text(
+              'aprs.fi/account/',
+              style: DialogStyles.linkStyle,
+            ),
           ),
           const SizedBox(height: 16),
           Text(l10n.settingsAprsFiApiKey, style: DialogStyles.labelStyle),
@@ -1926,7 +1944,8 @@ class _SettingsDialogState extends State<SettingsDialog>
           Row(
             children: [
               ElevatedButton(
-                onPressed: (_aprsFiApiKeyController.text.trim().isNotEmpty &&
+                onPressed:
+                    (_aprsFiApiKeyController.text.trim().isNotEmpty &&
                         !_aprsFiTesting)
                     ? _testAprsFiApiKey
                     : null,
@@ -1941,8 +1960,8 @@ class _SettingsDialogState extends State<SettingsDialog>
                       color: _aprsFiTesting
                           ? Theme.of(context).colorScheme.onSurfaceVariant
                           : (_aprsFiTestOk
-                              ? Colors.green.shade700
-                              : Colors.red.shade700),
+                                ? Colors.green.shade700
+                                : Colors.red.shade700),
                     ),
                   ),
                 ),
@@ -1999,10 +2018,7 @@ class _SettingsDialogState extends State<SettingsDialog>
         value: 'aunz.aprs2.net',
         child: Text(l10n.settingsAprsIsRegionOceania),
       ),
-      DropdownMenuItem(
-        value: '',
-        child: Text(l10n.settingsAprsIsRegionCustom),
-      ),
+      DropdownMenuItem(value: '', child: Text(l10n.settingsAprsIsRegionCustom)),
     ];
   }
 
@@ -2048,10 +2064,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               children: [
                 Text(value),
                 const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: _secondaryStyle(),
-                ),
+                Text(label, style: _secondaryStyle()),
               ],
             ),
           ),
@@ -2155,15 +2168,9 @@ class _SettingsDialogState extends State<SettingsDialog>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              l10n.settingsSpeechToText,
-              style: _sectionTitleStyle(),
-            ),
+            Text(l10n.settingsSpeechToText, style: _sectionTitleStyle()),
             const SizedBox(height: 8),
-            Text(
-              l10n.settingsSpeechToTextInfo,
-              style: DialogStyles.bodyStyle,
-            ),
+            Text(l10n.settingsSpeechToTextInfo, style: DialogStyles.bodyStyle),
           ],
         ),
       );
@@ -2179,37 +2186,24 @@ class _SettingsDialogState extends State<SettingsDialog>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.settingsSpeechToText,
-            style: _sectionTitleStyle(),
-          ),
+          Text(l10n.settingsSpeechToText, style: _sectionTitleStyle()),
           const SizedBox(height: 8),
-          Text(
-            l10n.settingsSpeechToTextInfo,
-            style: DialogStyles.bodyStyle,
-          ),
+          Text(l10n.settingsSpeechToTextInfo, style: DialogStyles.bodyStyle),
           const SizedBox(height: 16),
           Text(l10n.settingsModel, style: DialogStyles.labelStyle),
           const SizedBox(height: 4),
           DropdownButtonFormField<String>(
             initialValue: model.id,
             decoration: _inputDecoration(),
-            items: SherpaModelManager.models
-                .map(
-                  (m) {
-                    final size = m.downloadLabel.replaceAll(' download', '');
-                    // Merge the size into a trailing "(...)" in the name so a
-                    // model like "Zipformer (real-time)" shows one parenthesis.
-                    final label = m.name.endsWith(')')
-                        ? '${m.name.substring(0, m.name.length - 1)}, $size)'
-                        : '${m.name}  ($size)';
-                    return DropdownMenuItem(
-                      value: m.id,
-                      child: Text(label),
-                    );
-                  },
-                )
-                .toList(),
+            items: SherpaModelManager.models.map((m) {
+              final size = m.downloadLabel.replaceAll(' download', '');
+              // Merge the size into a trailing "(...)" in the name so a
+              // model like "Zipformer (real-time)" shows one parenthesis.
+              final label = m.name.endsWith(')')
+                  ? '${m.name.substring(0, m.name.length - 1)}, $size)'
+                  : '${m.name}  ($size)';
+              return DropdownMenuItem(value: m.id, child: Text(label));
+            }).toList(),
             onChanged: (value) {
               final id = value ?? SherpaModelManager.defaultModelId;
               setState(() => _settings.voiceModel = id);
@@ -2217,10 +2211,7 @@ class _SettingsDialogState extends State<SettingsDialog>
             },
           ),
           const SizedBox(height: 6),
-          Text(
-            model.description,
-            style: _secondaryStyle(),
-          ),
+          Text(model.description, style: _secondaryStyle()),
           const SizedBox(height: 16),
           if (model.multilingual) ...[
             Text(
@@ -2314,10 +2305,7 @@ class _SettingsDialogState extends State<SettingsDialog>
             const SizedBox(height: 6),
             LinearProgressIndicator(value: pct),
             const SizedBox(height: 4),
-            Text(
-              detail,
-              style: _secondaryStyle(),
-            ),
+            Text(detail, style: _secondaryStyle()),
           ],
         );
         break;
@@ -2426,10 +2414,7 @@ class _SettingsDialogState extends State<SettingsDialog>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.settingsCommsIntro,
-            style: DialogStyles.bodyStyle,
-          ),
+          Text(l10n.settingsCommsIntro, style: DialogStyles.bodyStyle),
           const SizedBox(height: 16),
           // Speech Recognition. Desktop uses sherpa-onnx (model download);
           // Android uses the OS on-device recognizer (no model). The section
@@ -2443,10 +2428,7 @@ class _SettingsDialogState extends State<SettingsDialog>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.settingsTextToSpeech,
-                  style: _sectionTitleStyle(),
-                ),
+                Text(l10n.settingsTextToSpeech, style: _sectionTitleStyle()),
                 const SizedBox(height: 8),
                 Text(
                   l10n.settingsTextToSpeechInfo,
@@ -2553,10 +2535,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                   ),
                 ),
                 const SizedBox(height: 6),
-                SelectableText(
-                  _ttsInstructions,
-                  style: DialogStyles.bodyStyle,
-                ),
+                SelectableText(_ttsInstructions, style: DialogStyles.bodyStyle),
               ],
             ),
           ),
@@ -2636,10 +2615,7 @@ class _SettingsDialogState extends State<SettingsDialog>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.settingsWinlinkIntro,
-            style: DialogStyles.bodyStyle,
-          ),
+          Text(l10n.settingsWinlinkIntro, style: DialogStyles.bodyStyle),
           const SizedBox(height: 8),
           InkWell(
             onTap: () => _launchUrl('https://www.winlink.org'),
@@ -2652,13 +2628,12 @@ class _SettingsDialogState extends State<SettingsDialog>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.settingsWinlinkAccount,
-                  style: _sectionTitleStyle(),
-                ),
+                Text(l10n.settingsWinlinkAccount, style: _sectionTitleStyle()),
                 const SizedBox(height: 16),
-                Text(l10n.settingsPasswordFor(winlinkAccount),
-                    style: DialogStyles.labelStyle),
+                Text(
+                  l10n.settingsPasswordFor(winlinkAccount),
+                  style: DialogStyles.labelStyle,
+                ),
                 const SizedBox(height: 4),
                 TextField(
                   controller: _winlinkPasswordController,
@@ -2699,29 +2674,27 @@ class _SettingsDialogState extends State<SettingsDialog>
   Widget _buildEchoLinkTab() {
     final l10n = AppLocalizations.of(context);
     final hasCallSign = _settings.callSign.isNotEmpty;
-    final echoLinkAccount = hasCallSign ? _settings.callSign : l10n.settingsNone;
+    final echoLinkAccount = hasCallSign
+        ? _settings.callSign
+        : l10n.settingsNone;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.settingsEchoLinkIntro,
-            style: DialogStyles.bodyStyle,
-          ),
+          Text(l10n.settingsEchoLinkIntro, style: DialogStyles.bodyStyle),
           const SizedBox(height: 8),
           InkWell(
             onTap: () => _launchUrl('https://www.echolink.org'),
-            child:
-                const Text('www.echolink.org', style: DialogStyles.linkStyle),
+            child: const Text(
+              'www.echolink.org',
+              style: DialogStyles.linkStyle,
+            ),
           ),
           const SizedBox(height: 16),
           if (!hasCallSign) ...[
-            Text(
-              l10n.settingsEchoLinkNoCallSign,
-              style: _secondaryStyle(),
-            ),
+            Text(l10n.settingsEchoLinkNoCallSign, style: _secondaryStyle()),
             const SizedBox(height: 16),
           ],
           Container(
@@ -2730,13 +2703,12 @@ class _SettingsDialogState extends State<SettingsDialog>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.settingsEchoLinkAccount,
-                  style: _sectionTitleStyle(),
-                ),
+                Text(l10n.settingsEchoLinkAccount, style: _sectionTitleStyle()),
                 const SizedBox(height: 16),
-                Text(l10n.settingsPasswordFor(echoLinkAccount),
-                    style: DialogStyles.labelStyle),
+                Text(
+                  l10n.settingsPasswordFor(echoLinkAccount),
+                  style: DialogStyles.labelStyle,
+                ),
                 const SizedBox(height: 4),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2751,7 +2723,8 @@ class _SettingsDialogState extends State<SettingsDialog>
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
-                      onPressed: (hasCallSign &&
+                      onPressed:
+                          (hasCallSign &&
                               _echoLinkPasswordController.text.isNotEmpty &&
                               !_echoLinkTesting)
                           ? _testEchoLinkConnection
@@ -2768,14 +2741,16 @@ class _SettingsDialogState extends State<SettingsDialog>
                       color: _echoLinkTesting
                           ? Theme.of(context).colorScheme.onSurfaceVariant
                           : (_echoLinkTestOk
-                              ? Colors.green.shade700
-                              : Colors.red.shade700),
+                                ? Colors.green.shade700
+                                : Colors.red.shade700),
                     ),
                   ),
                 ],
                 const SizedBox(height: 16),
-                Text(l10n.settingsEchoLinkLocation,
-                    style: DialogStyles.labelStyle),
+                Text(
+                  l10n.settingsEchoLinkLocation,
+                  style: DialogStyles.labelStyle,
+                ),
                 const SizedBox(height: 4),
                 TextField(
                   controller: _echoLinkLocationController,
@@ -2834,22 +2809,18 @@ class _SettingsDialogState extends State<SettingsDialog>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.settingsAllStarIntro,
-            style: DialogStyles.bodyStyle,
-          ),
+          Text(l10n.settingsAllStarIntro, style: DialogStyles.bodyStyle),
           const SizedBox(height: 8),
           InkWell(
             onTap: () => _launchUrl('https://www.allstarlink.org'),
-            child: const Text('www.allstarlink.org',
-                style: DialogStyles.linkStyle),
+            child: const Text(
+              'www.allstarlink.org',
+              style: DialogStyles.linkStyle,
+            ),
           ),
           const SizedBox(height: 16),
           if (!hasCallSign) ...[
-            Text(
-              l10n.settingsAllStarNoCallsign,
-              style: _secondaryStyle(),
-            ),
+            Text(l10n.settingsAllStarNoCallsign, style: _secondaryStyle()),
             const SizedBox(height: 16),
           ],
           Container(
@@ -2858,13 +2829,12 @@ class _SettingsDialogState extends State<SettingsDialog>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.settingsAllStarAccount,
-                  style: _sectionTitleStyle(),
-                ),
+                Text(l10n.settingsAllStarAccount, style: _sectionTitleStyle()),
                 const SizedBox(height: 16),
-                Text(l10n.settingsPasswordFor(allStarAccount),
-                    style: DialogStyles.labelStyle),
+                Text(
+                  l10n.settingsPasswordFor(allStarAccount),
+                  style: DialogStyles.labelStyle,
+                ),
                 const SizedBox(height: 4),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2879,7 +2849,8 @@ class _SettingsDialogState extends State<SettingsDialog>
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
-                      onPressed: (hasCallSign &&
+                      onPressed:
+                          (hasCallSign &&
                               _allStarPasswordController.text.isNotEmpty &&
                               !_allStarTesting)
                           ? _testAllStarConnection
@@ -2896,8 +2867,8 @@ class _SettingsDialogState extends State<SettingsDialog>
                       color: _allStarTesting
                           ? Theme.of(context).colorScheme.onSurfaceVariant
                           : (_allStarTestOk
-                              ? Colors.green.shade700
-                              : Colors.red.shade700),
+                                ? Colors.green.shade700
+                                : Colors.red.shade700),
                     ),
                   ),
                 ],
@@ -2929,8 +2900,10 @@ class _SettingsDialogState extends State<SettingsDialog>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(l10n.settingsAllStarNodeNumber,
-                        style: DialogStyles.labelStyle),
+                    Text(
+                      l10n.settingsAllStarNodeNumber,
+                      style: DialogStyles.labelStyle,
+                    ),
                     const SizedBox(height: 4),
                     TextField(
                       controller: _allStarNodeNumberController,
@@ -2946,8 +2919,10 @@ class _SettingsDialogState extends State<SettingsDialog>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(l10n.settingsAllStarHostPort,
-                        style: DialogStyles.labelStyle),
+                    Text(
+                      l10n.settingsAllStarHostPort,
+                      style: DialogStyles.labelStyle,
+                    ),
                     const SizedBox(height: 4),
                     TextField(
                       controller: _allStarBindPortController,
@@ -2960,7 +2935,10 @@ class _SettingsDialogState extends State<SettingsDialog>
             ],
           ),
           const SizedBox(height: 12),
-          Text(l10n.settingsAllStarHostPassword, style: DialogStyles.labelStyle),
+          Text(
+            l10n.settingsAllStarHostPassword,
+            style: DialogStyles.labelStyle,
+          ),
           const SizedBox(height: 4),
           TextField(
             controller: _allStarNodePasswordController,
@@ -2968,8 +2946,10 @@ class _SettingsDialogState extends State<SettingsDialog>
             decoration: _inputDecoration(),
           ),
           const SizedBox(height: 12),
-          Text(l10n.settingsAllStarHostRegistration,
-              style: DialogStyles.labelStyle),
+          Text(
+            l10n.settingsAllStarHostRegistration,
+            style: DialogStyles.labelStyle,
+          ),
           const SizedBox(height: 4),
           DropdownButtonFormField<AllStarRegMethod>(
             initialValue: _allStarRegMethod,
@@ -2999,10 +2979,14 @@ class _SettingsDialogState extends State<SettingsDialog>
             color: Colors.transparent,
             child: SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(l10n.settingsAllStarHostAllowWt,
-                  style: DialogStyles.labelStyle),
-              subtitle: Text(l10n.settingsAllStarHostAllowWtHint,
-                  style: _secondaryStyle()),
+              title: Text(
+                l10n.settingsAllStarHostAllowWt,
+                style: DialogStyles.labelStyle,
+              ),
+              subtitle: Text(
+                l10n.settingsAllStarHostAllowWtHint,
+                style: _secondaryStyle(),
+              ),
               value: _allStarAllowWt,
               onChanged: (v) => setState(() => _allStarAllowWt = v),
             ),
@@ -3010,8 +2994,8 @@ class _SettingsDialogState extends State<SettingsDialog>
           const SizedBox(height: 12),
           Text(
             l10n.settingsAllStarHostNote(
-                int.tryParse(_allStarBindPortController.text) ??
-                    iax2DefaultPort),
+              int.tryParse(_allStarBindPortController.text) ?? iax2DefaultPort,
+            ),
             style: _secondaryStyle(),
           ),
         ],
@@ -3026,10 +3010,7 @@ class _SettingsDialogState extends State<SettingsDialog>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.settingsServersIntro,
-            style: DialogStyles.bodyStyle,
-          ),
+          Text(l10n.settingsServersIntro, style: DialogStyles.bodyStyle),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(16),
@@ -3037,10 +3018,7 @@ class _SettingsDialogState extends State<SettingsDialog>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.settingsLocalServers,
-                  style: _sectionTitleStyle(),
-                ),
+                Text(l10n.settingsLocalServers, style: _sectionTitleStyle()),
                 const SizedBox(height: 16),
                 // Web Server
                 Row(
@@ -3135,10 +3113,7 @@ class _SettingsDialogState extends State<SettingsDialog>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.settingsHomeAssistant,
-                  style: _sectionTitleStyle(),
-                ),
+                Text(l10n.settingsHomeAssistant, style: _sectionTitleStyle()),
                 const SizedBox(height: 8),
                 Text(
                   l10n.settingsHomeAssistantDescription,
@@ -3225,9 +3200,8 @@ class _SettingsDialogState extends State<SettingsDialog>
                 Row(
                   children: [
                     ElevatedButton(
-                      onPressed: (_homeAssistantUrlController.text
-                                  .trim()
-                                  .isNotEmpty &&
+                      onPressed:
+                          (_homeAssistantUrlController.text.trim().isNotEmpty &&
                               !_homeAssistantTesting)
                           ? _testHomeAssistantConnection
                           : null,
@@ -3242,8 +3216,8 @@ class _SettingsDialogState extends State<SettingsDialog>
                             color: _homeAssistantTesting
                                 ? Theme.of(context).colorScheme.onSurfaceVariant
                                 : (_homeAssistantTestOk
-                                    ? Colors.green.shade700
-                                    : Colors.red.shade700),
+                                      ? Colors.green.shade700
+                                      : Colors.red.shade700),
                           ),
                         ),
                       ),
@@ -3312,10 +3286,7 @@ class _SettingsDialogState extends State<SettingsDialog>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    l10n.settingsGpsSerialPort,
-                    style: _sectionTitleStyle(),
-                  ),
+                  Text(l10n.settingsGpsSerialPort, style: _sectionTitleStyle()),
                   const SizedBox(height: 16),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -3468,7 +3439,9 @@ class _SettingsDialogState extends State<SettingsDialog>
                               _airplaneTestResult,
                               style: TextStyle(
                                 color: _airplaneTesting
-                                    ? Theme.of(context).colorScheme.onSurfaceVariant
+                                    ? Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant
                                     : (_airplaneTestOk
                                           ? Colors.green.shade700
                                           : Colors.red.shade700),
@@ -3518,9 +3491,7 @@ class _SettingsDialogState extends State<SettingsDialog>
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [
-            Expanded(
-              child: Text(label, style: DialogStyles.labelStyle),
-            ),
+            Expanded(child: Text(label, style: DialogStyles.labelStyle)),
             const SizedBox(width: 8),
             Text(
               _limitLabel(value),
@@ -3571,10 +3542,7 @@ class _SettingsDialogState extends State<SettingsDialog>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.settingsLimitsIntro,
-            style: DialogStyles.bodyStyle,
-          ),
+          Text(l10n.settingsLimitsIntro, style: DialogStyles.bodyStyle),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(16),
@@ -3582,10 +3550,7 @@ class _SettingsDialogState extends State<SettingsDialog>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.settingsHistoryLimits,
-                  style: _sectionTitleStyle(),
-                ),
+                Text(l10n.settingsHistoryLimits, style: _sectionTitleStyle()),
                 const SizedBox(height: 16),
                 _buildLimitSlider(
                   label: l10n.settingsLimitAprsMessages,
@@ -3606,16 +3571,14 @@ class _SettingsDialogState extends State<SettingsDialog>
                   label: l10n.settingsLimitSstvImages,
                   value: _settings.maxSstvImages,
                   currentCount: counts?.sstvImages,
-                  onChanged: (v) =>
-                      setState(() => _settings.maxSstvImages = v),
+                  onChanged: (v) => setState(() => _settings.maxSstvImages = v),
                 ),
                 const SizedBox(height: 8),
                 _buildLimitSlider(
                   label: l10n.settingsLimitCommEvents,
                   value: _settings.maxCommEvents,
                   currentCount: counts?.commEvents,
-                  onChanged: (v) =>
-                      setState(() => _settings.maxCommEvents = v),
+                  onChanged: (v) => setState(() => _settings.maxCommEvents = v),
                 ),
               ],
             ),
@@ -3630,4 +3593,3 @@ class _SettingsDialogState extends State<SettingsDialog>
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
-

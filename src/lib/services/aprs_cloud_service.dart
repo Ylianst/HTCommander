@@ -9,10 +9,10 @@ http://www.apache.org/licenses/LICENSE-2.0
 // backend (aprs.meshcentral.com) and delivers APRS messages addressed to the
 // station as push notifications, even when the app is closed.
 //
-// The service is Android-only at runtime: it relies on Firebase Cloud Messaging
-// and the bundled android/app/google-services.json. On other native platforms
-// (Windows/macOS/Linux/iOS) it is a no-op because no Firebase configuration is
-// shipped for them. The web build uses aprs_cloud_service_stub.dart instead.
+// The service runs on Android and iOS through Firebase Messaging. Android sends
+// an FCM registration token to the server; iOS sends the raw APNs device token
+// because HTCloudServer talks directly to APNs. Other native platforms are a
+// no-op. The web build uses aprs_cloud_service_stub.dart instead.
 //
 // Flow:
 //   1. The user enables "Push notifications" in Settings. This is only allowed
@@ -55,7 +55,7 @@ Future<void> aprsCloudBackgroundHandler(RemoteMessage message) async {
 }
 
 /// Owns the connection to the HTCloudServer push backend. Registered in
-/// `main()` on Android and driven entirely by settings changes.
+/// `main()` on Android/iOS and driven entirely by settings changes.
 class AprsCloudService {
   AprsCloudService._();
 
@@ -67,8 +67,8 @@ class AprsCloudService {
   static const int _port = 443;
   static String get _baseUrl => 'https://$_host:$_port';
 
-  /// Reported to the server's push dispatcher so it routes via FCM.
-  static const String _platform = 'android';
+  /// Reported to the server's push dispatcher so it selects APNs or FCM.
+  static String get _platform => Platform.isIOS ? 'ios' : 'android';
 
   /// Broker device id the APRS + Map tabs listen on for AprsFrame events.
   static const int _aprsDeviceId = 1;
@@ -93,8 +93,8 @@ class AprsCloudService {
   int? _registeredSsid;
   String? _registeredToken;
 
-  /// The most recent FCM registration token.
-  String? _fcmToken;
+  /// The most recent FCM (Android) or APNs (iOS) registration token.
+  String? _pushToken;
 
   /// Identities of messages already injected this session, so overlapping
   /// register/sync pulls (or a live APRS-IS copy) never show the same message
@@ -111,8 +111,9 @@ class AprsCloudService {
   Timer? _debounce;
   Timer? _heartbeat;
 
-  /// Whether the platform can run the cloud push client. Android only.
-  static bool get _supported => !kIsWeb && Platform.isAndroid;
+  /// Whether the platform can run the cloud push client.
+  static bool get _supported =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
   /// Subscribes to the settings that control the connection and reconciles once.
   void init() {
@@ -223,8 +224,8 @@ class AprsCloudService {
     if (!aprsIsEnabled) return false;
     final callsign = (_broker.getValue<String>(0, 'CallSign', '') ?? '').trim();
     if (callsign.isEmpty) return false;
-    final passcode =
-        (_broker.getValue<String>(0, 'AprsIsPasscode', '') ?? '').trim();
+    final passcode = (_broker.getValue<String>(0, 'AprsIsPasscode', '') ?? '')
+        .trim();
     return passcode.isNotEmpty && passcode == _passcode;
   }
 
@@ -239,17 +240,18 @@ class AprsCloudService {
       }
 
       await _ensureFirebase();
-      if (_fcmToken == null || _fcmToken!.isEmpty) {
-        _broker.logError('[APRS-Cloud] No FCM token; cannot register.');
+      if (_pushToken == null || _pushToken!.isEmpty) {
+        _broker.logError('[APRS-Cloud] No push token; cannot register.');
         return;
       }
 
-      final callsign =
-          (_broker.getValue<String>(0, 'CallSign', '') ?? '').trim();
+      final callsign = (_broker.getValue<String>(0, 'CallSign', '') ?? '')
+          .trim();
       final ssid = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
 
       // If the identity or token changed, unregister the stale entry first.
-      final identityChanged = _registeredCallsign != null &&
+      final identityChanged =
+          _registeredCallsign != null &&
           (_registeredCallsign != callsign || _registeredSsid != ssid);
       if (identityChanged) {
         await _unregister();
@@ -259,7 +261,7 @@ class AprsCloudService {
       if (!identityChanged &&
           _registeredCallsign == callsign &&
           _registeredSsid == ssid &&
-          _registeredToken == _fcmToken) {
+          _registeredToken == _pushToken) {
         // The avatar may have changed while we were already registered; push it
         // without a full re-registration.
         if (_avatarHash != _confirmedAvatarHash) await _sendHeartbeat();
@@ -288,7 +290,7 @@ class AprsCloudService {
 
     final messaging = FirebaseMessaging.instance;
     await messaging.requestPermission();
-    _fcmToken = await messaging.getToken();
+    _pushToken = await _getPushToken(messaging);
 
     if (!_listenersReady) {
       _listenersReady = true;
@@ -301,11 +303,12 @@ class AprsCloudService {
       });
       // User tapped a background notification: pull anything we missed and jump
       // to the sender's conversation.
-      FirebaseMessaging.onMessageOpenedApp
-          .listen((m) => unawaited(_handleNotificationTap(m)));
+      FirebaseMessaging.onMessageOpenedApp.listen(
+        (m) => unawaited(_handleNotificationTap(m)),
+      );
       // Token rotation: re-register with the new token.
-      messaging.onTokenRefresh.listen((token) {
-        _fcmToken = token;
+      messaging.onTokenRefresh.listen((token) async {
+        _pushToken = Platform.isIOS ? await _getPushToken(messaging) : token;
         _scheduleReconcile();
       });
       // Launched from a terminated state by tapping a notification.
@@ -316,13 +319,26 @@ class AprsCloudService {
     _firebaseReady = true;
   }
 
+  /// HTCloudServer sends Android pushes through FCM and iOS pushes directly
+  /// through APNs. APNs registration can finish shortly after permission is
+  /// granted, so briefly wait for the native token on first registration.
+  Future<String?> _getPushToken(FirebaseMessaging messaging) async {
+    if (Platform.isAndroid) return messaging.getToken();
+    for (var attempt = 0; attempt < 10; attempt++) {
+      final token = await messaging.getAPNSToken();
+      if (token != null && token.isNotEmpty) return token;
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+    return null;
+  }
+
   /// Registers with the server and injects any returned message backlog.
   Future<void> _register({required String callsign, required int ssid}) async {
     final body = <String, Object?>{
       'callsign': callsign,
       'ssid': ssid,
       'platform': _platform,
-      'pushToken': _fcmToken,
+      'pushToken': _pushToken,
       'ackMessages': false,
       'wantHistory': true,
       'since': _lastSyncMs,
@@ -339,7 +355,7 @@ class AprsCloudService {
 
     _registeredCallsign = callsign;
     _registeredSsid = ssid;
-    _registeredToken = _fcmToken;
+    _registeredToken = _pushToken;
     _broker.logInfo('[APRS-Cloud] Registered $callsign-$ssid for push.');
 
     _handleAvatarResponse(resp);
@@ -379,7 +395,7 @@ class AprsCloudService {
       'callsign': _registeredCallsign,
       'ssid': _registeredSsid ?? 0,
       'platform': _platform,
-      'pushToken': _fcmToken,
+      'pushToken': _pushToken,
       'auth': _passcode,
     };
     _addAvatarFields(body);
@@ -428,13 +444,15 @@ class AprsCloudService {
       final peer = (raw['peer'] as String?)?.trim() ?? '';
       if (peer.isEmpty) continue;
       final ts = raw['timestamp'];
-      final time =
-          ts is int ? DateTime.fromMillisecondsSinceEpoch(ts) : DateTime.now();
+      final time = ts is int
+          ? DateTime.fromMillisecondsSinceEpoch(ts)
+          : DateTime.now();
       final seqId = (raw['seqId'] as String?)?.trim() ?? '';
 
       // Skip anything already surfaced this session (repeated sync/register
       // pulls, or a copy already delivered by the live APRS-IS connection).
-      final key = '$peer\u0000$seqId\u0000$text\u0000${time.millisecondsSinceEpoch}';
+      final key =
+          '$peer\u0000$seqId\u0000$text\u0000${time.millisecondsSinceEpoch}';
       if (!_markInjected(key)) continue;
 
       // Rebuild a TNC2 line and hand it to the APRS-IS manager, which persists
@@ -510,7 +528,9 @@ class AprsCloudService {
     if (raw is Map) raw.forEach((k, v) => map['$k'] = v);
 
     final existing = map[key];
-    if (existing is Map && hash.isNotEmpty && '${existing['hash'] ?? ''}' == hash) {
+    if (existing is Map &&
+        hash.isNotEmpty &&
+        '${existing['hash'] ?? ''}' == hash) {
       return; // Unchanged.
     }
 
@@ -680,7 +700,10 @@ class AprsCloudService {
   }
 
   /// POSTs a JSON body and returns the decoded JSON object, or null on failure.
-  Future<Map<String, Object?>?> _post(String path, Map<String, Object?> body) async {
+  Future<Map<String, Object?>?> _post(
+    String path,
+    Map<String, Object?> body,
+  ) async {
     try {
       final resp = await _http
           .post(
@@ -690,8 +713,7 @@ class AprsCloudService {
           )
           .timeout(_requestTimeout);
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
-        _broker.logError(
-            '[APRS-Cloud] $path -> HTTP ${resp.statusCode}');
+        _broker.logError('[APRS-Cloud] $path -> HTTP ${resp.statusCode}');
         // Still try to decode an error body for callers to inspect.
       }
       if (resp.body.isEmpty) return <String, Object?>{};

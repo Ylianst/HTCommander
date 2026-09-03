@@ -15,7 +15,8 @@ import 'dialogs/audio_rx_devices_dialog.dart';
 import 'dialogs/callsign_lookup_dialog.dart';
 import 'dialogs/firmware_update_dialog.dart';
 import 'dialogs/fm_radio_dialog.dart';
-import 'dialogs/gps_serial_info_dialog.dart';import 'dialogs/import_channels_dialog.dart';
+import 'dialogs/gps_serial_info_dialog.dart';
+import 'dialogs/import_channels_dialog.dart';
 import 'dialogs/all_regions_transfer_dialog.dart';
 import 'dialogs/hardware_radio_settings_dialog.dart';
 import 'dialogs/radio_connection_dialog.dart';
@@ -438,11 +439,10 @@ Future<void> _startApp(List<String> args) async {
   aprsIsManager.init();
   DataBroker.addDataHandler('AprsIsManager', aprsIsManager);
 
-  // Register the APRS cloud push service (Android only) so that, when the user
+  // Register the APRS cloud push service (Android/iOS) so that, when the user
   // enables push notifications in Settings, the app registers with
   // aprs.meshcentral.com and receives APRS messages addressed to its station as
-  // push notifications - even when the app is closed. A no-op on other
-  // platforms and on web.
+  // push notifications - even when the app is closed. A no-op elsewhere.
   AprsCloudService.instance.init();
   DataBroker.addDataHandler('AprsCloudService', AprsCloudService.instance);
 
@@ -606,7 +606,8 @@ Future<void> _restoreMainWindowSize() async {
 
   final width = DataBroker.getValue<double>(0, 'MainWindowWidth', 0) ?? 0;
   final height = DataBroker.getValue<double>(0, 'MainWindowHeight', 0) ?? 0;
-  final hasSaved = width >= _kMinMainWindowSize.width &&
+  final hasSaved =
+      width >= _kMinMainWindowSize.width &&
       height >= _kMinMainWindowSize.height;
 
   final windowOptions = WindowOptions(
@@ -915,6 +916,7 @@ class MainForm extends StatefulWidget {
 class _MainFormState extends State<MainForm>
     with TickerProviderStateMixin, WindowListener {
   late TabController _tabController;
+
   /// Index of the currently-shown tab, published so each tab can learn whether
   /// it is on-screen (via [TabVisibility]) and skip work while hidden. Updated
   /// only when the index actually changes, so it doesn't churn during swipes.
@@ -1048,7 +1050,11 @@ class _MainFormState extends State<MainForm>
     _TabInfo('Audio', 'assets/images/tabs/audio.png', Icons.volume_up),
     _TabInfo('APRS', 'assets/images/tabs/aprs.png', Icons.people),
     _TabInfo('Map', 'assets/images/tabs/map.png', Icons.public),
-    _TabInfo('Satellite', 'assets/images/tabs/satellite.png', Icons.satellite_alt),
+    _TabInfo(
+      'Satellite',
+      'assets/images/tabs/satellite.png',
+      Icons.satellite_alt,
+    ),
     _TabInfo('Mail', 'assets/images/tabs/email.png', Icons.mail),
     _TabInfo('Terminal', 'assets/images/tabs/terminal.png', Icons.terminal),
     _TabInfo('Contacts', 'assets/images/tabs/contacts.png', Icons.contacts),
@@ -1312,8 +1318,8 @@ class _MainFormState extends State<MainForm>
       callback: _onDartTxModeChanged,
     );
     // Load initial value
-    _dartTxLevel =
-        (_broker.getValue<String>(0, 'DartTxMode', '0') ?? '0').toUpperCase();
+    _dartTxLevel = (_broker.getValue<String>(0, 'DartTxMode', '0') ?? '0')
+        .toUpperCase();
 
     // Subscribe to the independent APRS modem mode / FEC changes
     _broker.subscribe(
@@ -1474,7 +1480,6 @@ class _MainFormState extends State<MainForm>
     }
   }
 
-
   /// Handle settings changes from DataBroker.
   void _onSettingsChanged(int deviceId, String name, Object? data) {
     setState(() {
@@ -1570,8 +1575,8 @@ class _MainFormState extends State<MainForm>
           _currentRadioDeviceId = ids.isNotEmpty
               ? ids.first
               : (_echoLinkOnline
-                  ? echoLinkDeviceId
-                  : (_allStarOnline ? allStarDeviceId : -1));
+                    ? echoLinkDeviceId
+                    : (_allStarOnline ? allStarDeviceId : -1));
           if (_currentRadioDeviceId == echoLinkDeviceId) {
             _echoLinkAutoSelected = true;
           }
@@ -1640,11 +1645,7 @@ class _MainFormState extends State<MainForm>
       _loadSettingsForCurrentRadio();
     });
     // Publish the selected radio device ID so every subscriber updates.
-    _broker.dispatch(
-      deviceId: 1,
-      name: 'SelectedRadioDeviceId',
-      data: radioId,
-    );
+    _broker.dispatch(deviceId: 1, name: 'SelectedRadioDeviceId', data: radioId);
   }
 
   /// Handle a `SetPreferredRadio` DataBroker command (device 1). The payload is
@@ -1667,8 +1668,9 @@ class _MainFormState extends State<MainForm>
       _echoLinkAvailable = available;
       if (!available && _currentRadioDeviceId == echoLinkDeviceId) {
         _echoLinkAutoSelected = false;
-        _currentRadioDeviceId =
-            _connectedRadioIds.isNotEmpty ? _connectedRadioIds.first : -1;
+        _currentRadioDeviceId = _connectedRadioIds.isNotEmpty
+            ? _connectedRadioIds.first
+            : -1;
         _broker.dispatch(
           deviceId: 1,
           name: 'SelectedRadioDeviceId',
@@ -1698,8 +1700,9 @@ class _MainFormState extends State<MainForm>
         _maybeAutoSelectEchoLink();
       } else if (_currentRadioDeviceId == echoLinkDeviceId) {
         _echoLinkAutoSelected = false;
-        _currentRadioDeviceId =
-            _connectedRadioIds.isNotEmpty ? _connectedRadioIds.first : -1;
+        _currentRadioDeviceId = _connectedRadioIds.isNotEmpty
+            ? _connectedRadioIds.first
+            : -1;
         _loadBatteryForCurrentRadio();
         _loadSettingsForCurrentRadio();
         _broker.dispatch(
@@ -1746,8 +1749,9 @@ class _MainFormState extends State<MainForm>
       _allStarAvailable = available;
       if (!available && _currentRadioDeviceId == allStarDeviceId) {
         _allStarAutoSelected = false;
-        _currentRadioDeviceId =
-            _connectedRadioIds.isNotEmpty ? _connectedRadioIds.first : -1;
+        _currentRadioDeviceId = _connectedRadioIds.isNotEmpty
+            ? _connectedRadioIds.first
+            : -1;
         _broker.dispatch(
           deviceId: 1,
           name: 'SelectedRadioDeviceId',
@@ -1767,8 +1771,9 @@ class _MainFormState extends State<MainForm>
         _maybeAutoSelectAllStar();
       } else if (_currentRadioDeviceId == allStarDeviceId) {
         _allStarAutoSelected = false;
-        _currentRadioDeviceId =
-            _connectedRadioIds.isNotEmpty ? _connectedRadioIds.first : -1;
+        _currentRadioDeviceId = _connectedRadioIds.isNotEmpty
+            ? _connectedRadioIds.first
+            : -1;
         _loadBatteryForCurrentRadio();
         _loadSettingsForCurrentRadio();
         _broker.dispatch(
@@ -1915,8 +1920,7 @@ class _MainFormState extends State<MainForm>
       // Only rebuild when the value the menu actually depends on changes.
       // Info messages can arrive frequently; rebuilding on every one would
       // recreate the (Platform)MenuBar and dismiss any open menu.
-      if (newRegionCount != _regionCount ||
-          newSupportRadio != _supportRadio) {
+      if (newRegionCount != _regionCount || newSupportRadio != _supportRadio) {
         setState(() {
           _regionCount = newRegionCount;
           _supportRadio = newSupportRadio;
@@ -2406,10 +2410,7 @@ class _MainFormState extends State<MainForm>
     final aprsPath = _broker.getValueDynamic(_currentRadioDeviceId, 'AprsPath');
     final rawPf = _broker.getValueDynamic(_currentRadioDeviceId, 'PfTable');
     final pfTable = rawPf is List
-        ? rawPf
-              .whereType<Map>()
-              .map((m) => m.cast<String, dynamic>())
-              .toList()
+        ? rawPf.whereType<Map>().map((m) => m.cast<String, dynamic>()).toList()
         : null;
 
     final backup = RadioBackupFile(
@@ -2638,9 +2639,9 @@ class _MainFormState extends State<MainForm>
     );
     if (!ok) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Backup restore cancelled')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Backup restore cancelled')));
       return;
     }
 
@@ -2648,9 +2649,9 @@ class _MainFormState extends State<MainForm>
     _restoreBackupSettings(backup);
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Radio backup restored')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Radio backup restored')));
   }
 
   /// Writes the settings, BSS/APRS settings and beacon path carried by a full
@@ -3838,11 +3839,7 @@ class _MainFormState extends State<MainForm>
           // An empty child list disables the SubmenuButton, graying it out
           // (used for the Audio menu on radios that don't support it).
           menuChildren: item.enabled
-              ? _buildBuiltInMenuItems(
-                  item.children,
-                  menuItemStyle,
-                  menuStyle,
-                )
+              ? _buildBuiltInMenuItems(item.children, menuItemStyle, menuStyle)
               : const <Widget>[],
           child: Text(item.label),
         );
@@ -3906,10 +3903,8 @@ class _MainFormState extends State<MainForm>
                       ValueListenableBuilder<int>(
                         valueListenable: _visibleTabIndex,
                         child: _buildTabContent(_currentTabs[i]),
-                        builder: (context, current, child) => TabVisibility(
-                          visible: current == i,
-                          child: child!,
-                        ),
+                        builder: (context, current, child) =>
+                            TabVisibility(visible: current == i, child: child!),
                       ),
                   ],
                 ),
@@ -4235,10 +4230,7 @@ class _MainFormState extends State<MainForm>
     final bool roundedScreen =
         !kIsWeb && Platform.isIOS && mq.viewPadding.bottom > 0;
 
-    final Text statusText = Text(
-      _statusText,
-      style: theme.textTheme.bodySmall,
-    );
+    final Text statusText = Text(_statusText, style: theme.textTheme.bodySmall);
     final bool showBattery =
         _currentRadioDeviceId > 0 && _batteryPercentage >= 0;
     final Text? batteryText = showBattery
@@ -4467,7 +4459,6 @@ class _MainFormState extends State<MainForm>
     return CompatibleDevice(name: 'AllStarLink', mac: '', isAllStar: true);
   }
 
-
   /// Apply stored friendly names to discovered devices
   List<CompatibleDevice> _applyStoredFriendlyNames(
     List<DiscoveredDevice> devices,
@@ -4690,7 +4681,8 @@ class _MainFormState extends State<MainForm>
     if (!_checkForUpdatesEnabled) return;
 
     if (!force) {
-      final lastCheckMs = DataBroker.getValue<int>(0, 'LastUpdateCheck', 0) ?? 0;
+      final lastCheckMs =
+          DataBroker.getValue<int>(0, 'LastUpdateCheck', 0) ?? 0;
       if (lastCheckMs > 0) {
         final lastCheck = DateTime.fromMillisecondsSinceEpoch(lastCheckMs);
         if (DateTime.now().difference(lastCheck) < const Duration(days: 1)) {

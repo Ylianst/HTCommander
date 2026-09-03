@@ -46,7 +46,7 @@ flowchart LR
     Store["SQLite\nrolling history\n(50 msgs / station)"]
     Push["Push dispatcher\n+ coalescer"]
   end
-  subgraph Phone["HTCommander (Android)"]
+  subgraph Phone["HTCommander (Android / iOS)"]
     Svc["AprsCloudService"]
     Tabs["APRS / Comms tabs"]
   end
@@ -58,7 +58,7 @@ flowchart LR
   Svc --> Tabs
 ```
 
-On the app side, the whole thing lives in one Android-only service,
+On the app side, the whole thing lives in one mobile service,
 `AprsCloudService`, wired into the app's internal event bus (the "Data Broker")
 and driven entirely by settings changes. On the server side it's vanilla Node
 `http`/`https` — no framework — so we keep socket-level control for the rate
@@ -80,14 +80,14 @@ sets. Every request to the server carries it as `auth`.
 When you turn on **Push notifications** in Settings (only available once APRS-IS
 is configured with a valid passcode), the app:
 
-1. Obtains an FCM token from Firebase.
+1. Obtains an FCM token on Android or a raw APNs device token on iOS.
 2. `POST`s it to `/v1/register` with your callsign, SSID, platform, the passcode,
    and — because it's the first contact after a launch — `wantHistory: true` and
    a `since` cursor so the server hands back anything you missed while away.
 
 ```
 POST /v1/register
-{ callsign, ssid, platform:"android", pushToken, ackMessages:false,
+{ callsign, ssid, platform:"android"|"ios", pushToken, ackMessages:false,
   wantHistory:true, since:<lastSyncMs>, auth:<passcode> }
 ```
 
@@ -285,9 +285,10 @@ avatar hash, the server already knows how to answer.
 
 ## The honest ledger
 
-- **iOS** is wired on the server (a full APNs HTTP/2 + JWT client) but the app
-  ships Firebase only for Android today; an iOS build needs its own push
-  configuration before end-to-end works there.
+- **iOS setup** requires Apple and Firebase configuration that cannot be stored
+  generically in the source tree. Follow the
+  [iOS push notification setup](../iOS-Push-Notifications.md) to add the app's
+  Firebase plist, APNs signing key, and server configuration.
 - **Background-delivered avatars** are captured when the app is foregrounded or a
   notification is tapped — the background isolate has no access to the app's
   storage, so an avatar from a push that's never opened waits until the next
