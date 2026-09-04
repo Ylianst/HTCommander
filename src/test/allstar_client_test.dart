@@ -174,4 +174,25 @@ void main() {
     client.disconnect();
     expect(client.state, AllStarClientState.online);
   });
+
+  test('node-credential call sends the callsign and node number as CallerID',
+      () async {
+    await client.open();
+    client.connectTo(node, callSign: 'KC1MUR', callerNumber: '68575');
+    final Iax2IeSet ies = Iax2FullFrame.parse(net.sent.first)!.parseIes();
+    // CallerID name carries the callsign (ASL3 derives CALLSIGN from it) and the
+    // CallerID number is the operator's numeric node id, not a null value.
+    expect(ies.getString(Iax2Ie.callingName), 'KC1MUR');
+    expect(ies.getString(Iax2Ie.callingNumber), '68575');
+  });
+
+  test('node-credential call without a callsign omits the CallerID name',
+      () async {
+    await client.open();
+    client.connectTo(node);
+    final Iax2IeSet ies = Iax2FullFrame.parse(net.sent.first)!.parseIes();
+    expect(ies.getString(Iax2Ie.callingName), isNull);
+    // Falls back to the IAX username when no node number is supplied.
+    expect(ies.getString(Iax2Ie.callingNumber), '12345');
+  });
 }

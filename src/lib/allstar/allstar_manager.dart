@@ -216,7 +216,10 @@ class AllStarManager {
       await client.open();
       final Object? last = _broker.getValueDynamic(0, lastAllStarNodeKey);
       if (last is Map) {
-        client.connectTo(AllStarNode.fromMap(last), wtToken: _wtToken());
+        client.connectTo(AllStarNode.fromMap(last),
+            wtToken: _wtToken(),
+            callSign: _callSign(),
+            callerNumber: _myNodeNumber());
       }
     } catch (e) {
       _broker.logError('[AllStar] Auto-reconnect failed: $e');
@@ -331,7 +334,10 @@ class AllStarManager {
           await client.open();
           _opened = true;
         }
-        client.connectTo(node, wtToken: _wtToken());
+        client.connectTo(node,
+            wtToken: _wtToken(),
+            callSign: _callSign(),
+            callerNumber: _myNodeNumber());
       } catch (e) {
         _broker.logError('[AllStar] Connect failed: $e');
       }
@@ -486,6 +492,16 @@ class AllStarManager {
     final String t = _broker.getValue<String>(0, allStarWtTokenKey, '') ?? '';
     return t.isEmpty ? null : t;
   }
+
+  /// The operator's callsign, sent as the IAX2 CallerID name on node-credential
+  /// calls (ASL3 derives `CALLSIGN` from it).
+  String _callSign() =>
+      (_broker.getValue<String>(0, 'CallSign', '') ?? '').trim().toUpperCase();
+
+  /// The operator's own AllStarLink node number, sent as the IAX2 CallerID
+  /// number so ASL3 nodes see a numeric caller id instead of a null value.
+  String _myNodeNumber() =>
+      (_broker.getValue<String>(0, allStarNodeNumberKey, '') ?? '').trim();
 
   // --- Received audio ------------------------------------------------------
 

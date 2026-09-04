@@ -938,6 +938,19 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
         !camera.zoom.isFinite) {
       return;
     }
+    // Force the map to always stay north-up. Even though the rotate gesture is
+    // disabled, other paths (keyboard/cursor rotation, restored state) can
+    // leave the camera tilted with no UI to correct it (issue #30). Snap any
+    // residual rotation back to zero after the current frame to avoid
+    // re-entrancy with the in-progress position change.
+    if (camera.rotation != 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_mapController.camera.rotation != 0) {
+          _mapController.rotate(0);
+        }
+      });
+    }
     // Debounce: a gesture fires this on every frame, so persist only once the
     // camera has settled to avoid a SharedPreferences write storm.
     _positionSaveTimer?.cancel();

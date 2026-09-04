@@ -105,7 +105,14 @@ class AllStarClient {
   /// Places an outbound IAX2 call to [node]. Any existing call is dropped first.
   /// For account (Web Transceiver) nodes, [wtToken] is the portal token sent as
   /// the CallerID name for the node to validate.
-  void connectTo(AllStarNode node, {String? wtToken}) {
+  ///
+  /// For node-credential calls, [callSign] is sent as the IAX2 CallerID name and
+  /// [callerNumber] (the operator's own node number) as the CallerID number, so
+  /// ASL3 nodes — which derive `CALLSIGN` from `CALLERID(name)` and expect a
+  /// numeric `CALLERID(number)` — accept the call instead of rejecting a null
+  /// CallerID.
+  void connectTo(AllStarNode node,
+      {String? wtToken, String? callSign, String? callerNumber}) {
     if (!_opened) return;
     _endCall();
     _node = node;
@@ -114,6 +121,13 @@ class AllStarClient {
     final bool account = node.authMode == AllStarAuthMode.account;
     final String host = node.effectiveHost;
     final int port = node.effectivePort;
+
+    final String? myCallSign =
+        (callSign != null && callSign.trim().isNotEmpty) ? callSign.trim() : null;
+    final String? myNumber =
+        (callerNumber != null && callerNumber.trim().isNotEmpty)
+            ? callerNumber.trim()
+            : null;
 
     onDiagnostic?.call(
       'Calling node ${node.nodeNumber} at $host:$port '
@@ -130,8 +144,8 @@ class AllStarClient {
       username: account ? allStarPublicUser : node.iaxUser,
       secret: account ? allStarPublicSecret : node.iaxSecret,
       calledNumber: node.nodeNumber,
-      callingNumber: account ? node.nodeNumber : null,
-      callingName: account ? wtToken : null,
+      callingNumber: account ? node.nodeNumber : myNumber,
+      callingName: account ? wtToken : myCallSign,
       onSend: (Uint8List d) => network.send(host, port, d),
       onAudio: (Int16List pcm) => onAudio?.call(pcm),
       onStateChanged: _onCallState,
