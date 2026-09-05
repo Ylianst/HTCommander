@@ -262,6 +262,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get menuChannelFrequency => 'Fréquence du canal';
 
   @override
+  String get menuStatusBar => 'Barre d\'état';
+
+  @override
   String get menuHelp => 'Aide';
 
   @override

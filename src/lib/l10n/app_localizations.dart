@@ -592,6 +592,12 @@ abstract class AppLocalizations {
   /// **'Channel Frequency'**
   String get menuChannelFrequency;
 
+  /// Toggle that shows or hides the status bar at the bottom of the window.
+  ///
+  /// In en, this message translates to:
+  /// **'Status Bar'**
+  String get menuStatusBar;
+
   /// Top-level Help menu label.
   ///
   /// In en, this message translates to:

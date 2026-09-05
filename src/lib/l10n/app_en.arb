@@ -316,6 +316,10 @@
   "@menuChannelFrequency": {
     "description": "Toggle that shows the frequency under a channel name."
   },
+  "menuStatusBar": "Status Bar",
+  "@menuStatusBar": {
+    "description": "Toggle that shows or hides the status bar at the bottom of the window."
+  },
 
   "menuHelp": "Help",
   "@menuHelp": {

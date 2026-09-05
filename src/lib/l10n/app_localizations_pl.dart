@@ -262,6 +262,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get menuChannelFrequency => 'Częstotliwość kanału';
 
   @override
+  String get menuStatusBar => 'Pasek stanu';
+
+  @override
   String get menuHelp => 'Pomoc';
 
   @override

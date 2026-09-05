@@ -259,6 +259,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get menuChannelFrequency => '信道频率';
 
   @override
+  String get menuStatusBar => '状态栏';
+
+  @override
   String get menuHelp => '帮助';
 
   @override

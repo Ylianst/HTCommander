@@ -262,6 +262,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get menuChannelFrequency => 'चैनल आवृत्ति';
 
   @override
+  String get menuStatusBar => 'स्थिति पट्टी';
+
+  @override
   String get menuHelp => 'सहायता';
 
   @override

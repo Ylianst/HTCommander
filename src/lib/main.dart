@@ -932,6 +932,9 @@ class _MainFormState extends State<MainForm>
   // Whether channel tiles show the frequency under the name. Toggled from the
   // View menu to declutter the channel grid. Disabled by default.
   bool _showChannelFrequency = false;
+  // Whether the bottom status bar is shown. Toggled from the View menu.
+  // Enabled by default.
+  bool _showStatusBar = true;
   // Whether the app checks for updates in the background (on start and when the
   // menu item is toggled on). Enabled by default.
   bool _checkForUpdatesEnabled = true;
@@ -1140,6 +1143,7 @@ class _MainFormState extends State<MainForm>
         'CheckForUpdates',
         'ShowAllChannels',
         'ShowChannelFrequency',
+        'ShowStatusBar',
         'SatelliteSupport',
       ],
       callback: _onSettingsChanged,
@@ -1405,6 +1409,8 @@ class _MainFormState extends State<MainForm>
         (DataBroker.getValue<int>(0, 'ShowAllChannels', 0) ?? 0) == 1;
     _showChannelFrequency =
         (DataBroker.getValue<int>(0, 'ShowChannelFrequency', 0) ?? 0) == 1;
+    _showStatusBar =
+        (DataBroker.getValue<int>(0, 'ShowStatusBar', 1) ?? 1) == 1;
     _checkForUpdatesEnabled =
         (DataBroker.getValue<int>(0, 'CheckForUpdates', 1) ?? 1) == 1;
     _showAllTabs = (DataBroker.getValue<int>(0, 'ShowAllTabs', 0) ?? 0) == 1;
@@ -1505,6 +1511,9 @@ class _MainFormState extends State<MainForm>
           break;
         case 'ShowChannelFrequency':
           _showChannelFrequency = (data as int?) == 1;
+          break;
+        case 'ShowStatusBar':
+          _showStatusBar = (data as int?) == 1;
           break;
         case 'CheckForUpdates':
           _checkForUpdatesEnabled = (data as int?) == 1;
@@ -3454,6 +3463,21 @@ class _MainFormState extends State<MainForm>
             },
             checked: _showChannelFrequency,
           ),
+          AppMenuAction(
+            label: l10n.menuStatusBar,
+            onPressed: () {
+              final newValue = !_showStatusBar;
+              setState(() {
+                _showStatusBar = newValue;
+              });
+              _broker.dispatch(
+                deviceId: 0,
+                name: 'ShowStatusBar',
+                data: newValue ? 1 : 0,
+              );
+            },
+            checked: _showStatusBar,
+          ),
         ],
       ),
       // Help/About menu
@@ -3525,7 +3549,12 @@ class _MainFormState extends State<MainForm>
         final content = Scaffold(
           body: SafeArea(
             top: true,
-            bottom: false,
+            // Inset above the Android system navigation bar. Android 15 / One UI
+            // force edge-to-edge, so without this the nav bar overlaps content
+            // (e.g. the APRS message input). iOS keeps bottom:false so the
+            // status bar can draw to the physical edge (see _buildStatusBar's
+            // rounded-corner handling which reads viewPadding.bottom).
+            bottom: !kIsWeb && Platform.isAndroid,
             child: Column(
               children: [
                 // Menu bar (only show built-in if not using native macOS menus)
@@ -3551,8 +3580,10 @@ class _MainFormState extends State<MainForm>
                     ],
                   ),
                 ),
-                // Status bar (hidden when height is too small or keyboard is shown)
-                if (constraints.maxHeight >= hideStatusBarHeightThreshold &&
+                // Status bar (hidden when disabled, height is too small, or
+                // keyboard is shown)
+                if (_showStatusBar &&
+                    constraints.maxHeight >= hideStatusBarHeightThreshold &&
                     MediaQuery.of(context).viewInsets.bottom == 0)
                   _buildStatusBar(),
               ],
