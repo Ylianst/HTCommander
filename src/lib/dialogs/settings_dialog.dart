@@ -2003,28 +2003,27 @@ class _SettingsDialogState extends State<SettingsDialog>
               if (_aprsFiTestResult.isNotEmpty) ...[
                 const SizedBox(width: 12),
                 Expanded(
-                  child: (_aprsFiTestOk && _aprsFiTestMessages.isNotEmpty)
-                      ? InkWell(
-                          onTap: _showAprsFiTestMessagesDialog,
-                          child: Text(
-                            _aprsFiTestResult,
-                            style: TextStyle(
-                              color: Colors.green.shade700,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        )
-                      : Text(
-                          _aprsFiTestResult,
-                          style: TextStyle(
-                            color: _aprsFiTesting
-                                ? Theme.of(context).colorScheme.onSurfaceVariant
-                                : (_aprsFiTestOk
-                                      ? Colors.green.shade700
-                                      : Colors.red.shade700),
-                          ),
-                        ),
+                  child: Text(
+                    _aprsFiTestResult,
+                    style: TextStyle(
+                      color: _aprsFiTesting
+                          ? Theme.of(context).colorScheme.onSurfaceVariant
+                          : (_aprsFiTestOk
+                                ? Colors.green.shade700
+                                : Colors.red.shade700),
+                    ),
+                  ),
                 ),
+                if (_aprsFiTestOk && _aprsFiTestMessages.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.visibility_outlined),
+                    iconSize: 20,
+                    visualDensity: VisualDensity.compact,
+                    tooltip: l10n.settingsAprsFiTestMessagesTitle,
+                    onPressed: _showAprsFiTestMessagesDialog,
+                  ),
+                ],
               ],
             ],
           ),
