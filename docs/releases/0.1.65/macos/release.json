@@ -9,12 +9,12 @@
   "artifact": {
     "kind": "zip",
     "url": "https://github.com/Ylianst/HTCommander/releases/download/v0.1.65/htcommander-0.1.65-macos.zip",
-    "sha256": "801bbf605ce9bf13d591d55672dba735df32e6317a756cc85e3fc0dbf0c3206b",
-    "length": 66100189
+    "sha256": "a1812ff5abd97fb40c43f7f4aa52651fb05bbda4e78b6a8be9a38ef5fe665f00",
+    "length": 66101648
   },
   "install": {
     "strategy": "wholeBundleReplace"
   },
   "minimumUpdaterVersion": "2.0.0",
-  "generatedAt": "2026-09-05T19:26:33.111995Z"
+  "generatedAt": "2026-09-05T19:59:33.852084Z"
 }
