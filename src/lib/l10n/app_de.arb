@@ -803,6 +803,7 @@
   "mapDownloadingTitle": "Kacheln werden heruntergeladen",
   "mapTilesProgress": "{done} / {total} Kacheln",
   "mapDragToSelect": "Ziehen Sie, um den zwischenzuspeichernden Bereich auszuwählen",
+  "mapMeasureTool": "Entfernung messen",
   "mapStationMessage": "Nachricht senden",
   "mapStationCenter": "Zur Station zoomen",
   "mapStationAddContact": "Kontakt hinzufügen",

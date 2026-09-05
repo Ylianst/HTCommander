@@ -2496,7 +2496,7 @@ class AppLocalizationsPl extends AppLocalizations {
       'Przeciągnij, aby wybrać obszar do zapisania w pamięci podręcznej';
 
   @override
-  String get mapMeasureTool => 'Measure distance';
+  String get mapMeasureTool => 'Zmierz odległość';
 
   @override
   String get mapStationMessage => 'Wyślij wiadomość';

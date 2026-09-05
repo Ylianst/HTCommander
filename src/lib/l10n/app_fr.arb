@@ -803,6 +803,7 @@
   "mapDownloadingTitle": "Téléchargement des tuiles",
   "mapTilesProgress": "{done} / {total} tuiles",
   "mapDragToSelect": "Faites glisser pour sélectionner la zone à mettre en cache",
+  "mapMeasureTool": "Mesurer la distance",
   "mapStationMessage": "Envoyer un message",
   "mapStationCenter": "Zoomer sur la station",
   "mapStationAddContact": "Ajouter un contact",

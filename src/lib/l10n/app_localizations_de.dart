@@ -2507,7 +2507,7 @@ class AppLocalizationsDe extends AppLocalizations {
       'Ziehen Sie, um den zwischenzuspeichernden Bereich auszuwählen';
 
   @override
-  String get mapMeasureTool => 'Measure distance';
+  String get mapMeasureTool => 'Entfernung messen';
 
   @override
   String get mapStationMessage => 'Nachricht senden';

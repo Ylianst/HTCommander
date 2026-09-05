@@ -803,6 +803,7 @@
   "mapDownloadingTitle": "Descargando teselas",
   "mapTilesProgress": "{done} / {total} teselas",
   "mapDragToSelect": "Arrastre para seleccionar el área que se va a almacenar en caché",
+  "mapMeasureTool": "Medir distancia",
   "mapStationMessage": "Enviar mensaje",
   "mapStationCenter": "Acercar a la estación",
   "mapStationAddContact": "Añadir contacto",

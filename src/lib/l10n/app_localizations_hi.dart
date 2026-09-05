@@ -2483,7 +2483,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get mapDragToSelect => 'कैश करने के लिए क्षेत्र चुनने हेतु खींचें';
 
   @override
-  String get mapMeasureTool => 'Measure distance';
+  String get mapMeasureTool => 'दूरी मापें';
 
   @override
   String get mapStationMessage => 'संदेश भेजें';

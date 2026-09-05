@@ -2502,7 +2502,7 @@ class AppLocalizationsIt extends AppLocalizations {
       'Trascina per selezionare l\'area da memorizzare';
 
   @override
-  String get mapMeasureTool => 'Measure distance';
+  String get mapMeasureTool => 'Misura distanza';
 
   @override
   String get mapStationMessage => 'Invia messaggio';

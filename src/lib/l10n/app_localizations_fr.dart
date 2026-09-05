@@ -2499,7 +2499,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Faites glisser pour sélectionner la zone à mettre en cache';
 
   @override
-  String get mapMeasureTool => 'Measure distance';
+  String get mapMeasureTool => 'Mesurer la distance';
 
   @override
   String get mapStationMessage => 'Envoyer un message';

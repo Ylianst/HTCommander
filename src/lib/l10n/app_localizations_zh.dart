@@ -2425,7 +2425,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mapDragToSelect => '拖动以选择要缓存的区域';
 
   @override
-  String get mapMeasureTool => 'Measure distance';
+  String get mapMeasureTool => '测量距离';
 
   @override
   String get mapStationMessage => '发送消息';

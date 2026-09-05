@@ -2501,7 +2501,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Arrastre para seleccionar el área que se va a almacenar en caché';
 
   @override
-  String get mapMeasureTool => 'Measure distance';
+  String get mapMeasureTool => 'Medir distancia';
 
   @override
   String get mapStationMessage => 'Enviar mensaje';

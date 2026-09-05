@@ -2442,7 +2442,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get mapDragToSelect => 'キャッシュするエリアをドラッグして選択してください';
 
   @override
-  String get mapMeasureTool => 'Measure distance';
+  String get mapMeasureTool => '距離を測定';
 
   @override
   String get mapStationMessage => 'メッセージを送信';

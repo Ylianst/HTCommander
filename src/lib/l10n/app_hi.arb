@@ -803,6 +803,7 @@
   "mapDownloadingTitle": "टाइलें डाउनलोड हो रही हैं",
   "mapTilesProgress": "{done} / {total} टाइलें",
   "mapDragToSelect": "कैश करने के लिए क्षेत्र चुनने हेतु खींचें",
+  "mapMeasureTool": "दूरी मापें",
   "mapStationMessage": "संदेश भेजें",
   "mapStationCenter": "स्टेशन पर ज़ूम करें",
   "mapStationAddContact": "संपर्क जोड़ें",

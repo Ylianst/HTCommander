@@ -803,6 +803,7 @@
   "mapDownloadingTitle": "タイルをダウンロード中",
   "mapTilesProgress": "{done} / {total} タイル",
   "mapDragToSelect": "キャッシュするエリアをドラッグして選択してください",
+  "mapMeasureTool": "距離を測定",
   "mapStationMessage": "メッセージを送信",
   "mapStationCenter": "局にズーム",
   "mapStationAddContact": "連絡先を追加",

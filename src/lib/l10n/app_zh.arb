@@ -803,6 +803,7 @@
   "mapDownloadingTitle": "正在下载瓦片",
   "mapTilesProgress": "{done} / {total} 个瓦片",
   "mapDragToSelect": "拖动以选择要缓存的区域",
+  "mapMeasureTool": "测量距离",
   "mapStationMessage": "发送消息",
   "mapStationCenter": "缩放到该台站",
   "mapStationAddContact": "添加联系人",

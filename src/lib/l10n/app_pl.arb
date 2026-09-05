@@ -803,6 +803,7 @@
   "mapDownloadingTitle": "Pobieranie kafelków",
   "mapTilesProgress": "{done} / {total} kafelków",
   "mapDragToSelect": "Przeciągnij, aby wybrać obszar do zapisania w pamięci podręcznej",
+  "mapMeasureTool": "Zmierz odległość",
   "mapStationMessage": "Wyślij wiadomość",
   "mapStationCenter": "Powiększ do stacji",
   "mapStationAddContact": "Dodaj kontakt",

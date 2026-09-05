@@ -795,6 +795,7 @@
   "mapDownloadingTitle": "Download dei tile",
   "mapTilesProgress": "{done} / {total} tile",
   "mapDragToSelect": "Trascina per selezionare l'area da memorizzare",
+  "mapMeasureTool": "Misura distanza",
   "mapStationMessage": "Invia messaggio",
   "mapStationCenter": "Zoom sulla stazione",
   "mapStationAddContact": "Aggiungi contatto",
