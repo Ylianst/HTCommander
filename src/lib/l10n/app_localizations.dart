@@ -1450,6 +1450,12 @@ abstract class AppLocalizations {
   /// **'Set your call sign first.'**
   String get settingsAprsFiTestNoCallSign;
 
+  /// No description provided for @settingsAprsFiTestMessagesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'APRS.fi test messages'**
+  String get settingsAprsFiTestMessagesTitle;
+
   /// No description provided for @settingsAprsFiTestSuccess.
   ///
   /// In en, this message translates to:
@@ -4551,6 +4557,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Drag to select area to cache'**
   String get mapDragToSelect;
+
+  /// No description provided for @mapMeasureTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure distance'**
+  String get mapMeasureTool;
 
   /// No description provided for @mapStationMessage.
   ///

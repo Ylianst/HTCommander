@@ -249,6 +249,7 @@
   "settingsAprsFiApiKeyHint": "输入您的 aprs.fi API 密钥",
   "settingsAprsFiTestNoKey": "请先输入 API 密钥。",
   "settingsAprsFiTestNoCallSign": "请先设置您的呼号。",
+  "settingsAprsFiTestMessagesTitle": "APRS.fi 测试消息",
   "settingsAprsFiTestSuccess": "成功，找到 {count} 条消息。",
   "@settingsAprsFiTestSuccess": {
     "placeholders": {

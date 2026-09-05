@@ -249,6 +249,7 @@
   "settingsAprsFiApiKeyHint": "Saisissez votre clé API aprs.fi",
   "settingsAprsFiTestNoKey": "Saisissez d'abord une clé API.",
   "settingsAprsFiTestNoCallSign": "Définissez d'abord votre indicatif.",
+  "settingsAprsFiTestMessagesTitle": "Messages de test APRS.fi",
   "settingsAprsFiTestSuccess": "Réussi, {count} message(s) trouvé(s).",
   "@settingsAprsFiTestSuccess": {
     "placeholders": {

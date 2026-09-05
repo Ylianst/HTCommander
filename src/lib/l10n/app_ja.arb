@@ -249,6 +249,7 @@
   "settingsAprsFiApiKeyHint": "aprs.fi API キーを入力",
   "settingsAprsFiTestNoKey": "先に API キーを入力してください。",
   "settingsAprsFiTestNoCallSign": "先にコールサインを設定してください。",
+  "settingsAprsFiTestMessagesTitle": "APRS.fi テストメッセージ",
   "settingsAprsFiTestSuccess": "成功、{count} 件のメッセージが見つかりました。",
   "@settingsAprsFiTestSuccess": {
     "placeholders": {

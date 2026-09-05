@@ -249,6 +249,7 @@
   "settingsAprsFiApiKeyHint": "Geben Sie Ihren aprs.fi-API-Schlüssel ein",
   "settingsAprsFiTestNoKey": "Geben Sie zuerst einen API-Schlüssel ein.",
   "settingsAprsFiTestNoCallSign": "Legen Sie zuerst Ihr Rufzeichen fest.",
+  "settingsAprsFiTestMessagesTitle": "APRS.fi-Testnachrichten",
   "settingsAprsFiTestSuccess": "Erfolg, {count} Nachricht(en) gefunden.",
   "@settingsAprsFiTestSuccess": {
     "placeholders": {

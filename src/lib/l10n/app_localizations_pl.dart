@@ -739,6 +739,9 @@ class AppLocalizationsPl extends AppLocalizations {
       'Najpierw ustaw swój znak wywoławczy.';
 
   @override
+  String get settingsAprsFiTestMessagesTitle => 'Wiadomości testowe APRS.fi';
+
+  @override
   String settingsAprsFiTestSuccess(int count) {
     return 'Sukces, znaleziono $count wiadomości.';
   }
@@ -2491,6 +2494,9 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get mapDragToSelect =>
       'Przeciągnij, aby wybrać obszar do zapisania w pamięci podręcznej';
+
+  @override
+  String get mapMeasureTool => 'Measure distance';
 
   @override
   String get mapStationMessage => 'Wyślij wiadomość';

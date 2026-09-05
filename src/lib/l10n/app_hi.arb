@@ -249,6 +249,7 @@
   "settingsAprsFiApiKeyHint": "अपनी aprs.fi API कुंजी दर्ज करें",
   "settingsAprsFiTestNoKey": "पहले एक API कुंजी दर्ज करें।",
   "settingsAprsFiTestNoCallSign": "पहले अपना कॉल साइन सेट करें।",
+  "settingsAprsFiTestMessagesTitle": "APRS.fi परीक्षण संदेश",
   "settingsAprsFiTestSuccess": "सफल, {count} संदेश मिले।",
   "@settingsAprsFiTestSuccess": {
     "placeholders": {

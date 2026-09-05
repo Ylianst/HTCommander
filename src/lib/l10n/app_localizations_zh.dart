@@ -719,6 +719,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAprsFiTestNoCallSign => '请先设置您的呼号。';
 
   @override
+  String get settingsAprsFiTestMessagesTitle => 'APRS.fi 测试消息';
+
+  @override
   String settingsAprsFiTestSuccess(int count) {
     return '成功，找到 $count 条消息。';
   }
@@ -2420,6 +2423,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mapDragToSelect => '拖动以选择要缓存的区域';
+
+  @override
+  String get mapMeasureTool => 'Measure distance';
 
   @override
   String get mapStationMessage => '发送消息';

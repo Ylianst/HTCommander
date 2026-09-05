@@ -739,6 +739,9 @@ class AppLocalizationsFr extends AppLocalizations {
       'Définissez d\'abord votre indicatif.';
 
   @override
+  String get settingsAprsFiTestMessagesTitle => 'Messages de test APRS.fi';
+
+  @override
   String settingsAprsFiTestSuccess(int count) {
     return 'Réussi, $count message(s) trouvé(s).';
   }
@@ -2494,6 +2497,9 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get mapDragToSelect =>
       'Faites glisser pour sélectionner la zone à mettre en cache';
+
+  @override
+  String get mapMeasureTool => 'Measure distance';
 
   @override
   String get mapStationMessage => 'Envoyer un message';

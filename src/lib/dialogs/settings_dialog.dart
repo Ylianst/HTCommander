@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dialog_utils.dart';
@@ -106,6 +107,8 @@ class _SettingsDialogState extends State<SettingsDialog>
   bool _aprsFiTesting = false;
   String _aprsFiTestResult = '';
   bool _aprsFiTestOk = false;
+  // Messages returned by the most recent successful aprs.fi test, shown on tap.
+  List<AprsFiMessage> _aprsFiTestMessages = const [];
 
   // EchoLink credential "Test" state.
   bool _echoLinkTesting = false;
@@ -721,6 +724,7 @@ class _SettingsDialogState extends State<SettingsDialog>
     if (apiKey.isEmpty) {
       setState(() {
         _aprsFiTestOk = false;
+        _aprsFiTestMessages = const [];
         _aprsFiTestResult = l10n.settingsAprsFiTestNoKey;
       });
       return;
@@ -728,6 +732,7 @@ class _SettingsDialogState extends State<SettingsDialog>
     if (dst.isEmpty) {
       setState(() {
         _aprsFiTestOk = false;
+        _aprsFiTestMessages = const [];
         _aprsFiTestResult = l10n.settingsAprsFiTestNoCallSign;
       });
       return;
@@ -735,6 +740,7 @@ class _SettingsDialogState extends State<SettingsDialog>
 
     setState(() {
       _aprsFiTesting = true;
+      _aprsFiTestMessages = const [];
       _aprsFiTestResult = l10n.settingsTestTesting;
     });
 
@@ -750,6 +756,7 @@ class _SettingsDialogState extends State<SettingsDialog>
     setState(() {
       _aprsFiTesting = false;
       _aprsFiTestOk = result.ok;
+      _aprsFiTestMessages = result.ok ? result.messages : const [];
       _aprsFiTestResult = result.ok
           ? l10n.settingsAprsFiTestSuccess(result.messages.length)
           : l10n.settingsTestFailed;
@@ -758,6 +765,45 @@ class _SettingsDialogState extends State<SettingsDialog>
     if (!result.ok && result.error != null) {
       _showTestErrorDialog(result.error!);
     }
+  }
+
+  /// Shows the messages returned by a successful aprs.fi test, each labelled
+  /// with the time aprs.fi recorded it, so the user can see what was retrieved.
+  void _showAprsFiTestMessagesDialog() {
+    final l10n = AppLocalizations.of(context);
+    final timeFormat = DateFormat.yMd().add_Hms();
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.settingsAprsFiTestMessagesTitle),
+        content: SizedBox(
+          width: 400,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final m in _aprsFiTestMessages) ...[
+                  Text(
+                    '${timeFormat.format(m.time)} \u2014 ${m.srcCall}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 2),
+                  SelectableText(m.message),
+                  const Divider(),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.commonOk),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onSave() async {
@@ -1937,7 +1983,10 @@ class _SettingsDialogState extends State<SettingsDialog>
             onChanged: (_) {
               // Rebuild so the Test button's enabled state tracks the field and
               // any prior result is cleared.
-              setState(() => _aprsFiTestResult = '');
+              setState(() {
+                _aprsFiTestResult = '';
+                _aprsFiTestMessages = const [];
+              });
             },
           ),
           const SizedBox(height: 16),
@@ -1954,16 +2003,27 @@ class _SettingsDialogState extends State<SettingsDialog>
               if (_aprsFiTestResult.isNotEmpty) ...[
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    _aprsFiTestResult,
-                    style: TextStyle(
-                      color: _aprsFiTesting
-                          ? Theme.of(context).colorScheme.onSurfaceVariant
-                          : (_aprsFiTestOk
-                                ? Colors.green.shade700
-                                : Colors.red.shade700),
-                    ),
-                  ),
+                  child: (_aprsFiTestOk && _aprsFiTestMessages.isNotEmpty)
+                      ? InkWell(
+                          onTap: _showAprsFiTestMessagesDialog,
+                          child: Text(
+                            _aprsFiTestResult,
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        )
+                      : Text(
+                          _aprsFiTestResult,
+                          style: TextStyle(
+                            color: _aprsFiTesting
+                                ? Theme.of(context).colorScheme.onSurfaceVariant
+                                : (_aprsFiTestOk
+                                      ? Colors.green.shade700
+                                      : Colors.red.shade700),
+                          ),
+                        ),
                 ),
               ],
             ],

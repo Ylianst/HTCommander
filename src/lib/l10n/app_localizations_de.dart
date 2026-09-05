@@ -743,6 +743,9 @@ class AppLocalizationsDe extends AppLocalizations {
       'Legen Sie zuerst Ihr Rufzeichen fest.';
 
   @override
+  String get settingsAprsFiTestMessagesTitle => 'APRS.fi-Testnachrichten';
+
+  @override
   String settingsAprsFiTestSuccess(int count) {
     return 'Erfolg, $count Nachricht(en) gefunden.';
   }
@@ -2502,6 +2505,9 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get mapDragToSelect =>
       'Ziehen Sie, um den zwischenzuspeichernden Bereich auszuwählen';
+
+  @override
+  String get mapMeasureTool => 'Measure distance';
 
   @override
   String get mapStationMessage => 'Nachricht senden';

@@ -612,6 +612,7 @@
   "settingsAprsFiApiKeyHint": "Enter your aprs.fi API key",
   "settingsAprsFiTestNoKey": "Enter an API key first.",
   "settingsAprsFiTestNoCallSign": "Set your call sign first.",
+  "settingsAprsFiTestMessagesTitle": "APRS.fi test messages",
   "settingsAprsFiTestSuccess": "Success, {count} message(s) found.",
   "@settingsAprsFiTestSuccess": {
     "placeholders": {
@@ -1593,6 +1594,8 @@
     }
   },
   "mapDragToSelect": "Drag to select area to cache",
+
+  "mapMeasureTool": "Measure distance",
 
   "mapStationMessage": "Send Message",
   "mapStationCenter": "Zoom to Station",

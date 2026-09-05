@@ -737,6 +737,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get settingsAprsFiTestNoCallSign => 'पहले अपना कॉल साइन सेट करें।';
 
   @override
+  String get settingsAprsFiTestMessagesTitle => 'APRS.fi परीक्षण संदेश';
+
+  @override
   String settingsAprsFiTestSuccess(int count) {
     return 'सफल, $count संदेश मिले।';
   }
@@ -2478,6 +2481,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get mapDragToSelect => 'कैश करने के लिए क्षेत्र चुनने हेतु खींचें';
+
+  @override
+  String get mapMeasureTool => 'Measure distance';
 
   @override
   String get mapStationMessage => 'संदेश भेजें';

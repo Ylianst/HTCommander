@@ -727,6 +727,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsAprsFiTestNoCallSign => '先にコールサインを設定してください。';
 
   @override
+  String get settingsAprsFiTestMessagesTitle => 'APRS.fi テストメッセージ';
+
+  @override
   String settingsAprsFiTestSuccess(int count) {
     return '成功、$count 件のメッセージが見つかりました。';
   }
@@ -2437,6 +2440,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get mapDragToSelect => 'キャッシュするエリアをドラッグして選択してください';
+
+  @override
+  String get mapMeasureTool => 'Measure distance';
 
   @override
   String get mapStationMessage => 'メッセージを送信';

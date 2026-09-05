@@ -240,6 +240,7 @@
   "settingsAprsFiApiKeyHint": "Inserisci la tua chiave API aprs.fi",
   "settingsAprsFiTestNoKey": "Inserisci prima una chiave API.",
   "settingsAprsFiTestNoCallSign": "Imposta prima il tuo nominativo.",
+  "settingsAprsFiTestMessagesTitle": "Messaggi di test APRS.fi",
   "settingsAprsFiTestSuccess": "Riuscito, trovati {count} messaggi.",
   "@settingsAprsFiTestSuccess": {
     "placeholders": {

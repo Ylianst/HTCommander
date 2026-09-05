@@ -737,6 +737,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get settingsAprsFiTestNoCallSign => 'Imposta prima il tuo nominativo.';
 
   @override
+  String get settingsAprsFiTestMessagesTitle => 'Messaggi di test APRS.fi';
+
+  @override
   String settingsAprsFiTestSuccess(int count) {
     return 'Riuscito, trovati $count messaggi.';
   }
@@ -2497,6 +2500,9 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get mapDragToSelect =>
       'Trascina per selezionare l\'area da memorizzare';
+
+  @override
+  String get mapMeasureTool => 'Measure distance';
 
   @override
   String get mapStationMessage => 'Invia messaggio';

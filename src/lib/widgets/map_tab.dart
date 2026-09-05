@@ -167,6 +167,17 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   LatLng? _cacheSelectionStart;
   LatLng? _cacheSelectionEnd;
 
+  /// When true the distance measuring tool is active: two draggable markers
+  /// and a line are drawn on the map and the distance between them is shown in
+  /// the bottom-right corner.
+  bool _isMeasuring = false;
+  LatLng? _measureStart;
+  LatLng? _measureEnd;
+
+  /// Which measuring marker is currently being dragged (0 = start, 1 = end),
+  /// or null when a pan gesture is moving the map instead of a marker.
+  int? _draggingMeasureIndex;
+
   /// Tile provider for the map. Recreated only when [_isOfflineMode] changes so
   /// that normal rebuilds (marker/track updates) don't reset the tile cache or
   /// leak HTTP clients. In offline mode it serves only disk-cached tiles.
@@ -982,6 +993,32 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     if (currentZoom > 3) {
       _mapController.move(_mapController.camera.center, currentZoom - 1);
     }
+  }
+
+  /// Toggles the distance measuring tool. When turning it on, the two markers
+  /// are seeded near the left/right thirds of the current view so the user can
+  /// immediately drag them to the points of interest.
+  void _toggleMeasuring() {
+    setState(() {
+      _isMeasuring = !_isMeasuring;
+      _draggingMeasureIndex = null;
+      if (_isMeasuring) {
+        final bounds = _mapController.camera.visibleBounds;
+        final lat = _mapController.camera.center.latitude;
+        final span = bounds.east - bounds.west;
+        _measureStart = LatLng(lat, bounds.west + span * 0.3);
+        _measureEnd = LatLng(lat, bounds.east - span * 0.3);
+      }
+    });
+  }
+
+  /// Great-circle distance between the two measuring markers, in meters.
+  /// Returns null when the tool is inactive or a marker is missing.
+  double? get _measureDistanceMeters {
+    final start = _measureStart;
+    final end = _measureEnd;
+    if (!_isMeasuring || start == null || end == null) return null;
+    return const Distance().as(LengthUnit.Meter, start, end);
   }
 
   /// Centers the map on the next available GPS position, cycling through every
@@ -2269,6 +2306,24 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                     if (_satellites.isNotEmpty)
                       MarkerLayer(markers: _buildSatelliteMarkers()),
                   ],
+                  // Distance measuring overlay: a dashed line and two draggable
+                  // markers. Drawn above the station markers so it stays visible.
+                  if (_isMeasuring &&
+                      _measureStart != null &&
+                      _measureEnd != null) ...[
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: [_measureStart!, _measureEnd!],
+                          color: Colors.orangeAccent,
+                          strokeWidth: 3,
+                          borderColor: Colors.black54,
+                          borderStrokeWidth: 1,
+                        ),
+                      ],
+                    ),
+                    MarkerLayer(markers: _buildMeasureMarkers()),
+                  ],
                   // Required OpenStreetMap licence attribution (OSM Tile Usage
                   // Policy §2). Kept always-visible in the bottom-right corner.
                   Align(
@@ -2309,6 +2364,63 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                   ),
                 ],
               ),
+              // Measuring tool gesture layer. Placed above the map but below
+              // the zoom/measure buttons so those stay clickable. Drags that
+              // begin on a marker move that marker; drags that begin elsewhere
+              // pan the map manually (flutter_map's own drag is covered here).
+              if (_isMeasuring &&
+                  _measureStart != null &&
+                  _measureEnd != null)
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onPanStart: (details) {
+                      final camera = _mapController.camera;
+                      final p = details.localPosition;
+                      final startOff =
+                          camera.latLngToScreenOffset(_measureStart!);
+                      final endOff =
+                          camera.latLngToScreenOffset(_measureEnd!);
+                      const hitRadius = 30.0;
+                      if ((p - startOff).distance <= hitRadius) {
+                        _draggingMeasureIndex = 0;
+                      } else if ((p - endOff).distance <= hitRadius) {
+                        _draggingMeasureIndex = 1;
+                      } else {
+                        _draggingMeasureIndex = null;
+                      }
+                    },
+                    onPanUpdate: (details) {
+                      final camera = _mapController.camera;
+                      final idx = _draggingMeasureIndex;
+                      if (idx == null) {
+                        // No marker grabbed: pan the map with the drag.
+                        final centerOff =
+                            camera.latLngToScreenOffset(camera.center);
+                        final newCenter = camera.screenOffsetToLatLng(
+                          centerOff - details.delta,
+                        );
+                        _mapController.move(newCenter, camera.zoom);
+                        return;
+                      }
+                      final current =
+                          idx == 0 ? _measureStart! : _measureEnd!;
+                      final newOff =
+                          camera.latLngToScreenOffset(current) + details.delta;
+                      final newLatLng = camera.screenOffsetToLatLng(newOff);
+                      setState(() {
+                        if (idx == 0) {
+                          _measureStart = newLatLng;
+                        } else {
+                          _measureEnd = newLatLng;
+                        }
+                      });
+                    },
+                    onPanEnd: (_) => _draggingMeasureIndex = null,
+                    onPanCancel: () => _draggingMeasureIndex = null,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
               // Zoom buttons overlay (top-left, below header)
               Positioned(
                 left: 10,
@@ -2318,9 +2430,18 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                     _buildZoomButton('+', _zoomIn),
                     const SizedBox(height: 4),
                     _buildZoomButton('−', _zoomOut),
+                    const SizedBox(height: 8),
+                    _buildMeasureButton(),
                   ],
                 ),
               ),
+              // Distance readout (bottom-right, above the OSM attribution).
+              if (_measureDistanceMeters != null)
+                Positioned(
+                  right: 8,
+                  bottom: 26,
+                  child: _buildMeasureReadout(_measureDistanceMeters!),
+                ),
               // Rectangle selection overlay for cache area
               if (_isSelectingCacheArea) ...[
                 // Draw the selection rectangle on the map
@@ -2488,6 +2609,92 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
           label,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
+      ),
+    );
+  }
+
+  /// Toggle button for the distance measuring tool, drawn under the zoom
+  /// buttons. Highlights (filled) while the tool is active.
+  Widget _buildMeasureButton() {
+    final scheme = Theme.of(context).colorScheme;
+    final active = _isMeasuring;
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: Tooltip(
+        message: AppLocalizations.of(context).mapMeasureTool,
+        child: ElevatedButton(
+          onPressed: _toggleMeasuring,
+          style: ElevatedButton.styleFrom(
+            padding: EdgeInsets.zero,
+            backgroundColor: active ? scheme.primary : scheme.surface,
+            foregroundColor: active ? scheme.onPrimary : scheme.onSurface,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          ),
+          child: const Icon(Icons.straighten, size: 18),
+        ),
+      ),
+    );
+  }
+
+  /// Builds the two draggable measuring markers (start = green, end = red).
+  /// Actual dragging is handled by the full-screen gesture layer in [build];
+  /// these are purely visual centered dots.
+  List<Marker> _buildMeasureMarkers() {
+    Marker dot(LatLng point, Color color) => Marker(
+          point: point,
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          child: Container(
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: const [
+                BoxShadow(color: Colors.black54, blurRadius: 3),
+              ],
+            ),
+          ),
+        );
+    return [
+      dot(_measureStart!, Colors.green),
+      dot(_measureEnd!, Colors.red),
+    ];
+  }
+
+  /// Bottom-right pill showing the distance between the two markers in both
+  /// kilometers and miles.
+  Widget _buildMeasureReadout(double meters) {
+    final km = meters / 1000.0;
+    final miles = meters / 1609.344;
+    final kmText = km < 10
+        ? '${km.toStringAsFixed(2)} km'
+        : '${km.toStringAsFixed(1)} km';
+    final miText = miles < 10
+        ? '${miles.toStringAsFixed(2)} mi'
+        : '${miles.toStringAsFixed(1)} mi';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.straighten, color: Colors.white, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            '$kmText  •  $miText',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
