@@ -62,9 +62,33 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesClassic(
 ) async {
   final devices = <DiscoveredDevice>[];
 
+  // Enumerate every paired device first for diagnostics. This makes field
+  // reports of "no compatible radios found" (see GitHub issue #35) actionable:
+  // the Debug log then shows exactly what the OS Bluetooth stack reports for
+  // each paired device, including the SDP service UUIDs used for matching.
+  try {
+    final paired = await BluetoothClassicMacOS.instance.getPairedDevices();
+    service._broker.logInfo(
+      '[BT-Classic] ${paired.length} paired device(s) reported by OS',
+    );
+    for (final d in paired) {
+      service._broker.logInfo(
+        '[BT-Classic]   paired: "${d.name}" (${d.address}) '
+        'connected=${d.isConnected} uuids=${d.serviceUuids}',
+      );
+    }
+  } catch (e) {
+    service._broker.logError(
+      '[BT-Classic] Failed to enumerate paired devices: $e',
+    );
+  }
+
   try {
     final classicDevices = await BluetoothClassicMacOS.instance
         .findCompatibleDevices();
+    service._broker.logInfo(
+      '[BT-Classic] ${classicDevices.length} compatible radio(s) identified',
+    );
 
     for (final device in classicDevices) {
       devices.add(
@@ -77,8 +101,10 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesClassic(
         ),
       );
     }
-  } catch (_) {
-    // Ignore errors finding Classic devices.
+  } catch (e) {
+    service._broker.logError(
+      '[BT-Classic] Error finding compatible devices: $e',
+    );
   }
 
   return devices;
