@@ -4,7 +4,23 @@
 <dict>
 	<key>aps-environment</key>
 	<string>development</string>
+	<!--
+	  CarPlay is disabled for this release. This entitlement MUST stay removed
+	  while the CarPlay scene is disabled: keeping it makes iOS launch the app as
+	  a CarPlay audio app, but with no CPTemplateApplicationScene delegate
+	  configured in Info.plist the CarPlay framework aborts during
+	  -[CPTemplateApplicationScene _deliverInterfaceControllerToDelegate]
+	  (EXC_CRASH / SIGABRT) as soon as a car connects.
+
+	  To re-enable CarPlay, do BOTH together in the same build:
+	    1. Restore the CPTemplateApplicationSceneSessionRoleApplication entry in
+	       Runner/Info.plist (see the matching comment there).
+	    2. Re-add the entitlement below.
+	  Then test connect/disconnect/cold-launch/reconnect with the CarPlay
+	  simulator or a head unit before uploading.
+
 	<key>com.apple.developer.carplay-audio</key>
 	<true/>
+	-->
 </dict>
 </plist>

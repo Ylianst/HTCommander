@@ -61,7 +61,13 @@
 					<string>Main</string>
 				</dict>
 			</array>
-			<!-- CarPlay disabled for this release; re-enable next version. -->
+			<!--
+			  CarPlay disabled for this release. To re-enable, uncomment the block
+			  below AND re-add com.apple.developer.carplay-audio in
+			  Runner/Runner.entitlements (see the matching comment there). Both must
+			  change together: the entitlement without this scene entry makes iOS
+			  launch a CarPlay audio app with no delegate, which crashes on connect.
+			-->
 			<!--
 			<key>CPTemplateApplicationSceneSessionRoleApplication</key>
 			<array>
