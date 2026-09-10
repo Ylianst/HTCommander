@@ -548,7 +548,9 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
           // Radio list
           Expanded(
             child: Container(
-              decoration: BoxDecoration(border: Border.all(color: scheme.outline)),
+              decoration: BoxDecoration(
+                border: Border.all(color: scheme.outline),
+              ),
               child: Material(
                 color: scheme.surface,
                 child: sortedDevices.isEmpty
@@ -582,13 +584,13 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                               icon: Icon(
                                 device.isEchoLink
                                     ? (connected
-                                    ? Icons.public
-                                    : Icons.public_off)
+                                          ? Icons.public
+                                          : Icons.public_off)
                                     : device.isAllStar
                                     ? Icons.cell_tower
                                     : (connected
-                                    ? Icons.bluetooth_connected
-                                    : Icons.bluetooth_disabled),
+                                          ? Icons.bluetooth_connected
+                                          : Icons.bluetooth_disabled),
                                 color: _getStatusColor(status),
                               ),
                               onPressed: (connected || connectable)
@@ -610,15 +612,15 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                                     overflow: TextOverflow.ellipsis,
                                   )
                                 : device.name.isEmpty
-                                    ? null
-                                    : Text(
-                                        device.mac,
-                                        style: DialogStyles.bodyStyle.copyWith(
-                                          fontSize: 11,
-                                          color: scheme.onSurfaceVariant,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                ? null
+                                : Text(
+                                    device.mac,
+                                    style: DialogStyles.bodyStyle.copyWith(
+                                      fontSize: 11,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [

@@ -1424,9 +1424,13 @@ class _MainFormState extends State<MainForm>
     _showChannelFrequency =
         (DataBroker.getValue<int>(0, 'ShowChannelFrequency', 0) ?? 0) == 1;
     _showStatusBar =
-        (DataBroker.getValue<int>(0, 'ShowStatusBar', _defaultShowStatusBar ? 1 : 0) ??
-                (_defaultShowStatusBar ? 1 : 0)) ==
-            1;
+        (DataBroker.getValue<int>(
+              0,
+              'ShowStatusBar',
+              _defaultShowStatusBar ? 1 : 0,
+            ) ??
+            (_defaultShowStatusBar ? 1 : 0)) ==
+        1;
     _checkForUpdatesEnabled =
         (DataBroker.getValue<int>(0, 'CheckForUpdates', 1) ?? 1) == 1;
     _showAllTabs = (DataBroker.getValue<int>(0, 'ShowAllTabs', 0) ?? 0) == 1;
@@ -2585,18 +2589,15 @@ class _MainFormState extends State<MainForm>
   Future<void> _onSearchRepeaterBook() async {
     final messenger = mounted ? ScaffoldMessenger.of(context) : null;
 
-    final token =
-      (_broker.getValue<String>(0, 'RepeaterBookToken', '') ?? '').trim();
+    final token = (_broker.getValue<String>(0, 'RepeaterBookToken', '') ?? '')
+        .trim();
     if (token.isEmpty) {
       messenger?.showSnackBar(
         SnackBar(
           content: const Text(
             'Set your RepeaterBook API token in Settings → Comms first.',
           ),
-          action: SnackBarAction(
-            label: 'Settings',
-            onPressed: _onSettings,
-          ),
+          action: SnackBarAction(label: 'Settings', onPressed: _onSettings),
         ),
       );
       return;

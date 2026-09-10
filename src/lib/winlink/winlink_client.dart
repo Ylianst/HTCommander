@@ -947,12 +947,6 @@ class WinlinkClient {
         _sessionState.remove('wlMailBlocks');
         _sessionState.remove('wlMailProp');
         _transportSendString('FF\r');
-
-        if (_transportType == WinlinkTransportType.tcp) {
-          disconnectTcp();
-        } else if (_transportType == WinlinkTransportType.x25) {
-          _disconnectX25();
-        }
       }
       return;
     }
