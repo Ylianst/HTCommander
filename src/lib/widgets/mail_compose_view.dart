@@ -563,21 +563,19 @@ class MailComposeViewState extends State<MailComposeView> {
     final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(l10n.mailMessageLabel, style: DialogStyles.labelStyle),
         const SizedBox(height: 4),
-        Expanded(
-          child: TextField(
-            controller: _bodyController,
-            expands: true,
-            maxLines: null,
-            minLines: null,
-            textAlignVertical: TextAlignVertical.top,
-            keyboardType: TextInputType.multiline,
-            decoration: _inputDecoration().copyWith(
-              fillColor: scheme.surfaceContainerLowest,
-              filled: true,
-            ),
+        TextField(
+          controller: _bodyController,
+          minLines: 6,
+          maxLines: null,
+          textAlignVertical: TextAlignVertical.top,
+          keyboardType: TextInputType.multiline,
+          decoration: _inputDecoration().copyWith(
+            fillColor: scheme.surfaceContainerLowest,
+            filled: true,
           ),
         ),
       ],
@@ -746,14 +744,16 @@ class MailComposeViewState extends State<MailComposeView> {
               },
               child: Stack(
                 children: [
-                  Padding(
+                  SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
                     padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _buildFields(),
                         const SizedBox(height: 12),
-                        Expanded(child: _buildMessageField()),
+                        _buildMessageField(),
                         const SizedBox(height: 8),
                         _buildAttachmentsSection(),
                       ],
