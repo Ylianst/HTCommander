@@ -2586,7 +2586,7 @@ class _MainFormState extends State<MainForm>
     final messenger = mounted ? ScaffoldMessenger.of(context) : null;
 
     final token =
-        (_broker.getValue<String>(0, 'RepeaterBookToken', '') ?? '').trim();
+      (_broker.getValue<String>(0, 'RepeaterBookToken', '') ?? '').trim();
     if (token.isEmpty) {
       messenger?.showSnackBar(
         SnackBar(
@@ -4563,6 +4563,9 @@ class _MainFormState extends State<MainForm>
               context,
             ).statusFailedToConnect(device.name);
           });
+          if (defaultTargetPlatform == TargetPlatform.macOS) {
+            await RadioConnectionDialog.showCannotConnect(context);
+          }
         }
         return;
       }

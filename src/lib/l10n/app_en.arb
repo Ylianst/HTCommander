@@ -378,6 +378,18 @@
   "@stateUnableToConnect": {
     "description": "Radio connection state: connection attempt failed."
   },
+  "radioCannotConnectTitle": "Cannot Connect to Radio",
+  "@radioCannotConnectTitle": {
+    "description": "Title shown after all attempts to connect to a paired radio fail."
+  },
+  "radioCannotConnectBody": "Move the radio closer and try again. Also make sure the radio is not already connected to another device or application. If it is, disconnect it there before reconnecting in HTCommander.",
+  "@radioCannotConnectBody": {
+    "description": "Guidance shown after all attempts to connect to a paired radio fail."
+  },
+  "radioCannotConnectImageDescription": "The radio connected icon and the disconnect button in the manufacturer's app",
+  "@radioCannotConnectImageDescription": {
+    "description": "Accessibility description for the cannot-connect help image."
+  },
   "stateAccessDenied": "Access Denied",
   "@stateAccessDenied": {
     "description": "Radio connection state: Bluetooth access was denied."

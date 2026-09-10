@@ -4,6 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dialog_utils.dart';
 import '../l10n/app_localizations.dart';
@@ -55,6 +56,44 @@ class RadioConnectionDialog extends StatefulWidget {
     return showDialog(
       context: context,
       builder: (context) => RadioConnectionDialog(devices: devices),
+    );
+  }
+
+  /// Shows guidance after all attempts to connect to a paired radio fail.
+  static Future<void> showCannotConnect(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return showDialog<void>(
+      context: context,
+      builder: (context) => HTDialog(
+        title: l10n.radioCannotConnectTitle,
+        maxWidth: 600,
+        maxHeight: 620,
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(l10n.radioCannotConnectBody, style: DialogStyles.bodyStyle),
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.asset(
+                  'assets/images/CantConnect.png',
+                  fit: BoxFit.contain,
+                  semanticLabel: l10n.radioCannotConnectImageDescription,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: DialogStyles.primaryButtonStyle(context),
+            child: Text(l10n.commonOk),
+          ),
+        ],
+      ),
     );
   }
 
@@ -236,9 +275,17 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
     return '';
   }
 
-  void _connectMac(String mac) async {
+  Future<void> _connectMac(String mac) async {
     final bluetoothService = BluetoothService();
-    await bluetoothService.connectToRadio(mac, _friendlyNameForMac(mac));
+    final deviceId = await bluetoothService.connectToRadio(
+      mac,
+      _friendlyNameForMac(mac),
+    );
+    if (deviceId == null &&
+        mounted &&
+        defaultTargetPlatform == TargetPlatform.macOS) {
+      await RadioConnectionDialog.showCannotConnect(context);
+    }
   }
 
   void _disconnectMac(String mac) async {
@@ -535,13 +582,13 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                               icon: Icon(
                                 device.isEchoLink
                                     ? (connected
-                                        ? Icons.public
-                                        : Icons.public_off)
+                                    ? Icons.public
+                                    : Icons.public_off)
                                     : device.isAllStar
-                                        ? Icons.cell_tower
-                                        : (connected
-                                            ? Icons.bluetooth_connected
-                                            : Icons.bluetooth_disabled),
+                                    ? Icons.cell_tower
+                                    : (connected
+                                    ? Icons.bluetooth_connected
+                                    : Icons.bluetooth_disabled),
                                 color: _getStatusColor(status),
                               ),
                               onPressed: (connected || connectable)

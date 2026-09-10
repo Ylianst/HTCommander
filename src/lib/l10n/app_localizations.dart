@@ -730,6 +730,24 @@ abstract class AppLocalizations {
   /// **'Unable to Connect'**
   String get stateUnableToConnect;
 
+  /// Title shown after all attempts to connect to a paired radio fail.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot Connect to Radio'**
+  String get radioCannotConnectTitle;
+
+  /// Guidance shown after all attempts to connect to a paired radio fail.
+  ///
+  /// In en, this message translates to:
+  /// **'Move the radio closer and try again. Also make sure the radio is not already connected to another device or application. If it is, disconnect it there before reconnecting in HTCommander.'**
+  String get radioCannotConnectBody;
+
+  /// Accessibility description for the cannot-connect help image.
+  ///
+  /// In en, this message translates to:
+  /// **'The radio connected icon and the disconnect button in the manufacturer\'s app'**
+  String get radioCannotConnectImageDescription;
+
   /// Radio connection state: Bluetooth access was denied.
   ///
   /// In en, this message translates to:
