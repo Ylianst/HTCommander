@@ -331,15 +331,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get stateUnableToConnect => 'No se puede conectar';
 
   @override
-  String get radioCannotConnectTitle => 'Cannot Connect to Radio';
+  String get radioCannotConnectTitle => 'No se puede conectar a la radio';
 
   @override
   String get radioCannotConnectBody =>
-      'Move the radio closer and try again. Also make sure the radio is not already connected to another device or application. If it is, disconnect it there before reconnecting in HTCommander.';
+      'Acerque la radio y vuelva a intentarlo. Asegúrese también de que la radio no esté conectada a otro dispositivo o aplicación. Si lo está, desconéctela allí antes de volver a conectarla en HTCommander.';
 
   @override
   String get radioCannotConnectImageDescription =>
-      'The radio connected icon and the disconnect button in the manufacturer\'s app';
+      'El icono de radio conectada y el botón de desconexión en la aplicación del fabricante';
 
   @override
   String get stateAccessDenied => 'Acceso denegado';

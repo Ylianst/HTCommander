@@ -4107,6 +4107,17 @@ class _MainFormState extends State<MainForm>
                               store: false,
                             );
                           }
+                          // Re-tapping the already-selected Mail tab returns it
+                          // to the mailbox list (saving a draft when composing).
+                          if (_tabController.index == index &&
+                              tab.label == 'Mail') {
+                            _broker.dispatch(
+                              deviceId: 0,
+                              name: 'MailShowList',
+                              data: null,
+                              store: false,
+                            );
+                          }
                           _tabController.animateTo(index);
                         },
                         child: Stack(

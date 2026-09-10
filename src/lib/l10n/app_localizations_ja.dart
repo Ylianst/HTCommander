@@ -331,15 +331,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get stateUnableToConnect => '接続できません';
 
   @override
-  String get radioCannotConnectTitle => 'Cannot Connect to Radio';
+  String get radioCannotConnectTitle => '無線機に接続できません';
 
   @override
   String get radioCannotConnectBody =>
-      'Move the radio closer and try again. Also make sure the radio is not already connected to another device or application. If it is, disconnect it there before reconnecting in HTCommander.';
+      '無線機を近づけて、もう一度お試しください。また、無線機が別のデバイスやアプリケーションに接続されていないことを確認してください。接続されている場合は、HTCommander で再接続する前に、そちらで接続を解除してください。';
 
   @override
   String get radioCannotConnectImageDescription =>
-      'The radio connected icon and the disconnect button in the manufacturer\'s app';
+      'メーカーのアプリにある無線機の接続済みアイコンと切断ボタン';
 
   @override
   String get stateAccessDenied => 'アクセスが拒否されました';

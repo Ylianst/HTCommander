@@ -328,15 +328,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stateUnableToConnect => '无法连接';
 
   @override
-  String get radioCannotConnectTitle => 'Cannot Connect to Radio';
+  String get radioCannotConnectTitle => '无法连接到电台';
 
   @override
   String get radioCannotConnectBody =>
-      'Move the radio closer and try again. Also make sure the radio is not already connected to another device or application. If it is, disconnect it there before reconnecting in HTCommander.';
+      '请将电台移近后重试。同时，请确保电台尚未连接到其他设备或应用程序。如果已连接，请先在那里断开连接，然后再在 HTCommander 中重新连接。';
 
   @override
-  String get radioCannotConnectImageDescription =>
-      'The radio connected icon and the disconnect button in the manufacturer\'s app';
+  String get radioCannotConnectImageDescription => '制造商应用程序中的电台已连接图标和断开连接按钮';
 
   @override
   String get stateAccessDenied => '访问被拒绝';

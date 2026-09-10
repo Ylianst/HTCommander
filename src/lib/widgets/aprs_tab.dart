@@ -2643,27 +2643,50 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
               : AppLocalizations.of(context).tabAprs;
           return Row(
             children: [
+              // The back arrow and the title share one wide hit box on the left
+              // so the whole left side of the title bar returns to the list.
               if (inContent)
-                InkWell(
-                  onTap: _closeConversation,
-                  borderRadius: BorderRadius.circular(4),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.arrow_back, size: 20),
+                Expanded(
+                  child: InkWell(
+                    onTap: _closeConversation,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(Icons.arrow_back, size: 20),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              if (inContent) const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
               const SizedBox(width: 8),
               // Beacon active indicator - opens beacon settings on tap.
               if (_beaconInterval > 0) _buildBeaconIcon(),

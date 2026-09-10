@@ -39,9 +39,7 @@ void main() {
         ..body = 'line one\nline two\n\nline four'
         ..mailbox = 'Inbox';
 
-      final restored = WinLinkMail.deserialize(
-        WinLinkMail.serialize([mail]),
-      );
+      final restored = WinLinkMail.deserialize(WinLinkMail.serialize([mail]));
 
       expect(restored, hasLength(1));
       expect(restored.first.body, 'line one\nline two\n\nline four');
@@ -55,9 +53,7 @@ void main() {
         ..body = r'path C:\temp\file; value=1; done\'
         ..mailbox = 'Sent';
 
-      final restored = WinLinkMail.deserialize(
-        WinLinkMail.serialize([mail]),
-      );
+      final restored = WinLinkMail.deserialize(WinLinkMail.serialize([mail]));
 
       expect(restored.first.body, r'path C:\temp\file; value=1; done\');
     });
@@ -135,19 +131,16 @@ void main() {
 
   group('WinLinkMail B2F recipient parsing', () {
     test('accumulates repeated To and Cc headers', () {
-      final data = _buildB2fMessage(
-        [
-          'MID: DEADBEEF0001',
-          'Date: 2025/02/22 03:30',
-          'From: KK7VZT',
-          'To: W1AW',
-          'To: N0CALL',
-          'Cc: K7ABC',
-          'Cc: K7XYZ',
-          'Subject: Broadcast',
-        ],
-        'hello',
-      );
+      final data = _buildB2fMessage([
+        'MID: DEADBEEF0001',
+        'Date: 2025/02/22 03:30',
+        'From: KK7VZT',
+        'To: W1AW',
+        'To: N0CALL',
+        'Cc: K7ABC',
+        'Cc: K7XYZ',
+        'Subject: Broadcast',
+      ], 'hello');
 
       final mail = WinLinkMail.deserializeMail(data);
 
@@ -158,16 +151,13 @@ void main() {
     });
 
     test('keeps a single recipient unchanged', () {
-      final data = _buildB2fMessage(
-        [
-          'MID: DEADBEEF0002',
-          'Date: 2025/02/22 03:30',
-          'From: KK7VZT',
-          'To: W1AW',
-          'Subject: Direct',
-        ],
-        'hi',
-      );
+      final data = _buildB2fMessage([
+        'MID: DEADBEEF0002',
+        'Date: 2025/02/22 03:30',
+        'From: KK7VZT',
+        'To: W1AW',
+        'Subject: Direct',
+      ], 'hi');
 
       final mail = WinLinkMail.deserializeMail(data);
 
