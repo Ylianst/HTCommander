@@ -69,7 +69,8 @@ class MailTab extends StatefulWidget {
   State<MailTab> createState() => _MailTabState();
 }
 
-class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
+class _MailTabState extends State<MailTab>
+    with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   String _selectedMailbox = 'Inbox';
   int? _selectedMailIndex;
   bool _showPreview = true;
@@ -147,11 +148,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
       name: 'MailStoreReady',
       callback: _onMailsChanged,
     );
-    _broker.subscribe(
-      deviceId: 0,
-      name: 'MailList',
-      callback: _onMailList,
-    );
+    _broker.subscribe(deviceId: 0, name: 'MailList', callback: _onMailList);
     _broker.subscribe(
       deviceId: 1,
       name: 'WinlinkStateMessage',
@@ -332,10 +329,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
 
   /// The display name in the first address of a header (`Name <addr>`), or null.
   String? _displayNameFromHeader(String header) {
-    final first = header.split(RegExp(r'[;,]')).firstWhere(
-          (e) => e.trim().isNotEmpty,
-          orElse: () => '',
-        );
+    final first = header
+        .split(RegExp(r'[;,]'))
+        .firstWhere((e) => e.trim().isNotEmpty, orElse: () => '');
     final lt = first.indexOf('<');
     if (lt > 0) {
       final name = first.substring(0, lt).trim().replaceAll('"', '');
@@ -960,9 +956,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
     final confirmed = await DialogHelper.showConfirmDialog(
       context,
       title: inTrash ? l10n.mailDeleteTitle : l10n.mailMoveToTrashTitle,
-      message: inTrash
-          ? l10n.mailDeletePermanent
-          : l10n.mailMoveToTrashPrompt,
+      message: inTrash ? l10n.mailDeletePermanent : l10n.mailMoveToTrashPrompt,
       okText: inTrash ? l10n.commonDelete : l10n.mailMove,
     );
     if (!confirmed) return;
@@ -1192,7 +1186,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
           height: menuItemHeight,
           padding: menuItemPadding,
           child: Row(
-            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).mailBackup)],
+            children: [
+              const SizedBox(width: 20),
+              Text(AppLocalizations.of(context).mailBackup),
+            ],
           ),
         ),
         PopupMenuItem<String>(
@@ -1200,7 +1197,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
           height: menuItemHeight,
           padding: menuItemPadding,
           child: Row(
-            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).mailRestore)],
+            children: [
+              const SizedBox(width: 20),
+              Text(AppLocalizations.of(context).mailRestore),
+            ],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -1209,7 +1209,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
           height: menuItemHeight,
           padding: menuItemPadding,
           child: Row(
-            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).mailShowTraffic)],
+            children: [
+              const SizedBox(width: 20),
+              Text(AppLocalizations.of(context).mailShowTraffic),
+            ],
           ),
         ),
         if (windowService.canDetach) ...[
@@ -1219,7 +1222,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
             height: menuItemHeight,
             padding: menuItemPadding,
             child: Row(
-              children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).tabDetach)],
+              children: [
+                const SizedBox(width: 20),
+                Text(AppLocalizations.of(context).tabDetach),
+              ],
             ),
           ),
         ],
@@ -1715,7 +1721,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
               else
                 Text(
                   AppLocalizations.of(context).tabMail,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               const Spacer(),
               if (showButtons) ...[
@@ -1811,7 +1820,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
                 color: isSelected ? scheme.primaryContainer : null,
                 child: Row(
                   children: [
-                    Icon(mailbox.icon, size: 20, color: scheme.onSurfaceVariant),
+                    Icon(
+                      mailbox.icon,
+                      size: 20,
+                      color: scheme.onSurfaceVariant,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -1956,7 +1969,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
       ),
       child: Row(
         children: [
-          _buildColumnHeader(AppLocalizations.of(context).mailColTime, 0, flex: 2),
+          _buildColumnHeader(
+            AppLocalizations.of(context).mailColTime,
+            0,
+            flex: 2,
+          ),
           _buildColumnHeader(
             _showRecipientColumn
                 ? AppLocalizations.of(context).mailColTo
@@ -1964,7 +1981,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
             1,
             flex: 2,
           ),
-          _buildColumnHeader(AppLocalizations.of(context).mailColSubject, 2, flex: 3),
+          _buildColumnHeader(
+            AppLocalizations.of(context).mailColSubject,
+            2,
+            flex: 3,
+          ),
         ],
       ),
     );
@@ -2213,7 +2234,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
           Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(
-                painter: _MailCornerTrianglePainter(scheme.surfaceContainerHigh),
+                painter: _MailCornerTrianglePainter(
+                  scheme.surfaceContainerHigh,
+                ),
               ),
             ),
           ),
@@ -2254,7 +2277,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
           Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(
-                painter: _MailCornerTrianglePainter(scheme.surfaceContainerHigh),
+                painter: _MailCornerTrianglePainter(
+                  scheme.surfaceContainerHigh,
+                ),
               ),
             ),
           ),

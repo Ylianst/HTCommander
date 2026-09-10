@@ -716,7 +716,9 @@ class MailComposeViewState extends State<MailComposeView> {
                 const SizedBox(height: 8),
                 Text(
                   AppLocalizations.of(context).mailAttachmentDropHint,
-                  style: DialogStyles.titleStyle.copyWith(color: scheme.primary),
+                  style: DialogStyles.titleStyle.copyWith(
+                    color: scheme.primary,
+                  ),
                 ),
               ],
             ),
