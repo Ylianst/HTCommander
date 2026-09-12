@@ -76,6 +76,10 @@ class _AudioRxDevicesDialogState extends State<_AudioRxDevicesDialog> {
       name: audioRxDevicesKey,
       data: _devices.map((AudioRxDevice d) => d.toMap()).toList(),
       store: true,
+      // Allow persisting an empty list when the user deletes the last device;
+      // otherwise the broker's empty-collection guard would silently keep the
+      // old list and the device would reappear on restart.
+      allowEmpty: true,
     );
   }
 

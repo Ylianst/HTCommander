@@ -111,11 +111,15 @@ class DataBrokerClient {
   /// [name] - The name/key of the data.
   /// [data] - The data value.
   /// [store] - If true, the value is stored in the broker; if false, only broadcast.
+  /// [allowEmpty] - If true, an intentional empty collection is allowed to
+  /// overwrite existing stored data (e.g. deleting the last item in a list),
+  /// bypassing the guard that protects against init-race clobbering.
   void dispatch({
     required int deviceId,
     required String name,
     required Object? data,
     bool store = true,
+    bool allowEmpty = false,
   }) {
     if (_disposed) return;
     DataBroker.dispatch(
@@ -123,6 +127,7 @@ class DataBrokerClient {
       name: name,
       data: data,
       store: store,
+      allowEmpty: allowEmpty,
     );
   }
 

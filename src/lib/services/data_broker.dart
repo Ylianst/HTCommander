@@ -358,22 +358,23 @@ class DataBroker {
     required String name,
     required Object? data,
     bool store = true,
+    bool allowEmpty = false,
   }) {
     final broker = _instance;
 
     switch (broker._role) {
       case DataBrokerRole.standalone:
-        broker._applyLocal(deviceId, name, data, store);
+        broker._applyLocal(deviceId, name, data, store, allowEmpty: allowEmpty);
         break;
       case DataBrokerRole.host:
         // Apply on the host, then forward to every detached window.
-        broker._applyLocal(deviceId, name, data, store);
+        broker._applyLocal(deviceId, name, data, store, allowEmpty: allowEmpty);
         broker._forwardToChildren(deviceId, name, data, store);
         break;
       case DataBrokerRole.client:
         // Apply locally for immediate UI responsiveness, then forward to the
         // host so host-side handlers and the other windows are notified.
-        broker._applyLocal(deviceId, name, data, store);
+        broker._applyLocal(deviceId, name, data, store, allowEmpty: allowEmpty);
         broker._sendToHost(deviceId, name, data, store);
         break;
     }
@@ -395,7 +396,8 @@ class DataBroker {
   ///
   /// This is the process-local part of a dispatch, shared by every role. It
   /// never crosses a window boundary.
-  void _applyLocal(int deviceId, String name, Object? data, bool store) {
+  void _applyLocal(int deviceId, String name, Object? data, bool store,
+      {bool allowEmpty = false}) {
     if (store) {
       final key = _DataKey(deviceId, name);
       _dataStore[key] = data;
@@ -409,7 +411,7 @@ class DataBroker {
         if (_secretKeys.contains(name) && SecretStore.isSupported) {
           _persistSecret(name, data);
         } else if (_prefs != null) {
-          _persistValue(name, data);
+          _persistValue(name, data, allowEmpty: allowEmpty);
           // Keep a rolling on-disk backup (throttled to once an hour) so a
           // corrupt store can be recovered on next launch. Fire-and-forget.
           unawaited(_maybeBackupPreferences());
@@ -448,7 +450,11 @@ class DataBroker {
   }
 
   /// Persists a value to SharedPreferences.
-  void _persistValue(String name, Object? data) {
+  ///
+  /// [allowEmpty] permits an intentional empty collection (e.g. the user
+  /// deleting the last item in a list) to overwrite existing stored data,
+  /// bypassing the guard that normally protects against init-race clobbering.
+  void _persistValue(String name, Object? data, {bool allowEmpty = false}) {
     if (_prefs == null) return;
 
     final prefKey = 'databroker_$name';
@@ -472,7 +478,9 @@ class DataBroker {
         final json = jsonEncode(data);
 
         // Safety check: prevent overwriting non-empty data with empty collection
-        if (data is Iterable && data.isEmpty) {
+        // during an initialization race. Skipped when the caller explicitly
+        // intends the empty value (e.g. the user deleted the last list item).
+        if (!allowEmpty && data is Iterable && data.isEmpty) {
           final existingValue = _prefs!.getString(prefKey);
           if (existingValue != null &&
               existingValue.startsWith('~~JSON:') &&
