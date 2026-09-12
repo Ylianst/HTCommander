@@ -17,6 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../aprs/aprs_symbols.dart';
+import '../aprs/packet_data_type.dart';
 import '../dialogs/add_station_dialog.dart';
 import '../dialogs/callsign_lookup_dialog.dart';
 import '../gps/gps_data.dart';
@@ -48,13 +49,24 @@ class _StationMarkerData {
     this.symbolTable = '',
     this.symbolCode = '',
     this.isTest = false,
-  }) : track = <LatLng>[position];
+    String lastMessage = '',
+    DateTime? lastMessageTime,
+  })  : lastMessage = lastMessage,
+        lastMessageTime =
+            lastMessage.isNotEmpty ? (lastMessageTime ?? time) : null,
+        track = <LatLng>[position];
 
   final String callsign;
   LatLng position;
   DateTime time;
   final bool isSelf;
   final List<LatLng> track;
+
+  /// The most recent human-readable text this station beaconed (position
+  /// comment, status or weather summary). Empty when the station has only ever
+  /// sent a bare position. Shown in the map's station info overlay.
+  String lastMessage;
+  DateTime? lastMessageTime;
 
   /// True when this marker is a SARSAT self-test beacon (drawn differently
   /// from a real distress beacon). Unused for non-SARSAT markers.
@@ -74,7 +86,15 @@ class _StationMarkerData {
   /// Appends a new point to the track when the position actually changed,
   /// matching the C# `AddMapMarker` route behaviour.
   void update(LatLng newPosition, DateTime newTime,
-      {bool? fromAprsIs, String? symbolTable, String? symbolCode, bool? isTest}) {
+      {bool? fromAprsIs,
+      String? symbolTable,
+      String? symbolCode,
+      bool? isTest,
+      String? lastMessage}) {
+    if (lastMessage != null && lastMessage.isNotEmpty) {
+      this.lastMessage = lastMessage;
+      lastMessageTime = newTime;
+    }
     final last = track.isNotEmpty ? track.last : null;
     if (last == null ||
         last.latitude != newPosition.latitude ||
@@ -153,6 +173,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   List<SatellitePosition> _satellites = const [];
   List<List<double>> _satGroundTrack = const [];
   int? _selectedSatId;
+
+  /// Callsign of the station whose info overlay is currently shown at the
+  /// bottom of the map (set by tapping a callsign marker), or null when no
+  /// station is selected.
+  String? _selectedStationCallsign;
 
   /// When true, stations are drawn using their real APRS symbols instead of
   /// generic location pins.
@@ -256,6 +281,14 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       targets.add(LatLng(gps.latitude, gps.longitude));
     }
     return targets;
+  }
+
+  /// Our own current position (first connected radio with a GPS lock, else the
+  /// serial GPS fix), or null when no local position is known. Used to show a
+  /// station's distance and bearing relative to us in the info overlay.
+  LatLng? get _ownPosition {
+    final targets = _centerToGpsTargets;
+    return targets.isEmpty ? null : targets.first;
   }
 
   // Default map position (center of US)
@@ -685,13 +718,15 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 
     final time = aprsPacket.timeStamp ?? packet.time;
     final point = LatLng(lat, lng);
+    final lastMessage = _readableTextFor(aprsPacket);
 
     final existing = _aprsStations[callsign];
     if (existing != null) {
       existing.update(point, time,
           fromAprsIs: aprsPacket.fromAprsIs,
           symbolTable: aprsPacket.symbolTable,
-          symbolCode: aprsPacket.symbol);
+          symbolCode: aprsPacket.symbol,
+          lastMessage: lastMessage);
     } else {
       _aprsStations[callsign] = _StationMarkerData(
         callsign: callsign,
@@ -701,9 +736,28 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
         fromAprsIs: aprsPacket.fromAprsIs,
         symbolTable: aprsPacket.symbolTable,
         symbolCode: aprsPacket.symbol,
+        lastMessage: lastMessage,
       );
     }
     return true;
+  }
+
+  /// Derives a short human-readable line for a position beacon: the weather
+  /// summary when present, otherwise the packet comment (skipping Mic-E types
+  /// whose "comment" is binary telemetry). Mirrors the APRS tab's text
+  /// derivation. Returns an empty string when there is nothing to show.
+  String _readableTextFor(AprsPacket aprsPacket) {
+    final weather = aprsPacket.weather;
+    if (weather != null && weather.hasData) {
+      return weather.toReadableString().trim();
+    }
+    if (aprsPacket.comment.isNotEmpty &&
+        aprsPacket.dataType != PacketDataType.micE &&
+        aprsPacket.dataType != PacketDataType.micECurrent &&
+        aprsPacket.dataType != PacketDataType.micEOld) {
+      return aprsPacket.comment.trim();
+    }
+    return '';
   }
 
   // ---------------------------------------------------------------------------
@@ -769,16 +823,19 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 
     final time = _toDateTime(entry['time']);
     final point = LatLng(lat, lng);
+    final text = entry['text'];
+    final lastMessage = text is String ? text.trim() : '';
 
     final existing = _voiceStations[source];
     if (existing != null) {
-      existing.update(point, time);
+      existing.update(point, time, lastMessage: lastMessage);
     } else {
       _voiceStations[source] = _StationMarkerData(
         callsign: source,
         position: point,
         time: time,
         isSelf: false,
+        lastMessage: lastMessage,
       );
     }
     return true;
@@ -1767,12 +1824,61 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   Widget _wrapStationMenu(_StationMarkerData station, Widget child) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      onTapUp: (d) => _selectStationFromTap(d.globalPosition, station),
       onSecondaryTapUp: (d) =>
           _showStationContextMenu(d.globalPosition, station),
       onLongPressStart: (d) =>
           _showStationContextMenu(d.globalPosition, station),
       child: child,
     );
+  }
+
+  /// Selects the tapped station for the info overlay. When several stations
+  /// overlap at the same spot, a picker is shown first so the user can choose
+  /// which one's card to display.
+  void _selectStationFromTap(
+    Offset globalPosition,
+    _StationMarkerData station,
+  ) {
+    final near = _stationsNear(station);
+    if (near.length > 1) {
+      _showStationPicker(globalPosition, near);
+    } else {
+      setState(() => _selectedStationCallsign = station.callsign);
+    }
+  }
+
+  /// Lists the stations overlapping at the tapped spot; picking one shows its
+  /// info overlay at the bottom of the map.
+  Future<void> _showStationPicker(
+    Offset globalPosition,
+    List<_StationMarkerData> stations,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final selected = await showMenu<_StationMarkerData>(
+      context: context,
+      position: _menuPositionAt(globalPosition),
+      items: [
+        PopupMenuItem<_StationMarkerData>(
+          enabled: false,
+          height: 28,
+          child: Text(
+            l10n.mapStationsHere,
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ),
+        const PopupMenuDivider(height: 8),
+        for (final s in stations)
+          PopupMenuItem<_StationMarkerData>(
+            value: s,
+            height: 36,
+            child: Text(s.callsign),
+          ),
+      ],
+    );
+    if (selected != null && mounted) {
+      setState(() => _selectedStationCallsign = selected.callsign);
+    }
   }
 
   /// Returns every currently-visible callsign station (APRS + voice/BSS) whose
@@ -2039,6 +2145,200 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     _mapController.move(station.position, targetZoom);
   }
 
+  /// The station whose info overlay is currently shown, looked up live from the
+  /// APRS and voice/BSS marker sets so a removed or renamed station simply
+  /// stops being displayed. Null when nothing is selected.
+  _StationMarkerData? get _selectedStation {
+    final callsign = _selectedStationCallsign;
+    if (callsign == null) return null;
+    return _aprsStations[callsign] ?? _voiceStations[callsign];
+  }
+
+  /// Great-circle initial bearing from [from] to [to], normalised to 0..360°.
+  double _bearingBetween(LatLng from, LatLng to) {
+    final lat1 = from.latitudeInRad;
+    final lat2 = to.latitudeInRad;
+    final dLon = (to.longitude - from.longitude) * math.pi / 180.0;
+    final y = math.sin(dLon) * math.cos(lat2);
+    final x = math.cos(lat1) * math.sin(lat2) -
+        math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
+    return (math.atan2(y, x) * 180.0 / math.pi + 360.0) % 360.0;
+  }
+
+  /// Maps a compass bearing in degrees to an 8-point direction label.
+  String _compass8(double degrees) {
+    const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    return dirs[(((degrees + 22.5) ~/ 45)) % 8];
+  }
+
+  /// Formats a distance in metres as both kilometres and miles.
+  String _formatDistanceShort(double meters) {
+    final km = meters / 1000.0;
+    final miles = meters / 1609.344;
+    final kmText = km < 10
+        ? '${km.toStringAsFixed(2)} km'
+        : '${km.toStringAsFixed(1)} km';
+    final miText = miles < 10
+        ? '${miles.toStringAsFixed(2)} mi'
+        : '${miles.toStringAsFixed(1)} mi';
+    return '$kmText  •  $miText';
+  }
+
+  /// Category colour for a callsign station: blue for our own station, orange
+  /// for voice/BSS sources, red for everything else. Matches the map markers.
+  Color _stationColor(_StationMarkerData station) {
+    if (identical(_voiceStations[station.callsign], station)) {
+      return Colors.orange;
+    }
+    return station.isSelf ? Colors.blue : Colors.red;
+  }
+
+  /// Small thumbnail for the info card: the station's APRS symbol inside a
+  /// theme-aware chip when it has a renderable symbol, otherwise a coloured
+  /// location pin.
+  Widget _buildStationThumbnail(_StationMarkerData station, Color color) {
+    const double size = 34;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color chipBg = isDark ? const Color(0xFF262626) : Colors.white;
+    final Color symbolFg = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final symbol = station.symbolCode.isNotEmpty
+        ? aprsSymbolFor(station.symbolTable, station.symbolCode)
+        : null;
+    if (symbol != null && symbol.hasVisual) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: chipBg,
+          shape: BoxShape.circle,
+          border: Border.all(color: color, width: 1.5),
+        ),
+        child: Center(
+          child: aprsSymbolWidgetFor(
+            station.symbolTable,
+            station.symbolCode,
+            size: size * 0.66,
+            color: symbolFg,
+            haloColor: chipBg,
+          ),
+        ),
+      );
+    }
+    return Icon(Icons.location_pin, color: color, size: size);
+  }
+
+  /// Bottom overlay describing the tapped station: its callsign, position
+  /// relative to us (distance + compass bearing when our own location is
+  /// known), the last comment/status text it beaconed, and when it was last
+  /// heard. Mirrors the RepeaterBook map's info card.
+  Widget _buildStationInfoCard(_StationMarkerData station) {
+    final scheme = Theme.of(context).colorScheme;
+    final own = _ownPosition;
+    String? relative;
+    if (own != null && !station.isSelf) {
+      final meters =
+          const Distance().as(LengthUnit.Meter, own, station.position);
+      final compass = _compass8(_bearingBetween(own, station.position));
+      relative = '$compass  •  ${_formatDistanceShort(meters)}';
+    }
+    final lastMessage = station.lastMessage.trim();
+    return Positioned(
+      left: 8,
+      right: 8,
+      bottom: 8,
+      child: Card(
+        margin: EdgeInsets.zero,
+        color: scheme.surface.withValues(alpha: 0.95),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+          child: Row(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: _buildStationThumbnail(
+                  station,
+                  _stationColor(station),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      station.callsign,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (relative != null)
+                      Row(
+                        children: [
+                          Icon(Icons.near_me,
+                              size: 13, color: scheme.onSurfaceVariant),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              relative,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (lastMessage.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          lastMessage,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurface,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        _formatTime(station.time),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!station.isSelf)
+                IconButton(
+                  tooltip: 'Message',
+                  icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                  onPressed: () => _messageStation(station),
+                ),
+              IconButton(
+                tooltip: 'Center on map',
+                icon: const Icon(Icons.center_focus_strong, size: 20),
+                onPressed: () => _centerOnStation(station),
+              ),
+              IconButton(
+                tooltip: 'Close',
+                icon: const Icon(Icons.close, size: 20),
+                onPressed: () =>
+                    setState(() => _selectedStationCallsign = null),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Builds an APRS symbol marker: the station's symbol drawn inside a small
   /// rounded chip (theme-aware background) sitting on top of a coloured spike
   /// whose pointed tip marks the exact position. The [spikeColor] carries the
@@ -2267,6 +2567,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                     flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                   ),
                   onPositionChanged: _onMapPositionChanged,
+                  onTap: (_, _) {
+                    if (_selectedStationCallsign != null) {
+                      setState(() => _selectedStationCallsign = null);
+                    }
+                  },
                 ),
                 children: [
                   // Map tiles. Online: fetched from OpenStreetMap and cached to
@@ -2521,6 +2826,10 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                   ),
                 ),
               ],
+              // Selected-station info overlay (bottom), showing the station's
+              // relative position and last beaconed text.
+              if (_selectedStation != null)
+                _buildStationInfoCard(_selectedStation!),
             ],
           ),
         ),
