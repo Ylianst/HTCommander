@@ -5,6 +5,8 @@ See http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../radio/radio_models.dart';
@@ -98,6 +100,10 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
   int? _selectedResultIndex;
   int? _selectedSlotId;
 
+  /// When true the results area is replaced by a map of the search results.
+  bool _showMap = false;
+  final MapController _mapController = MapController();
+
   RepeaterBookClient? _client;
 
   @override
@@ -117,6 +123,7 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
   @override
   void dispose() {
     _client?.close();
+    _mapController.dispose();
     super.dispose();
   }
 
@@ -202,6 +209,11 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
             : '${mapped.length} repeater(s) found.';
         _statusIsError = false;
       });
+
+      // Reframe the map on the new results when it is the active view.
+      if (_showMap) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _fitMapToResults());
+      }
     } on RepeaterBookException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -281,7 +293,18 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
         : 'RepeaterBook';
 
     return AlertDialog(
-      title: Text(title),
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(title, overflow: TextOverflow.ellipsis),
+          ),
+          IconButton(
+            tooltip: _showMap ? 'Show channel imports' : 'Show stations on map',
+            icon: Icon(_showMap ? Icons.view_list_outlined : Icons.map_outlined),
+            onPressed: _toggleMap,
+          ),
+        ],
+      ),
       contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       content: SizedBox(
         width: 660,
@@ -303,14 +326,16 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
                 ),
               ),
             Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: _buildResultsColumn()),
-                  _buildMoveButtons(),
-                  Expanded(child: _buildRadioColumn()),
-                ],
-              ),
+              child: _showMap
+                  ? _buildMap()
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: _buildResultsColumn()),
+                        _buildMoveButtons(),
+                        Expanded(child: _buildRadioColumn()),
+                      ],
+                    ),
             ),
             const SizedBox(height: 4),
             Align(
@@ -404,6 +429,235 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
       _city = result.city;
     });
     await _search();
+  }
+
+  // --- Map -------------------------------------------------------------------
+
+  void _toggleMap() {
+    setState(() => _showMap = !_showMap);
+    // The map is (re)built with an initial camera fit, but refit once it has a
+    // size in case results changed while it was hidden.
+    if (_showMap) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fitMapToResults());
+    }
+  }
+
+  /// The map points for the current results that carry coordinates.
+  List<LatLng> get _resultPoints {
+    final points = <LatLng>[];
+    for (final rc in _results) {
+      final lat = rc.source.latitude;
+      final lon = rc.source.longitude;
+      if (lat != null && lon != null) points.add(LatLng(lat, lon));
+    }
+    return points;
+  }
+
+  /// A camera that frames every mapped result, or null when there are none.
+  CameraFit? _resultsCameraFit() {
+    final points = _resultPoints;
+    if (points.isEmpty) return null;
+    return CameraFit.bounds(
+      bounds: LatLngBounds.fromPoints(points),
+      padding: const EdgeInsets.all(48),
+      maxZoom: 13,
+    );
+  }
+
+  void _fitMapToResults() {
+    final fit = _resultsCameraFit();
+    if (fit == null) return;
+    _mapController.fitCamera(fit);
+  }
+
+  void _zoomIn() {
+    final currentZoom = _mapController.camera.zoom;
+    if (currentZoom < 18) {
+      _mapController.move(_mapController.camera.center, currentZoom + 1);
+    }
+  }
+
+  void _zoomOut() {
+    final currentZoom = _mapController.camera.zoom;
+    if (currentZoom > 2) {
+      _mapController.move(_mapController.camera.center, currentZoom - 1);
+    }
+  }
+
+  Widget _buildZoomButton(String label, VoidCallback onPressed) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          padding: EdgeInsets.zero,
+          backgroundColor: scheme.surface,
+          foregroundColor: scheme.onSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMap() {
+    final scheme = Theme.of(context).colorScheme;
+
+    final markers = <Marker>[];
+    for (int i = 0; i < _results.length; i++) {
+      final r = _results[i].source;
+      final lat = r.latitude;
+      final lon = r.longitude;
+      if (lat == null || lon == null) continue;
+      final selected = _selectedResultIndex == i;
+      markers.add(
+        Marker(
+          point: LatLng(lat, lon),
+          width: 40,
+          height: 40,
+          alignment: Alignment.topCenter,
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedResultIndex = i),
+            child: Icon(
+              Icons.location_on,
+              size: selected ? 40 : 30,
+              color: selected ? scheme.primary : scheme.error,
+              shadows: const [Shadow(blurRadius: 2, color: Colors.black45)],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Fall back to the operator's location, then a world view, when no result
+    // has coordinates yet.
+    final initialCenter = _resultPoints.isNotEmpty
+        ? _resultPoints.first
+        : (_hasLocation
+            ? LatLng(widget.currentLat!, widget.currentLon!)
+            : const LatLng(20, 0));
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: Stack(
+        children: [
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: initialCenter,
+              initialZoom: _resultPoints.isEmpty ? 2 : 10,
+              initialCameraFit: _resultsCameraFit(),
+              onTap: (_, _) => setState(() => _selectedResultIndex = null),
+            ),
+            children: [
+              TileLayer(
+                urlTemplate:
+                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.meshcentral.htcommander',
+              ),
+              MarkerLayer(markers: markers),
+            ],
+          ),
+          // Zoom buttons overlay (top-left), matching the APRS map.
+          Positioned(
+            left: 10,
+            top: 10,
+            child: Column(
+              children: [
+                _buildZoomButton('+', _zoomIn),
+                const SizedBox(height: 4),
+                _buildZoomButton('−', _zoomOut),
+              ],
+            ),
+          ),
+          if (markers.isEmpty)
+            Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: scheme.surface.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  _searching
+                      ? 'Searching…'
+                      : 'Search to see stations on the map.',
+                  style: TextStyle(color: scheme.onSurface),
+                ),
+              ),
+            ),
+          if (_selectedResultIndex != null &&
+              _selectedResultIndex! < _results.length)
+            _buildMapInfoCard(_results[_selectedResultIndex!]),
+        ],
+      ),
+    );
+  }
+
+  /// A small banner shown over the map naming the tapped station.
+  Widget _buildMapInfoCard(_ResultChannel rc) {
+    final scheme = Theme.of(context).colorScheme;
+    final name =
+        rc.channel.name.isNotEmpty ? rc.channel.name : (rc.source.callsign);
+    final freq = rc.channel.rxFreq > 0
+        ? '${(rc.channel.rxFreq / 1000000).toStringAsFixed(3)} MHz'
+        : null;
+    final subtitle = _resultSubtitle(rc);
+    return Positioned(
+      left: 8,
+      right: 8,
+      bottom: 8,
+      child: Card(
+        margin: EdgeInsets.zero,
+        color: scheme.surface.withValues(alpha: 0.95),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      name.isEmpty ? 'Repeater' : name,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (freq != null || subtitle != null)
+                      Text(
+                        [?freq, ?subtitle].join('  •  '),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Details',
+                icon: const Icon(Icons.info_outline, size: 20),
+                onPressed: () =>
+                    showChannelDetailsDialog(context, channel: rc.channel),
+              ),
+              IconButton(
+                tooltip: 'Close',
+                icon: const Icon(Icons.close, size: 20),
+                onPressed: () => setState(() => _selectedResultIndex = null),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildResultsColumn() {
