@@ -223,17 +223,39 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
         }
         return []
     }
-    
+
+    // Known compatible radio device-name keywords. Used as a FALLBACK when the
+    // vendor "BS AOC" SDP service record is not present in the OS's cached SDP
+    // database for a paired device. macOS does not always keep that vendor
+    // record cached (it may never have been queried, or the cache is stale),
+    // which otherwise makes an already-paired, fully working radio invisible.
+    // See GitHub issue #35.
+    private static let targetDeviceNames = [
+        "UV-PRO", "UV-50PRO", "GA-5WB", "VR-N75", "VR-N76", "VR-N7500", "VR-N7600", "DB50-B",
+        "WP-C1", "HT-CH1", "QUANSHENG", "VR-N", "SA-888S", "HG-UV98", "UV-98",
+        "HAM-AIO", "VR-6600PRO", "TH-UV88", "3B01B", "E1WPR", "PNI-HP98WP"
+    ]
+
+    private func nameMatchesKnownRadio(_ name: String) -> Bool {
+        return Self.targetDeviceNames.contains { pattern in
+            name.localizedCaseInsensitiveContains(pattern)
+        }
+    }
+
     private func findCompatibleDevices() -> [[String: Any]] {
         var compatibleDevices: [[String: Any]] = []
         var seenAddresses: Set<String> = []
         
         guard let pairedDevices = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else {
+            NSLog("[BT-Classic] findCompatibleDevices: IOBluetoothDevice.pairedDevices() returned nil")
             return compatibleDevices
         }
+
+        NSLog("[BT-Classic] findCompatibleDevices: \(pairedDevices.count) paired device(s) reported by OS")
         
         for device in pairedDevices {
             guard let name = device.name, let address = device.addressString else {
+                NSLog("[BT-Classic] skipping paired device with missing name/address")
                 continue
             }
             
@@ -244,21 +266,31 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
                 continue
             }
             
-            // Identify the radio by its unique vendor SDP service UUID rather
-            // than by name, which can change across rebrands / OS stacks.
+            // Identify the radio primarily by its unique vendor SDP service
+            // UUID. Fall back to a known product-name match when that SDP record
+            // is not cached by the OS, so already-paired radios are not lost
+            // (see GitHub issue #35).
             let radioUuids = radioServiceUuids(for: device)
-            
-            if !radioUuids.isEmpty {
+            let nameMatch = nameMatchesKnownRadio(name)
+
+            NSLog("[BT-Classic] paired \"\(name)\" (\(normalizedAddress)) connected=\(device.isConnected()) sdpMatch=\(!radioUuids.isEmpty) nameMatch=\(nameMatch)")
+
+            if !radioUuids.isEmpty || nameMatch {
                 seenAddresses.insert(normalizedAddress)
                 compatibleDevices.append([
                     "name": name,
                     "address": normalizedAddress,
                     "isPaired": true,
                     "isConnected": device.isConnected(),
-                    "serviceUuids": radioUuids
+                    // Always advertise the canonical radio UUID so the rest of
+                    // the app treats this as a compatible radio even when it was
+                    // matched by name only (missing SDP record).
+                    "serviceUuids": radioUuids.isEmpty ? [Self.radioServiceUuidString] : radioUuids
                 ])
             }
         }
+
+        NSLog("[BT-Classic] findCompatibleDevices: \(compatibleDevices.count) compatible radio(s) identified")
         
         return compatibleDevices
     }

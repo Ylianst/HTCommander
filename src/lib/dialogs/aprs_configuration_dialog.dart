@@ -122,10 +122,7 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        l10n.acfgIntro,
-                        style: DialogStyles.bodyStyle,
-                      ),
+                      Text(l10n.acfgIntro, style: DialogStyles.bodyStyle),
                       const SizedBox(height: 6),
                       InkWell(
                         onTap: _openAprsOrg,
@@ -149,10 +146,7 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    l10n.acfgConfiguration,
-                    style: DialogStyles.labelStyle,
-                  ),
+                  Text(l10n.acfgConfiguration, style: DialogStyles.labelStyle),
                   const SizedBox(height: 12),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,7 +167,7 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
                           children: [
                             TextField(
                               controller: _freqController,
-                              maxLength: 6,
+                              maxLength: 7,
                               keyboardType:
                                   const TextInputType.numberWithOptions(
                                     decimal: true,
@@ -222,8 +216,10 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
                         width: 90,
                         child: Padding(
                           padding: const EdgeInsets.only(top: 10),
-                          child: Text(l10n.packetsColChannel,
-                              style: DialogStyles.bodyStyle),
+                          child: Text(
+                            l10n.packetsColChannel,
+                            style: DialogStyles.bodyStyle,
+                          ),
                         ),
                       ),
                       Expanded(

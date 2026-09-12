@@ -331,6 +331,18 @@ class AppLocalizationsPl extends AppLocalizations {
   String get stateUnableToConnect => 'Nie można połączyć';
 
   @override
+  String get radioCannotConnectTitle =>
+      'Nie można połączyć się z radiotelefonem';
+
+  @override
+  String get radioCannotConnectBody =>
+      'Przysuń radiotelefon bliżej i spróbuj ponownie. Upewnij się również, że radiotelefon nie jest już połączony z innym urządzeniem lub aplikacją. Jeśli jest, rozłącz go tam przed ponownym połączeniem w HTCommander.';
+
+  @override
+  String get radioCannotConnectImageDescription =>
+      'Ikona połączonego radiotelefonu i przycisk rozłączania w aplikacji producenta';
+
+  @override
   String get stateAccessDenied => 'Odmowa dostępu';
 
   @override

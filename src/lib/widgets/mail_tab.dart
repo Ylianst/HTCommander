@@ -8,8 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'tab_visibility.dart';
 import 'contact_avatar.dart';
-import '../dialogs/mail_compose_dialog.dart';
-import '../dialogs/mail_viewer_dialog.dart';
+import 'mail_compose_view.dart';
+import 'mail_viewer_view.dart';
 import '../dialogs/mail_debug_dialog.dart';
 import '../dialogs/active_station_selector_dialog.dart';
 import '../dialogs/add_station_dialog.dart';
@@ -57,6 +57,10 @@ class Mailbox {
   int get unreadCount => messages.where((m) => !m.isRead).length;
 }
 
+/// Which content the Mail tab currently shows: the mailbox/list view, a
+/// full-tab read-only message viewer, or the full-tab compose/edit editor.
+enum _MailView { list, view, compose }
+
 /// Mail tab - email/messaging functionality
 class MailTab extends StatefulWidget {
   const MailTab({super.key});
@@ -65,7 +69,8 @@ class MailTab extends StatefulWidget {
   State<MailTab> createState() => _MailTabState();
 }
 
-class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
+class _MailTabState extends State<MailTab>
+    with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   String _selectedMailbox = 'Inbox';
   int? _selectedMailIndex;
   bool _showPreview = true;
@@ -74,6 +79,26 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
   double _previewHeightRatio = 0.45; // Preview takes 45% of available height
   static const double _minPreviewRatio = 0.15;
   static const double _maxPreviewRatio = 0.75;
+
+  // Which content the tab shows: the list, the full-tab viewer, or the
+  // full-tab compose editor. Viewing and composing take over the whole tab
+  // (with a back arrow) instead of opening a dialog.
+  _MailView _view = _MailView.list;
+
+  // Compose editor parameters, set when entering compose mode. When
+  // [_composeReplaceId] is non-null the composed message replaces an existing
+  // Draft/Outbox message instead of adding a new one.
+  bool _composeIsEdit = false;
+  String? _composeReplaceId;
+  String _composeInitialTo = '';
+  String _composeInitialCc = '';
+  String _composeInitialSubject = '';
+  String _composeInitialBody = '';
+  List<ComposedAttachment> _composeInitialAttachments = const [];
+  // Recreated on every compose entry so the editor starts from fresh state and
+  // so a tab re-selection can ask it to save a draft before leaving.
+  GlobalKey<MailComposeViewState> _composeKey =
+      GlobalKey<MailComposeViewState>();
 
   // When the tab is narrow the mailbox tree is hidden and mailbox selection is
   // moved into the overflow menu instead.
@@ -123,11 +148,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
       name: 'MailStoreReady',
       callback: _onMailsChanged,
     );
-    _broker.subscribe(
-      deviceId: 0,
-      name: 'MailList',
-      callback: _onMailList,
-    );
+    _broker.subscribe(deviceId: 0, name: 'MailList', callback: _onMailList);
     _broker.subscribe(
       deviceId: 1,
       name: 'WinlinkStateMessage',
@@ -147,6 +168,13 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
       deviceId: 0,
       name: 'Stations',
       callback: _onStationsChanged,
+    );
+    // Re-tapping the Winlink/Mail tab while it is already active returns the
+    // view to the mailbox list (saving a draft first when composing).
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MailShowList',
+      callback: _onShowListRequested,
     );
     _loadStations();
     // Pick up any status that was already set before this tab was built.
@@ -301,10 +329,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
 
   /// The display name in the first address of a header (`Name <addr>`), or null.
   String? _displayNameFromHeader(String header) {
-    final first = header.split(RegExp(r'[;,]')).firstWhere(
-          (e) => e.trim().isNotEmpty,
-          orElse: () => '',
-        );
+    final first = header
+        .split(RegExp(r'[;,]'))
+        .firstWhere((e) => e.trim().isNotEmpty, orElse: () => '');
     final lt = first.indexOf('<');
     if (lt > 0) {
       final name = first.substring(0, lt).trim().replaceAll('"', '');
@@ -496,6 +523,17 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
     final count = _currentMessages.length;
     if (count == 0) return KeyEventResult.ignored;
 
+    // Enter opens the selected message full-tab (matching a double-tap).
+    if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+      final m = _selectedMail;
+      if (m != null) {
+        _onOpenMail(m);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
     int page = 10;
     if (_mailScrollController.hasClients) {
       final viewport = _mailScrollController.position.viewportDimension;
@@ -549,9 +587,58 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
     }
   }
 
-  void _onNewMail() async {
-    final result = await showMailComposeDialog(context);
-    if (result != null) _addComposedMail(result);
+  void _onNewMail() {
+    _enterCompose();
+  }
+
+  /// Enters the full-tab compose editor with the given initial content. When
+  /// [replaceId] is set the editor edits an existing Draft/Outbox message.
+  void _enterCompose({
+    bool isEdit = false,
+    String? replaceId,
+    String to = '',
+    String cc = '',
+    String subject = '',
+    String body = '',
+    List<ComposedAttachment> attachments = const [],
+  }) {
+    setState(() {
+      _composeIsEdit = isEdit;
+      _composeReplaceId = replaceId;
+      _composeInitialTo = to;
+      _composeInitialCc = cc;
+      _composeInitialSubject = subject;
+      _composeInitialBody = body;
+      _composeInitialAttachments = attachments;
+      _composeKey = GlobalKey<MailComposeViewState>();
+      _view = _MailView.compose;
+    });
+  }
+
+  /// The user pressed Send in the compose editor: queue the message in the
+  /// Outbox (or update the edited message) and return to the list.
+  void _onComposeSend(ComposedMail mail) {
+    _addComposedMail(mail, replaceId: _composeReplaceId);
+    setState(() => _view = _MailView.list);
+  }
+
+  /// The user left the compose editor via the back arrow (or a tab
+  /// re-selection). A non-null [draft] is saved to the Draft mailbox.
+  void _onComposeExit(ComposedMail? draft) {
+    if (draft != null) _addComposedMail(draft, replaceId: _composeReplaceId);
+    setState(() => _view = _MailView.list);
+  }
+
+  /// Returns the tab to the mailbox list. When composing, the editor is asked
+  /// to save a draft first (mirrors the back-arrow behaviour).
+  void _onShowListRequested(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    if (_view == _MailView.compose) {
+      // Delegates to the editor so any in-progress message is kept as a draft.
+      _composeKey.currentState?.exitSavingDraft();
+    } else if (_view == _MailView.view) {
+      setState(() => _view = _MailView.list);
+    }
   }
 
   /// Adds (or updates) a composed message in the MailStore. Messages go to the
@@ -724,32 +811,28 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
   String _replySubject(MailMessage m) =>
       m.subject.startsWith('Re: ') ? m.subject : 'Re: ${m.subject}';
 
-  void _onReply() async {
+  void _onReply() {
     final m = _selectedMail;
     if (m == null) return;
-    final result = await showMailComposeDialog(
-      context,
-      initialTo: m.from,
-      initialSubject: _replySubject(m),
-      initialBody: _quotedReplyBody(m),
+    _enterCompose(
+      to: m.from,
+      subject: _replySubject(m),
+      body: _quotedReplyBody(m),
     );
-    if (result != null) _addComposedMail(result);
   }
 
-  void _onReplyAll() async {
+  void _onReplyAll() {
     final m = _selectedMail;
     if (m == null) return;
-    final result = await showMailComposeDialog(
-      context,
-      initialTo: m.from,
-      initialCc: m.cc,
-      initialSubject: _replySubject(m),
-      initialBody: _quotedReplyBody(m),
+    _enterCompose(
+      to: m.from,
+      cc: m.cc,
+      subject: _replySubject(m),
+      body: _quotedReplyBody(m),
     );
-    if (result != null) _addComposedMail(result);
   }
 
-  void _onForward() async {
+  void _onForward() {
     final m = _selectedMail;
     if (m == null) return;
     final subject = m.subject.startsWith('Fwd: ')
@@ -762,13 +845,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
         'Date: ${m.time.toLocal()}\n'
         'Subject: ${m.subject}\n\n'
         '${m.body}';
-    final result = await showMailComposeDialog(
-      context,
-      initialSubject: subject,
-      initialBody: body,
-      initialAttachments: _composeAttachmentsFor(m.id),
+    _enterCompose(
+      subject: subject,
+      body: body,
+      attachments: _composeAttachmentsFor(m.id),
     );
-    if (result != null) _addComposedMail(result);
   }
 
   /// Builds compose attachments from a raw mail's stored attachments, used when
@@ -839,44 +920,22 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
     );
   }
 
-  void _onOpenMail(MailMessage m) async {
+  void _onOpenMail(MailMessage m) {
     final isEditable =
         _selectedMailbox == 'Draft' || _selectedMailbox == 'Outbox';
     if (isEditable) {
-      final result = await showMailComposeDialog(
-        context,
+      _enterCompose(
         isEdit: true,
-        initialTo: m.to,
-        initialCc: m.cc,
-        initialSubject: m.subject,
-        initialBody: m.body,
-        initialAttachments: _composeAttachmentsFor(m.id),
-      );
-      if (result != null) _addComposedMail(result, replaceId: m.id);
-    } else {
-      _markRead(m);
-      final station = _matchedStationForMail(m);
-      await showMailViewerDialog(
-        context,
-        from: m.from,
+        replaceId: m.id,
         to: m.to,
         cc: m.cc,
-        time: m.time,
         subject: m.subject,
         body: m.body,
-        attachments: _viewerAttachmentsFor(m.id),
-        avatarCallsign: station?.callsign,
-        avatarIcon: station?.avatarIcon,
-        avatarImage: station?.avatarImage,
-        onAvatarTap: station == null ? null : () => _editContact(station),
-        onAddContact: station != null || !_canAddContactForMail(m)
-            ? null
-            : () => _addContactForMail(m),
-        onReply: _onReply,
-        onReplyAll: _onReplyAll,
-        onForward: _onForward,
-        onDelete: _onDelete,
+        attachments: _composeAttachmentsFor(m.id),
       );
+    } else {
+      _markRead(m);
+      setState(() => _view = _MailView.view);
     }
   }
 
@@ -897,9 +956,7 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
     final confirmed = await DialogHelper.showConfirmDialog(
       context,
       title: inTrash ? l10n.mailDeleteTitle : l10n.mailMoveToTrashTitle,
-      message: inTrash
-          ? l10n.mailDeletePermanent
-          : l10n.mailMoveToTrashPrompt,
+      message: inTrash ? l10n.mailDeletePermanent : l10n.mailMoveToTrashPrompt,
       okText: inTrash ? l10n.commonDelete : l10n.mailMove,
     );
     if (!confirmed) return;
@@ -918,7 +975,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
         store: false,
       );
     }
-    setState(() => _selectedMailIndex = null);
+    setState(() {
+      _selectedMailIndex = null;
+      _view = _MailView.list;
+    });
   }
 
   /// Shows a right-click context menu for a mail row with common actions.
@@ -1126,7 +1186,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
           height: menuItemHeight,
           padding: menuItemPadding,
           child: Row(
-            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).mailBackup)],
+            children: [
+              const SizedBox(width: 20),
+              Text(AppLocalizations.of(context).mailBackup),
+            ],
           ),
         ),
         PopupMenuItem<String>(
@@ -1134,7 +1197,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
           height: menuItemHeight,
           padding: menuItemPadding,
           child: Row(
-            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).mailRestore)],
+            children: [
+              const SizedBox(width: 20),
+              Text(AppLocalizations.of(context).mailRestore),
+            ],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -1143,7 +1209,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
           height: menuItemHeight,
           padding: menuItemPadding,
           child: Row(
-            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).mailShowTraffic)],
+            children: [
+              const SizedBox(width: 20),
+              Text(AppLocalizations.of(context).mailShowTraffic),
+            ],
           ),
         ),
         if (windowService.canDetach) ...[
@@ -1153,7 +1222,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
             height: menuItemHeight,
             padding: menuItemPadding,
             child: Row(
-              children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).tabDetach)],
+              children: [
+                const SizedBox(width: 20),
+                Text(AppLocalizations.of(context).tabDetach),
+              ],
             ),
           ),
         ],
@@ -1383,36 +1455,100 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
         _isCompact = constraints.maxWidth < _compactWidthThreshold;
         return Column(
           children: [
-            _buildHeader(),
-            Expanded(
-              child: _showPreview
-                  ? LayoutBuilder(
-                      builder: (context, constraints) {
-                        final totalHeight = constraints.maxHeight;
-                        final previewHeight = totalHeight * _previewHeightRatio;
-                        final listHeight =
-                            totalHeight - previewHeight - 8; // 8 for splitter
-                        return Column(
-                          children: [
-                            SizedBox(
-                              height: listHeight,
-                              child: _buildMailListArea(),
-                            ),
-                            _buildSplitter(totalHeight),
-                            SizedBox(
-                              height: previewHeight,
-                              child: _buildPreviewArea(),
-                            ),
-                          ],
-                        );
-                      },
-                    )
-                  : _buildMailListArea(),
-            ),
+            Expanded(child: _buildContent()),
             _buildStatusPanel(),
           ],
         );
       },
+    );
+  }
+
+  /// Selects the content shown in the tab body: the mailbox list, the full-tab
+  /// viewer, or the full-tab compose editor. Viewer/compose bring their own
+  /// header (with a back arrow); the list keeps the toolbar header.
+  Widget _buildContent() {
+    switch (_view) {
+      case _MailView.compose:
+        return MailComposeView(
+          key: _composeKey,
+          isEdit: _composeIsEdit,
+          initialTo: _composeInitialTo,
+          initialCc: _composeInitialCc,
+          initialSubject: _composeInitialSubject,
+          initialBody: _composeInitialBody,
+          initialAttachments: _composeInitialAttachments,
+          onSend: _onComposeSend,
+          onExit: _onComposeExit,
+        );
+      case _MailView.view:
+        final mail = _selectedMail;
+        if (mail != null) return _buildViewerContent(mail);
+        // Selection was lost (e.g. the list reloaded); fall back to the list.
+        return _buildListContent();
+      case _MailView.list:
+        return _buildListContent();
+    }
+  }
+
+  Widget _buildListContent() {
+    return Column(
+      children: [
+        _buildHeader(),
+        Expanded(
+          child: _showPreview
+              ? LayoutBuilder(
+                  builder: (context, constraints) {
+                    final totalHeight = constraints.maxHeight;
+                    final previewHeight = totalHeight * _previewHeightRatio;
+                    final listHeight =
+                        totalHeight - previewHeight - 8; // 8 for splitter
+                    return Column(
+                      children: [
+                        SizedBox(
+                          height: listHeight,
+                          child: _buildMailListArea(),
+                        ),
+                        _buildSplitter(totalHeight),
+                        SizedBox(
+                          height: previewHeight,
+                          child: _buildPreviewArea(),
+                        ),
+                      ],
+                    );
+                  },
+                )
+              : _buildMailListArea(),
+        ),
+      ],
+    );
+  }
+
+  /// Builds the full-tab read-only viewer for [mail].
+  Widget _buildViewerContent(MailMessage mail) {
+    final scheme = Theme.of(context).colorScheme;
+    final station = _matchedStationForMail(mail);
+    // Reuse the preview pane's corner-triangle avatar (or add-contact
+    // affordance), shown at the top-right of the message.
+    Widget? corner;
+    if (station != null) {
+      corner = _buildPreviewAvatar(station, scheme);
+    } else if (_canAddContactForMail(mail)) {
+      corner = _buildPreviewAddContact(mail, scheme);
+    }
+    return MailViewerView(
+      from: mail.from,
+      to: mail.to,
+      cc: mail.cc,
+      time: mail.time,
+      subject: mail.subject,
+      body: mail.body,
+      attachments: _viewerAttachmentsFor(mail.id),
+      cornerOverlay: corner,
+      onReply: _onReply,
+      onReplyAll: _onReplyAll,
+      onForward: _onForward,
+      onDelete: _onDelete,
+      onBack: () => setState(() => _view = _MailView.list),
     );
   }
 
@@ -1585,7 +1721,10 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
               else
                 Text(
                   AppLocalizations.of(context).tabMail,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               const Spacer(),
               if (showButtons) ...[
@@ -1681,7 +1820,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
                 color: isSelected ? scheme.primaryContainer : null,
                 child: Row(
                   children: [
-                    Icon(mailbox.icon, size: 20, color: scheme.onSurfaceVariant),
+                    Icon(
+                      mailbox.icon,
+                      size: 20,
+                      color: scheme.onSurfaceVariant,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -1826,7 +1969,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
       ),
       child: Row(
         children: [
-          _buildColumnHeader(AppLocalizations.of(context).mailColTime, 0, flex: 2),
+          _buildColumnHeader(
+            AppLocalizations.of(context).mailColTime,
+            0,
+            flex: 2,
+          ),
           _buildColumnHeader(
             _showRecipientColumn
                 ? AppLocalizations.of(context).mailColTo
@@ -1834,7 +1981,11 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
             1,
             flex: 2,
           ),
-          _buildColumnHeader(AppLocalizations.of(context).mailColSubject, 2, flex: 3),
+          _buildColumnHeader(
+            AppLocalizations.of(context).mailColSubject,
+            2,
+            flex: 3,
+          ),
         ],
       ),
     );
@@ -2014,12 +2165,12 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
           ),
           // Preview content
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(12),
-              child: SelectionArea(
-                child: Stack(
-                  children: [
-                    Column(
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(12),
+                  child: SelectionArea(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
@@ -2047,21 +2198,22 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
                         Text(mail.body),
                       ],
                     ),
-                    if (previewStation != null)
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: _buildPreviewAvatar(previewStation, scheme),
-                      )
-                    else if (_canAddContactForMail(mail))
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: _buildPreviewAddContact(mail, scheme),
-                      ),
-                  ],
+                  ),
                 ),
-              ),
+                // Flush to the toolbar (top) and the tabs bar (right).
+                if (previewStation != null)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: _buildPreviewAvatar(previewStation, scheme),
+                  )
+                else if (_canAddContactForMail(mail))
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: _buildPreviewAddContact(mail, scheme),
+                  ),
+              ],
             ),
           ),
         ],
@@ -2082,7 +2234,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
           Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(
-                painter: _MailCornerTrianglePainter(scheme.surfaceContainerHigh),
+                painter: _MailCornerTrianglePainter(
+                  scheme.surfaceContainerHigh,
+                ),
               ),
             ),
           ),
@@ -2123,7 +2277,9 @@ class _MailTabState extends State<MailTab> with AutomaticKeepAliveClientMixin, T
           Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(
-                painter: _MailCornerTrianglePainter(scheme.surfaceContainerHigh),
+                painter: _MailCornerTrianglePainter(
+                  scheme.surfaceContainerHigh,
+                ),
               ),
             ),
           ),

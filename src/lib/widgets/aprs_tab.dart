@@ -112,7 +112,8 @@ class AprsTab extends StatefulWidget {
   State<AprsTab> createState() => _AprsTabState();
 }
 
-class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
+class _AprsTabState extends State<AprsTab>
+    with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   static const int _aprsDeviceId = 1;
 
   /// Bubble tint for packets gated in from the APRS-IS internet service. A
@@ -198,8 +199,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     _aprsIsEnabled = (_broker.getValue<int>(0, 'AprsIsEnabled', 0) ?? 0) != 0;
     _showAllMessages =
         (_broker.getValue<int>(0, 'AprsShowTelemetry', 0) ?? 0) != 0;
-    _showAprsIs =
-      (_broker.getValue<int>(0, 'AprsShowAprsIs', 1) ?? 1) != 0;
+    _showAprsIs = (_broker.getValue<int>(0, 'AprsShowAprsIs', 1) ?? 1) != 0;
     _selectedRouteIndex = _broker.getValue<int>(0, 'SelectedAprsRoute', 0) ?? 0;
     _parseAndSetRoutes(_broker.getValue<String>(0, 'AprsRoutes', '') ?? '');
     final savedDest = _broker.getValue<String>(0, 'AprsDestination', '') ?? '';
@@ -370,7 +370,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     if (pendingOpen.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _onOpenConversationRequested(
-            _aprsDeviceId, 'AprsOpenConversation', pendingOpen);
+          _aprsDeviceId,
+          'AprsOpenConversation',
+          pendingOpen,
+        );
       });
     }
   }
@@ -414,8 +417,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     if (raw is List) {
       for (final item in raw) {
         if (item is! Map<String, dynamic>) continue;
-        final id =
-            (item['Callsign'] ?? item['callsign'] ?? '').toString().trim();
+        final id = (item['Callsign'] ?? item['callsign'] ?? '')
+            .toString()
+            .trim();
         if (id.isEmpty) continue;
         final typeRaw = item['StationType'] ?? item['stationType'];
         final typeStr = '$typeRaw'.toLowerCase();
@@ -946,7 +950,8 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     // Traffic relayed inside a third-party header (e.g. an IGate gating an
     // internet message onto RF) carries the IGate as the AX.25 source. Use the
     // original sender parsed from that header so the "from" field is correct.
-    final thirdPartySource = aprsPacket.thirdPartySourceCallsign?.stationCallsign;
+    final thirdPartySource =
+        aprsPacket.thirdPartySourceCallsign?.stationCallsign;
     if (thirdPartySource != null && thirdPartySource.isNotEmpty) {
       senderCallsign = thirdPartySource;
       routingString = thirdPartySource;
@@ -1245,7 +1250,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         ),
         child: Text(
           AppLocalizations.of(context).aprsDropShare,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
@@ -1493,28 +1501,36 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
         items.add(AprsDetailItem('Humidity', '${wx.humidity}%'));
       }
       if (wx.barometricPressure != null) {
-        items.add(AprsDetailItem(
-          'Pressure',
-          '${wx.barometricPressure!.toStringAsFixed(1)} mb',
-        ));
+        items.add(
+          AprsDetailItem(
+            'Pressure',
+            '${wx.barometricPressure!.toStringAsFixed(1)} mb',
+          ),
+        );
       }
       if (wx.rainLastHour != null) {
-        items.add(AprsDetailItem(
-          'Rain (1h)',
-          '${(wx.rainLastHour! / 100).toStringAsFixed(2)} in',
-        ));
+        items.add(
+          AprsDetailItem(
+            'Rain (1h)',
+            '${(wx.rainLastHour! / 100).toStringAsFixed(2)} in',
+          ),
+        );
       }
       if (wx.rainLast24Hours != null) {
-        items.add(AprsDetailItem(
-          'Rain (24h)',
-          '${(wx.rainLast24Hours! / 100).toStringAsFixed(2)} in',
-        ));
+        items.add(
+          AprsDetailItem(
+            'Rain (24h)',
+            '${(wx.rainLast24Hours! / 100).toStringAsFixed(2)} in',
+          ),
+        );
       }
       if (wx.rainSinceMidnight != null) {
-        items.add(AprsDetailItem(
-          'Rain (since midnight)',
-          '${(wx.rainSinceMidnight! / 100).toStringAsFixed(2)} in',
-        ));
+        items.add(
+          AprsDetailItem(
+            'Rain (since midnight)',
+            '${(wx.rainSinceMidnight! / 100).toStringAsFixed(2)} in',
+          ),
+        );
       }
       if (wx.snowLast24Hours != null) {
         items.add(AprsDetailItem('Snow (24h)', '${wx.snowLast24Hours} in'));
@@ -1528,13 +1544,17 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     if (tlm != null && tlm.hasData) {
       items.add(AprsDetailItem('Telemetry Seq', tlm.sequence.toString()));
       for (var c = 0; c < tlm.analog.length; c++) {
-        items.add(AprsDetailItem('Telemetry Ch${c + 1}', tlm.analog[c].toString()));
+        items.add(
+          AprsDetailItem('Telemetry Ch${c + 1}', tlm.analog[c].toString()),
+        );
       }
       if (tlm.binaryBits != null) {
-        items.add(AprsDetailItem(
-          'Telemetry Binary',
-          tlm.binary.map((b) => b ? '1' : '0').join(),
-        ));
+        items.add(
+          AprsDetailItem(
+            'Telemetry Binary',
+            tlm.binary.map((b) => b ? '1' : '0').join(),
+          ),
+        );
       }
     }
 
@@ -1810,7 +1830,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     final confirmed = await DialogHelper.showConfirmDialog(
       context,
       title: l10n.aprsClearTitle,
-      message: inConversation ? l10n.aprsClearContactPrompt : l10n.aprsClearPrompt,
+      message: inConversation
+          ? l10n.aprsClearContactPrompt
+          : l10n.aprsClearPrompt,
       okText: l10n.tabClear,
     );
     if (!confirmed || !mounted) return;
@@ -1819,8 +1841,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     if (inConversation) {
       final peer = _selectedContact;
       setState(() {
-        _entries.removeWhere((e) =>
-            e.peerCallsign != null && e.peerCallsign!.toUpperCase() == peer);
+        _entries.removeWhere(
+          (e) =>
+              e.peerCallsign != null && e.peerCallsign!.toUpperCase() == peer,
+        );
       });
       _rebuildMessages();
       return;
@@ -1892,7 +1916,12 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           value: 'sendSms',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _allowTransmit && (_hasAprsChannel || _aprsIsTransmitAvailable || _isAprsSatActive) && (!_isRadioLockedForOtherUsage || _isAprsSatActive),
+          enabled:
+              _allowTransmit &&
+              (_hasAprsChannel ||
+                  _aprsIsTransmitAvailable ||
+                  _isAprsSatActive) &&
+              (!_isRadioLockedForOtherUsage || _isAprsSatActive),
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.aprsSendSms)],
           ),
@@ -1901,7 +1930,12 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           value: 'weatherReport',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _allowTransmit && (_hasAprsChannel || _aprsIsTransmitAvailable || _isAprsSatActive) && (!_isRadioLockedForOtherUsage || _isAprsSatActive),
+          enabled:
+              _allowTransmit &&
+              (_hasAprsChannel ||
+                  _aprsIsTransmitAvailable ||
+                  _isAprsSatActive) &&
+              (!_isRadioLockedForOtherUsage || _isAprsSatActive),
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.aprsWeatherReport)],
           ),
@@ -1913,7 +1947,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           padding: menuItemPadding,
           enabled: _hasFullyConnectedRadio(),
           child: Row(
-            children: [const SizedBox(width: 20), Text(l10n.aprsBeaconSettingsMenu)],
+            children: [
+              const SizedBox(width: 20),
+              Text(l10n.aprsBeaconSettingsMenu),
+            ],
           ),
         ),
         PopupMenuItem<String>(
@@ -1921,17 +1958,22 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           height: menuItemHeight,
           padding: menuItemPadding,
           child: Row(
-            children: [const SizedBox(width: 20), Text(l10n.aprsSoftwareBeaconMenu)],
+            children: [
+              const SizedBox(width: 20),
+              Text(l10n.aprsSoftwareBeaconMenu),
+            ],
           ),
         ),
         PopupMenuItem<String>(
           value: 'digipeater',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled:
-              _hasFullyConnectedRadio() && !_isRadioLockedForOtherUsage,
+          enabled: _hasFullyConnectedRadio() && !_isRadioLockedForOtherUsage,
           child: Row(
-            children: [const SizedBox(width: 20), Text(l10n.aprsDigipeaterMenu)],
+            children: [
+              const SizedBox(width: 20),
+              Text(l10n.aprsDigipeaterMenu),
+            ],
           ),
         ),
         const PopupMenuDivider(height: 8),
@@ -1941,7 +1983,9 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           padding: menuItemPadding,
           // Nothing to clear while viewing the conversation list.
           enabled: _viewAllMessages || _selectedContact != null,
-          child: Row(children: [const SizedBox(width: 20), Text(l10n.tabClear)]),
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.tabClear)],
+          ),
         ),
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
@@ -2098,7 +2142,6 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     );
   }
 
-
   // ---------------------------------------------------------------------------
   // Messenger mode
   // ---------------------------------------------------------------------------
@@ -2178,14 +2221,14 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       final sid = isSms ? _digitsOnly(s.callsign) : s.callsign.toUpperCase();
       if (sid != callsign) continue;
       existing = s;
-      final preferred =
-          isSms ? StationType.sms : StationType.aprs;
+      final preferred = isSms ? StationType.sms : StationType.aprs;
       if (s.stationType == preferred) break;
     }
 
     final result = await showStationDialog(
       context,
-      existing: existing ??
+      existing:
+          existing ??
           StationInfo(
             callsign: callsign,
             stationType: isSms ? StationType.sms : StationType.aprs,
@@ -2254,13 +2297,15 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     final conversations = <_AprsConversation>[];
     for (final entry in byPeer.entries) {
       final e = entry.value;
-      conversations.add(_AprsConversation(
-        callsign: entry.key,
-        name: _contactNames[entry.key],
-        lastMessage: e.messageText.trim(),
-        lastTime: e.time,
-        lastFromMe: e.sender,
-      ));
+      conversations.add(
+        _AprsConversation(
+          callsign: entry.key,
+          name: _contactNames[entry.key],
+          lastMessage: e.messageText.trim(),
+          lastTime: e.time,
+          lastFromMe: e.sender,
+        ),
+      );
     }
     conversations.sort((a, b) => b.lastTime!.compareTo(a.lastTime!));
 
@@ -2269,17 +2314,21 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
     final extras = <_AprsConversation>[];
     for (final id in _addressBookIds) {
       if (existingKeys.contains(id)) continue;
-      extras.add(_AprsConversation(
-        callsign: id,
-        name: _contactNames[id],
-        lastMessage: '',
-        lastTime: null,
-        lastFromMe: false,
-      ));
+      extras.add(
+        _AprsConversation(
+          callsign: id,
+          name: _contactNames[id],
+          lastMessage: '',
+          lastTime: null,
+          lastFromMe: false,
+        ),
+      );
     }
-    extras.sort((a, b) => _contactDisplayName(a.callsign)
-        .toLowerCase()
-        .compareTo(_contactDisplayName(b.callsign).toLowerCase()));
+    extras.sort(
+      (a, b) => _contactDisplayName(
+        a.callsign,
+      ).toLowerCase().compareTo(_contactDisplayName(b.callsign).toLowerCase()),
+    );
 
     return [...conversations, ...extras];
   }
@@ -2337,10 +2386,12 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
                     onPressed: null,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      disabledBackgroundColor:
-                          Theme.of(context).colorScheme.primary,
-                      disabledForegroundColor:
-                          Theme.of(context).colorScheme.onPrimary,
+                      disabledBackgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.primary,
+                      disabledForegroundColor: Theme.of(
+                        context,
+                      ).colorScheme.onPrimary,
                     ),
                     child: Text(l10n.aprsAddContact),
                   ),
@@ -2412,10 +2463,7 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
   /// Opens the add-station dialog (locked to [type]) and persists the new
   /// contact to the address book.
   Future<void> _openAddContact(StationType type) async {
-    final station = await showStationDialog(
-      context,
-      fixedType: type,
-    );
+    final station = await showStationDialog(context, fixedType: type);
     if (station == null || !mounted) return;
     final raw = _broker.getValueDynamic(0, 'Stations', null);
     final stations = <StationInfo>[];
@@ -2490,12 +2538,19 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          Icon(Icons.warning_amber, color: scheme.onSecondaryContainer, size: 20),
+          Icon(
+            Icons.warning_amber,
+            color: scheme.onSecondaryContainer,
+            size: 20,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               AppLocalizations.of(context).aprsMissingChannel,
-              style: TextStyle(color: scheme.onSecondaryContainer, fontSize: 13),
+              style: TextStyle(
+                color: scheme.onSecondaryContainer,
+                fontSize: 13,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -2535,7 +2590,10 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
           Expanded(
             child: Text(
               AppLocalizations.of(context).aprsMissingRoute(routeName),
-              style: TextStyle(color: scheme.onSecondaryContainer, fontSize: 13),
+              style: TextStyle(
+                color: scheme.onSecondaryContainer,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -2643,27 +2701,50 @@ class _AprsTabState extends State<AprsTab> with AutomaticKeepAliveClientMixin, T
               : AppLocalizations.of(context).tabAprs;
           return Row(
             children: [
+              // The back arrow and the title share one wide hit box on the left
+              // so the whole left side of the title bar returns to the list.
               if (inContent)
-                InkWell(
-                  onTap: _closeConversation,
-                  borderRadius: BorderRadius.circular(4),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.arrow_back, size: 20),
+                Expanded(
+                  child: InkWell(
+                    onTap: _closeConversation,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(Icons.arrow_back, size: 20),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              if (inContent) const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
               const SizedBox(width: 8),
               // Beacon active indicator - opens beacon settings on tap.
               if (_beaconInterval > 0) _buildBeaconIcon(),
@@ -2882,4 +2963,3 @@ class _CornerTrianglePainter extends CustomPainter {
   @override
   bool shouldRepaint(_CornerTrianglePainter old) => old.color != color;
 }
-

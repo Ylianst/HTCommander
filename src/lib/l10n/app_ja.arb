@@ -129,6 +129,9 @@
   "stateConnecting": "接続中...",
   "stateConnected": "接続済み",
   "stateUnableToConnect": "接続できません",
+  "radioCannotConnectTitle": "無線機に接続できません",
+  "radioCannotConnectBody": "無線機を近づけて、もう一度お試しください。また、無線機が別のデバイスやアプリケーションに接続されていないことを確認してください。接続されている場合は、HTCommander で再接続する前に、そちらで接続を解除してください。",
+  "radioCannotConnectImageDescription": "メーカーのアプリにある無線機の接続済みアイコンと切断ボタン",
   "stateAccessDenied": "アクセスが拒否されました",
   "stateSelectRadio": "無線機を選択",
 

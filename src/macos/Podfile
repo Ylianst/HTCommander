@@ -1,4 +1,7 @@
-platform :osx, '12.0'
+# Bundled onnxruntime (via sherpa_onnx_macos) links CoreML's MLComputePlan,
+# which only exists on macOS 15.0+. Building for anything lower crashes at
+# launch with a dyld "Symbol missing" abort, so 15.0 is the hard floor.
+platform :osx, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -40,11 +43,11 @@ post_install do |installer|
     flutter_additional_macos_build_settings(target)
     target.build_configurations.each do |config|
       # Some pods (e.g. libserialport) declare an outdated macOS deployment
-      # target (10.11). Force them to match the project minimum (10.15) to
-      # silence the "deployment target is set to 10.11" build warning.
+      # target. Force them to match the project minimum (15.0) to silence the
+      # "deployment target is set to ..." build warning.
       current = config.build_settings['MACOSX_DEPLOYMENT_TARGET']
-      if current.nil? || current.to_f < 10.15
-        config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '10.15'
+      if current.nil? || current.to_f < 15.0
+        config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '15.0'
       end
     end
   end

@@ -323,10 +323,10 @@ class WinLinkMail {
             }
             break;
           case 'to':
-            currentMail.to = value;
+            currentMail.to = _appendRecipient(currentMail.to, value);
             break;
           case 'cc':
-            currentMail.cc = value;
+            currentMail.cc = _appendRecipient(currentMail.cc, value);
             break;
           case 'from':
             currentMail.from = value;
@@ -435,130 +435,143 @@ class WinLinkMail {
     return mail;
   }
 
-  // Serialize a list of mails to a plain text format
-  static String serialize(List<WinLinkMail> mails) {
-    final sb = StringBuffer();
-    for (final mail in mails) {
-      sb.writeln('Mail:');
-      sb.writeln('MID=${mail.mid}');
-      sb.writeln('Time=${mail.dateTime.toIso8601String()}');
-      if (_notEmpty(mail.from)) sb.writeln('From=${mail.from}');
-      if (_notEmpty(mail.to)) sb.writeln('To=${mail.to}');
-      if (_notEmpty(mail.cc)) sb.writeln('Cc=${mail.cc}');
-      sb.writeln('Subject=${mail.subject}');
-      if (_notEmpty(mail.mbo)) sb.writeln('Mbo=${mail.mbo}');
-      sb.writeln('Body=${_escapeString(mail.body)}');
-      if (_notEmpty(mail.tag)) sb.writeln('Tag=${mail.tag}');
-      if (_notEmpty(mail.location)) sb.writeln('Tag=${mail.location}');
-      if (mail.flags != 0) sb.writeln('Flags=${mail.flags}');
-      if (_notEmpty(mail.mailbox)) sb.writeln('Mailbox=${mail.mailbox}');
-      if (mail.attachments != null) {
-        for (final attachement in mail.attachments!) {
-          sb.writeln('File=${attachement.name}');
-          sb.writeln('FileData=${base64.encode(attachement.data)}');
+  // Serializes a list of mails to a JSON array. Replaces the previous
+  // line-oriented text format, which could not round-trip multiline bodies
+  // (a body newline was escaped as a backslash followed by a real newline,
+  // and reload only kept the first physical line of the body).
+  static String serialize(List<WinLinkMail> mails) =>
+      jsonEncode(mails.map((m) => m.toJson()).toList());
+
+  // Deserializes a mail list. Reads the current JSON format and transparently
+  // falls back to the legacy text format so mail stored by older versions is
+  // recovered (including multiline bodies preserved as escaped continuations).
+  static List<WinLinkMail> deserialize(String data) {
+    final trimmed = data.trimLeft();
+    if (trimmed.startsWith('[')) {
+      try {
+        final decoded = jsonDecode(data);
+        if (decoded is List) {
+          return decoded
+              .whereType<Map>()
+              .map((m) => fromJson(m.cast<String, dynamic>()))
+              .toList();
         }
+      } catch (_) {
+        // Not valid JSON after all - fall back to the legacy text parser.
       }
-      sb.writeln(); // Separate entries with a blank line
     }
-    return sb.toString();
+    return _deserializeLegacyText(data);
   }
 
-  // Deserialize a plain text format into a list of WinLinkMail objects
-  static List<WinLinkMail> deserialize(String data) {
+  // Parses the legacy line-oriented text format. Physical lines belonging to an
+  // escaped (backslash-continued) body value are rejoined before parsing so the
+  // full body is recovered instead of just its first line.
+  static List<WinLinkMail> _deserializeLegacyText(String data) {
+    final normalized = data.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final physical = normalized.split('\n');
+
+    // Rejoin physical lines whose value ends with an escaped newline (an odd
+    // number of trailing backslashes means the final backslash escapes it).
+    final logical = <String>[];
+    int idx = 0;
+    while (idx < physical.length) {
+      var line = physical[idx++];
+      while (_endsWithOddBackslashes(line) && idx < physical.length) {
+        line = '$line\n${physical[idx++]}';
+      }
+      logical.add(line);
+    }
+
     final mails = <WinLinkMail>[];
     WinLinkMail? currentMail;
-
     String? fileName;
-    final lines = data
-        .split(RegExp(r'[\n\r]'))
-        .where((l) => l.isNotEmpty)
-        .toList();
-    for (final line in lines) {
-      final trimmedLine = line.trim();
-      if (trimmedLine == 'Mail:') {
+    for (final line in logical) {
+      if (line.trim() == 'Mail:') {
         if (currentMail != null) {
           if (!_notEmpty(currentMail.mid)) currentMail.mid = generateMID();
           mails.add(currentMail);
         }
         currentMail = WinLinkMail();
-      } else if (currentMail != null) {
-        final i = trimmedLine.indexOf('=');
-        if (i > 0) {
-          final key = trimmedLine.substring(0, i).trim();
-          final value = trimmedLine.substring(i + 1).trim();
+        continue;
+      }
+      if (currentMail == null) continue;
+      final i = line.indexOf('=');
+      if (i <= 0) continue;
+      final key = line.substring(0, i).trim();
+      // The body keeps its raw (still-escaped) value so newlines survive; all
+      // other fields are single-line and safe to trim.
+      final rawValue = line.substring(i + 1);
+      final value = rawValue.trim();
 
-          switch (key) {
-            case 'MID':
-              currentMail.mid = value;
-              break;
-            case 'Time':
-              currentMail.dateTime = DateTime.parse(value);
-              break;
-            case 'From':
-              currentMail.from = value;
-              break;
-            case 'To':
-              currentMail.to = value;
-              break;
-            case 'Cc':
-              currentMail.cc = value;
-              break;
-            case 'Subject':
-              currentMail.subject = value;
-              break;
-            case 'Mbo':
-              currentMail.mbo = value;
-              break;
-            case 'Body':
-              currentMail.body = _unescapeString(value);
-              break;
-            case 'Tag':
-              currentMail.tag = value;
-              break;
-            case 'Location':
-              currentMail.location = value;
-              break;
-            case 'Flags':
-              currentMail.flags = int.parse(value);
-              break;
-            case 'Mailbox':
-              // Support both old integer format and new string format
-              final mailboxIndex = int.tryParse(value);
-              if (mailboxIndex != null) {
-                // Convert old integer to string name
-                const defaultMailboxes = [
-                  'Inbox',
-                  'Outbox',
-                  'Draft',
-                  'Sent',
-                  'Archive',
-                  'Trash',
-                ];
-                currentMail.mailbox =
-                    (mailboxIndex >= 0 &&
-                        mailboxIndex < defaultMailboxes.length)
-                    ? defaultMailboxes[mailboxIndex]
-                    : 'Inbox';
-              } else {
-                currentMail.mailbox = value;
-              }
-              break;
-            case 'File':
-              fileName = value;
-              break;
-            case 'FileData':
-              if (_notEmpty(fileName)) {
-                currentMail.attachments ??= <WinLinkMailAttachement>[];
-                final attachement = WinLinkMailAttachement(
-                  name: fileName!,
-                  data: base64.decode(value),
-                );
-                currentMail.attachments!.add(attachement);
-                fileName = null;
-              }
-              break;
+      switch (key) {
+        case 'MID':
+          currentMail.mid = value;
+          break;
+        case 'Time':
+          currentMail.dateTime = DateTime.parse(value);
+          break;
+        case 'From':
+          currentMail.from = value;
+          break;
+        case 'To':
+          currentMail.to = value;
+          break;
+        case 'Cc':
+          currentMail.cc = value;
+          break;
+        case 'Subject':
+          currentMail.subject = value;
+          break;
+        case 'Mbo':
+          currentMail.mbo = value;
+          break;
+        case 'Body':
+          currentMail.body = _unescapeString(rawValue);
+          break;
+        case 'Tag':
+          currentMail.tag = value;
+          break;
+        case 'Location':
+          currentMail.location = value;
+          break;
+        case 'Flags':
+          currentMail.flags = int.parse(value);
+          break;
+        case 'Mailbox':
+          // Support both old integer format and new string format
+          final mailboxIndex = int.tryParse(value);
+          if (mailboxIndex != null) {
+            // Convert old integer to string name
+            const defaultMailboxes = [
+              'Inbox',
+              'Outbox',
+              'Draft',
+              'Sent',
+              'Archive',
+              'Trash',
+            ];
+            currentMail.mailbox =
+                (mailboxIndex >= 0 && mailboxIndex < defaultMailboxes.length)
+                ? defaultMailboxes[mailboxIndex]
+                : 'Inbox';
+          } else {
+            currentMail.mailbox = value;
           }
-        }
+          break;
+        case 'File':
+          fileName = value;
+          break;
+        case 'FileData':
+          if (_notEmpty(fileName)) {
+            currentMail.attachments ??= <WinLinkMailAttachement>[];
+            final attachement = WinLinkMailAttachement(
+              name: fileName!,
+              data: base64.decode(value),
+            );
+            currentMail.attachments!.add(attachement);
+            fileName = null;
+          }
+          break;
       }
     }
 
@@ -570,25 +583,20 @@ class WinLinkMail {
     return mails;
   }
 
-  static const String _fieldSeparator = ';';
-  static const String _recordSeparator = '\n';
   static const String _escapeCharacter = '\\';
 
-  static String? _escapeString(String? data) {
-    if (data == null || data.isEmpty) return data;
-
-    final sb = StringBuffer();
-    for (final c in data.split('')) {
-      if (c == _fieldSeparator ||
-          c == _recordSeparator ||
-          c == _escapeCharacter) {
-        sb.write(_escapeCharacter);
-        sb.write(c);
+  // True when [s] ends with an odd number of backslashes, i.e. the last one
+  // escapes the following newline in the legacy text format.
+  static bool _endsWithOddBackslashes(String s) {
+    int count = 0;
+    for (int i = s.length - 1; i >= 0; i--) {
+      if (s[i] == _escapeCharacter) {
+        count++;
       } else {
-        sb.write(c);
+        break;
       }
     }
-    return sb.toString();
+    return count.isOdd;
   }
 
   static String? _unescapeString(String? escapedData) {
@@ -675,6 +683,14 @@ class WinLinkMail {
   }
 
   static bool _notEmpty(String? s) => s != null && s.isNotEmpty;
+
+  // Appends a recipient to a semicolon-separated address list, used to merge
+  // the repeated To:/Cc: headers a Winlink message can carry into one field.
+  static String _appendRecipient(String? existing, String value) {
+    if (value.isEmpty) return existing ?? '';
+    if (existing == null || existing.isEmpty) return value;
+    return '$existing;$value';
+  }
 
   static String _formatDate(DateTime d) {
     String p2(int v) => v.toString().padLeft(2, '0');

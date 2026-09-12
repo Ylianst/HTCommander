@@ -129,6 +129,9 @@
   "stateConnecting": "Łączenie...",
   "stateConnected": "Połączono",
   "stateUnableToConnect": "Nie można połączyć",
+  "radioCannotConnectTitle": "Nie można połączyć się z radiotelefonem",
+  "radioCannotConnectBody": "Przysuń radiotelefon bliżej i spróbuj ponownie. Upewnij się również, że radiotelefon nie jest już połączony z innym urządzeniem lub aplikacją. Jeśli jest, rozłącz go tam przed ponownym połączeniem w HTCommander.",
+  "radioCannotConnectImageDescription": "Ikona połączonego radiotelefonu i przycisk rozłączania w aplikacji producenta",
   "stateAccessDenied": "Odmowa dostępu",
   "stateSelectRadio": "Wybierz radiotelefon",
 

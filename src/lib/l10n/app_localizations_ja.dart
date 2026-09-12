@@ -331,6 +331,17 @@ class AppLocalizationsJa extends AppLocalizations {
   String get stateUnableToConnect => '接続できません';
 
   @override
+  String get radioCannotConnectTitle => '無線機に接続できません';
+
+  @override
+  String get radioCannotConnectBody =>
+      '無線機を近づけて、もう一度お試しください。また、無線機が別のデバイスやアプリケーションに接続されていないことを確認してください。接続されている場合は、HTCommander で再接続する前に、そちらで接続を解除してください。';
+
+  @override
+  String get radioCannotConnectImageDescription =>
+      'メーカーのアプリにある無線機の接続済みアイコンと切断ボタン';
+
+  @override
   String get stateAccessDenied => 'アクセスが拒否されました';
 
   @override

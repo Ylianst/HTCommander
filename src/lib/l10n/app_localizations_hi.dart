@@ -331,6 +331,17 @@ class AppLocalizationsHi extends AppLocalizations {
   String get stateUnableToConnect => 'कनेक्ट करने में असमर्थ';
 
   @override
+  String get radioCannotConnectTitle => 'रेडियो से कनेक्ट नहीं हो सका';
+
+  @override
+  String get radioCannotConnectBody =>
+      'रेडियो को पास लाएँ और फिर से कोशिश करें। यह भी सुनिश्चित करें कि रेडियो पहले से किसी अन्य डिवाइस या ऐप से कनेक्ट न हो। अगर वह कनेक्ट है, तो HTCommander में दोबारा कनेक्ट करने से पहले वहाँ से उसे डिस्कनेक्ट करें।';
+
+  @override
+  String get radioCannotConnectImageDescription =>
+      'निर्माता के ऐप में रेडियो कनेक्ट होने का आइकन और डिस्कनेक्ट बटन';
+
+  @override
   String get stateAccessDenied => 'एक्सेस अस्वीकृत';
 
   @override

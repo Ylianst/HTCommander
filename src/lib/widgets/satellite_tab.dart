@@ -236,8 +236,11 @@ class _SatelliteTabState extends State<SatelliteTab> {
     if (!lock.isLocked) return;
     _lockStates[radioId] = lock;
     if (kSatelliteLockUsages.contains(lock.usage)) {
-      final marker =
-          DataBroker.getValue<Object?>(_deviceId, 'SatelliteTrackingMarker', null);
+      final marker = DataBroker.getValue<Object?>(
+        _deviceId,
+        'SatelliteTrackingMarker',
+        null,
+      );
       if (marker is Map) {
         _trackingNoradId = (marker['noradId'] as num?)?.toInt();
         _trackingUsageIndex = (marker['usageIndex'] as num?)?.toInt();
@@ -323,9 +326,7 @@ class _SatelliteTabState extends State<SatelliteTab> {
   /// The lock usage to claim for a given transponder: [kAprsSatLockUsage] for
   /// APRS/packet digipeater usages, [kSatelliteLockUsage] otherwise.
   String _lockUsageFor(SatelliteTransponder t) =>
-      t.usage.toLowerCase() == 'aprs'
-          ? kAprsSatLockUsage
-          : kSatelliteLockUsage;
+      t.usage.toLowerCase() == 'aprs' ? kAprsSatLockUsage : kSatelliteLockUsage;
 
   /// Stops satellite tracking: drops the radio back to normal mode and clears
   /// the Satellite usage lock.
@@ -594,20 +595,42 @@ class _SatelliteTabState extends State<SatelliteTab> {
       child: Row(
         children: [
           if (showBack)
-            InkWell(
-              onTap: () => setState(() => _narrowShowDetail = false),
-              borderRadius: BorderRadius.circular(4),
-              child: const Padding(
-                padding: EdgeInsets.all(4),
-                child: Icon(Icons.arrow_back, size: 20),
+            Expanded(
+              child: InkWell(
+                onTap: () => setState(() => _narrowShowDetail = false),
+                borderRadius: BorderRadius.circular(4),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.arrow_back, size: 20),
+                      ),
+                      SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Satellite',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
+            )
+          else ...[
+            const Text(
+              'Satellite',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
-          if (showBack) const SizedBox(width: 4),
-          Text(
-            'Satellite',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const Spacer(),
+            const Spacer(),
+          ],
           if (_satelliteActive)
             Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -1150,9 +1173,9 @@ class _SatelliteTabState extends State<SatelliteTab> {
       final String? note = _preferredRadioId < 0
           ? 'Select a radio to enable satellite tracking.'
           : _radioBusyOther
-              ? 'The selected radio is busy with '
-                  '${_preferredLock?.usage} and cannot track a satellite.'
-              : null;
+          ? 'The selected radio is busy with '
+                '${_preferredLock?.usage} and cannot track a satellite.'
+          : null;
       if (note != null) {
         blocks.add(
           Padding(
@@ -1198,7 +1221,8 @@ class _SatelliteTabState extends State<SatelliteTab> {
     final upCorr = t.correctedUplinkHz(rate);
     final tone = t.ctcssHz;
 
-    final active = _satelliteActive &&
+    final active =
+        _satelliteActive &&
         _trackingNoradId == t.noradId &&
         _trackingUsageIndex == index;
     // A usage can be tracked when a preferred radio is available, that radio is

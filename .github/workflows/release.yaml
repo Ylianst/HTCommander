@@ -5,9 +5,7 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
 
 env:
   BASE_URL: https://ylianst.github.io/HTCommander
@@ -25,7 +23,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       build_number: ${{ steps.version.outputs.build_number }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Extract version from tag
         id: version
@@ -44,7 +42,7 @@ jobs:
           echo "build_number=$buildNumber" >> $env:GITHUB_OUTPUT
           echo "Version: $version, Build: $buildNumber"
 
-      - uses: subosito/flutter-action@v2.23.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
 
@@ -78,7 +76,7 @@ jobs:
           if (Test-Path $dup) { Remove-Item -Recurse -Force $dup }
 
       - name: Sign Windows executable
-        uses: azure/trusted-signing-action@v0.4.0
+        uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -221,7 +219,7 @@ jobs:
           wix build installer.wxs -ext WixToolset.UI.wixext -arch ${{ matrix.wix_arch }} -o $msiOutput
 
       - name: Sign MSI installer
-        uses: azure/trusted-signing-action@v0.4.0
+        uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -263,13 +261,13 @@ jobs:
           if (Test-Path $srcZip) { Move-Item -Force $srcZip $dstZip }
 
       - name: Upload MSI
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: windows-msi-${{ matrix.arch }}
           path: HTCommander-${{ matrix.arch }}.msi
 
       - name: Upload update package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: windows-update-${{ matrix.arch }}
           path: src/dist/desktop_updater/releases/
@@ -293,7 +291,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       build_number: ${{ steps.version.outputs.build_number }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Extract version from tag
         id: version
@@ -310,7 +308,7 @@ jobs:
       # bootstrap downloads the correct arm64 Dart SDK and engine on first run.
       - name: Set up Flutter (x64)
         if: matrix.arch == 'x64'
-        uses: subosito/flutter-action@v2.23.0
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
 
@@ -512,7 +510,7 @@ jobs:
           ARCH=${{ matrix.appimagetool_arch }} ./appimagetool --no-appstream "$APPDIR" "htcommander-linux-${{ matrix.arch }}.AppImage"
 
       - name: Upload Linux packages
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux-packages-${{ matrix.arch }}
           path: |
@@ -548,7 +546,7 @@ jobs:
           if [ -f "$SRC_ZIP" ]; then mv -f "$SRC_ZIP" "$DST_ZIP"; fi
 
       - name: Upload update package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux-update-${{ matrix.arch }}
           path: src/dist/desktop_updater/releases/
@@ -559,7 +557,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       build_number: ${{ steps.version.outputs.build_number }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Extract version from tag
         id: version
@@ -570,7 +568,7 @@ jobs:
           echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION, Build: $BUILD_NUMBER"
 
-      - uses: subosito/flutter-action@v2.23.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
 
@@ -839,13 +837,13 @@ jobs:
           if [ -n "$SRC_ZIP" ] && [ -f "$SRC_ZIP" ]; then mv -f "$SRC_ZIP" "$DST_ZIP"; fi
 
       - name: Upload DMG
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: macos-dmg
           path: HTCommander.dmg
 
       - name: Upload update package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: macos-update
           path: src/dist/desktop_updater/releases/
@@ -856,7 +854,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       build_number: ${{ steps.version.outputs.build_number }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Extract version from tag
         id: version
@@ -867,12 +865,12 @@ jobs:
           echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION, Build: $BUILD_NUMBER"
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: 17
 
-      - uses: subosito/flutter-action@v2.23.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
 
@@ -915,13 +913,13 @@ jobs:
         run: rm -f key.properties app/upload-keystore.jks
 
       - name: Upload Android APK
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: android-apk
           path: HTCommander.apk
 
       - name: Upload Android AAB
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: android-aab
           path: htcommander-*.aab
@@ -929,9 +927,9 @@ jobs:
   build-web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: subosito/flutter-action@v2.23.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
 
@@ -944,7 +942,7 @@ jobs:
         run: flutter build web --release --base-href "/HTCommanderWeb/"
 
       - name: Upload Web artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: web-build
           path: src/build/web/
@@ -968,13 +966,17 @@ jobs:
   release:
     needs: [build-windows, build-linux, build-macos, build-android]
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: main
           fetch-depth: 0
 
-      - uses: subosito/flutter-action@v2.23.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
 
@@ -983,7 +985,7 @@ jobs:
         run: flutter pub get
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts/
 
@@ -1044,7 +1046,7 @@ jobs:
           cat dist/desktop_updater/app-archive.json
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           name: HTCommander ${{ github.ref_name }}
           generate_release_notes: true
@@ -1066,11 +1068,26 @@ jobs:
             artifacts/linux-update-arm64/**/*.zip
             artifacts/macos-update/**/*.zip
 
-      - name: Deploy update site to docs folder
+      - name: Stage update site in docs folder
         run: |
           cp -r src/dist/desktop_updater/* docs/
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/app-archive.json docs/releases/
-          git commit -m "Update desktop_updater artifacts for ${{ needs.build-windows.outputs.version }}" || echo "No changes to commit"
-          git push
+
+      - name: Create update site pull request
+        id: update-pr
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          commit-message: Update desktop_updater artifacts for ${{ needs.build-windows.outputs.version }}
+          branch: release/desktop-updater-${{ needs.build-windows.outputs.version }}
+          delete-branch: true
+          title: Update desktop_updater artifacts for ${{ needs.build-windows.outputs.version }}
+          body: Generated by the release workflow for `${{ github.ref_name }}`.
+          add-paths: |
+            docs/app-archive.json
+            docs/releases/
+
+      # Pull requests created with GITHUB_TOKEN do not emit pull_request events.
+      - name: Run required checks on update site pull request
+        if: steps.update-pr.outputs.pull-request-operation == 'created' || steps.update-pr.outputs.pull-request-operation == 'updated'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yaml --ref "${{ steps.update-pr.outputs.pull-request-branch }}"

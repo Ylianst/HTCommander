@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 3,
+  "packageId": "com.htcommander.app",
+  "appName": "htcommander",
+  "version": "0.1.71",
+  "buildNumber": 73,
+  "platform": "windows",
+  "channel": "stable",
+  "artifact": {
+    "kind": "zip",
+    "url": "https://github.com/Ylianst/HTCommander/releases/download/v0.1.71/htcommander-0.1.71-windows-x64.zip",
+    "sha256": "1ce691a301616d5d35353e9ac1f0cc6048634289da1ae9628e00b090b57c4bbd",
+    "length": 51981814
+  },
+  "install": {
+    "strategy": "wholeDirectoryReplace"
+  },
+  "minimumUpdaterVersion": "2.0.0",
+  "generatedAt": "2026-09-10T21:25:37.629343Z"
+}

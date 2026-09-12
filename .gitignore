@@ -5,3 +5,9 @@
 # The small release.json feed files under docs/releases are still tracked.
 /releases/
 docs/releases/**/*.zip
+
+# Crash reports exported from Xcode Organizer (dropped in the workspace root for
+# investigation). Never commit these.
+/*.xccrashpoint/
+/*.crash
+/*.ips

@@ -3,6 +3,9 @@ name: Build Linux
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-linux:
     runs-on: ${{ matrix.runner }}
@@ -20,7 +23,7 @@ jobs:
             rpm_arch: aarch64
             appimagetool_arch: aarch64
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Flutter publishes prebuilt SDK archives for x64 only, so the marketplace
       # action works for x64 but fails on arm64 ("Unable to determine Flutter
@@ -28,7 +31,7 @@ jobs:
       # bootstrap downloads the correct arm64 Dart SDK and engine on first run.
       - name: Set up Flutter (x64)
         if: matrix.arch == 'x64'
-        uses: subosito/flutter-action@v2.23.0
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
 
@@ -237,25 +240,25 @@ jobs:
           ARCH=${{ matrix.appimagetool_arch }} ./appimagetool --no-appstream "$APPDIR" "htcommander-linux-${{ matrix.arch }}.AppImage"
 
       - name: Upload tar.gz
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux-tar-gz-${{ matrix.arch }}
           path: htcommander-linux-${{ matrix.arch }}.tar.gz
 
       - name: Upload .deb
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux-deb-${{ matrix.arch }}
           path: htcommander-linux-${{ matrix.arch }}.deb
 
       - name: Upload .rpm
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux-rpm-${{ matrix.arch }}
           path: htcommander-linux-${{ matrix.arch }}.rpm
 
       - name: Upload AppImage
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux-appimage-${{ matrix.arch }}
           path: htcommander-linux-${{ matrix.arch }}.AppImage

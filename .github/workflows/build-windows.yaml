@@ -3,6 +3,9 @@ name: Build Windows
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-windows:
     runs-on: ${{ matrix.runner }}
@@ -13,9 +16,9 @@ jobs:
             runner: windows-latest
             wix_arch: x64
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: subosito/flutter-action@v2.23.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
 
@@ -49,7 +52,7 @@ jobs:
           if (Test-Path $dup) { Remove-Item -Recurse -Force $dup }
 
       - name: Sign Windows executable
-        uses: azure/trusted-signing-action@v0.4.0
+        uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -193,7 +196,7 @@ jobs:
           wix build installer.wxs -ext WixToolset.UI.wixext -arch ${{ matrix.wix_arch }} -o $msiOutput
 
       - name: Sign MSI installer
-        uses: azure/trusted-signing-action@v0.4.0
+        uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -208,7 +211,7 @@ jobs:
           timestamp-digest: SHA256
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: windows-build-${{ matrix.arch }}
           path: HTCommander-${{ matrix.arch }}.msi

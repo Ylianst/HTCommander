@@ -129,6 +129,9 @@
   "stateConnecting": "Conectando...",
   "stateConnected": "Conectado",
   "stateUnableToConnect": "No se puede conectar",
+  "radioCannotConnectTitle": "No se puede conectar a la radio",
+  "radioCannotConnectBody": "Acerque la radio y vuelva a intentarlo. Asegúrese también de que la radio no esté conectada a otro dispositivo o aplicación. Si lo está, desconéctela allí antes de volver a conectarla en HTCommander.",
+  "radioCannotConnectImageDescription": "El icono de radio conectada y el botón de desconexión en la aplicación del fabricante",
   "stateAccessDenied": "Acceso denegado",
   "stateSelectRadio": "Seleccionar una radio",
 

@@ -7,9 +7,6 @@ name: CI
 # would otherwise ship a half-translated locale.
 on:
   pull_request:
-    paths:
-      - 'src/**'
-      - '.github/workflows/ci.yaml'
   push:
     branches: [main, master]
     paths:
@@ -17,14 +14,17 @@ on:
       - '.github/workflows/ci.yaml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   analyze:
     name: Analyze & validate localizations
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: subosito/flutter-action@v2.23.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
 
