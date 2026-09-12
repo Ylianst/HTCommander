@@ -5794,6 +5794,18 @@ abstract class AppLocalizations {
   /// **'Invalid AX.25 address'**
   String get stationAx25Invalid;
 
+  /// No description provided for @stationAx25Path.
+  ///
+  /// In en, this message translates to:
+  /// **'Digipeater Path (e.g. RELAY-1,WIDE1-1)'**
+  String get stationAx25Path;
+
+  /// No description provided for @stationAx25PathInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid digipeater path (max 8 hops)'**
+  String get stationAx25PathInvalid;
+
   /// No description provided for @stationModem.
   ///
   /// In en, this message translates to:

@@ -1898,6 +1898,8 @@
   "stationTerminalProtocol": "Terminal Protocol",
   "stationAx25Destination": "AX.25 Destination (e.g. CALL-1)",
   "stationAx25Invalid": "Invalid AX.25 address",
+  "stationAx25Path": "Digipeater Path (e.g. RELAY-1,WIDE1-1)",
+  "stationAx25PathInvalid": "Invalid digipeater path (max 8 hops)",
   "stationModem": "Modem",
 
   "apdTitle": "APRS Packet Details",

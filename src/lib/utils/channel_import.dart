@@ -22,74 +22,154 @@ class ChannelImport {
   /// Parses the textual content of a CSV file into a list of channels.
   ///
   /// Returns an empty list if the content is empty, has no recognised header,
-  /// or contains no parseable channel rows. Individual rows that fail to parse
-  /// are skipped (mirroring the per-row try/catch in the C# code).
+  /// or contains no parseable channel rows. Individual rows that fail to parse,
+  /// carry an unsupported mode, or have no valid frequency are skipped so a
+  /// single bad row (or an unsupported digital channel such as D-STAR/Fusion)
+  /// never aborts the whole import.
   static List<RadioChannelInfo> parseChannelsFromCsv(String content) {
-    final lines = content
-        .replaceAll('\r\n', '\n')
-        .replaceAll('\r', '\n')
-        .split('\n');
-    if (lines.length < 2) return <RadioChannelInfo>[];
+    final rows = _parseCsvRows(content);
+    if (rows.length < 2) return <RadioChannelInfo>[];
 
-    // Build a header -> column index map from the first line.
-    final headerCells = lines.first.split(',');
+    // Build a header -> column index map from the first row.
+    final headerCells = rows.first;
     final headers = <String, int>{};
     for (int i = 0; i < headerCells.length; i++) {
       headers[_removeQuotes(headerCells[i].trim())] = i;
     }
 
-    final result = <RadioChannelInfo>[];
-
-    // Format 1: CHIRP
-    if (headers.containsKey('Location') &&
+    // Decide which layout this file uses from the header once, up front.
+    final isChirp =
+        headers.containsKey('Location') &&
         headers.containsKey('Name') &&
         headers.containsKey('Frequency') &&
-        headers.containsKey('Mode')) {
-      for (int i = 1; i < lines.length; i++) {
-        if (lines[i].trim().isEmpty) continue;
-        try {
-          final c = _parseChannel1(lines[i].split(','), headers);
-          if (c != null) result.add(c);
-        } catch (_) {
-          // Skip malformed rows.
-        }
-      }
-    }
-
-    // Format 2: Native HTCommander
-    if (headers.containsKey('title') &&
+        headers.containsKey('Mode');
+    final isNative =
+        headers.containsKey('title') &&
         headers.containsKey('tx_freq') &&
-        headers.containsKey('rx_freq')) {
-      for (int i = 1; i < lines.length; i++) {
-        if (lines[i].trim().isEmpty) continue;
-        try {
-          final c = _parseChannel2(lines[i].split(','), headers);
-          if (c != null) result.add(c);
-        } catch (_) {
-          // Skip malformed rows.
-        }
-      }
-    }
-
-    // Format 3: Repeater Book
-    if (headers.containsKey('Frequency Output') &&
+        headers.containsKey('rx_freq');
+    final isRepeaterBook =
+        headers.containsKey('Frequency Output') &&
         headers.containsKey('Frequency Input') &&
         headers.containsKey('Description') &&
         headers.containsKey('PL Output Tone') &&
         headers.containsKey('PL Input Tone') &&
-        headers.containsKey('Mode')) {
-      for (int i = 1; i < lines.length; i++) {
-        if (lines[i].trim().isEmpty) continue;
-        try {
-          final c = _parseChannel3(lines[i].split(','), headers);
-          if (c != null) result.add(c);
-        } catch (_) {
-          // Skip malformed rows.
+        headers.containsKey('Mode');
+
+    if (!isChirp && !isNative && !isRepeaterBook) {
+      return <RadioChannelInfo>[];
+    }
+
+    final result = <RadioChannelInfo>[];
+    for (int i = 1; i < rows.length; i++) {
+      final parts = rows[i];
+      // Skip blank lines (a lone empty field or an entirely empty row).
+      if (parts.every((c) => c.trim().isEmpty)) continue;
+      try {
+        RadioChannelInfo? c;
+        if (isChirp) {
+          c = _parseChannel1(parts, headers);
+        } else if (isNative) {
+          c = _parseChannel2(parts, headers);
+        } else {
+          c = _parseChannel3(parts, headers);
         }
+        if (c != null) result.add(c);
+      } catch (_) {
+        // Skip malformed rows rather than failing the whole import.
       }
     }
 
     return result;
+  }
+
+  /// Splits raw CSV text into rows of fields.
+  ///
+  /// Unlike a naive `split(',')` this understands the parts of the CSV spec
+  /// that appear in real CHIRP / spreadsheet exports and previously caused
+  /// whole files (or individual channels) to fail to import:
+  ///  * a leading UTF-8 byte-order mark (Excel/Notepad add one), which would
+  ///    otherwise corrupt the first header cell so no format is recognised;
+  ///  * quoted fields containing the delimiter or line breaks
+  ///    (e.g. a `"Name, with comma"` cell), with `""` as an escaped quote;
+  ///  * `,`, `;` or tab delimiters (spreadsheets re-save with `;` in some
+  ///    locales);
+  ///  * `\n`, `\r\n` and lone `\r` line endings.
+  static List<List<String>> _parseCsvRows(String content) {
+    // Strip a leading UTF-8 BOM if present.
+    if (content.isNotEmpty && content.codeUnitAt(0) == 0xFEFF) {
+      content = content.substring(1);
+    }
+
+    final delimiter = _detectDelimiter(content);
+    final rows = <List<String>>[];
+    var row = <String>[];
+    final field = StringBuffer();
+    bool inQuotes = false;
+
+    for (int i = 0; i < content.length; i++) {
+      final ch = content[i];
+      if (inQuotes) {
+        if (ch == '"') {
+          if (i + 1 < content.length && content[i + 1] == '"') {
+            field.write('"');
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          field.write(ch);
+        }
+      } else if (ch == '"') {
+        inQuotes = true;
+      } else if (ch == delimiter) {
+        row.add(field.toString());
+        field.clear();
+      } else if (ch == '\n' || ch == '\r') {
+        if (ch == '\r' && i + 1 < content.length && content[i + 1] == '\n') {
+          i++;
+        }
+        row.add(field.toString());
+        field.clear();
+        rows.add(row);
+        row = <String>[];
+      } else {
+        field.write(ch);
+      }
+    }
+
+    // Flush any trailing field / row not terminated by a line break.
+    if (field.isNotEmpty || row.isNotEmpty) {
+      row.add(field.toString());
+      rows.add(row);
+    }
+
+    return rows;
+  }
+
+  /// Picks the field delimiter from the header line, counting characters that
+  /// appear outside quotes. Defaults to a comma (the CHIRP standard).
+  static String _detectDelimiter(String content) {
+    final end = content.indexOf('\n');
+    final firstLine = end == -1 ? content : content.substring(0, end);
+    int commas = 0, semicolons = 0, tabs = 0;
+    bool inQuotes = false;
+    for (int i = 0; i < firstLine.length; i++) {
+      final ch = firstLine[i];
+      if (ch == '"') {
+        inQuotes = !inQuotes;
+      } else if (!inQuotes) {
+        if (ch == ',') {
+          commas++;
+        } else if (ch == ';') {
+          semicolons++;
+        } else if (ch == '\t') {
+          tabs++;
+        }
+      }
+    }
+    if (semicolons > commas && semicolons >= tabs) return ';';
+    if (tabs > commas && tabs > semicolons) return '\t';
+    return ',';
   }
 
   // --- Format 1: CHIRP -------------------------------------------------------
@@ -101,6 +181,8 @@ class ChannelImport {
     final name = _getValue(parts, headers, 'Name');
     final rxFreqMHz = _tryParseDouble(_getValue(parts, headers, 'Frequency'));
     final rxFreq = rxFreqMHz != null ? (rxFreqMHz * 1000000).round() : 0;
+    // An empty or unparseable frequency means the row has no usable channel.
+    if (rxFreq <= 0) return null;
 
     // --- Power level ---
     bool txAtMaxPower = true; // Default to High
@@ -124,14 +206,20 @@ class ChannelImport {
 
     // --- Frequency: duplex / offset / split ---
     int txFreq;
+    bool txDisable = false;
     final duplex = _getValue(parts, headers, 'Duplex');
     final offsetMHz = _tryParseDouble(_getValue(parts, headers, 'Offset'));
-    if (duplex.toLowerCase() == 'split' && offsetMHz != null) {
+    final dup = duplex.toLowerCase();
+    if (dup == 'split' && offsetMHz != null) {
       // 'Split' means the Offset column is the TX frequency in MHz.
       txFreq = (offsetMHz * 1000000).round();
     } else if ((duplex == '+' || duplex == '-') && offsetMHz != null) {
       final offsetHz = (offsetMHz * 1000000).round();
       txFreq = rxFreq + ((duplex == '+' ? 1 : -1) * offsetHz);
+    } else if (dup == 'off') {
+      // Receive-only channel: keep the RX frequency but disable transmit.
+      txFreq = rxFreq;
+      txDisable = true;
     } else {
       txFreq = rxFreq; // Simplex or missing duplex info.
     }
@@ -198,21 +286,29 @@ class ChannelImport {
     }
 
     // --- Mode and bandwidth ---
-    RadioModulationType mod = RadioModulationType.fm;
-    RadioBandwidthType bandwidth = RadioBandwidthType.wide;
+    // Only analog modes the radio can actually store are accepted. Digital or
+    // broadcast modes that a CHIRP CSV can name but this radio can't program
+    // (DMR, WFM broadcast, DV/D-STAR, DN/Fusion, P25, NXDN, ...) are skipped so
+    // the rest of the file still imports.
+    RadioModulationType mod;
+    RadioBandwidthType bandwidth;
     final mode = _getValue(parts, headers, 'Mode').toUpperCase();
-    if (mode == 'NFM') {
-      mod = RadioModulationType.fm;
-      bandwidth = RadioBandwidthType.narrow;
-    } else if (mode == 'FM') {
-      mod = RadioModulationType.fm;
-      bandwidth = RadioBandwidthType.wide;
-    } else if (mode == 'DMR') {
-      mod = RadioModulationType.dmr;
-      bandwidth = RadioBandwidthType.narrow;
-    } else if (mode == 'AM') {
-      mod = RadioModulationType.am;
-      bandwidth = RadioBandwidthType.wide;
+    switch (mode) {
+      case 'FM':
+        mod = RadioModulationType.fm;
+        bandwidth = RadioBandwidthType.wide;
+        break;
+      case 'NFM':
+      case 'FMN':
+        mod = RadioModulationType.fm;
+        bandwidth = RadioBandwidthType.narrow;
+        break;
+      case 'AM':
+        mod = RadioModulationType.am;
+        bandwidth = RadioBandwidthType.wide;
+        break;
+      default:
+        return null;
     }
 
     return RadioChannelInfo(
@@ -227,6 +323,7 @@ class ChannelImport {
       bandwidth: bandwidth,
       txAtMaxPower: txAtMaxPower,
       txAtMedPower: txAtMedPower,
+      txDisable: txDisable,
     );
   }
 
@@ -409,8 +506,16 @@ class ChannelImport {
   }
 
   static double? _tryParseDouble(String value) {
-    if (value.isEmpty) return null;
-    return double.tryParse(value.trim());
+    final v = value.trim();
+    if (v.isEmpty) return null;
+    final d = double.tryParse(v);
+    if (d != null) return d;
+    // Fallback for spreadsheets re-saved in locales that use a decimal comma
+    // (e.g. "443,100000"), which pairs with the ';' delimiter handled above.
+    if (v.contains(',') && !v.contains('.')) {
+      return double.tryParse(v.replaceAll(',', '.'));
+    }
+    return null;
   }
 
   static int? _tryParseInt(String value) {

@@ -3190,6 +3190,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get stationAx25Invalid => 'Dirección AX.25 no válida';
 
   @override
+  String get stationAx25Path => 'Ruta de digipeater (ej. RELAY-1,WIDE1-1)';
+
+  @override
+  String get stationAx25PathInvalid =>
+      'Ruta de digipeater no válida (máx. 8 saltos)';
+
+  @override
   String get stationModem => 'Módem';
 
   @override

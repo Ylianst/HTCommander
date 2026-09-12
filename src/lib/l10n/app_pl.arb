@@ -999,6 +999,8 @@
   "stationTerminalProtocol": "Protokół terminalowy",
   "stationAx25Destination": "Cel AX.25 (np. CALL-1)",
   "stationAx25Invalid": "Nieprawidłowy adres AX.25",
+  "stationAx25Path": "Ścieżka digipeatera (np. RELAY-1,WIDE1-1)",
+  "stationAx25PathInvalid": "Nieprawidłowa ścieżka digipeatera (maks. 8 przeskoków)",
   "stationModem": "Modem",
 
   "apdTitle": "Szczegóły pakietu APRS",

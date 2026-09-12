@@ -1241,6 +1241,23 @@ class AX25Session {
 
   // ---- frame reception ------------------------------------------------------
 
+  /// Builds the digipeater return path for a reply to an incoming [packet].
+  ///
+  /// A frame that reached us through one or more digipeaters carries them at
+  /// index 2+ in transmit order. To route our reply back through the same
+  /// gateways it must traverse them in the opposite order, so the list is
+  /// reversed. Fresh address copies are returned so the "has-been-repeated"
+  /// bits from the inbound frame do not leak into our outgoing path.
+  List<AX25Address> _incomingReturnPath(AX25Packet packet) {
+    if (packet.addresses.length <= 2) return const <AX25Address>[];
+    final digis = <AX25Address>[];
+    for (int i = packet.addresses.length - 1; i >= 2; i--) {
+      final hop = AX25Address.parse(packet.addresses[i].toString());
+      if (hop != null) digis.add(hop);
+    }
+    return digis;
+  }
+
   /// Processes a received AX.25 [packet]. Called internally when
   /// `UniqueDataFrame` events arrive, but may also be called directly. Returns
   /// `true` if the packet belonged to this session, `false` otherwise.
@@ -1278,7 +1295,7 @@ class AX25Session {
         final peer = AX25Address.parse(packet.addresses[1].toString());
         final us = AX25Address.getAddress(sessionCallsign, sessionStationId);
         if (peer == null || us == null) return false;
-        addresses = [peer, us];
+        addresses = [peer, us, ..._incomingReturnPath(packet)];
         _emitPacket(_uFrame(FrameType.uFrameUa, command: false, pf: pf));
         addresses = null;
         return false;
@@ -1297,7 +1314,7 @@ class AX25Session {
         final peer = AX25Address.parse(packet.addresses[1].toString());
         final us = AX25Address.getAddress(sessionCallsign, sessionStationId);
         if (peer == null || us == null) return false;
-        addresses = [peer, us];
+        addresses = [peer, us, ..._incomingReturnPath(packet)];
         _resetLinkVariables();
         _initT1vSrt();
       } else {
@@ -1311,7 +1328,7 @@ class AX25Session {
         final peer = AX25Address.parse(packet.addresses[1].toString());
         final us = AX25Address.getAddress(sessionCallsign, sessionStationId);
         if (peer == null || us == null) return false;
-        addresses = [peer, us];
+        addresses = [peer, us, ..._incomingReturnPath(packet)];
         _emitPacket(_uFrame(FrameType.uFrameDm, command: false, pf: true));
         addresses = null;
         return false;

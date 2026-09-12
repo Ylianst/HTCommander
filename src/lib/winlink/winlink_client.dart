@@ -326,7 +326,11 @@ class WinlinkClient {
       _errorMessage('Invalid callsign for AX25 session.');
       return;
     }
-    final addresses = <AX25Address>[destAddress, srcAddress];
+    // Optional digipeater path (e.g. "RELAY-1,WIDE1-1") to reach the station
+    // through one or more gateways. Invalid entries were rejected at
+    // contact-edit time, so a null here just means no path.
+    final digipeaters = AX25Address.parsePath(station.ax25Path) ?? const [];
+    final addresses = <AX25Address>[destAddress, srcAddress, ...digipeaters];
 
     // Start the connection
     session.connect(addresses);

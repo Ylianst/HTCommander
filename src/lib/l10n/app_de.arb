@@ -999,6 +999,8 @@
   "stationTerminalProtocol": "Terminal-Protokoll",
   "stationAx25Destination": "AX.25-Ziel (z. B. CALL-1)",
   "stationAx25Invalid": "Ungültige AX.25-Adresse",
+  "stationAx25Path": "Digipeater-Pfad (z. B. RELAY-1,WIDE1-1)",
+  "stationAx25PathInvalid": "Ungültiger Digipeater-Pfad (max. 8 Sprünge)",
   "stationModem": "Modem",
 
   "apdTitle": "APRS-Paketdetails",

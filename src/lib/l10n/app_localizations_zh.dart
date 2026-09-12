@@ -3085,6 +3085,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stationAx25Invalid => 'AX.25 地址无效';
 
   @override
+  String get stationAx25Path => '数字中继器路径（例如 RELAY-1,WIDE1-1）';
+
+  @override
+  String get stationAx25PathInvalid => '数字中继器路径无效（最多 8 跳）';
+
+  @override
   String get stationModem => '调制解调器';
 
   @override

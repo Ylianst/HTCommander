@@ -175,6 +175,7 @@ class _StationDialogState extends State<_StationDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _ax25DestController;
+  late final TextEditingController _ax25PathController;
   late final TextEditingController _authPasswordController;
   late final TextEditingController _channelController;
 
@@ -215,6 +216,7 @@ class _StationDialogState extends State<_StationDialog> {
     _nameController = TextEditingController(text: s?.name ?? '');
     _descriptionController = TextEditingController(text: s?.description ?? '');
     _ax25DestController = TextEditingController(text: s?.ax25Destination ?? '');
+    _ax25PathController = TextEditingController(text: s?.ax25Path ?? '');
     _authPasswordController = TextEditingController(
       text: s?.authPassword ?? '',
     );
@@ -240,6 +242,7 @@ class _StationDialogState extends State<_StationDialog> {
 
     _callsignController.addListener(_onTextChanged);
     _ax25DestController.addListener(_onTextChanged);
+    _ax25PathController.addListener(_onTextChanged);
     _authPasswordController.addListener(_onTextChanged);
     _channelController.addListener(_onTextChanged);
     _callsignFocusNode.addListener(_onCallsignFocusChanged);
@@ -261,6 +264,7 @@ class _StationDialogState extends State<_StationDialog> {
     _nameController.dispose();
     _descriptionController.dispose();
     _ax25DestController.dispose();
+    _ax25PathController.dispose();
     _authPasswordController.dispose();
     _channelController.dispose();
     super.dispose();
@@ -455,10 +459,17 @@ class _StationDialogState extends State<_StationDialog> {
     return AX25Address.parse(text) != null && text.contains('-');
   }
 
+  bool get _ax25PathValid {
+    final text = _ax25PathController.text.trim();
+    if (text.isEmpty) return true; // optional
+    return AX25Address.parsePath(text) != null;
+  }
+
   bool get _isValid {
     if (!_idValid) return false;
     if (_isSimpleContact) return true;
     if (!_ax25DestValid) return false;
+    if (!_ax25PathValid) return false;
     if (_stationType == StationType.aprs &&
         _useAuth &&
         _authPasswordController.text.isEmpty) {
@@ -649,6 +660,7 @@ class _StationDialogState extends State<_StationDialog> {
         terminalProtocol: TerminalProtocol.x25Session,
         channel: _channelController.text.trim(),
         channelRegion: _channelRegion,
+        ax25Path: _ax25PathController.text.trim(),
         modem: _modem,
         avatarIcon: _avatarIcon,
         avatarImage: _avatarImage,
@@ -664,6 +676,9 @@ class _StationDialogState extends State<_StationDialog> {
       channel: _channelController.text.trim(),
       channelRegion: _channelRegion,
       ax25Destination: _ax25DestController.text.trim(),
+      ax25Path: _terminalProtocol == TerminalProtocol.x25Session
+          ? _ax25PathController.text.trim()
+          : '',
       authPassword: (_stationType == StationType.aprs && _useAuth)
           ? _authPasswordController.text
           : null,
@@ -925,6 +940,10 @@ class _StationDialogState extends State<_StationDialog> {
           },
         ),
       ],
+      if (_terminalProtocol == TerminalProtocol.x25Session) ...[
+        const SizedBox(height: 12),
+        _buildAx25PathField(),
+      ],
       if (_audioChannelSupported) ...[
         const SizedBox(height: 12),
         _buildModemDropdown(),
@@ -935,11 +954,38 @@ class _StationDialogState extends State<_StationDialog> {
   List<Widget> _buildWinlinkFields() {
     return [
       _buildChannelField(),
+      const SizedBox(height: 12),
+      _buildAx25PathField(),
       if (_audioChannelSupported) ...[
         const SizedBox(height: 12),
         _buildModemDropdown(),
       ],
     ];
+  }
+
+  /// Optional AX.25 digipeater path field (comma-separated hops) shown for
+  /// connected-mode Terminal and Winlink contacts.
+  Widget _buildAx25PathField() {
+    final l10n = AppLocalizations.of(context);
+    return TextField(
+      controller: _ax25PathController,
+      textCapitalization: TextCapitalization.characters,
+      decoration: _inputDecoration(
+        labelText: l10n.stationAx25Path,
+        errorText: _ax25PathController.text.isNotEmpty && !_ax25PathValid
+            ? l10n.stationAx25PathInvalid
+            : null,
+      ),
+      onChanged: (value) {
+        final upper = value.toUpperCase();
+        if (upper != value) {
+          _ax25PathController.value = _ax25PathController.value.copyWith(
+            text: upper,
+            selection: TextSelection.collapsed(offset: upper.length),
+          );
+        }
+      },
+    );
   }
 
   /// True when this platform supports the software modem audio channel.

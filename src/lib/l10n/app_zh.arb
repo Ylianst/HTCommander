@@ -999,6 +999,8 @@
   "stationTerminalProtocol": "终端协议",
   "stationAx25Destination": "AX.25 目标（例如 CALL-1）",
   "stationAx25Invalid": "AX.25 地址无效",
+  "stationAx25Path": "数字中继器路径（例如 RELAY-1,WIDE1-1）",
+  "stationAx25PathInvalid": "数字中继器路径无效（最多 8 跳）",
   "stationModem": "调制解调器",
 
   "apdTitle": "APRS 数据包详情",

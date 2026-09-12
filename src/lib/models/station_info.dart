@@ -44,6 +44,11 @@ class StationInfo {
   /// correct region before a Terminal / Winlink connection.
   String channelRegion;
   String ax25Destination;
+
+  /// Optional AX.25 digipeater path used when opening a connected-mode session
+  /// (Terminal / Winlink) with this contact. Comma-separated list of up to 8
+  /// hops, e.g. `RELAY-1,WIDE1-1`. Empty when the station is directly reachable.
+  String ax25Path;
   bool waitForConnection;
   String? authPassword;
 
@@ -73,6 +78,7 @@ class StationInfo {
     this.channel = '',
     this.channelRegion = '',
     this.ax25Destination = '',
+    this.ax25Path = '',
     this.waitForConnection = false,
     this.authPassword,
     this.modem = 'Hardware',
@@ -98,6 +104,7 @@ class StationInfo {
     String? channel,
     String? channelRegion,
     String? ax25Destination,
+    String? ax25Path,
     bool? waitForConnection,
     String? authPassword,
     String? modem,
@@ -114,6 +121,7 @@ class StationInfo {
       channel: channel ?? this.channel,
       channelRegion: channelRegion ?? this.channelRegion,
       ax25Destination: ax25Destination ?? this.ax25Destination,
+      ax25Path: ax25Path ?? this.ax25Path,
       waitForConnection: waitForConnection ?? this.waitForConnection,
       authPassword: authPassword ?? this.authPassword,
       modem: modem ?? this.modem,
@@ -135,6 +143,7 @@ class StationInfo {
       'Channel': channel,
       'ChannelRegion': channelRegion,
       'AX25Destination': ax25Destination,
+      'AX25Path': ax25Path,
       'WaitForConnection': waitForConnection,
       'AuthPassword': authPassword,
       'Modem': modem,
@@ -200,6 +209,7 @@ class StationInfo {
           (json['ChannelRegion'] ?? json['channelRegion'] ?? '').toString(),
       ax25Destination:
           (json['AX25Destination'] ?? json['ax25Destination'] ?? '').toString(),
+      ax25Path: (json['AX25Path'] ?? json['ax25Path'] ?? '').toString(),
       waitForConnection:
           (json['WaitForConnection'] ?? json['waitForConnection']) == true,
       authPassword: (pwd != null && pwd.isNotEmpty && pwd != 'null')
@@ -245,6 +255,7 @@ class StationInfo {
       sb.writeln('Channel=${station.channel}');
       sb.writeln('ChannelRegion=${station.channelRegion}');
       sb.writeln('AX25Destination=${station.ax25Destination}');
+      sb.writeln('AX25Path=${station.ax25Path}');
       sb.writeln('AuthPassword=${station.authPassword ?? ''}');
       sb.writeln('Modem=${station.modem}');
       sb.writeln('AvatarIcon=${station.avatarIcon ?? ''}');
@@ -305,6 +316,9 @@ class StationInfo {
             break;
           case 'AX25Destination':
             current.ax25Destination = value;
+            break;
+          case 'AX25Path':
+            current.ax25Path = value;
             break;
           case 'AuthPassword':
             current.authPassword = value.isEmpty ? null : value;

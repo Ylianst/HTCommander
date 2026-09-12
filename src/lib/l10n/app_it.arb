@@ -1011,6 +1011,8 @@
   "stationTerminalProtocol": "Protocollo terminale",
   "stationAx25Destination": "Destinazione AX.25 (es. CALL-1)",
   "stationAx25Invalid": "Indirizzo AX.25 non valido",
+  "stationAx25Path": "Percorso digipeater (es. RELAY-1,WIDE1-1)",
+  "stationAx25PathInvalid": "Percorso digipeater non valido (max 8 hop)",
   "stationModem": "Modem",
 
   "apdTitle": "Dettagli pacchetto APRS",

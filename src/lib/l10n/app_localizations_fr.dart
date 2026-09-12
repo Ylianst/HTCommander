@@ -3189,6 +3189,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get stationAx25Invalid => 'Adresse AX.25 non valide';
 
   @override
+  String get stationAx25Path => 'Chemin digipeater (ex. RELAY-1,WIDE1-1)';
+
+  @override
+  String get stationAx25PathInvalid =>
+      'Chemin digipeater non valide (8 sauts max.)';
+
+  @override
   String get stationModem => 'Modem';
 
   @override

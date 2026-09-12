@@ -516,6 +516,10 @@ class _TerminalTabState extends State<TerminalTab>
       return;
     }
 
+    // Optional digipeater path (e.g. "RELAY-1,WIDE1-1"). Invalid entries were
+    // rejected at contact-edit time, so a null here just means no path.
+    final digipeaters = AX25Address.parsePath(station.ax25Path) ?? const [];
+
     final session = AX25Session(radioId);
     session.callSignOverride = myCallsign;
     session.stationIdOverride = myStationId;
@@ -531,7 +535,7 @@ class _TerminalTabState extends State<TerminalTab>
     _appendSystem(
       '*** ${AppLocalizations.of(context).terminalConnectingTo(station.callsign)} ***',
     );
-    session.connect([dest, src]);
+    session.connect([dest, src, ...digipeaters]);
   }
 
   // ---------------------------------------------------------------------------

@@ -3111,6 +3111,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get stationAx25Invalid => 'AX.25 アドレスが無効です';
 
   @override
+  String get stationAx25Path => 'デジピーターパス（例: RELAY-1,WIDE1-1）';
+
+  @override
+  String get stationAx25PathInvalid => 'デジピーターパスが無効です（最大8ホップ）';
+
+  @override
   String get stationModem => 'モデム';
 
   @override

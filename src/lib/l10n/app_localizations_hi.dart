@@ -3171,6 +3171,12 @@ class AppLocalizationsHi extends AppLocalizations {
   String get stationAx25Invalid => 'अमान्य AX.25 पता';
 
   @override
+  String get stationAx25Path => 'डिजीपीटर पथ (उदा. RELAY-1,WIDE1-1)';
+
+  @override
+  String get stationAx25PathInvalid => 'अमान्य डिजीपीटर पथ (अधिकतम 8 हॉप)';
+
+  @override
   String get stationModem => 'मॉडेम';
 
   @override

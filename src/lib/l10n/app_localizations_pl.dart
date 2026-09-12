@@ -3184,6 +3184,13 @@ class AppLocalizationsPl extends AppLocalizations {
   String get stationAx25Invalid => 'Nieprawidłowy adres AX.25';
 
   @override
+  String get stationAx25Path => 'Ścieżka digipeatera (np. RELAY-1,WIDE1-1)';
+
+  @override
+  String get stationAx25PathInvalid =>
+      'Nieprawidłowa ścieżka digipeatera (maks. 8 przeskoków)';
+
+  @override
   String get stationModem => 'Modem';
 
   @override

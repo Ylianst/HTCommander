@@ -999,6 +999,8 @@
   "stationTerminalProtocol": "Protocolo terminal",
   "stationAx25Destination": "Destino AX.25 (ej. CALL-1)",
   "stationAx25Invalid": "Dirección AX.25 no válida",
+  "stationAx25Path": "Ruta de digipeater (ej. RELAY-1,WIDE1-1)",
+  "stationAx25PathInvalid": "Ruta de digipeater no válida (máx. 8 saltos)",
   "stationModem": "Módem",
 
   "apdTitle": "Detalles del paquete APRS",

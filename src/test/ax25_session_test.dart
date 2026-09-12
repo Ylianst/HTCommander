@@ -407,4 +407,142 @@ void main() {
           reason: 'a torn-down outgoing-only session must still UA a DISC');
     });
   });
+
+  group('AX25 digipeater path', () {
+    test('parsePath parses, validates and preserves hop order', () {
+      expect(AX25Address.parsePath(''), isEmpty);
+      expect(AX25Address.parsePath('   '), isEmpty);
+
+      final one = AX25Address.parsePath('WIDE1-1');
+      expect(one, isNotNull);
+      expect(one!.length, 1);
+      expect(one[0].callSignWithId, 'WIDE1-1');
+
+      final two = AX25Address.parsePath('relay-1,wide2-2');
+      expect(two, isNotNull);
+      expect(two!.map((a) => a.callSignWithId).toList(),
+          ['RELAY-1', 'WIDE2-2']);
+
+      // Invalid hops and over-length paths are rejected.
+      expect(AX25Address.parsePath('WIDE1-1,,WIDE2-2'), isNull);
+      expect(AX25Address.parsePath('TOOLONGCALL-1'), isNull);
+      expect(
+        AX25Address.parsePath('A-1,B-1,C-1,D-1,E-1,F-1,G-1,H-1,I-1'),
+        isNull,
+      );
+    });
+
+    test('connect encodes the digipeater path into the outgoing SABM', () async {
+      final client = DataBrokerClient();
+      final captured = <AX25Packet>[];
+      client.subscribe(
+        deviceId: DataBroker.allDevices,
+        name: 'TransmitDataFrame',
+        callback: (deviceId, name, data) {
+          if (data is TransmitDataFrameData && data.packet != null) {
+            captured.add(data.packet!);
+          }
+        },
+      );
+
+      final a = makeSession(0, 'NODEA');
+      addTearDown(() {
+        a.dispose();
+        client.dispose();
+      });
+
+      final addrs = <AX25Address>[
+        AX25Address.getAddress('NODEB')!,
+        AX25Address.getAddress('NODEA')!,
+        ...AX25Address.parsePath('RELAY-1,WIDE1-1')!,
+      ];
+      expect(a.connect(addrs), isTrue);
+
+      await waitFor(() => captured.isNotEmpty);
+      final sabm = captured.first;
+      expect(sabm.type, FrameType.uFrameSabm);
+      expect(sabm.addresses.length, 4);
+      expect(sabm.addresses[0].callSignWithId, 'NODEB-0');
+      expect(sabm.addresses[1].callSignWithId, 'NODEA-0');
+      expect(sabm.addresses[2].callSignWithId, 'RELAY-1');
+      expect(sabm.addresses[3].callSignWithId, 'WIDE1-1');
+
+      // Round-trip through the wire codec preserves the path.
+      final decoded = AX25Packet.decode(TncDataFragment(
+        finalFragment: true,
+        fragmentId: 0,
+        data: sabm.toByteArray(),
+        channelId: -1,
+        regionId: -1,
+        incoming: true,
+        radioDeviceId: 0,
+      ));
+      expect(decoded, isNotNull);
+      expect(decoded!.addresses.map((a) => a.callSignWithId).toList(),
+          ['NODEB-0', 'NODEA-0', 'RELAY-1', 'WIDE1-1']);
+    });
+
+    test('incoming connection via digipeaters binds a reversed return path',
+        () async {
+      final client = DataBrokerClient();
+      final captured = <AX25Packet>[];
+      client.subscribe(
+        deviceId: DataBroker.allDevices,
+        name: 'TransmitDataFrame',
+        callback: (deviceId, name, data) {
+          if (data is TransmitDataFrameData && data.packet != null) {
+            captured.add(data.packet!);
+          }
+        },
+      );
+
+      // Server session that accepts incoming connections.
+      final b = makeSession(0, 'NODEB');
+      addTearDown(() {
+        b.dispose();
+        client.dispose();
+      });
+
+      // SABM from NODEA reaching us through DIGA-1 then DIGB-2 (travel order).
+      final sabm = AX25Packet(
+        addresses: [
+          AX25Address.getAddress('NODEB')!, // dest = us
+          AX25Address.getAddress('NODEA')!, // src = peer
+          AX25Address.parse('DIGA-1')!,
+          AX25Address.parse('DIGB-2')!,
+        ],
+        pollFinal: true,
+        command: true,
+        type: FrameType.uFrameSabm,
+      );
+      client.dispatch(
+        deviceId: 0,
+        name: 'UniqueDataFrame',
+        data: TncDataFragment(
+          finalFragment: true,
+          fragmentId: 0,
+          data: sabm.toByteArray(),
+          channelId: -1,
+          regionId: -1,
+          incoming: true,
+          radioDeviceId: 0,
+        ),
+        store: false,
+      );
+
+      await waitFor(() => b.currentState == AX25ConnectionState.connected);
+
+      // The session binds the reversed digipeater path for its replies.
+      final bound = b.addresses;
+      expect(bound, isNotNull);
+      expect(bound!.map((a) => a.callSignWithId).toList(),
+          ['NODEA-0', 'NODEB-0', 'DIGB-2', 'DIGA-1']);
+
+      // The UA it emitted travels back out through the reversed path.
+      final ua = captured.firstWhere((p) => p.type == FrameType.uFrameUa);
+      expect(ua.addresses.map((a) => a.callSignWithId).toList(),
+          ['NODEA-0', 'NODEB-0', 'DIGB-2', 'DIGA-1']);
+    });
+  });
 }
+

@@ -999,6 +999,8 @@
   "stationTerminalProtocol": "ターミナルプロトコル",
   "stationAx25Destination": "AX.25 宛先（例: CALL-1）",
   "stationAx25Invalid": "AX.25 アドレスが無効です",
+  "stationAx25Path": "デジピーターパス（例: RELAY-1,WIDE1-1）",
+  "stationAx25PathInvalid": "デジピーターパスが無効です（最大8ホップ）",
   "stationModem": "モデム",
 
   "apdTitle": "APRS パケットの詳細",

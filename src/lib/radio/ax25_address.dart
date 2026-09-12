@@ -56,6 +56,25 @@ class AX25Address {
     return AX25Address.getAddress(address, ssid);
   }
 
+  /// Parse a comma-separated digipeater path (e.g. "RELAY-1,WIDE1-1") into a
+  /// list of addresses. Returns an empty list for a blank path, or `null` if
+  /// any hop is invalid or the path exceeds 8 hops (the AX.25 maximum).
+  static List<AX25Address>? parsePath(String path) {
+    final trimmed = path.trim();
+    if (trimmed.isEmpty) return <AX25Address>[];
+    final parts = trimmed.split(',');
+    if (parts.length > 8) return null;
+    final result = <AX25Address>[];
+    for (final part in parts) {
+      final hop = part.trim();
+      if (hop.isEmpty) return null;
+      final addr = AX25Address.parse(hop);
+      if (addr == null) return null;
+      result.add(addr);
+    }
+    return result;
+  }
+
   /// Decode an AX.25 address from raw bytes
   /// Returns the address and whether this is the last address in the path
   static ({AX25Address? address, bool last}) decodeAX25Address(

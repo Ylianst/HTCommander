@@ -999,6 +999,8 @@
   "stationTerminalProtocol": "टर्मिनल प्रोटोकॉल",
   "stationAx25Destination": "AX.25 गंतव्य (उदा. CALL-1)",
   "stationAx25Invalid": "अमान्य AX.25 पता",
+  "stationAx25Path": "डिजीपीटर पथ (उदा. RELAY-1,WIDE1-1)",
+  "stationAx25PathInvalid": "अमान्य डिजीपीटर पथ (अधिकतम 8 हॉप)",
   "stationModem": "मॉडेम",
 
   "apdTitle": "APRS पैकेट विवरण",
