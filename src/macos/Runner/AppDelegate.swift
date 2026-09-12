@@ -26,15 +26,24 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
     // Active RFCOMM connections for the SPP data channel: deviceAddress -> RFCOMMConnection
     private var connections: [String: RFCOMMConnection] = [:]
 
-    // The control (SPP / data) RFCOMM channel on these radios is either channel
-    // 4 or channel 1, so connection attempts alternate between them.
+    // Standard Serial Port Profile service (0x1101). The control/data RFCOMM
+    // channel is resolved from the radio's SDP record by this UUID when
+    // available, since the advertised channel number varies by model/firmware.
+    private let sppServiceUUID = IOBluetoothSDPUUID(uuid16: 0x1101)
+    // Legacy fallback RFCOMM channels tried first when SDP resolution is
+    // unavailable: the control channel on these radios has been observed on
+    // channel 4 or 1. A wider 1...12 probe (see buildControlChannelPlan) covers
+    // radios whose control channel is elsewhere.
     private let controlChannelCandidates: [BluetoothRFCOMMChannelID] = [4, 1]
+    // Ordered list of RFCOMM channels to try for the control connect, keyed by
+    // device address. Built once per connect() from the SDP-resolved channel
+    // plus the fallback candidates and a 1...12 probe.
+    private var controlChannelPlan: [String: [BluetoothRFCOMMChannelID]] = [:]
     // Connection retry tuning: each attempt waits this long for the open to
-    // complete before being torn down and retried, up to the attempt cap. This
-    // mirrors the C# client's connection retry, which is far more reliable than
-    // a single long attempt.
+    // complete before being torn down and the next channel in the plan tried.
+    // This mirrors the C# client's connection retry, which is far more reliable
+    // than a single long attempt.
     private let controlConnectTimeout: TimeInterval = 5.0
-    private let maxControlConnectAttempts = 5
 
     // Active RFCOMM connections for the Generic Audio channel: deviceAddress -> RFCOMMConnection
     private var audioConnections: [String: RFCOMMConnection] = [:]
@@ -343,23 +352,56 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
             Thread.sleep(forTimeInterval: 0.5)
         }
 
-        // The control (SPP / data) channel on these radios is either RFCOMM
-        // channel 4 or channel 1, so connect to it directly without an SDP
-        // channel scan, alternating between the two channels on each attempt.
-        // Each attempt is given a short timeout and retried, which is far more
-        // reliable than a single long attempt.
+        // Build the ordered list of RFCOMM channels to try: the SDP-resolved
+        // control channel first (when the radio advertises SPP), then the known
+        // fallback channels and a wider 1...12 probe. Each channel is attempted
+        // in turn with a short per-attempt timeout, which is far more reliable
+        // than a single long attempt. See docs/Bluetooth.md.
+        let plan = buildControlChannelPlan(for: device)
+        controlChannelPlan[normalizedAddress] = plan
+        NSLog("[BT-Classic] connect \(normalizedAddress): control channel plan \(plan)")
         attemptControlConnect(device: device, address: normalizedAddress, attempt: 1, result: result)
     }
 
-    /// Open the control RFCOMM channel for a single attempt, alternating between
-    /// channel 4 and channel 1. If the open does not complete within
-    /// `controlConnectTimeout`, or fails, the attempt is torn down and retried
-    /// up to `maxControlConnectAttempts` times.
+    /// Build the ordered list of RFCOMM channels to try for the control (SPP)
+    /// connection. Prefers the channel resolved from the radio's SDP record via
+    /// the SPP UUID (0x1101), then the known fallback channels, then a 1...12
+    /// probe. Duplicates and channel 0 are removed while preserving order.
+    private func buildControlChannelPlan(for device: IOBluetoothDevice) -> [BluetoothRFCOMMChannelID] {
+        var ordered: [BluetoothRFCOMMChannelID] = []
+
+        // 1. SDP-resolved SPP channel. Try the cached records first; only issue
+        //    an SDP query if the SPP service is not already known, since a query
+        //    adds latency. Nothing is open yet, so the query is safe here.
+        var sdpChannel = rfcommChannel(on: device, for: sppServiceUUID)
+        if sdpChannel == 0 {
+            _ = device.performSDPQuery(nil)
+            sdpChannel = rfcommChannel(on: device, for: sppServiceUUID)
+        }
+        if sdpChannel != 0 {
+            ordered.append(sdpChannel)
+        }
+
+        // 2. Known fallback channels first, then a wider probe.
+        ordered.append(contentsOf: controlChannelCandidates)
+        ordered.append(contentsOf: (1...12).map { BluetoothRFCOMMChannelID($0) })
+
+        // Dedup preserving order, drop channel 0.
+        var seen = Set<BluetoothRFCOMMChannelID>()
+        return ordered.filter { $0 != 0 && seen.insert($0).inserted }
+    }
+
+    /// Open the control RFCOMM channel for a single attempt, using the next
+    /// channel from the device's control-channel plan. If the open does not
+    /// complete within `controlConnectTimeout`, or fails, the attempt is torn
+    /// down and the next channel in the plan is tried.
     private func attemptControlConnect(device: IOBluetoothDevice, address: String, attempt: Int, result: @escaping FlutterResult) {
-        let controlChannelID = controlChannelCandidates[(attempt - 1) % controlChannelCandidates.count]
+        let plan = controlChannelPlan[address] ?? controlChannelCandidates
+        let controlChannelID = plan[(attempt - 1) % plan.count]
 
         var rfcommChannel: IOBluetoothRFCOMMChannel?
         let openResult = device.openRFCOMMChannelAsync(&rfcommChannel, withChannelID: controlChannelID, delegate: self)
+        NSLog("[BT-Classic] connect \(address): attempt \(attempt)/\(plan.count) ch=\(controlChannelID) openAsync=\(openResult)")
 
         if openResult != kIOReturnSuccess || rfcommChannel == nil {
             device.closeConnection()
@@ -383,6 +425,7 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
             guard let conn = self.connections[address],
                   !conn.isConnected,
                   conn.connectAttempt == attempt else { return }
+            NSLog("[BT-Classic] connect \(address): attempt \(attempt) ch=\(controlChannelID) timed out after \(self.controlConnectTimeout)s")
             conn.channel.setDelegate(nil)
             conn.channel.close()
             self.connections.removeValue(forKey: address)
@@ -390,13 +433,16 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
         }
     }
 
-    /// Schedule another control-connect attempt, or report failure once the
-    /// maximum number of attempts has been reached.
+    /// Schedule the next control-connect attempt (the next channel in the plan),
+    /// or report failure once every channel in the plan has been tried.
     private func retryOrFailControlConnect(device: IOBluetoothDevice, address: String, attempt: Int, result: @escaping FlutterResult) {
-        if attempt >= maxControlConnectAttempts {
+        let planCount = controlChannelPlan[address]?.count ?? controlChannelCandidates.count
+        if attempt >= planCount {
+            NSLog("[BT-Classic] connect \(address): failed after \(planCount) attempt(s)")
+            controlChannelPlan.removeValue(forKey: address)
             result(FlutterError(
                 code: "CONNECTION_FAILED",
-                message: "Failed to connect after \(maxControlConnectAttempts) attempts",
+                message: "Failed to connect after \(planCount) attempts",
                 details: nil
             ))
             return
@@ -418,6 +464,7 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
         // "rfcommChannelData - no matching connection".
         audioForwardingEnabled.removeValue(forKey: normalizedAddress)
         lastAudioActivity.removeValue(forKey: normalizedAddress)
+        controlChannelPlan.removeValue(forKey: normalizedAddress)
 
         let audioConnection = audioConnections.removeValue(forKey: normalizedAddress)
         let dataConnection = connections.removeValue(forKey: normalizedAddress)
@@ -700,6 +747,10 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
             connection.didNotifyConnected = true
             connection.connectResult?(true)
             connection.connectResult = nil
+            if route.role != "audio" {
+                NSLog("[BT-Classic] connect \(address): control channel open complete (success)")
+                controlChannelPlan.removeValue(forKey: address)
+            }
 
             route.sink?([
                 "event": "connected",
@@ -715,6 +766,7 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
                 ))
                 connection.connectResult = nil
             } else {
+                NSLog("[BT-Classic] connect \(address): control channel open failed (IOReturn \(error)) on attempt \(connection.connectAttempt)")
                 // Control channel: an explicit open failure should retry rather
                 // than fail immediately (the per-attempt timeout handles the
                 // no-callback case). retryOrFailControlConnect reports the final
