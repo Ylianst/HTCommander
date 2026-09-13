@@ -13,6 +13,9 @@ import 'package:htcommander/radio/radio_models.dart';
 void main() {
   testWidgets('accepts a three-decimal APRS frequency', (tester) async {
     AprsConfigurationResult? result;
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -34,11 +37,52 @@ void main() {
 
     await tester.tap(find.text('Configure'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Custom').last);
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '145.175');
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
     expect(result?.channelId, 3);
     expect(result?.frequencyMhz, 145.175);
+  });
+
+  testWidgets('supports the Netherlands 70 cm APRS frequency', (tester) async {
+    AprsConfigurationResult? result;
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await showAprsConfigurationDialog(
+                context,
+                channels: [RadioChannelInfo(channelId: 3, name: 'Test')],
+              );
+            },
+            child: const Text('Configure'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Configure'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('432.500 MHz - Netherlands (70 cm)'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('OK'));
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    expect(result?.frequencyMhz, 432.5);
   });
 }

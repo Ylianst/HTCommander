@@ -4,6 +4,8 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -25,6 +27,40 @@ class AprsConfigurationResult {
   });
 }
 
+class _AprsFrequencyOption {
+  final String label;
+  final double frequencyMhz;
+
+  const _AprsFrequencyOption(this.label, this.frequencyMhz);
+}
+
+const _customFrequencyLabel = 'Custom';
+
+const _aprsFrequencyOptions = [
+  _AprsFrequencyOption(
+    '144.390 MHz - North America, Mexico, Indonesia, Malaysia, Singapore, Thailand',
+    144.390,
+  ),
+  _AprsFrequencyOption('144.575 MHz - New Zealand', 144.575),
+  _AprsFrequencyOption('144.620 MHz - South Korea', 144.620),
+  _AprsFrequencyOption(
+    '144.640 MHz - China, Hong Kong, Taiwan',
+    144.640,
+  ),
+  _AprsFrequencyOption('144.660 MHz - Japan', 144.660),
+  _AprsFrequencyOption(
+    '144.800 MHz - Europe, Russia, South Africa',
+    144.800,
+  ),
+  _AprsFrequencyOption(
+    '144.930 MHz - Argentina, Panama, Paraguay, Uruguay',
+    144.930,
+  ),
+  _AprsFrequencyOption('145.175 MHz - Australia', 145.175),
+  _AprsFrequencyOption('145.570 MHz - Brazil', 145.570),
+  _AprsFrequencyOption('432.500 MHz - Netherlands (70 cm)', 432.500),
+];
+
 /// Opens the APRS channel setup dialog and returns the user's selection, or
 /// `null` if the dialog is cancelled. Mirrors the C# `AprsConfigurationForm`.
 Future<AprsConfigurationResult?> showAprsConfigurationDialog(
@@ -39,7 +75,7 @@ Future<AprsConfigurationResult?> showAprsConfigurationDialog(
 
 /// APRS channel setup dialog. Lets the user pick a frequency and a channel slot
 /// to overwrite with an "APRS" channel. Mirrors the C# `AprsConfigurationForm`:
-/// a frequency field (default 144.39, valid 144-148 MHz) and a channel dropdown
+/// a frequency field (default 144.39, valid FM VHF/UHF ranges) and a channel dropdown
 /// whose selected channel will be overwritten.
 class AprsConfigurationDialog extends StatefulWidget {
   final List<RadioChannelInfo> channels;
@@ -53,17 +89,46 @@ class AprsConfigurationDialog extends StatefulWidget {
 
 class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
   late final TextEditingController _freqController;
+  late String _selectedFrequencyLabel;
   int? _selectedChannelId;
 
   @override
   void initState() {
     super.initState();
-    _freqController = TextEditingController(text: '144.39');
+    final defaultFrequency = _defaultFrequencyOption;
+    _selectedFrequencyLabel = defaultFrequency.label;
+    _freqController = TextEditingController(
+      text: defaultFrequency.frequencyMhz.toStringAsFixed(3),
+    );
     // Default to the last channel, matching the C# form.
     if (widget.channels.isNotEmpty) {
       _selectedChannelId = widget.channels.last.channelId;
     }
   }
+
+  _AprsFrequencyOption get _defaultFrequencyOption {
+    final country = ui.PlatformDispatcher.instance.locale.countryCode
+        ?.toUpperCase();
+    final frequency = switch (country) {
+      'AU' => 145.175,
+      'NZ' => 144.575,
+      'JP' => 144.660,
+      'CN' || 'HK' || 'TW' => 144.640,
+      'KR' => 144.620,
+      'AR' || 'PA' || 'PY' || 'UY' => 144.930,
+      'BR' => 145.570,
+      'AT' || 'BE' || 'CH' || 'CZ' || 'DE' || 'DK' || 'ES' || 'FI' ||
+      'FR' || 'GB' || 'GR' || 'HU' || 'IE' || 'IT' || 'NL' || 'NO' ||
+      'PL' || 'PT' || 'RU' || 'SE' || 'SI' || 'TR' => 144.800,
+      _ => 144.390,
+    };
+    return _aprsFrequencyOptions.firstWhere(
+      (option) => option.frequencyMhz == frequency,
+    );
+  }
+
+  bool get _isCustomFrequency =>
+      _selectedFrequencyLabel == _customFrequencyLabel;
 
   @override
   void dispose() {
@@ -71,12 +136,13 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
     super.dispose();
   }
 
-  /// Mirrors the C# `UpdateInfo` validity check: 144-148 MHz and a selected
-  /// channel.
+  /// Matches the radio channel editor's FM frequency ranges and requires a
+  /// selected channel.
   bool get _isFrequencyValid {
     final freq = double.tryParse(_freqController.text);
     if (freq == null) return false;
-    return freq >= 144 && freq <= 148;
+    return (freq >= 136 && freq <= 174) ||
+        (freq >= 300 && freq <= 550);
   }
 
   bool get _canConfirm => _isFrequencyValid && _selectedChannelId != null;
@@ -101,165 +167,201 @@ class _AprsConfigurationDialogState extends State<AprsConfigurationDialog> {
     ).pop(AprsConfigurationResult(channelId: channelId, frequencyMhz: freq));
   }
 
+  BoxDecoration _sectionDecoration() {
+    final theme = Theme.of(context);
+    return BoxDecoration(
+      color: theme.colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: theme.shadowColor.withValues(alpha: 0.05),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    );
+  }
+
+  TextStyle _sectionTitleStyle() {
+    return TextStyle(
+      fontWeight: FontWeight.bold,
+      color: Theme.of(context).colorScheme.onSurface,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
+    final isFreqInvalid = _freqController.text.isNotEmpty && !_isFrequencyValid;
+
     return HTDialog(
       title: l10n.acfgTitle,
-      maxWidth: 460,
-      maxHeight: 460,
+      maxWidth: 480,
+      maxHeight: 520,
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.place, color: Colors.red, size: 40),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(l10n.acfgIntro, style: DialogStyles.bodyStyle),
-                      const SizedBox(height: 6),
-                      InkWell(
-                        onTap: _openAprsOrg,
-                        child: const Text(
-                          'aprs.org',
-                          style: DialogStyles.linkStyle,
-                        ),
-                      ),
-                    ],
+            // Header / Intro Card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: _sectionDecoration(),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.cell_tower,
+                      color: scheme.primary,
+                      size: 24,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.acfgIntro,
+                          style: DialogStyles.bodyStyle.copyWith(
+                            color: scheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: _openAprsOrg,
+                          borderRadius: BorderRadius.circular(4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'aprs.org',
+                                style: DialogStyles.linkStyle.copyWith(
+                                  color: scheme.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.open_in_new,
+                                size: 14,
+                                color: scheme.primary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
+
+            // Configuration Section Card
             Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: scheme.onSurfaceVariant),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
+              padding: const EdgeInsets.all(16),
+              decoration: _sectionDecoration(),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(l10n.acfgConfiguration, style: DialogStyles.labelStyle),
-                  const SizedBox(height: 12),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 90,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 10),
+                  Text(l10n.acfgConfiguration, style: _sectionTitleStyle()),
+                  const SizedBox(height: 16),
+
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedFrequencyLabel,
+                    isExpanded: true,
+                    decoration: DialogStyles.inputDecoration(
+                      context,
+                      labelText: l10n.acfgFrequency,
+                    ).copyWith(prefixIcon: const Icon(Icons.graphic_eq)),
+                    items: [
+                      for (final option in _aprsFrequencyOptions)
+                        DropdownMenuItem<String>(
+                          value: option.label,
                           child: Text(
-                            l10n.acfgFrequency,
-                            style: DialogStyles.bodyStyle,
+                            option.label,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            TextField(
-                              controller: _freqController,
-                              maxLength: 7,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                  RegExp(r'[0-9.]'),
-                                ),
-                              ],
-                              onChanged: (_) => setState(() {}),
-                              decoration: InputDecoration(
-                                isDense: true,
-                                counterText: '',
-                                border: const OutlineInputBorder(),
-                                errorText:
-                                    _freqController.text.isEmpty ||
-                                        _isFrequencyValid
-                                    ? null
-                                    : '144 - 148 MHz',
-                                filled: true,
-                                fillColor:
-                                    _freqController.text.isEmpty ||
-                                        _isFrequencyValid
-                                    ? scheme.surfaceContainerHighest
-                                    : scheme.errorContainer,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              l10n.acfgFrequencyHint,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
+                      const DropdownMenuItem<String>(
+                        value: _customFrequencyLabel,
+                        child: Text(_customFrequencyLabel),
                       ),
                     ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      final option = _aprsFrequencyOptions.firstWhere(
+                        (option) => option.label == value,
+                        orElse: () => const _AprsFrequencyOption('', 0),
+                      );
+                      setState(() {
+                        _selectedFrequencyLabel = value;
+                        if (value != _customFrequencyLabel) {
+                          _freqController.text = option.frequencyMhz
+                              .toStringAsFixed(3);
+                        }
+                      });
+                    },
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 90,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 10),
+                  if (_isCustomFrequency) ...[
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _freqController,
+                      maxLength: 7,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                      onChanged: (_) => setState(() {}),
+                      decoration:
+                          DialogStyles.inputDecoration(
+                            context,
+                            labelText: l10n.acfgFrequency,
+                            errorText: isFreqInvalid
+                              ? '136 - 174 or 300 - 550 MHz'
+                              : null,
+                            invalid: isFreqInvalid,
+                          ).copyWith(
+                            counterText: '',
+                            suffixText: 'MHz',
+                            prefixIcon: const Icon(Icons.graphic_eq),
+                          ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+
+                  // Target Channel Field
+                  DropdownButtonFormField<int>(
+                    initialValue: _selectedChannelId,
+                    isExpanded: true,
+                    decoration: DialogStyles.inputDecoration(
+                      context,
+                      labelText: l10n.packetsColChannel,
+                      helperText: l10n.acfgChannelOverwritten,
+                    ).copyWith(prefixIcon: const Icon(Icons.tune)),
+                    items: [
+                      for (final channel in widget.channels)
+                        DropdownMenuItem<int>(
+                          value: channel.channelId,
                           child: Text(
-                            l10n.packetsColChannel,
-                            style: DialogStyles.bodyStyle,
+                            _channelLabel(channel),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            DropdownButtonFormField<int>(
-                              initialValue: _selectedChannelId,
-                              isExpanded: true,
-                              decoration: InputDecoration(
-                                isDense: true,
-                                border: const OutlineInputBorder(),
-                                filled: true,
-                                fillColor: scheme.surfaceContainerHighest,
-                              ),
-                              items: [
-                                for (final channel in widget.channels)
-                                  DropdownMenuItem<int>(
-                                    value: channel.channelId,
-                                    child: Text(
-                                      _channelLabel(channel),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                              ],
-                              onChanged: (value) =>
-                                  setState(() => _selectedChannelId = value),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              l10n.acfgChannelOverwritten,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
+                    onChanged: (value) =>
+                        setState(() => _selectedChannelId = value),
                   ),
                 ],
               ),
