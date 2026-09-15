@@ -90,6 +90,9 @@ dependencies:
   # Web platform bindings (Web Audio API) used to play the desktop host's
   # mirrored audio in the browser. See lib/services/web/host_audio_player_web.dart.
   web: ^1.1.0
+  sqflite: ^2.4.4
+  sqflite_common_ffi: ^2.4.3
+  sqlite3_flutter_libs: ^0.6.0+eol
 
 dev_dependencies:
   flutter_test:

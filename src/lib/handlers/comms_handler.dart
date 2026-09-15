@@ -60,6 +60,7 @@ import '../sarsat/sarsat_country_codes.dart';
 import '../sarsat/sarsat_monitor.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/db/app_database.dart';
 import '../services/notification_service.dart';
 import '../services/tts_service.dart';
 import '../sstv/sstv_monitor.dart';
@@ -185,6 +186,11 @@ class DecodedTextEntry {
 
   /// Structured decoded fields for DFM radiosonde entries (null otherwise).
   RadiosondeDetails? radiosonde;
+
+  /// True once this entry has been written to the database. Transient (not
+  /// serialized); used to persist only newly added entries.
+  bool persisted = false;
+
   DecodedTextEntry({
     this.text,
     this.channel,
@@ -258,8 +264,13 @@ class DecodedTextEntry {
 /// Comms Handler - listens to audio data from radios and maintains a history of
 /// decoded/transmitted voice text. Registered as a Data Broker handler.
 class CommsHandler {
-  static const String _voiceTextFileName = 'voicetext.json';
   static const int _maxHistorySize = 1000;
+
+  // Persisting on every added entry is coalesced into at most one database
+  // write per this window so a busy channel does not fsync per packet.
+  static const Duration _saveHistoryDebounce = Duration(seconds: 3);
+  Timer? _saveHistoryTimer;
+  bool _historyDirty = false;
 
   final DataBrokerClient _broker = DataBrokerClient();
   bool _disposed = false;
@@ -391,8 +402,6 @@ class CommsHandler {
   final List<DecodedTextEntry> _decodedTextHistory = <DecodedTextEntry>[];
   DecodedTextEntry? _currentEntry;
   bool _voiceTextHistoryLoaded = false;
-
-  File? _historyFile;
 
   /// Initializes the handler: subscribes to broker events, loads persisted
   /// state and dispatches the initial handler state. Safe to call once.
@@ -2474,7 +2483,11 @@ class CommsHandler {
   void _onClearVoiceText(int deviceId, String name, Object? data) {
     _decodedTextHistory.clear();
     _currentEntry = null;
-    unawaited(_saveVoiceTextHistory());
+    _historyDirty = false;
+    _saveHistoryTimer?.cancel();
+    _saveHistoryTimer = null;
+    final dao = AppDatabase.instance?.comms;
+    if (dao != null) unawaited(dao.clear());
     _dispatchDecodedTextHistory();
     _dispatchCurrentEntry();
     _broker.dispatch(
@@ -3156,41 +3169,18 @@ class CommsHandler {
   // Persistence
   // ---------------------------------------------------------------------------
 
-  Future<File?> _resolveHistoryFile() async {
-    if (_historyFile != null) return _historyFile;
-    // The web build has no file-system access through path_provider, so the
-    // decoded-text history is kept in memory only.
-    if (kIsWeb) return null;
-    try {
-      final dir = await getApplicationSupportDirectory();
-      _historyFile = File(
-        '${dir.path}${Platform.pathSeparator}$_voiceTextFileName',
-      );
-      return _historyFile;
-    } catch (e) {
-      _broker.logError('[CommsHandler] Failed to resolve history file: $e');
-      return null;
-    }
-  }
-
   Future<void> _loadVoiceTextHistory() async {
     try {
-      final file = await _resolveHistoryFile();
-      if (file != null && await file.exists()) {
-        final json = await file.readAsString();
-        if (json.trim().isNotEmpty) {
-          final decoded = jsonDecode(json);
-          if (decoded is List) {
-            _decodedTextHistory
-              ..clear()
-              ..addAll(
-                decoded.whereType<Map<String, dynamic>>().map(
-                  DecodedTextEntry.fromJson,
-                ),
-              );
-            _trimHistory();
-          }
+      final dao = AppDatabase.instance?.comms;
+      if (dao != null) {
+        final entries = await dao.recent(_maxHistorySize);
+        for (final e in entries) {
+          e.persisted = true;
         }
+        _decodedTextHistory
+          ..clear()
+          ..addAll(entries);
+        _trimHistory();
       }
     } catch (e) {
       // Ignore load errors - start with empty history.
@@ -3202,18 +3192,41 @@ class CommsHandler {
     _dispatchVoiceTextHistoryLoaded();
   }
 
+  /// Requests a persist of the decoded-text history. Writes are coalesced: a
+  /// burst of additions triggers at most one database write per
+  /// [_saveHistoryDebounce] window. Only newly added entries are inserted (no
+  /// whole-history rewrite). Uses a fixed (non-resetting) window so continuous
+  /// traffic still flushes regularly. Returns a completed future so existing
+  /// `unawaited(...)` call sites keep working.
   Future<void> _saveVoiceTextHistory() async {
+    _historyDirty = true;
+    if (_disposed) return;
+    _saveHistoryTimer ??= Timer(_saveHistoryDebounce, () {
+      _saveHistoryTimer = null;
+      if (_historyDirty) unawaited(_writeVoiceTextHistory());
+    });
+  }
+
+  Future<void> _writeVoiceTextHistory() async {
+    final dao = AppDatabase.instance?.comms;
+    if (dao == null) return; // web / no database: history stays in memory only
+    _historyDirty = false;
+    // Newly added entries are always at the tail; persist those not yet stored.
+    final pending = <DecodedTextEntry>[];
+    for (var i = _decodedTextHistory.length - 1; i >= 0; i--) {
+      final entry = _decodedTextHistory[i];
+      if (entry.persisted) break;
+      pending.add(entry);
+    }
+    if (pending.isEmpty) return;
+    final ordered = pending.reversed.toList(growable: false);
     try {
-      final file = await _resolveHistoryFile();
-      if (file == null) return;
-      final list = _decodedTextHistory
-          .map((e) => e.toJson())
-          .toList(growable: false);
-      await file.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(list),
-      );
+      await dao.importAll(ordered);
+      for (final entry in ordered) {
+        entry.persisted = true;
+      }
     } catch (e) {
-      // Ignore save errors.
+      _historyDirty = true;
       _broker.logError('[CommsHandler] Failed to save history: $e');
     }
   }
@@ -3366,6 +3379,9 @@ class CommsHandler {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _saveHistoryTimer?.cancel();
+    _saveHistoryTimer = null;
+    if (_historyDirty) unawaited(_writeVoiceTextHistory());
     _txRecordTimer?.cancel();
     if (_recorder != null) _finalizeRecording();
     _cleanupSstvMonitor();

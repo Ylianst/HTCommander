@@ -4,14 +4,14 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
-import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../radio/tnc_data_fragment.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/db/app_database.dart';
 
 /// A data handler that stores packets to a file and maintains a running list of
 /// the last [_maxPacketsInMemory] packets in memory.
@@ -26,9 +26,6 @@ class PacketStore {
   /// Maximum number of packets to keep in memory.
   static const int _maxPacketsInMemory = 2000;
 
-  /// The filename for storing packets.
-  static const String _packetFileName = 'packets.ptcap';
-
   /// The device id used for PacketStore broker messages.
   static const int _storeDeviceId = 1;
 
@@ -36,9 +33,6 @@ class PacketStore {
 
   /// Recent packets, kept in chronological order (newest at the end).
   final List<TncDataFragment> _packets = [];
-
-  /// The on-disk file used to persist packets.
-  File? _file;
 
   bool _disposed = false;
 
@@ -55,18 +49,9 @@ class PacketStore {
   /// subscribes to broker events, and announces readiness. Must be awaited
   /// before registering the handler.
   Future<void> init() async {
-    // The web build has no file-system access through path_provider, so packet
-    // persistence is skipped there and packets are kept in memory only.
-    if (!kIsWeb) {
-      try {
-        final dir = await getApplicationSupportDirectory();
-        _file = File('${dir.path}${Platform.pathSeparator}$_packetFileName');
-        await _loadPackets();
-      } catch (e) {
-        debugPrint('PacketStore: failed to open packet file: $e');
-        _file = null;
-      }
-    }
+    // The web build has no database (no dart:io), so packet persistence is
+    // skipped there and packets are kept in memory only.
+    await _loadPackets();
 
     // Subscribe to unique data frames from all radios.
     _broker.subscribe(
@@ -99,29 +84,14 @@ class PacketStore {
     );
   }
 
-  /// Loads the last [_maxPacketsInMemory] packets from the file.
+  /// Loads the last [_maxPacketsInMemory] packets from the database.
   Future<void> _loadPackets() async {
-    final file = _file;
-    if (file == null || !await file.exists()) return;
-
-    List<String> lines;
+    final dao = AppDatabase.instance?.packets;
+    if (dao == null) return; // web / no database: packets kept in memory only
     try {
-      lines = await file.readAsLines();
+      _packets.addAll(await dao.recent(_maxPacketsInMemory));
     } catch (e) {
-      debugPrint('PacketStore: failed to read packet file: $e');
-      return;
-    }
-
-    if (lines.isEmpty) return;
-
-    // If the packet file is big, load only the last packets.
-    final startIndex = lines.length > _maxPacketsInMemory
-        ? lines.length - _maxPacketsInMemory
-        : 0;
-
-    for (var i = startIndex; i < lines.length; i++) {
-      final fragment = parsePacketLine(lines[i]);
-      if (fragment != null) _packets.add(fragment);
+      debugPrint('PacketStore: failed to load packets: $e');
     }
   }
 
@@ -156,8 +126,8 @@ class PacketStore {
     if (_disposed) return;
     if (data is! TncDataFragment) return;
 
-    // Write to file.
-    _writePacketToFile(data);
+    // Persist to the database.
+    _persistPacket(data);
 
     // Add to memory list, trimming to the maximum size.
     _packets.add(data);
@@ -185,11 +155,11 @@ class PacketStore {
     );
   }
 
-  /// Clears all packets from memory and truncates the on-disk file.
+  /// Clears all packets from memory and the database.
   void _onClearPackets(int deviceId, String name, Object? data) {
     if (_disposed) return;
     _packets.clear();
-    _truncateFile();
+    _clearPackets();
     _broker.dispatch(
       deviceId: _storeDeviceId,
       name: 'PacketList',
@@ -198,36 +168,30 @@ class PacketStore {
     );
   }
 
-  /// Appends a packet to the file, flushing it to the OS immediately.
-  ///
-  /// The write is performed synchronously with `flush: true` so that each
-  /// packet is durably handed to the operating system as soon as it arrives.
-  /// This matters on mobile platforms (notably Android), where the process can
-  /// be killed at any time without [dispose] ever running; a buffered sink
-  /// would silently drop any packets still held in memory.
-  void _writePacketToFile(TncDataFragment frame) {
-    final file = _file;
-    if (file == null) return;
-    try {
-      final line =
-          '${frame.time.microsecondsSinceEpoch},'
-          '${frame.incoming ? 1 : 0},'
-          '${frame.toString()}\n';
-      file.writeAsStringSync(line, mode: FileMode.append, flush: true);
-    } catch (e) {
-      debugPrint('PacketStore: failed to write packet: $e');
-    }
+  /// Persists a packet to the database. Each insert is a small WAL append, so
+  /// individual packets are durably committed as they arrive without the
+  /// whole-file rewrites the previous flat file required.
+  void _persistPacket(TncDataFragment frame) {
+    final dao = AppDatabase.instance?.packets;
+    if (dao == null) return;
+    unawaited(
+      dao
+          .insert(frame)
+          .catchError(
+            (Object e) => debugPrint('PacketStore: failed to write packet: $e'),
+          ),
+    );
   }
 
-  /// Truncates the packet file, discarding all persisted packets.
-  void _truncateFile() {
-    final file = _file;
-    if (file == null) return;
-    try {
-      file.writeAsBytesSync(const [], flush: true);
-    } catch (e) {
-      debugPrint('PacketStore: failed to truncate packet file: $e');
-    }
+  /// Deletes all persisted packets.
+  void _clearPackets() {
+    final dao = AppDatabase.instance?.packets;
+    if (dao == null) return;
+    unawaited(
+      dao.clear().catchError(
+        (Object e) => debugPrint('PacketStore: failed to clear packets: $e'),
+      ),
+    );
   }
 
   /// Disposes the handler, unsubscribing from the broker and closing the file.

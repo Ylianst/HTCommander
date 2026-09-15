@@ -11,3 +11,7 @@ docs/releases/**/*.zip
 /*.xccrashpoint/
 /*.crash
 /*.ips
+
+# App Store Connect API private keys (dropped in the workspace root to pull
+# store diagnostics). These are secrets - never commit them.
+*.p8

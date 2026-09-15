@@ -78,6 +78,7 @@ import 'services/callsign_lookup_service.dart';
 import 'services/host_bridge.dart';
 import 'services/crash_logger.dart';
 import 'services/data_broker.dart';
+import 'services/db/app_database.dart';
 import 'services/settings_migration.dart';
 import 'services/data_broker_client.dart';
 import 'services/data_broker_serializers.dart';
@@ -322,6 +323,11 @@ Future<void> _startApp(List<String> args) async {
   // Ensure the built-in protected APRS routes ("Standard" and "None") always
   // exist before any component reads the APRS route configuration.
   AppSettings.ensureDefaultRoutes();
+
+  // Open the shared SQLite database (host/main process only) and migrate any
+  // legacy flat-file history into it before the stores below load. No-op on web
+  // and on detached sub-windows (they returned above as broker clients).
+  await AppDatabase.open();
 
   // Register the frame deduplicator so that duplicate DataFrame events received
   // by multiple radios are collapsed into single UniqueDataFrame events.
