@@ -92,13 +92,28 @@ jobs:
 
       - name: Decide whether to publish
         id: decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           force='${{ github.event.inputs.force }}'
           new='${{ steps.build.outputs.records_md5 }}'
           cur='${{ steps.current.outputs.records_md5 }}'
+          # The committed manifest can point at an asset that was never uploaded
+          # (e.g. a hand-seeded manifest, or a run that failed after committing).
+          # Treat a missing asset as "must publish" so the release self-heals.
+          if gh release view "$RELEASE_TAG" --json assets \
+               --jq '.assets[].name' 2>/dev/null | grep -qx "$ASSET"; then
+            asset_present=true
+          else
+            asset_present=false
+          fi
+          echo "Asset present on release: $asset_present"
           if [ "$force" = "true" ]; then
             echo "Forced publish requested."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif [ "$asset_present" != "true" ]; then
+            echo "Release asset missing; will publish."
             echo "publish=true" >> "$GITHUB_OUTPUT"
           elif [ "$new" != "$cur" ]; then
             echo "Station set changed ($cur -> $new); will publish."
