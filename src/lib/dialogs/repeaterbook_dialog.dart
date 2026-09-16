@@ -18,6 +18,16 @@ import 'channel_context_menu.dart';
 import 'channel_details_dialog.dart';
 import 'dialog_utils.dart';
 
+/// Colour matrix that inverts luminance (matching the APRS map tab) to turn the
+/// light OpenStreetMap tiles into a dark-themed map. Coloured markers are drawn
+/// above the filtered tile layer so they keep their own colours.
+const ColorFilter _darkMapTileFilter = ColorFilter.matrix(<double>[
+  -0.2126, -0.7152, -0.0722, 0, 255, //
+  -0.2126, -0.7152, -0.0722, 0, 255, //
+  -0.2126, -0.7152, -0.0722, 0, 255, //
+  0, 0, 0, 1, 0, //
+]);
+
 /// Opens the "RepeaterBook" dialog. Search results appear on the left; the
 /// radio's channel slots are on the right. The user drags a repeater onto a
 /// slot (or selects both and presses the move button); nothing is written to
@@ -575,6 +585,22 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
     _mapController.fitCamera(fit);
   }
 
+  /// Force the map to always stay north-up. Even though the rotate gesture is
+  /// disabled, other paths (keyboard/cursor rotation, restored state) can leave
+  /// the camera tilted with no UI to correct it. Snap any residual rotation
+  /// back to zero after the current frame to avoid re-entrancy with the
+  /// in-progress position change. Mirrors the APRS map tab.
+  void _onMapPositionChanged(MapCamera camera, bool hasGesture) {
+    if (camera.rotation != 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_mapController.camera.rotation != 0) {
+          _mapController.rotate(0);
+        }
+      });
+    }
+  }
+
   void _zoomIn() {
     final currentZoom = _mapController.camera.zoom;
     if (currentZoom < 18) {
@@ -628,10 +654,12 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
           alignment: Alignment.topCenter,
           child: GestureDetector(
             onTap: () => setState(() => _selectedResultIndex = i),
+            // Match the APRS map's large, icon-less station markers: a red
+            // location pin whose tip marks the exact position.
             child: Icon(
-              Icons.location_on,
+              Icons.location_pin,
               size: selected ? 40 : 30,
-              color: selected ? scheme.primary : scheme.error,
+              color: selected ? scheme.primary : Colors.red,
               shadows: const [Shadow(blurRadius: 2, color: Colors.black45)],
             ),
           ),
@@ -657,13 +685,33 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
               initialCenter: initialCenter,
               initialZoom: _resultPoints.isEmpty ? 2 : 10,
               initialCameraFit: _resultsCameraFit(),
+              // Keep the map permanently north-up: allow all touch gestures
+              // except rotation (e.g. two-finger twist on a touch screen),
+              // matching the APRS map tab.
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              ),
+              onPositionChanged: _onMapPositionChanged,
               onTap: (_, _) => setState(() => _selectedResultIndex = null),
             ),
             children: [
-              TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.meshcentral.htcommander',
+              // In dark mode the light tiles are run through an inverting filter
+              // so the map matches the theme (matching the APRS map tab).
+              Builder(
+                builder: (context) {
+                  const Widget tiles = TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.meshcentral.htcommander',
+                  );
+                  if (Theme.of(context).brightness == Brightness.dark) {
+                    return const ColorFiltered(
+                      colorFilter: _darkMapTileFilter,
+                      child: tiles,
+                    );
+                  }
+                  return tiles;
+                },
               ),
               MarkerLayer(markers: markers),
             ],
