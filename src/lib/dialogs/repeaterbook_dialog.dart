@@ -305,12 +305,15 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
         : 'RepeaterBook';
 
     // In map mode the dialog fills the whole application so the map is as big
-    // as possible; the list view keeps its compact fixed size.
+    // as possible. On small (compact) displays the list view also fills the
+    // application so the channel tiles aren't squeezed; wide displays keep the
+    // fixed dialog size.
     final media = MediaQuery.of(context).size;
     final compact = media.width < 600;
+    final fillScreen = _showMap || compact;
 
     return AlertDialog(
-      insetPadding: _showMap
+      insetPadding: fillScreen
           ? const EdgeInsets.all(8)
           : const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
       // Map mode drops the title bar to give the map more room; the map/list
@@ -327,10 +330,11 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
             ),
       contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       content: SizedBox(
-        // Fill the window in map mode (minus the dialog's inset/content
-        // padding) so the map is as large as the application allows.
-        width: _showMap ? media.width - 48 : 660,
-        height: _showMap ? media.height - 40 : 560,
+        // Fill the window in map mode and on compact displays (minus the
+        // dialog's inset/content padding) so the content is as large as the
+        // application allows.
+        width: fillScreen ? media.width - 48 : 660,
+        height: fillScreen ? media.height - 40 : 560,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -699,13 +703,13 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
               // so the map matches the theme (matching the APRS map tab).
               Builder(
                 builder: (context) {
-                  const Widget tiles = TileLayer(
+                  final Widget tiles = TileLayer(
                     urlTemplate:
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.meshcentral.htcommander',
                   );
                   if (Theme.of(context).brightness == Brightness.dark) {
-                    return const ColorFiltered(
+                    return ColorFiltered(
                       colorFilter: _darkMapTileFilter,
                       child: tiles,
                     );
