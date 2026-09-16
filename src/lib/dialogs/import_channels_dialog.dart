@@ -361,24 +361,64 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
       ),
     );
 
-    return Draggable<RadioChannelInfo>(
-      data: channel,
-      dragAnchorStrategy: pointerDragAnchorStrategy,
-      feedback: Material(
-        color: Colors.transparent,
-        child: Opacity(
-          opacity: 0.9,
-          child: _channelTile(
-            label: channel.name.isNotEmpty ? channel.name : 'Ch ${index + 1}',
-            freqHz: channel.rxFreq,
-            background: palette.selected,
-            highlight: true,
-            width: _tileWidth,
-          ),
+    final feedback = Material(
+      color: Colors.transparent,
+      child: Opacity(
+        opacity: 0.9,
+        child: _channelTile(
+          label: channel.name.isNotEmpty ? channel.name : 'Ch ${index + 1}',
+          freqHz: channel.rxFreq,
+          background: palette.selected,
+          highlight: true,
+          width: _tileWidth,
         ),
       ),
-      childWhenDragging: Opacity(opacity: 0.4, child: tile),
-      child: tile,
+    );
+
+    return _wrapDraggableTile(
+      channel: channel,
+      tile: tile,
+      feedback: feedback,
+      palette: palette,
+    );
+  }
+
+  /// A plain [Draggable] tile swallows vertical swipes, so the list can't be
+  /// scrolled by dragging over the channels (a problem on any touch screen,
+  /// including touch-enabled desktops). We keep the tile body scrollable/tappable
+  /// and expose a dedicated drag handle as the only drag source.
+  Widget _wrapDraggableTile({
+    required RadioChannelInfo channel,
+    required Widget tile,
+    required Widget feedback,
+    required ChannelPalette palette,
+  }) {
+    return Stack(
+      children: [
+        tile,
+        Positioned(
+          top: 14,
+          right: 0,
+          bottom: 0,
+          child: Draggable<RadioChannelInfo>(
+            data: channel,
+            dragAnchorStrategy: pointerDragAnchorStrategy,
+            feedback: feedback,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.grab,
+              child: Container(
+                width: 32,
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.drag_indicator,
+                  size: 20,
+                  color: palette.onChannelSecondary,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -477,7 +517,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(right: 18),
+                    padding: const EdgeInsets.only(right: 30),
                     child: Text(
                       label,
                       style: TextStyle(
