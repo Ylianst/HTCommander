@@ -981,6 +981,9 @@ class _MainFormState extends State<MainForm>
   bool _aprsModemFec = true; // FX.25 FEC on transmit (APRS modem)
   int _regionCount =
       0; // Number of regions offered by the currently displayed radio
+  // True once every channel of the currently displayed radio has been read
+  // back. Channel export/import/RepeaterBook are gated on this.
+  bool _allChannelsLoaded = false;
   // Whether the currently displayed radio has a built-in FM broadcast receiver.
   bool _supportRadio = false;
   int _currRegion = 0; // Current region index of the currently displayed radio
@@ -1309,6 +1312,14 @@ class _MainFormState extends State<MainForm>
       deviceId: DataBroker.allDevices,
       name: 'LockState',
       callback: _onLockStateChanged,
+    );
+
+    // Subscribe to AllChannelsLoaded so the channel export/import/RepeaterBook
+    // items only appear once every channel has been read from the radio.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AllChannelsLoaded',
+      callback: _onAllChannelsLoadedChanged,
     );
 
     // Subscribe to software modem mode changes
@@ -2008,6 +2019,16 @@ class _MainFormState extends State<MainForm>
     }
   }
 
+  /// Handle AllChannelsLoaded changes for the current radio so the channel
+  /// export/import/RepeaterBook menu items appear only once loading finished.
+  void _onAllChannelsLoadedChanged(int deviceId, String name, Object? data) {
+    if (deviceId != _currentRadioDeviceId) return;
+    final loaded = data is bool ? data : false;
+    if (loaded != _allChannelsLoaded) {
+      setState(() => _allChannelsLoaded = loaded);
+    }
+  }
+
   /// Select a region on the currently selected radio (mirrors the C#
   /// regionToolStripMenuItem region item click). Dispatches a Region event
   /// which the radio handles by switching to the requested region.
@@ -2167,6 +2188,11 @@ class _MainFormState extends State<MainForm>
       _regionCount = (info is Map ? info['regionCount'] as int? : null) ?? 0;
       _supportRadio =
           (info is Map ? info['supportRadio'] as bool? : null) ?? false;
+      _allChannelsLoaded = (DataBroker.getValueDynamic(
+                _currentRadioDeviceId,
+                'AllChannelsLoaded',
+              ) as bool?) ??
+          false;
       final htStatus = DataBroker.getValueDynamic(
         _currentRadioDeviceId,
         'HtStatus',
@@ -2182,6 +2208,7 @@ class _MainFormState extends State<MainForm>
     } else {
       _regionCount = 0;
       _supportRadio = false;
+      _allChannelsLoaded = false;
       _currRegion = 0;
       _radioLocked = false;
     }
@@ -3325,20 +3352,24 @@ class _MainFormState extends State<MainForm>
                     )
                   : null,
             ),
-            const AppMenuDivider(),
-            AppMenuAction(
-              label: l10n.menuExportChannels,
-              onPressed: _radioLocked ? null : _onExportChannels,
-            ),
-            AppMenuAction(
-              label: l10n.menuImportChannels,
-              onPressed: _radioLocked ? null : _onImportChannels,
-            ),
-            if (_repeaterBookTokenSet)
+            // Channel programming needs every channel read back first, so these
+            // only appear once the radio has finished loading all channels.
+            if (_allChannelsLoaded) ...[
+              const AppMenuDivider(),
               AppMenuAction(
-                label: 'RepeaterBook...',
-                onPressed: _radioLocked ? null : _onSearchRepeaterBook,
+                label: l10n.menuExportChannels,
+                onPressed: _radioLocked ? null : _onExportChannels,
               ),
+              AppMenuAction(
+                label: l10n.menuImportChannels,
+                onPressed: _radioLocked ? null : _onImportChannels,
+              ),
+              if (_repeaterBookTokenSet)
+                AppMenuAction(
+                  label: 'RepeaterBook...',
+                  onPressed: _radioLocked ? null : _onSearchRepeaterBook,
+                ),
+            ],
           ],
           const AppMenuDivider(hideOnMacOS: true),
           AppMenuAction(

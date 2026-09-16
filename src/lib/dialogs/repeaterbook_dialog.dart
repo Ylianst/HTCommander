@@ -118,6 +118,8 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
             'United States';
     _state = DataBroker.getValue<String>(0, 'RepeaterBookState', '') ?? '';
     _city = DataBroker.getValue<String>(0, 'RepeaterBookCity', '') ?? '';
+    _showMap =
+        DataBroker.getValue<bool>(0, 'RepeaterBookMapView', false) ?? false;
   }
 
   @override
@@ -206,7 +208,7 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
         _selectedResultIndex = null;
         _status = mapped.isEmpty
             ? 'No open, on-air repeaters found for that search.'
-            : '${mapped.length} repeater(s) found.';
+            : '';
         _statusIsError = false;
       });
 
@@ -268,7 +270,7 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
 
   String _slotLabel(RadioChannelInfo slot) {
     final channel = _staged[slot.channelId] ?? slot;
-    if (channel.name.isNotEmpty) return channel.name;
+    if (channel.name.isNotEmpty && channel.isConfigured) return channel.name;
     return 'Ch ${slot.channelId + 1}';
   }
 
@@ -292,23 +294,33 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
         ? 'RepeaterBook — $radio'
         : 'RepeaterBook';
 
+    // In map mode the dialog fills the whole application so the map is as big
+    // as possible; the list view keeps its compact fixed size.
+    final media = MediaQuery.of(context).size;
+    final compact = media.width < 600;
+
     return AlertDialog(
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(title, overflow: TextOverflow.ellipsis),
-          ),
-          IconButton(
-            tooltip: _showMap ? 'Show channel imports' : 'Show stations on map',
-            icon: Icon(_showMap ? Icons.view_list_outlined : Icons.map_outlined),
-            onPressed: _toggleMap,
-          ),
-        ],
-      ),
+      insetPadding: _showMap
+          ? const EdgeInsets.all(8)
+          : const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+      // Map mode drops the title bar to give the map more room; the map/list
+      // toggle moves into the search header instead.
+      title: _showMap
+          ? null
+          : Row(
+              children: [
+                Expanded(
+                  child: Text(title, overflow: TextOverflow.ellipsis),
+                ),
+                _buildToggleButton(),
+              ],
+            ),
       contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       content: SizedBox(
-        width: 660,
-        height: 560,
+        // Fill the window in map mode (minus the dialog's inset/content
+        // padding) so the map is as large as the application allows.
+        width: _showMap ? media.width - 48 : 660,
+        height: _showMap ? media.height - 40 : 560,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -327,7 +339,7 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
               ),
             Expanded(
               child: _showMap
-                  ? _buildMap()
+                  ? _buildMapView(compact)
                   : Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -337,35 +349,111 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
                       ],
                     ),
             ),
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: InkWell(
-                onTap: () => launchUrl(
-                  Uri.parse('https://www.repeaterbook.com'),
-                  mode: LaunchMode.externalApplication,
-                ),
-                child: Text(
-                  'Data courtesy of RepeaterBook.com',
-                  style: DialogStyles.linkStyle,
-                ),
-              ),
-            ),
+            const SizedBox(height: 8),
+            _buildBottomBar(compact),
           ],
         ),
       ),
-      actions: [
+    );
+  }
+
+  /// The bottom action bar: the RepeaterBook attribution link on the left and
+  /// the Cancel / Write buttons on the right. Sharing one row leaves the map
+  /// as much vertical space as possible.
+  Widget _buildBottomBar(bool compact) {
+    return Row(
+      children: [
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: InkWell(
+              onTap: () => launchUrl(
+                Uri.parse('https://www.repeaterbook.com'),
+                mode: LaunchMode.externalApplication,
+              ),
+              child: Text(
+                compact
+                    ? 'Courtesy of RepeaterBook'
+                    : 'Data courtesy of RepeaterBook.com',
+                style: DialogStyles.linkStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           style: DialogStyles.secondaryButtonStyle(context),
           child: const Text('Cancel'),
         ),
+        const SizedBox(width: 8),
         ElevatedButton(
           onPressed: _staged.isEmpty ? null : _onOk,
           style: DialogStyles.primaryButtonStyle(context),
           child: Text('Write to radio (${_staged.length})'),
         ),
       ],
+    );
+  }
+
+  /// The map layout with the radio's channels alongside it: to the right on a
+  /// wide window, or as a 3-wide grid under the map on a narrow (mobile) one.
+  Widget _buildMapView(bool compact) {
+    final map = _buildMap();
+    final channels = _buildMapRadioChannels(compact);
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: map),
+          const SizedBox(height: 8),
+          SizedBox(height: 148, child: channels),
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: map),
+        const SizedBox(width: 8),
+        SizedBox(width: 200, child: channels),
+      ],
+    );
+  }
+
+  /// The radio's channels shown next to the map. Reuses the vertical slot list
+  /// when wide, and a compact 3-wide grid when narrow. Both are drag targets.
+  Widget _buildMapRadioChannels(bool compact) {
+    if (!compact) return _buildRadioColumn();
+    // Compact: drop the header to give the channel grid all the space.
+    if (_slots.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Text(
+            'Connect a radio to program channels.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+        ),
+      );
+    }
+    return Material(
+      type: MaterialType.transparency,
+      child: GridView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisExtent: _tileHeight,
+          crossAxisSpacing: 6,
+          mainAxisSpacing: 6,
+        ),
+        itemCount: _slots.length,
+        itemBuilder: (context, i) => _buildSlotTile(_slots[i]),
+      ),
     );
   }
 
@@ -399,7 +487,18 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
             overflow: TextOverflow.ellipsis,
           ),
         ),
+        // In map mode the map/list toggle lives here (top-right) since the
+        // dialog title bar is hidden.
+        if (_showMap) _buildToggleButton(),
       ],
+    );
+  }
+
+  Widget _buildToggleButton() {
+    return IconButton(
+      tooltip: _showMap ? 'Show channel imports' : 'Show stations on map',
+      icon: Icon(_showMap ? Icons.view_list_outlined : Icons.map_outlined),
+      onPressed: _toggleMap,
     );
   }
 
@@ -435,6 +534,10 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
 
   void _toggleMap() {
     setState(() => _showMap = !_showMap);
+    // Remember the view so it is restored the next time the dialog (or app)
+    // opens, even if the dialog is cancelled.
+    DataBroker.dispatch(
+        deviceId: 0, name: 'RepeaterBookMapView', data: _showMap);
     // The map is (re)built with an initial camera fit, but refit once it has a
     // size in case results changed while it was hidden.
     if (_showMap) {
@@ -459,7 +562,9 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
     if (points.isEmpty) return null;
     return CameraFit.bounds(
       bounds: LatLngBounds.fromPoints(points),
-      padding: const EdgeInsets.all(48),
+      // Reserve extra room at the bottom for the station info bar so no marker
+      // ends up hidden behind it.
+      padding: const EdgeInsets.only(left: 48, top: 48, right: 48, bottom: 120),
       maxZoom: 13,
     );
   }
@@ -603,10 +708,11 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
   /// A small banner shown over the map naming the tapped station.
   Widget _buildMapInfoCard(_ResultChannel rc) {
     final scheme = Theme.of(context).colorScheme;
-    final name =
-        rc.channel.name.isNotEmpty ? rc.channel.name : (rc.source.callsign);
-    final freq = rc.channel.rxFreq > 0
-        ? '${(rc.channel.rxFreq / 1000000).toStringAsFixed(3)} MHz'
+    final compact = MediaQuery.of(context).size.width < 600;
+    final channel = rc.channel;
+    final name = channel.name.isNotEmpty ? channel.name : rc.source.callsign;
+    final freq = channel.rxFreq > 0
+        ? '${(channel.rxFreq / 1000000).toStringAsFixed(3)} MHz'
         : null;
     final subtitle = _resultSubtitle(rc);
     return Positioned(
@@ -617,9 +723,11 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
         margin: EdgeInsets.zero,
         color: scheme.surface.withValues(alpha: 0.95),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+          padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
           child: Row(
             children: [
+              _buildInfoCardChannel(rc),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -648,15 +756,44 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
                 onPressed: () =>
                     showChannelDetailsDialog(context, channel: rc.channel),
               ),
-              IconButton(
-                tooltip: 'Close',
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: () => setState(() => _selectedResultIndex = null),
-              ),
+              // On a narrow screen, tapping the map closes the bar, so the
+              // explicit close button is redundant.
+              if (!compact)
+                IconButton(
+                  tooltip: 'Close',
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => setState(() => _selectedResultIndex = null),
+                ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// The draggable golden channel rectangle on the left of the map info card.
+  /// Dragging it onto a radio slot stages this repeater for writing, matching
+  /// the channel blocks shown in the radio tab.
+  Widget _buildInfoCardChannel(_ResultChannel rc) {
+    final channel = rc.channel;
+    final palette = ChannelPalette.of(context);
+    final label = channel.name.isNotEmpty ? channel.name : 'RPT';
+    Widget tile({bool dragging = false}) => _channelTile(
+          label: label,
+          freqHz: channel.rxFreq,
+          background: dragging ? palette.selected : palette.base,
+          highlight: dragging,
+          width: _tileWidth,
+        );
+    return Draggable<RadioChannelInfo>(
+      data: channel,
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Opacity(opacity: 0.9, child: tile(dragging: true)),
+      ),
+      childWhenDragging: Opacity(opacity: 0.4, child: tile()),
+      child: tile(),
     );
   }
 
@@ -775,6 +912,7 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
     final tile = _channelTile(
       label: label,
       freqHz: channel.rxFreq,
+      showFreq: false,
       subtitle: subtitle,
       background: selected ? palette.selected : palette.base,
       highlight: selected,
@@ -798,6 +936,7 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
           child: _channelTile(
             label: label,
             freqHz: channel.rxFreq,
+            showFreq: false,
             subtitle: subtitle,
             background: palette.selected,
             highlight: true,
@@ -825,7 +964,6 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
         return _channelTile(
           label: _slotLabel(slot),
           freqHz: channel.rxFreq,
-          slotNumber: slot.channelId + 1,
           background: isStaged
               ? palette.pending
               : (selected || hovering ? palette.selected : palette.base),
@@ -862,7 +1000,7 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
     required int freqHz,
     required Color background,
     bool highlight = false,
-    int? slotNumber,
+    bool showFreq = true,
     String? subtitle,
     double? width,
     VoidCallback? onTap,
@@ -870,8 +1008,9 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
     VoidCallback? onClear,
     void Function(Offset globalPosition)? onContextMenu,
   }) {
-    final freq =
-        freqHz > 0 ? '${(freqHz / 1000000).toStringAsFixed(3)} MHz' : null;
+    final freq = showFreq && freqHz > 0
+        ? '${(freqHz / 1000000).toStringAsFixed(3)} MHz'
+        : null;
     final palette = ChannelPalette.of(context);
     return GestureDetector(
       onTap: onTap,
@@ -906,21 +1045,13 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
                     child: Text(
                       label,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: palette.onChannel,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (slotNumber != null)
-                    Text(
-                      'Slot $slotNumber',
-                      style: TextStyle(
-                        fontSize: 8,
-                        color: palette.onChannelSecondary,
-                      ),
-                    ),
                   if (freq != null)
                     Text(
                       freq,

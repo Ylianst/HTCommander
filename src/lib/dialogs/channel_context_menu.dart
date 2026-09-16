@@ -49,7 +49,12 @@ Future<void> showChannelContextMenu({
       Offset.zero & overlay.size,
     ),
     items: [
-      const PopupMenuItem<String>(value: 'copy', child: Text('Copy')),
+      // Copying an empty (unprogrammed) channel makes no sense.
+      PopupMenuItem<String>(
+        value: 'copy',
+        enabled: channel.isConfigured,
+        child: const Text('Copy'),
+      ),
       if (onPaste != null)
         PopupMenuItem<String>(
           value: 'paste',

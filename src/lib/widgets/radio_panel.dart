@@ -1481,7 +1481,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           child: const Text('Set VFO B'),
         ),
         const PopupMenuDivider(),
-        const PopupMenuItem<String>(value: 'copy', child: Text('Copy')),
+        // Copying an empty (unprogrammed) channel makes no sense.
+        PopupMenuItem<String>(
+          value: 'copy',
+          enabled: channel.rxFreq > 0,
+          child: const Text('Copy'),
+        ),
         PopupMenuItem<String>(
           value: 'paste',
           enabled: pasteEnabled,
@@ -3428,7 +3433,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
                 _showChannelFrequency &&
                 channel.rxFreq > 0 &&
                 constraints.maxHeight >= 28;
-            final String label = channel.name.isNotEmpty
+            final String label = channel.rxFreq > 0 && channel.name.isNotEmpty
                 ? channel.name
                 : 'Ch ${channel.channelId + 1}';
             // When the frequency isn't shown, size the name to the biggest
@@ -3439,6 +3444,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
                 constraints.hasBoundedWidth &&
                 constraints.hasBoundedHeight) {
               final td = Directionality.of(context);
+              // Reserve a little vertical breathing room so the glyphs don't
+              // fill the whole tile in short (all-channels) rows; this makes
+              // the font shrink with height, not just width.
+              final double availWidth = constraints.maxWidth;
+              final double availHeight = constraints.maxHeight - 4;
               const candidates = [
                 20.0,
                 17.0,
@@ -3448,6 +3458,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
                 10.0,
                 9.0,
                 8.0,
+                7.0,
+                6.0,
               ];
               nameFontSize = candidates.last;
               for (final candidate in candidates) {
@@ -3462,8 +3474,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
                   maxLines: 1,
                   textDirection: td,
                 )..layout();
-                if (painter.width <= constraints.maxWidth &&
-                    painter.height <= constraints.maxHeight) {
+                if (painter.width <= availWidth &&
+                    painter.height <= availHeight) {
                   nameFontSize = candidate;
                   break;
                 }
@@ -3694,7 +3706,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                channel.name.isNotEmpty
+                channel.rxFreq > 0 && channel.name.isNotEmpty
                     ? channel.name
                     : 'Ch ${channel.channelId + 1}',
                 style: TextStyle(

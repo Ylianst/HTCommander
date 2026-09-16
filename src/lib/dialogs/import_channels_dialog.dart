@@ -137,7 +137,7 @@ class _ImportChannelsDialogState extends State<ImportChannelsDialog> {
   String _slotLabel(RadioChannelInfo slot) {
     final staged = _staged[slot.channelId];
     final channel = staged ?? slot;
-    if (channel.name.isNotEmpty) return channel.name;
+    if (channel.name.isNotEmpty && channel.isConfigured) return channel.name;
     return AppLocalizations.of(context).importChannelShort(slot.channelId + 1);
   }
 

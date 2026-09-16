@@ -561,6 +561,10 @@ class RadioChannelInfo {
     return (rxFreq / 1000000).toStringAsFixed(3);
   }
 
+  /// A channel with no receive frequency is treated as unprogrammed, even if it
+  /// carries a leftover name.
+  bool get isConfigured => rxFreq > 0;
+
   /// Serialize channel info to bytes for writing to radio
   Uint8List toByteArray() {
     final r = Uint8List(25);
