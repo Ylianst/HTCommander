@@ -807,6 +807,8 @@
   "mapShowAirplanes": "विमान दिखाएँ",
   "mapLargeMarkers": "बड़े मार्कर",
   "mapShowAprsSymbols": "APRS प्रतीक दिखाएँ",
+  "mapShowWinlinkGateways": "Winlink गेटवे दिखाएँ",
+  "winlinkGatewayFrequencies": "आवृत्तियाँ",
   "mapShowContactsOnly": "केवल संपर्क दिखाएँ",
   "mapFilterAll": "सभी",
   "mapFilterLast30": "पिछले 30 मिनट",
@@ -1348,5 +1350,15 @@
   "digipeaterAliasesInvalid": "एक या अधिक उपनाम मान्य कॉलसाइन नहीं हैं।",
   "digipeaterNoCallsign": "डिजीपीटर का उपयोग करने से पहले सेटिंग्स में अपना कॉलसाइन कॉन्फ़िगर करें।",
   "digipeaterNoAprsChannel": "चयनित रेडियो में कोई APRS चैनल नहीं है। डिजीपीटर सक्षम करने के लिए एक कॉन्फ़िगर करें।",
-  "menuCheckForUpdates": "अपडेट जांचें"
+  "menuCheckForUpdates": "अपडेट जांचें",
+  "settingsWinlinkGatewayDbTitle": "ऑफ़लाइन गेटवे निर्देशिका",
+  "settingsWinlinkGatewayDbInfo": "मानचित्र पर निकटवर्ती स्टेशन और उनकी आवृत्तियाँ खोजने के लिए Winlink पैकेट गेटवे की एक छोटी ऑफ़लाइन सूची डाउनलोड करें।",
+  "settingsWinlinkGatewayDbInstalled": "इंस्टॉल किया गया: {version} ({count} गेटवे)",
+  "settingsWinlinkGatewayDbNotInstalled": "इंस्टॉल नहीं है",
+  "settingsWinlinkGatewayDbDownload": "डाउनलोड करें",
+  "settingsWinlinkGatewayDbUpdated": "गेटवे निर्देशिका अपडेट हो गई।",
+  "settingsWinlinkGatewayDbUpToDate": "पहले से अद्यतित है।",
+  "settingsWinlinkGatewayDbFailed": "डाउनलोड विफल: {error}",
+  "settingsWinlinkGatewayDbAuto": "स्वचालित रूप से अपडेट रखें",
+  "settingsWinlinkGatewayDbAutoSubtitle": "Wi-Fi या वायर्ड कनेक्शन पर पृष्ठभूमि में अपडेट करें।"
 }

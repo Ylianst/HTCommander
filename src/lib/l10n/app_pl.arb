@@ -807,6 +807,8 @@
   "mapShowAirplanes": "Pokaż samoloty",
   "mapLargeMarkers": "Duże znaczniki",
   "mapShowAprsSymbols": "Pokaż symbole APRS",
+  "mapShowWinlinkGateways": "Pokaż bramki Winlink",
+  "winlinkGatewayFrequencies": "Częstotliwości",
   "mapShowContactsOnly": "Pokaż tylko kontakty",
   "mapFilterAll": "Wszystkie",
   "mapFilterLast30": "Ostatnie 30 minut",
@@ -1348,5 +1350,15 @@
   "digipeaterAliasesInvalid": "Jeden lub więcej aliasów nie jest prawidłowym znakiem wywoławczym.",
   "digipeaterNoCallsign": "Skonfiguruj swój znak wywoławczy w Ustawieniach przed użyciem digipeatera.",
   "digipeaterNoAprsChannel": "Wybrane radio nie ma kanału APRS. Skonfiguruj go, aby włączyć digipeater.",
-  "menuCheckForUpdates": "Sprawdź aktualizacje"
+  "menuCheckForUpdates": "Sprawdź aktualizacje",
+  "settingsWinlinkGatewayDbTitle": "Katalog bramek offline",
+  "settingsWinlinkGatewayDbInfo": "Pobierz małą listę offline bramek packet Winlink, aby znaleźć pobliskie stacje i ich częstotliwości na mapie.",
+  "settingsWinlinkGatewayDbInstalled": "Zainstalowano: {version} ({count} bramek)",
+  "settingsWinlinkGatewayDbNotInstalled": "Nie zainstalowano",
+  "settingsWinlinkGatewayDbDownload": "Pobierz",
+  "settingsWinlinkGatewayDbUpdated": "Katalog bramek zaktualizowany.",
+  "settingsWinlinkGatewayDbUpToDate": "Już aktualny.",
+  "settingsWinlinkGatewayDbFailed": "Pobieranie nie powiodło się: {error}",
+  "settingsWinlinkGatewayDbAuto": "Automatycznie aktualizuj",
+  "settingsWinlinkGatewayDbAutoSubtitle": "Odśwież w tle przez Wi-Fi lub połączenie przewodowe."
 }

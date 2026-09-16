@@ -2512,6 +2512,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get mapShowAprsSymbols => 'Pokaż symbole APRS';
 
   @override
+  String get mapShowWinlinkGateways => 'Pokaż bramki Winlink';
+
+  @override
+  String get winlinkGatewayFrequencies => 'Częstotliwości';
+
+  @override
   String get mapShowContactsOnly => 'Pokaż tylko kontakty';
 
   @override
@@ -3907,4 +3913,41 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get cslAutoUpdateWifiSubtitle =>
       'Automatycznie aktualizuj zainstalowane bazy danych, tylko przez Wi-Fi lub połączenia przewodowe, aby uniknąć opłat za dane komórkowe.';
+
+  @override
+  String get settingsWinlinkGatewayDbTitle => 'Katalog bramek offline';
+
+  @override
+  String get settingsWinlinkGatewayDbInfo =>
+      'Pobierz małą listę offline bramek packet Winlink, aby znaleźć pobliskie stacje i ich częstotliwości na mapie.';
+
+  @override
+  String settingsWinlinkGatewayDbInstalled(String version, int count) {
+    return 'Zainstalowano: $version ($count bramek)';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbNotInstalled => 'Nie zainstalowano';
+
+  @override
+  String get settingsWinlinkGatewayDbDownload => 'Pobierz';
+
+  @override
+  String get settingsWinlinkGatewayDbUpdated =>
+      'Katalog bramek zaktualizowany.';
+
+  @override
+  String get settingsWinlinkGatewayDbUpToDate => 'Już aktualny.';
+
+  @override
+  String settingsWinlinkGatewayDbFailed(String error) {
+    return 'Pobieranie nie powiodło się: $error';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbAuto => 'Automatycznie aktualizuj';
+
+  @override
+  String get settingsWinlinkGatewayDbAutoSubtitle =>
+      'Odśwież w tle przez Wi-Fi lub połączenie przewodowe.';
 }

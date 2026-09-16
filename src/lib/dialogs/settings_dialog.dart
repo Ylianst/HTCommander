@@ -26,6 +26,7 @@ import '../services/locale_controller.dart';
 import '../services/mqtt/mqtt_client_facade.dart';
 import '../services/theme_controller.dart';
 import '../services/tts_service.dart';
+import '../services/winlink_gateway_service.dart';
 import '../services/sherpa_model_manager.dart';
 import '../widgets/contact_avatar.dart';
 import 'app_settings.dart';
@@ -65,6 +66,12 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   // Data Broker client for reading/writing the AllStarLink account credentials.
   final DataBrokerClient _broker = DataBrokerClient();
+
+  // Winlink offline gateway directory download state.
+  bool _winlinkDbBusy = false;
+  double? _winlinkDbProgress;
+  String? _winlinkDbStatusMessage;
+  bool _winlinkDbStatusIsError = false;
 
   // Controllers
   late TextEditingController _callSignController;
@@ -2907,6 +2914,44 @@ class _SettingsDialogState extends State<SettingsDialog>
     );
   }
 
+  Future<void> _downloadWinlinkGatewayDb() async {
+    final l10n = AppLocalizations.of(context);
+    final service = WinlinkGatewayService.instance;
+    setState(() {
+      _winlinkDbBusy = true;
+      _winlinkDbProgress = 0;
+      _winlinkDbStatusMessage = null;
+      _winlinkDbStatusIsError = false;
+    });
+    try {
+      final result = await service.checkForUpdate(
+        progress: (received, total) {
+          if (!mounted) return;
+          setState(() =>
+              _winlinkDbProgress = total > 0 ? received / total : null);
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _winlinkDbBusy = false;
+        _winlinkDbProgress = null;
+        _winlinkDbStatusMessage =
+            result == WinlinkUpdateResult.updated
+                ? l10n.settingsWinlinkGatewayDbUpdated
+                : l10n.settingsWinlinkGatewayDbUpToDate;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _winlinkDbBusy = false;
+        _winlinkDbProgress = null;
+        _winlinkDbStatusMessage =
+            l10n.settingsWinlinkGatewayDbFailed(e.toString());
+        _winlinkDbStatusIsError = true;
+      });
+    }
+  }
+
   Widget _buildWinlinkTab() {
     final l10n = AppLocalizations.of(context);
     final winlinkLogin =
@@ -2971,6 +3016,82 @@ class _SettingsDialogState extends State<SettingsDialog>
                   ],
                 ),
               ],
+            ),
+          ),
+          if (WinlinkGatewayService.instance.isSupported) ...[
+            const SizedBox(height: 16),
+            _buildWinlinkGatewayDbSection(l10n),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWinlinkGatewayDbSection(AppLocalizations l10n) {
+    final scheme = Theme.of(context).colorScheme;
+    final service = WinlinkGatewayService.instance;
+    final installed = service.isAvailable;
+    final statusText = installed
+        ? l10n.settingsWinlinkGatewayDbInstalled(
+            service.installedVersion, service.gatewayCount)
+        : l10n.settingsWinlinkGatewayDbNotInstalled;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _sectionDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.settingsWinlinkGatewayDbTitle, style: _sectionTitleStyle()),
+          const SizedBox(height: 8),
+          Text(l10n.settingsWinlinkGatewayDbInfo, style: DialogStyles.bodyStyle),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(statusText, style: _secondaryStyle()),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: _winlinkDbBusy ? null : _downloadWinlinkGatewayDb,
+                icon: const Icon(Icons.download, size: 18),
+                label: Text(l10n.settingsWinlinkGatewayDbDownload),
+              ),
+            ],
+          ),
+          if (_winlinkDbBusy) ...[
+            const SizedBox(height: 10),
+            LinearProgressIndicator(value: _winlinkDbProgress),
+          ] else if (_winlinkDbStatusMessage != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _winlinkDbStatusMessage!,
+              style: TextStyle(
+                fontSize: 12,
+                color: _winlinkDbStatusIsError
+                    ? scheme.error
+                    : scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: service.autoDownload,
+              onChanged: (value) =>
+                  setState(() => service.autoDownload = value),
+              title: Text(
+                l10n.settingsWinlinkGatewayDbAuto,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+              ),
+              subtitle: Text(
+                l10n.settingsWinlinkGatewayDbAutoSubtitle,
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+              ),
             ),
           ),
         ],

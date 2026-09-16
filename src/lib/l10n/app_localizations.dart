@@ -4582,6 +4582,18 @@ abstract class AppLocalizations {
   /// **'Show APRS Symbols'**
   String get mapShowAprsSymbols;
 
+  /// No description provided for @mapShowWinlinkGateways.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Winlink Gateways'**
+  String get mapShowWinlinkGateways;
+
+  /// No description provided for @winlinkGatewayFrequencies.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequencies'**
+  String get winlinkGatewayFrequencies;
+
   /// No description provided for @mapShowContactsOnly.
   ///
   /// In en, this message translates to:
@@ -7089,6 +7101,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keep installed databases up to date automatically, only over Wi-Fi or wired connections to avoid mobile data charges.'**
   String get cslAutoUpdateWifiSubtitle;
+
+  /// No description provided for @settingsWinlinkGatewayDbTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline Gateway Directory'**
+  String get settingsWinlinkGatewayDbTitle;
+
+  /// No description provided for @settingsWinlinkGatewayDbInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Download a small offline list of Winlink packet gateways to find nearby stations and their frequencies on the map.'**
+  String get settingsWinlinkGatewayDbInfo;
+
+  /// Installed Winlink gateway directory version and gateway count
+  ///
+  /// In en, this message translates to:
+  /// **'Installed: {version} ({count} gateways)'**
+  String settingsWinlinkGatewayDbInstalled(String version, int count);
+
+  /// No description provided for @settingsWinlinkGatewayDbNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not installed'**
+  String get settingsWinlinkGatewayDbNotInstalled;
+
+  /// No description provided for @settingsWinlinkGatewayDbDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get settingsWinlinkGatewayDbDownload;
+
+  /// No description provided for @settingsWinlinkGatewayDbUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Gateway directory updated.'**
+  String get settingsWinlinkGatewayDbUpdated;
+
+  /// No description provided for @settingsWinlinkGatewayDbUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Already up to date.'**
+  String get settingsWinlinkGatewayDbUpToDate;
+
+  /// Winlink gateway directory download error
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed: {error}'**
+  String settingsWinlinkGatewayDbFailed(String error);
+
+  /// No description provided for @settingsWinlinkGatewayDbAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically keep updated'**
+  String get settingsWinlinkGatewayDbAuto;
+
+  /// No description provided for @settingsWinlinkGatewayDbAutoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh over Wi-Fi or wired connections in the background.'**
+  String get settingsWinlinkGatewayDbAutoSubtitle;
 }
 
 class _AppLocalizationsDelegate

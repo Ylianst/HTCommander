@@ -807,6 +807,8 @@
   "mapShowAirplanes": "显示飞机",
   "mapLargeMarkers": "大标记",
   "mapShowAprsSymbols": "显示 APRS 符号",
+  "mapShowWinlinkGateways": "显示 Winlink 网关",
+  "winlinkGatewayFrequencies": "频率",
   "mapShowContactsOnly": "仅显示联系人",
   "mapFilterAll": "全部",
   "mapFilterLast30": "最近 30 分钟",
@@ -1348,5 +1350,15 @@
   "digipeaterAliasesInvalid": "一个或多个别名不是有效的呼号。",
   "digipeaterNoCallsign": "使用数字中继器前，请在设置中配置您的呼号。",
   "digipeaterNoAprsChannel": "所选电台没有 APRS 频道。请配置一个以启用数字中继器。",
-  "menuCheckForUpdates": "检查更新"
+  "menuCheckForUpdates": "检查更新",
+  "settingsWinlinkGatewayDbTitle": "离线网关目录",
+  "settingsWinlinkGatewayDbInfo": "下载 Winlink 分组网关的小型离线列表，以便在地图上查找附近的台站及其频率。",
+  "settingsWinlinkGatewayDbInstalled": "已安装：{version}（{count} 个网关）",
+  "settingsWinlinkGatewayDbNotInstalled": "未安装",
+  "settingsWinlinkGatewayDbDownload": "下载",
+  "settingsWinlinkGatewayDbUpdated": "网关目录已更新。",
+  "settingsWinlinkGatewayDbUpToDate": "已是最新。",
+  "settingsWinlinkGatewayDbFailed": "下载失败：{error}",
+  "settingsWinlinkGatewayDbAuto": "自动保持更新",
+  "settingsWinlinkGatewayDbAutoSubtitle": "通过 Wi-Fi 或有线连接在后台刷新。"
 }

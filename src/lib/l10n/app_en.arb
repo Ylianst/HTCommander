@@ -1597,6 +1597,8 @@
   "mapShowAirplanes": "Show Airplanes",
   "mapLargeMarkers": "Large Markers",
   "mapShowAprsSymbols": "Show APRS Symbols",
+  "mapShowWinlinkGateways": "Show Winlink Gateways",
+  "winlinkGatewayFrequencies": "Frequencies",
   "mapShowContactsOnly": "Show Contacts Only",
   "mapFilterAll": "All",
   "mapFilterLast30": "Last 30 Minutes",
@@ -2297,5 +2299,28 @@
   "@cslAutoUpdateWifi": {
     "description": "Label for the toggle that enables automatic background callsign database updates over non-metered connections"
   },
-  "cslAutoUpdateWifiSubtitle": "Keep installed databases up to date automatically, only over Wi-Fi or wired connections to avoid mobile data charges."
+  "cslAutoUpdateWifiSubtitle": "Keep installed databases up to date automatically, only over Wi-Fi or wired connections to avoid mobile data charges.",
+  "settingsWinlinkGatewayDbTitle": "Offline Gateway Directory",
+  "settingsWinlinkGatewayDbInfo": "Download a small offline list of Winlink packet gateways to find nearby stations and their frequencies on the map.",
+  "settingsWinlinkGatewayDbInstalled": "Installed: {version} ({count} gateways)",
+  "@settingsWinlinkGatewayDbInstalled": {
+    "description": "Installed Winlink gateway directory version and gateway count",
+    "placeholders": {
+      "version": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "settingsWinlinkGatewayDbNotInstalled": "Not installed",
+  "settingsWinlinkGatewayDbDownload": "Download",
+  "settingsWinlinkGatewayDbUpdated": "Gateway directory updated.",
+  "settingsWinlinkGatewayDbUpToDate": "Already up to date.",
+  "settingsWinlinkGatewayDbFailed": "Download failed: {error}",
+  "@settingsWinlinkGatewayDbFailed": {
+    "description": "Winlink gateway directory download error",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "settingsWinlinkGatewayDbAuto": "Automatically keep updated",
+  "settingsWinlinkGatewayDbAutoSubtitle": "Refresh over Wi-Fi or wired connections in the background."
 }

@@ -799,6 +799,8 @@
   "mapShowAirplanes": "Mostra aerei",
   "mapLargeMarkers": "Indicatori grandi",
   "mapShowAprsSymbols": "Mostra simboli APRS",
+  "mapShowWinlinkGateways": "Mostra gateway Winlink",
+  "winlinkGatewayFrequencies": "Frequenze",
   "mapShowContactsOnly": "Mostra solo i contatti",
   "mapFilterAll": "Tutti",
   "mapFilterLast30": "Ultimi 30 minuti",
@@ -1240,5 +1242,15 @@
   "cslDeleteTitle": "Elimina database nominativi",
   "cslDeleteMessage": "Eliminare il database dei nominativi scaricato? Potrai scaricarlo di nuovo in seguito.",
   "cslAutoUpdateWifi": "Aggiornamento automatico tramite Wi-Fi",
-  "cslAutoUpdateWifiSubtitle": "Mantieni aggiornati automaticamente i database installati, solo tramite Wi-Fi o connessioni cablate, per evitare costi di dati mobili."
+  "cslAutoUpdateWifiSubtitle": "Mantieni aggiornati automaticamente i database installati, solo tramite Wi-Fi o connessioni cablate, per evitare costi di dati mobili.",
+  "settingsWinlinkGatewayDbTitle": "Elenco gateway offline",
+  "settingsWinlinkGatewayDbInfo": "Scarica un piccolo elenco offline di gateway packet Winlink per trovare le stazioni vicine e le loro frequenze sulla mappa.",
+  "settingsWinlinkGatewayDbInstalled": "Installato: {version} ({count} gateway)",
+  "settingsWinlinkGatewayDbNotInstalled": "Non installato",
+  "settingsWinlinkGatewayDbDownload": "Scarica",
+  "settingsWinlinkGatewayDbUpdated": "Elenco gateway aggiornato.",
+  "settingsWinlinkGatewayDbUpToDate": "Già aggiornato.",
+  "settingsWinlinkGatewayDbFailed": "Download non riuscito: {error}",
+  "settingsWinlinkGatewayDbAuto": "Mantieni aggiornato automaticamente",
+  "settingsWinlinkGatewayDbAutoSubtitle": "Aggiorna in background tramite Wi-Fi o connessione cablata."
 }

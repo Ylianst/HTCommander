@@ -2455,6 +2455,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get mapShowAprsSymbols => 'APRSシンボルを表示';
 
   @override
+  String get mapShowWinlinkGateways => 'Winlink ゲートウェイを表示';
+
+  @override
+  String get winlinkGatewayFrequencies => '周波数';
+
+  @override
   String get mapShowContactsOnly => '連絡先のみ表示';
 
   @override
@@ -3816,4 +3822,40 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get cslAutoUpdateWifiSubtitle =>
       'インストール済みのデータベースを自動的に最新の状態に保ちます。モバイルデータ通信料を避けるため、Wi-Fi または有線接続の場合のみ更新します。';
+
+  @override
+  String get settingsWinlinkGatewayDbTitle => 'オフライン ゲートウェイ一覧';
+
+  @override
+  String get settingsWinlinkGatewayDbInfo =>
+      'Winlink パケットゲートウェイの小さなオフライン一覧をダウンロードし、近くの局とその周波数を地図で確認できます。';
+
+  @override
+  String settingsWinlinkGatewayDbInstalled(String version, int count) {
+    return 'インストール済み: $version（$count 局）';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbNotInstalled => '未インストール';
+
+  @override
+  String get settingsWinlinkGatewayDbDownload => 'ダウンロード';
+
+  @override
+  String get settingsWinlinkGatewayDbUpdated => 'ゲートウェイ一覧を更新しました。';
+
+  @override
+  String get settingsWinlinkGatewayDbUpToDate => 'すでに最新です。';
+
+  @override
+  String settingsWinlinkGatewayDbFailed(String error) {
+    return 'ダウンロードに失敗しました: $error';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbAuto => '自動的に最新の状態に保つ';
+
+  @override
+  String get settingsWinlinkGatewayDbAutoSubtitle =>
+      'Wi-Fi または有線接続でバックグラウンド更新します。';
 }

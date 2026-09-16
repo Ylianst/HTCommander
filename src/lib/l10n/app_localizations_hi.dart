@@ -2499,6 +2499,12 @@ class AppLocalizationsHi extends AppLocalizations {
   String get mapShowAprsSymbols => 'APRS प्रतीक दिखाएँ';
 
   @override
+  String get mapShowWinlinkGateways => 'Winlink गेटवे दिखाएँ';
+
+  @override
+  String get winlinkGatewayFrequencies => 'आवृत्तियाँ';
+
+  @override
   String get mapShowContactsOnly => 'केवल संपर्क दिखाएँ';
 
   @override
@@ -3886,4 +3892,40 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get cslAutoUpdateWifiSubtitle =>
       'इंस्टॉल किए गए डेटाबेस को स्वचालित रूप से अद्यतित रखें, केवल वाई-फ़ाई या वायर्ड कनेक्शन पर, ताकि मोबाइल डेटा शुल्क से बचा जा सके।';
+
+  @override
+  String get settingsWinlinkGatewayDbTitle => 'ऑफ़लाइन गेटवे निर्देशिका';
+
+  @override
+  String get settingsWinlinkGatewayDbInfo =>
+      'मानचित्र पर निकटवर्ती स्टेशन और उनकी आवृत्तियाँ खोजने के लिए Winlink पैकेट गेटवे की एक छोटी ऑफ़लाइन सूची डाउनलोड करें।';
+
+  @override
+  String settingsWinlinkGatewayDbInstalled(String version, int count) {
+    return 'इंस्टॉल किया गया: $version ($count गेटवे)';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbNotInstalled => 'इंस्टॉल नहीं है';
+
+  @override
+  String get settingsWinlinkGatewayDbDownload => 'डाउनलोड करें';
+
+  @override
+  String get settingsWinlinkGatewayDbUpdated => 'गेटवे निर्देशिका अपडेट हो गई।';
+
+  @override
+  String get settingsWinlinkGatewayDbUpToDate => 'पहले से अद्यतित है।';
+
+  @override
+  String settingsWinlinkGatewayDbFailed(String error) {
+    return 'डाउनलोड विफल: $error';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbAuto => 'स्वचालित रूप से अपडेट रखें';
+
+  @override
+  String get settingsWinlinkGatewayDbAutoSubtitle =>
+      'Wi-Fi या वायर्ड कनेक्शन पर पृष्ठभूमि में अपडेट करें।';
 }

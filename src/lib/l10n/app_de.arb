@@ -807,6 +807,8 @@
   "mapShowAirplanes": "Flugzeuge anzeigen",
   "mapLargeMarkers": "Große Markierungen",
   "mapShowAprsSymbols": "APRS-Symbole anzeigen",
+  "mapShowWinlinkGateways": "Winlink-Gateways anzeigen",
+  "winlinkGatewayFrequencies": "Frequenzen",
   "mapShowContactsOnly": "Nur Kontakte anzeigen",
   "mapFilterAll": "Alle",
   "mapFilterLast30": "Letzte 30 Minuten",
@@ -1348,5 +1350,15 @@
   "digipeaterAliasesInvalid": "Ein oder mehrere Aliase sind keine gültigen Rufzeichen.",
   "digipeaterNoCallsign": "Konfigurieren Sie Ihr Rufzeichen in den Einstellungen, bevor Sie den Digipeater verwenden.",
   "digipeaterNoAprsChannel": "Das ausgewählte Funkgerät hat keinen APRS-Kanal. Konfigurieren Sie einen, um den Digipeater zu aktivieren.",
-  "menuCheckForUpdates": "Nach Updates suchen"
+  "menuCheckForUpdates": "Nach Updates suchen",
+  "settingsWinlinkGatewayDbTitle": "Offline-Gateway-Verzeichnis",
+  "settingsWinlinkGatewayDbInfo": "Laden Sie eine kleine Offline-Liste von Winlink-Packet-Gateways herunter, um nahegelegene Stationen und ihre Frequenzen auf der Karte zu finden.",
+  "settingsWinlinkGatewayDbInstalled": "Installiert: {version} ({count} Gateways)",
+  "settingsWinlinkGatewayDbNotInstalled": "Nicht installiert",
+  "settingsWinlinkGatewayDbDownload": "Herunterladen",
+  "settingsWinlinkGatewayDbUpdated": "Gateway-Verzeichnis aktualisiert.",
+  "settingsWinlinkGatewayDbUpToDate": "Bereits aktuell.",
+  "settingsWinlinkGatewayDbFailed": "Download fehlgeschlagen: {error}",
+  "settingsWinlinkGatewayDbAuto": "Automatisch aktuell halten",
+  "settingsWinlinkGatewayDbAutoSubtitle": "Im Hintergrund über WLAN oder Kabelverbindung aktualisieren."
 }

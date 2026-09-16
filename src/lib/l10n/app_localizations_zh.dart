@@ -2437,6 +2437,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mapShowAprsSymbols => '显示 APRS 符号';
 
   @override
+  String get mapShowWinlinkGateways => '显示 Winlink 网关';
+
+  @override
+  String get winlinkGatewayFrequencies => '频率';
+
+  @override
   String get mapShowContactsOnly => '仅显示联系人';
 
   @override
@@ -3783,4 +3789,39 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get cslAutoUpdateWifiSubtitle =>
       '自动保持已安装的数据库为最新，仅通过 Wi-Fi 或有线连接进行，以避免产生移动数据费用。';
+
+  @override
+  String get settingsWinlinkGatewayDbTitle => '离线网关目录';
+
+  @override
+  String get settingsWinlinkGatewayDbInfo =>
+      '下载 Winlink 分组网关的小型离线列表，以便在地图上查找附近的台站及其频率。';
+
+  @override
+  String settingsWinlinkGatewayDbInstalled(String version, int count) {
+    return '已安装：$version（$count 个网关）';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbNotInstalled => '未安装';
+
+  @override
+  String get settingsWinlinkGatewayDbDownload => '下载';
+
+  @override
+  String get settingsWinlinkGatewayDbUpdated => '网关目录已更新。';
+
+  @override
+  String get settingsWinlinkGatewayDbUpToDate => '已是最新。';
+
+  @override
+  String settingsWinlinkGatewayDbFailed(String error) {
+    return '下载失败：$error';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbAuto => '自动保持更新';
+
+  @override
+  String get settingsWinlinkGatewayDbAutoSubtitle => '通过 Wi-Fi 或有线连接在后台刷新。';
 }

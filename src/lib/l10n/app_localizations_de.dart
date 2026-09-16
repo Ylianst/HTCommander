@@ -2523,6 +2523,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get mapShowAprsSymbols => 'APRS-Symbole anzeigen';
 
   @override
+  String get mapShowWinlinkGateways => 'Winlink-Gateways anzeigen';
+
+  @override
+  String get winlinkGatewayFrequencies => 'Frequenzen';
+
+  @override
   String get mapShowContactsOnly => 'Nur Kontakte anzeigen';
 
   @override
@@ -3916,4 +3922,41 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get cslAutoUpdateWifiSubtitle =>
       'Installierte Datenbanken automatisch aktuell halten, nur über WLAN oder kabelgebundene Verbindungen, um mobile Datennutzung zu vermeiden.';
+
+  @override
+  String get settingsWinlinkGatewayDbTitle => 'Offline-Gateway-Verzeichnis';
+
+  @override
+  String get settingsWinlinkGatewayDbInfo =>
+      'Laden Sie eine kleine Offline-Liste von Winlink-Packet-Gateways herunter, um nahegelegene Stationen und ihre Frequenzen auf der Karte zu finden.';
+
+  @override
+  String settingsWinlinkGatewayDbInstalled(String version, int count) {
+    return 'Installiert: $version ($count Gateways)';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbNotInstalled => 'Nicht installiert';
+
+  @override
+  String get settingsWinlinkGatewayDbDownload => 'Herunterladen';
+
+  @override
+  String get settingsWinlinkGatewayDbUpdated =>
+      'Gateway-Verzeichnis aktualisiert.';
+
+  @override
+  String get settingsWinlinkGatewayDbUpToDate => 'Bereits aktuell.';
+
+  @override
+  String settingsWinlinkGatewayDbFailed(String error) {
+    return 'Download fehlgeschlagen: $error';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbAuto => 'Automatisch aktuell halten';
+
+  @override
+  String get settingsWinlinkGatewayDbAutoSubtitle =>
+      'Im Hintergrund über WLAN oder Kabelverbindung aktualisieren.';
 }

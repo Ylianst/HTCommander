@@ -75,6 +75,7 @@ import 'audio_rx/audio_rx_manager_stub.dart'
 import 'services/bluetooth_service.dart';
 import 'callsign/callsign_country.dart';
 import 'services/callsign_lookup_service.dart';
+import 'services/winlink_gateway_service.dart';
 import 'services/host_bridge.dart';
 import 'services/crash_logger.dart';
 import 'services/data_broker.dart';
@@ -567,6 +568,10 @@ Future<void> _startApp(List<String> args) async {
   // Start the background auto-update scheduler (no-op unless the user enabled
   // "auto-update on WiFi"). Only refreshes over a non-metered connection.
   CallsignLookupService.instance.startAutoUpdateScheduler();
+
+  // Load the offline Winlink packet-gateway directory (opens the cached copy
+  // if present and kicks off a throttled background refresh). No-op on web.
+  await WinlinkGatewayService.instance.init();
 
   // Load the bundled offline callsign -> country table into memory. This is a
   // small built-in asset (not a download) so country lookups always work,

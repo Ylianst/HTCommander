@@ -807,6 +807,8 @@
   "mapShowAirplanes": "Mostrar los aviones",
   "mapLargeMarkers": "Marcadores grandes",
   "mapShowAprsSymbols": "Mostrar símbolos APRS",
+  "mapShowWinlinkGateways": "Mostrar pasarelas Winlink",
+  "winlinkGatewayFrequencies": "Frecuencias",
   "mapShowContactsOnly": "Mostrar solo los contactos",
   "mapFilterAll": "Todo",
   "mapFilterLast30": "Últimos 30 minutos",
@@ -1348,5 +1350,15 @@
   "digipeaterAliasesInvalid": "Uno o más alias no son indicativos válidos.",
   "digipeaterNoCallsign": "Configura tu indicativo en Ajustes antes de usar el digipeater.",
   "digipeaterNoAprsChannel": "La radio seleccionada no tiene canal APRS. Configura uno para activar el digipeater.",
-  "menuCheckForUpdates": "Buscar actualizaciones"
+  "menuCheckForUpdates": "Buscar actualizaciones",
+  "settingsWinlinkGatewayDbTitle": "Directorio de pasarelas sin conexión",
+  "settingsWinlinkGatewayDbInfo": "Descarga una pequeña lista sin conexión de pasarelas Winlink para encontrar estaciones cercanas y sus frecuencias en el mapa.",
+  "settingsWinlinkGatewayDbInstalled": "Instalado: {version} ({count} pasarelas)",
+  "settingsWinlinkGatewayDbNotInstalled": "No instalado",
+  "settingsWinlinkGatewayDbDownload": "Descargar",
+  "settingsWinlinkGatewayDbUpdated": "Directorio de pasarelas actualizado.",
+  "settingsWinlinkGatewayDbUpToDate": "Ya está actualizado.",
+  "settingsWinlinkGatewayDbFailed": "Error de descarga: {error}",
+  "settingsWinlinkGatewayDbAuto": "Mantener actualizado automáticamente",
+  "settingsWinlinkGatewayDbAutoSubtitle": "Actualizar en segundo plano por Wi-Fi o conexión por cable."
 }

@@ -29,6 +29,8 @@ import '../satellite/satellite_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
+import '../services/winlink_gateway_service.dart';
+import '../winlink/winlink_gateway.dart';
 import '../utils/map_tile_downloader.dart';
 import '../utils/map_tile_provider.dart';
 import '../utils/num_parsing.dart';
@@ -186,6 +188,10 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// When false, APRS-IS (internet) stations are hidden from the map.
   bool _showAprsIs = true;
 
+  /// When true, offline Winlink 1200-baud packet gateways are drawn on the map
+  /// (only once zoomed in enough to keep the marker count reasonable).
+  bool _showWinlinkGateways = false;
+
   /// When true the user is drawing a rectangle on the map to select a cache
   /// area. Interaction with markers/tracks is suppressed.
   bool _isSelectingCacheArea = false;
@@ -321,6 +327,15 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       deviceId: 0,
       name: 'ShowAirplanesOnMap',
       callback: _onShowAirplanesChanged,
+    );
+
+    // Redraw when the offline Winlink gateway directory is (re)loaded.
+    _broker.subscribe(
+      deviceId: 0,
+      name: WinlinkGatewayService.updatedEvent,
+      callback: (_, _, _) {
+        if (mounted && _showWinlinkGateways) setState(() {});
+      },
     );
 
     // Receive satellite tracking updates from the SatelliteHandler.
@@ -984,6 +999,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     _updateFilterRefreshTimer();
     _showAirplanes =
         (DataBroker.getValue<int>(0, 'ShowAirplanesOnMap', 0) ?? 0) == 1;
+    _showWinlinkGateways =
+        (DataBroker.getValue<int>(0, 'MapShowWinlinkGateways', 0) ?? 0) == 1;
     _showContactsOnly =
         (DataBroker.getValue<int>(0, 'MapShowContactsOnly', 0) ?? 0) == 1;
     _showSatellites =
@@ -1269,6 +1286,22 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             ],
           ),
         ),
+        PopupMenuItem<String>(
+          value: 'winlinkGateways',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                child: _showWinlinkGateways
+                    ? const Text('✓', style: TextStyle(fontSize: 14))
+                    : null,
+              ),
+              Text(AppLocalizations.of(context).mapShowWinlinkGateways),
+            ],
+          ),
+        ),
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
@@ -1361,6 +1394,17 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             deviceId: 0,
             name: 'MapShowAprsSymbols',
             data: _showAprsSymbols ? 1 : 0,
+          );
+          break;
+        case 'winlinkGateways':
+          setState(() {
+            _showWinlinkGateways = !_showWinlinkGateways;
+          });
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'MapShowWinlinkGateways',
+            data: _showWinlinkGateways ? 1 : 0,
+            store: true,
           );
           break;
         case 'centerGps':
@@ -1516,6 +1560,83 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       child: Transform.rotate(
         angle: angle,
         child: const Icon(Icons.flight, color: Color(0xFF1565C0), size: 26),
+      ),
+    );
+  }
+
+  /// Builds a marker for each offline Winlink gateway visible in the current
+  /// viewport. Gated on zoom and capped so a dense region can't flood the map
+  /// with thousands of pins.
+  List<Marker> _buildWinlinkGatewayMarkers() {
+    final service = WinlinkGatewayService.instance;
+    if (!service.isAvailable) return const [];
+    final LatLngBounds bounds;
+    final double zoom;
+    try {
+      bounds = _mapController.camera.visibleBounds;
+      zoom = _mapController.camera.zoom;
+    } catch (_) {
+      return const []; // Camera not laid out yet.
+    }
+    if (zoom < 6) return const [];
+    final gateways = service.withinBounds(
+      bounds.south,
+      bounds.west,
+      bounds.north,
+      bounds.east,
+    );
+    final markers = <Marker>[];
+    for (final gw in gateways.take(400)) {
+      if (!_isValidLatLng(gw.latitude, gw.longitude)) continue;
+      markers.add(
+        Marker(
+          point: LatLng(gw.latitude, gw.longitude),
+          width: 30,
+          height: 30,
+          child: GestureDetector(
+            onTap: () => _showWinlinkGatewayInfo(gw),
+            child: Tooltip(
+              message: '${gw.callsign}\n'
+                  '${gw.frequenciesMHz.join(', ')} MHz',
+              child: const Icon(Icons.cell_tower,
+                  color: Color(0xFF6A1B9A), size: 22),
+            ),
+          ),
+        ),
+      );
+    }
+    return markers;
+  }
+
+  void _showWinlinkGatewayInfo(WinlinkGateway gw) {
+    final l10n = AppLocalizations.of(context);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.cell_tower, color: Color(0xFF6A1B9A)),
+            const SizedBox(width: 8),
+            Text(gw.callsign),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${l10n.winlinkGatewayFrequencies}: '
+                '${gw.frequenciesMHz.map((f) => '$f MHz').join(', ')}'),
+            const SizedBox(height: 4),
+            Text('${gw.latitude.toStringAsFixed(5)}, '
+                '${gw.longitude.toStringAsFixed(5)}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l10n.commonClose),
+          ),
+        ],
       ),
     );
   }
@@ -2603,6 +2724,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                     MarkerLayer(markers: stationMarkers),
                   if (_showAirplanes && _airplanes.isNotEmpty)
                     MarkerLayer(markers: _buildAirplaneMarkers()),
+                  if (_showWinlinkGateways)
+                    MarkerLayer(markers: _buildWinlinkGatewayMarkers()),
                   if (_showSatellites && _satelliteSupport) ...[
                     if (_satellites.isNotEmpty)
                       CircleLayer(circles: _buildSatelliteFootprints()),

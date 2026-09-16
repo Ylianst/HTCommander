@@ -2487,6 +2487,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mapShowAprsSymbols => 'Show APRS Symbols';
 
   @override
+  String get mapShowWinlinkGateways => 'Show Winlink Gateways';
+
+  @override
+  String get winlinkGatewayFrequencies => 'Frequencies';
+
+  @override
   String get mapShowContactsOnly => 'Show Contacts Only';
 
   @override
@@ -3873,4 +3879,40 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get cslAutoUpdateWifiSubtitle =>
       'Keep installed databases up to date automatically, only over Wi-Fi or wired connections to avoid mobile data charges.';
+
+  @override
+  String get settingsWinlinkGatewayDbTitle => 'Offline Gateway Directory';
+
+  @override
+  String get settingsWinlinkGatewayDbInfo =>
+      'Download a small offline list of Winlink packet gateways to find nearby stations and their frequencies on the map.';
+
+  @override
+  String settingsWinlinkGatewayDbInstalled(String version, int count) {
+    return 'Installed: $version ($count gateways)';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbNotInstalled => 'Not installed';
+
+  @override
+  String get settingsWinlinkGatewayDbDownload => 'Download';
+
+  @override
+  String get settingsWinlinkGatewayDbUpdated => 'Gateway directory updated.';
+
+  @override
+  String get settingsWinlinkGatewayDbUpToDate => 'Already up to date.';
+
+  @override
+  String settingsWinlinkGatewayDbFailed(String error) {
+    return 'Download failed: $error';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbAuto => 'Automatically keep updated';
+
+  @override
+  String get settingsWinlinkGatewayDbAutoSubtitle =>
+      'Refresh over Wi-Fi or wired connections in the background.';
 }

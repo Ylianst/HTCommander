@@ -1,0 +1,162 @@
+name: Deploy Winlink Gateway Database
+
+# Rebuilds the offline Winlink packet-gateway directory from the Winlink CMS
+# gateway-status feed and publishes it. HTCommander only supports 1200-baud
+# VHF/UHF packet, so the builder keeps just the callsign-stationid, location and
+# frequency of each 1200 packet gateway and packs them into a tiny binary
+# (~12 KB compressed). See docs/Winlink-Gateways.md for the format and the
+# compaction strategy.
+#
+# The binary is uploaded as an asset on a rolling GitHub Release (so it never
+# bloats the git history); only the tiny manifest (which points at that asset)
+# is committed under docs/winlink/ and served from GitHub Pages.
+#
+# To be gentle on the Winlink servers this runs only twice a week (and on
+# demand), and it skips publishing entirely when the distilled station set is
+# byte-for-byte unchanged (the feed's status timestamps churn constantly, but we
+# only care about callsigns, locations and frequencies).
+
+on:
+  schedule:
+    # Mondays and Thursdays at 09:23 UTC (two runs per week).
+    - cron: '23 9 * * 1,4'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Publish even if the distilled station set is unchanged'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Share the "pages" concurrency group with the other Pages deploys so no two
+# workflows publish at the same time.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  MANIFEST: docs/winlink/winlink_packet_manifest.json
+  # The binary is hosted as an asset on this rolling release tag so it never
+  # bloats the git history; only the tiny manifest is committed to Pages.
+  RELEASE_TAG: winlink-db
+  ASSET: winlink_packet.wdb.xz
+  # Include gateways heard within this many hours. A directory wants to be more
+  # complete than the live "who is up right now" map, so this is wider than the
+  # 36 h the RMSChannels page uses.
+  HISTORY_HOURS: '168'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Read deployed station hash
+        id: current
+        run: |
+          set -euo pipefail
+          if [ -f "$MANIFEST" ]; then
+            cur=$(jq -r '.recordsMd5 // ""' "$MANIFEST")
+          else
+            cur=""
+          fi
+          echo "Deployed station hash: ${cur:-<none>}"
+          echo "records_md5=$cur" >> "$GITHUB_OUTPUT"
+
+      - name: Build Winlink gateway database
+        id: build
+        run: |
+          set -euo pipefail
+          mkdir -p docs/winlink
+          python src/tools/build_winlink_db.py \
+            --download \
+            --history-hours "$HISTORY_HOURS" \
+            --out docs/winlink/winlink_packet.wdb \
+            --compress \
+            --base-url "https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/"
+          new=$(jq -r '.recordsMd5' "$MANIFEST")
+          echo "New station hash: $new"
+          echo "records_md5=$new" >> "$GITHUB_OUTPUT"
+
+      - name: Decide whether to publish
+        id: decide
+        run: |
+          set -euo pipefail
+          force='${{ github.event.inputs.force }}'
+          new='${{ steps.build.outputs.records_md5 }}'
+          cur='${{ steps.current.outputs.records_md5 }}'
+          if [ "$force" = "true" ]; then
+            echo "Forced publish requested."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif [ "$new" != "$cur" ]; then
+            echo "Station set changed ($cur -> $new); will publish."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Station set unchanged ($cur); nothing to do."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish database to Release
+        if: steps.decide.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --title "Winlink Gateway Database" \
+              --notes "Offline Winlink 1200-baud packet gateway directory. Rolling release; the asset is replaced automatically."
+          fi
+          gh release upload "$RELEASE_TAG" "docs/winlink/$ASSET" --clobber
+          # Keep the binary out of the committed docs tree / Pages artifact.
+          rm -f docs/winlink/winlink_packet.wdb docs/winlink/winlink_packet.wdb.xz
+
+      - name: Revert manifest when unchanged
+        if: steps.decide.outputs.publish != 'true'
+        run: |
+          set -euo pipefail
+          # Only the sourceDate/version/size churned; drop the rebuild so the
+          # committed manifest and the published asset stay in sync.
+          git checkout -- "$MANIFEST" || true
+          rm -f docs/winlink/winlink_packet.wdb docs/winlink/winlink_packet.wdb.xz
+
+      - name: Commit updated manifest
+        if: steps.decide.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$MANIFEST"
+          if git diff --cached --quiet; then
+            echo "No manifest changes to commit."
+          else
+            git commit -m "winlink-db: update gateway directory ${{ steps.build.outputs.records_md5 }}"
+            git push
+          fi
+
+      - name: Setup Pages
+        if: steps.decide.outputs.publish == 'true'
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+
+      - name: Upload artifact
+        if: steps.decide.outputs.publish == 'true'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        if: steps.decide.outputs.publish == 'true'
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

@@ -807,6 +807,8 @@
   "mapShowAirplanes": "航空機を表示",
   "mapLargeMarkers": "大きなマーカー",
   "mapShowAprsSymbols": "APRSシンボルを表示",
+  "mapShowWinlinkGateways": "Winlink ゲートウェイを表示",
+  "winlinkGatewayFrequencies": "周波数",
   "mapShowContactsOnly": "連絡先のみ表示",
   "mapFilterAll": "すべて",
   "mapFilterLast30": "過去 30 分",
@@ -1348,5 +1350,15 @@
   "digipeaterAliasesInvalid": "1つ以上のエイリアスが有効なコールサインではありません。",
   "digipeaterNoCallsign": "デジピーターを使用する前に、設定でコールサインを構成してください。",
   "digipeaterNoAprsChannel": "選択した無線機に APRS チャンネルがありません。デジピーターを有効にするには構成してください。",
-  "menuCheckForUpdates": "アップデートを確認"
+  "menuCheckForUpdates": "アップデートを確認",
+  "settingsWinlinkGatewayDbTitle": "オフライン ゲートウェイ一覧",
+  "settingsWinlinkGatewayDbInfo": "Winlink パケットゲートウェイの小さなオフライン一覧をダウンロードし、近くの局とその周波数を地図で確認できます。",
+  "settingsWinlinkGatewayDbInstalled": "インストール済み: {version}（{count} 局）",
+  "settingsWinlinkGatewayDbNotInstalled": "未インストール",
+  "settingsWinlinkGatewayDbDownload": "ダウンロード",
+  "settingsWinlinkGatewayDbUpdated": "ゲートウェイ一覧を更新しました。",
+  "settingsWinlinkGatewayDbUpToDate": "すでに最新です。",
+  "settingsWinlinkGatewayDbFailed": "ダウンロードに失敗しました: {error}",
+  "settingsWinlinkGatewayDbAuto": "自動的に最新の状態に保つ",
+  "settingsWinlinkGatewayDbAutoSubtitle": "Wi-Fi または有線接続でバックグラウンド更新します。"
 }

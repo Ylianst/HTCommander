@@ -2514,6 +2514,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get mapShowAprsSymbols => 'Afficher les symboles APRS';
 
   @override
+  String get mapShowWinlinkGateways => 'Afficher les passerelles Winlink';
+
+  @override
+  String get winlinkGatewayFrequencies => 'Fréquences';
+
+  @override
   String get mapShowContactsOnly => 'Afficher uniquement les contacts';
 
   @override
@@ -3912,4 +3918,42 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get cslAutoUpdateWifiSubtitle =>
       'Maintenez automatiquement à jour les bases de données installées, uniquement en Wi-Fi ou par connexion filaire, afin d\'éviter les frais de données mobiles.';
+
+  @override
+  String get settingsWinlinkGatewayDbTitle =>
+      'Répertoire de passerelles hors ligne';
+
+  @override
+  String get settingsWinlinkGatewayDbInfo =>
+      'Téléchargez une petite liste hors ligne des passerelles Winlink pour trouver les stations proches et leurs fréquences sur la carte.';
+
+  @override
+  String settingsWinlinkGatewayDbInstalled(String version, int count) {
+    return 'Installé : $version ($count passerelles)';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbNotInstalled => 'Non installé';
+
+  @override
+  String get settingsWinlinkGatewayDbDownload => 'Télécharger';
+
+  @override
+  String get settingsWinlinkGatewayDbUpdated =>
+      'Répertoire des passerelles mis à jour.';
+
+  @override
+  String get settingsWinlinkGatewayDbUpToDate => 'Déjà à jour.';
+
+  @override
+  String settingsWinlinkGatewayDbFailed(String error) {
+    return 'Échec du téléchargement : $error';
+  }
+
+  @override
+  String get settingsWinlinkGatewayDbAuto => 'Maintenir à jour automatiquement';
+
+  @override
+  String get settingsWinlinkGatewayDbAutoSubtitle =>
+      'Actualiser en arrière-plan via Wi-Fi ou connexion filaire.';
 }

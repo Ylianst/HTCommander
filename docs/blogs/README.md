@@ -329,6 +329,13 @@ How HTCommander packs large datasets into small, fast, self-contained files.
    alphanumeric postal codes packed in alternating bases, qualifications as a
    bitmask instead of class/status, and dropping expiry dates that never exist.
 
+3. **[Every Winlink Gateway in 12 KB: An Offline RMS Directory](winlink-gateway-directory.md)**
+   How a twice-weekly GitHub Action pulls the live Winlink gateway feed, keeps
+   only each 1200-baud packet station's callsign, location, and frequency, and
+   packs the whole world's RMS network into a 14-byte-per-channel binary
+   (~12 KB xz) — plus the `recordsMd5` trick that skips republishing when nothing
+   changed, and the viewport-culled map layer that reads it back offline.
+
 ---
 
 ## App Architecture
