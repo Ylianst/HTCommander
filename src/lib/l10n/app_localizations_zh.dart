@@ -2495,6 +2495,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mapStationAddContact => '添加联系人';
 
   @override
+  String get mapStationAddWinlink => '添加 Winlink';
+
+  @override
   String get mapStationsHere => '此处的台站';
 
   @override

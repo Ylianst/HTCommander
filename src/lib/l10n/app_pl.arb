@@ -825,6 +825,7 @@
   "mapStationMessage": "Wyślij wiadomość",
   "mapStationCenter": "Powiększ do stacji",
   "mapStationAddContact": "Dodaj kontakt",
+  "mapStationAddWinlink": "Dodaj Winlink",
   "mapStationsHere": "Stacje tutaj",
 
   "aprsNoChannel": "Brak radiotelefonu z kanałem APRS",

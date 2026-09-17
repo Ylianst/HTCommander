@@ -1630,6 +1630,7 @@
   "mapStationMessage": "Send Message",
   "mapStationCenter": "Zoom to Station",
   "mapStationAddContact": "Add Contact",
+  "mapStationAddWinlink": "Add Winlink",
   "mapStationsHere": "Stations Here",
 
   "aprsNoChannel": "No radio with an APRS channel is available",

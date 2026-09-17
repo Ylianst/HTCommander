@@ -2545,6 +2545,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mapStationAddContact => 'Add Contact';
 
   @override
+  String get mapStationAddWinlink => 'Add Winlink';
+
+  @override
   String get mapStationsHere => 'Stations Here';
 
   @override

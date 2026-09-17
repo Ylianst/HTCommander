@@ -2575,6 +2575,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get mapStationAddContact => 'Añadir contacto';
 
   @override
+  String get mapStationAddWinlink => 'Añadir Winlink';
+
+  @override
   String get mapStationsHere => 'Estaciones aquí';
 
   @override

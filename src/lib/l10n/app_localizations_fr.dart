@@ -2573,6 +2573,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get mapStationAddContact => 'Ajouter un contact';
 
   @override
+  String get mapStationAddWinlink => 'Ajouter Winlink';
+
+  @override
   String get mapStationsHere => 'Stations ici';
 
   @override

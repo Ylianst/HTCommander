@@ -4690,6 +4690,12 @@ abstract class AppLocalizations {
   /// **'Add Contact'**
   String get mapStationAddContact;
 
+  /// No description provided for @mapStationAddWinlink.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Winlink'**
+  String get mapStationAddWinlink;
+
   /// No description provided for @mapStationsHere.
   ///
   /// In en, this message translates to:

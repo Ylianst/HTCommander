@@ -2557,6 +2557,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get mapStationAddContact => 'संपर्क जोड़ें';
 
   @override
+  String get mapStationAddWinlink => 'Winlink जोड़ें';
+
+  @override
   String get mapStationsHere => 'यहाँ के स्टेशन';
 
   @override

@@ -18,24 +18,44 @@ import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../aprs/aprs_symbols.dart';
 import '../aprs/packet_data_type.dart';
+import '../callsign/callsign_record.dart';
 import '../dialogs/add_station_dialog.dart';
 import '../dialogs/callsign_lookup_dialog.dart';
+import '../dialogs/channel_context_menu.dart';
+import '../dialogs/channel_details_dialog.dart';
 import '../gps/gps_data.dart';
 import '../l10n/app_localizations.dart';
 import '../models/aircraft.dart';
 import '../models/radio_models.dart';
+import '../radio/radio_models.dart' as radio;
 import '../models/station_info.dart';
 import '../satellite/satellite_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/callsign_lookup_service.dart';
 import '../services/window_service.dart';
 import '../services/winlink_gateway_service.dart';
 import '../winlink/winlink_gateway.dart';
 import '../utils/map_tile_downloader.dart';
 import '../utils/map_tile_provider.dart';
+import '../utils/channel_colors.dart';
 import '../utils/num_parsing.dart';
 import 'radiosonde_marker.dart';
 import 'sarsat_marker.dart';
+
+/// A pickable map entity: either an APRS/voice [_StationMarkerData] or a
+/// [WinlinkGateway]. Lets the overlap picker and context-menu flow handle both
+/// kinds uniformly.
+class _MapEntity {
+  final _StationMarkerData? station;
+  final WinlinkGateway? gateway;
+
+  const _MapEntity.station(_StationMarkerData this.station) : gateway = null;
+  const _MapEntity.gateway(WinlinkGateway this.gateway) : station = null;
+
+  bool get isGateway => gateway != null;
+  String get label => station?.callsign ?? gateway!.callsign;
+}
 
 /// Holds the latest known position, time and track points for a single
 /// station rendered on the map (APRS red/blue markers or voice/BSS orange
@@ -180,6 +200,16 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// bottom of the map (set by tapping a callsign marker), or null when no
   /// station is selected.
   String? _selectedStationCallsign;
+
+  /// Callsign-stationid of the selected Winlink gateway shown in the bottom
+  /// info bar, or null when none is selected.
+  String? _selectedWinlinkCallsign;
+
+  /// Offline callsign-database record for the currently selected station /
+  /// gateway, plus the callsign it was fetched for (so a stale result from a
+  /// previous selection is never shown while a new lookup is in flight).
+  String? _licenseCallsign;
+  CallsignRecord? _license;
 
   /// When true, stations are drawn using their real APRS symbols instead of
   /// generic location pins.
@@ -1593,9 +1623,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
           point: LatLng(gw.latitude, gw.longitude),
           width: 30,
           height: 30,
-          child: GestureDetector(
-            onTap: () => _showWinlinkGatewayInfo(gw),
-            child: Tooltip(
+          child: _wrapWinlinkMenu(
+            gw,
+            Tooltip(
               message: '${gw.callsign}\n'
                   '${gw.frequenciesMHz.join(', ')} MHz',
               child: const Icon(Icons.cell_tower,
@@ -1608,35 +1638,421 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     return markers;
   }
 
-  void _showWinlinkGatewayInfo(WinlinkGateway gw) {
+  /// Wraps a Winlink gateway marker so a tap opens its info bar and a
+  /// right-click / long-press opens its context menu.
+  Widget _wrapWinlinkMenu(WinlinkGateway gw, Widget child) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapUp: (d) => _selectWinlinkFromTap(d.globalPosition, gw),
+      onSecondaryTapUp: (d) => _showWinlinkContextMenu(d.globalPosition, gw),
+      onLongPressStart: (d) => _showWinlinkContextMenu(d.globalPosition, gw),
+      child: child,
+    );
+  }
+
+  void _selectWinlinkFromTap(Offset globalPosition, WinlinkGateway gw) {
+    final near = _entitiesNear(LatLng(gw.latitude, gw.longitude));
+    if (near.length > 1) {
+      _showEntityPicker(globalPosition, near, forContextMenu: false);
+    } else {
+      _selectWinlink(gw);
+    }
+  }
+
+  void _selectWinlink(WinlinkGateway gw) {
+    setState(() {
+      _selectedStationCallsign = null;
+      _selectedWinlinkCallsign = gw.callsign;
+    });
+    _lookupLicense(gw.callsign);
+  }
+
+  /// Looks [callsign] up in the offline callsign database (when installed) and
+  /// stores the record so the bottom info bar can show a compact summary. The
+  /// service strips any `-SSID` internally.
+  Future<void> _lookupLicense(String callsign) async {
+    setState(() {
+      _licenseCallsign = callsign;
+      _license = null;
+    });
+    final service = CallsignLookupService.instance;
+    if (!service.isAvailable) return;
+    try {
+      final result = await service.lookup(callsign);
+      if (!mounted || _licenseCallsign != callsign) return;
+      setState(() => _license = result?.record);
+    } catch (_) {}
+  }
+
+  /// Just the license class/grade (e.g. "Technician", "General") from the
+  /// offline callsign database for [callsign], or null when unknown. Shown
+  /// inline next to the callsign in the info bar.
+  String? _licenseGradeText(String callsign) {
+    final rec = _license;
+    if (rec == null || _licenseCallsign != callsign) return null;
+    final grade = rec.operatorClassName.isNotEmpty
+        ? rec.operatorClassName
+        : rec.qualificationsName;
+    return grade.isEmpty ? null : grade;
+  }
+
+  /// The "name • location" summary as its own info-bar row (icon + text). The
+  /// license class/grade is shown inline next to the callsign instead.
+  Widget? _buildLicenseLine(String callsign) {
+    final rec = _license;
+    if (rec == null || _licenseCallsign != callsign) return null;
+    final parts = <String>[];
+    if (rec.name.isNotEmpty) parts.add(rec.name);
+    if (rec.location.isNotEmpty) parts.add(rec.location);
+    if (parts.isEmpty) return null;
+    final text = parts.join('  •  ');
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          Icon(Icons.badge_outlined, size: 13, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Opens the Winlink gateway context menu, showing the overlap picker first
+  /// when several stations/gateways sit under the tapped point.
+  void _showWinlinkContextMenu(Offset globalPosition, WinlinkGateway gw) {
+    final near = _entitiesNear(LatLng(gw.latitude, gw.longitude));
+    if (near.length > 1) {
+      _showEntityPicker(globalPosition, near, forContextMenu: true);
+    } else {
+      _showWinlinkActionMenu(globalPosition, gw);
+    }
+  }
+
+  /// Per-gateway actions: add as a Winlink contact, zoom to it, or look up the
+  /// callsign.
+  Future<void> _showWinlinkActionMenu(
+    Offset globalPosition,
+    WinlinkGateway gw,
+  ) async {
     final l10n = AppLocalizations.of(context);
-    showDialog<void>(
+    final action = await showMenu<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.cell_tower, color: Color(0xFF6A1B9A)),
-            const SizedBox(width: 8),
-            Text(gw.callsign),
-          ],
+      position: _menuPositionAt(globalPosition),
+      items: [
+        PopupMenuItem<String>(
+          enabled: false,
+          height: 28,
+          child: Text(
+            gw.callsign,
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
         ),
-        content: Column(
+        const PopupMenuDivider(height: 8),
+        if (!_hasContactOfType(gw.callsign, StationType.winlink))
+          PopupMenuItem<String>(
+            value: 'addWinlink',
+            height: 40,
+            child: Row(
+              children: [
+                const Icon(Icons.person_add_alt, size: 18),
+                const SizedBox(width: 8),
+                Text(l10n.mapStationAddWinlink),
+              ],
+            ),
+          ),
+        PopupMenuItem<String>(
+          value: 'center',
+          height: 40,
+          child: Row(
+            children: [
+              const Icon(Icons.my_location, size: 18),
+              const SizedBox(width: 8),
+              Text(l10n.mapStationCenter),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'lookup',
+          height: 40,
+          child: Row(
+            children: [
+              const Icon(Icons.badge_outlined, size: 18),
+              const SizedBox(width: 8),
+              Text(l10n.callsignLookup),
+            ],
+          ),
+        ),
+      ],
+    );
+    if (!mounted) return;
+    switch (action) {
+      case 'addWinlink':
+        _addContactFrom(
+          StationInfo(callsign: gw.callsign, stationType: StationType.winlink),
+        );
+        break;
+      case 'center':
+        _mapController.move(
+          LatLng(gw.latitude, gw.longitude),
+          math.max(_mapController.camera.zoom, 16.0),
+        );
+        break;
+      case 'lookup':
+        CallsignLookupDialog.show(context, initialCallsign: gw.callsign);
+        break;
+    }
+  }
+
+  /// The selected Winlink gateway shown in the bottom info bar, looked up live
+  /// from the loaded directory. Null when nothing is selected.
+  WinlinkGateway? get _selectedWinlinkGateway {
+    final cs = _selectedWinlinkCallsign;
+    if (cs == null) return null;
+    final db = WinlinkGatewayService.instance.database;
+    if (db == null) return null;
+    for (final g in db.gateways) {
+      if (g.callsign == cs) return g;
+    }
+    return null;
+  }
+
+  /// Builds a radio channel for a gateway frequency: simplex FM packet named
+  /// after the gateway callsign-stationid.
+  radio.RadioChannelInfo _winlinkChannel(WinlinkGateway gw, int freqHz) {
+    return radio.RadioChannelInfo(
+      channelId: 0,
+      name: gw.callsign,
+      rxFreq: freqHz,
+      txFreq: freqHz,
+      rxMod: radio.RadioModulationType.fm,
+      txMod: radio.RadioModulationType.fm,
+      bandwidth: radio.RadioBandwidthType.wide,
+      txAtMaxPower: true,
+    );
+  }
+
+  /// The draggable "channel rectangle" for one gateway frequency. Dragging it
+  /// onto a radio slot programs the channel; right-click copies its share
+  /// string (same as the radio tab).
+  Widget _buildWinlinkChannelTile(WinlinkGateway gw, int freqHz) {
+    final channel = _winlinkChannel(gw, freqHz);
+    final palette = ChannelPalette.of(context);
+    Widget tile({bool dragging = false}) {
+      return Container(
+        width: 96,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: dragging ? palette.selected : palette.base,
+          borderRadius: BorderRadius.circular(3),
+          border: Border.all(
+            color: dragging ? palette.borderHighlight : palette.border,
+            width: dragging ? 1.5 : 0.5,
+          ),
+        ),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${l10n.winlinkGatewayFrequencies}: '
-                '${gw.frequenciesMHz.map((f) => '$f MHz').join(', ')}'),
-            const SizedBox(height: 4),
-            Text('${gw.latitude.toStringAsFixed(5)}, '
-                '${gw.longitude.toStringAsFixed(5)}'),
+            Text(
+              gw.callsign,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: palette.onChannel,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              '${(freqHz / 1000000).toStringAsFixed(3)} MHz',
+              style: TextStyle(fontSize: 9, color: palette.onChannelSecondary),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l10n.commonClose),
+      );
+    }
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.grab,
+      child: Draggable<radio.RadioChannelInfo>(
+        data: channel,
+        dragAnchorStrategy: pointerDragAnchorStrategy,
+        feedback: Material(
+          color: Colors.transparent,
+          child: Opacity(opacity: 0.9, child: tile(dragging: true)),
+        ),
+        childWhenDragging: Opacity(opacity: 0.4, child: tile()),
+        child: GestureDetector(
+          onSecondaryTapDown: (d) => showChannelContextMenu(
+            context: context,
+            globalPosition: d.globalPosition,
+            channel: channel,
+            onDetails: () =>
+                showChannelDetailsDialog(context, channel: channel),
           ),
-        ],
+          onLongPressStart: (d) => showChannelContextMenu(
+            context: context,
+            globalPosition: d.globalPosition,
+            channel: channel,
+            onDetails: () =>
+                showChannelDetailsDialog(context, channel: channel),
+          ),
+          child: tile(),
+        ),
+      ),
+    );
+  }
+
+  /// Bottom overlay for a selected Winlink gateway: a draggable channel
+  /// rectangle (one per frequency) on the left, then callsign, distance, and
+  /// frequencies. Mirrors the APRS station info bar.
+  Widget _buildWinlinkInfoCard(WinlinkGateway gw) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
+    final own = _ownPosition;
+    final pos = LatLng(gw.latitude, gw.longitude);
+    String? relative;
+    if (own != null) {
+      final meters = const Distance().as(LengthUnit.Meter, own, pos);
+      final compass = _compass8(_bearingBetween(own, pos));
+      relative = '$compass  •  ${_formatDistanceShort(meters)}';
+    }
+    final license = _buildLicenseLine(gw.callsign);
+    final gradeText = _licenseGradeText(gw.callsign);
+    return Positioned(
+      left: 8,
+      right: 8,
+      bottom: 8,
+      child: Card(
+        margin: EdgeInsets.zero,
+        color: scheme.surface.withValues(alpha: 0.95),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
+          child: Row(
+            children: [
+              // Channel rectangle(s) — drag onto a radio to program. Stacked
+              // vertically so multiple frequencies sit one above the other.
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 100),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (int i = 0; i < gw.frequenciesHz.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 4),
+                        _buildWinlinkChannelTile(gw, gw.frequenciesHz[i]),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.cell_tower,
+                            size: 14, color: Color(0xFF6A1B9A)),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            gw.callsign,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (gradeText != null) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              gradeText,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (relative != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Row(
+                          children: [
+                            Icon(Icons.near_me,
+                                size: 13, color: scheme.onSurfaceVariant),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                relative,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ?license,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        '${l10n.winlinkGatewayFrequencies}: '
+                        '${gw.frequenciesMHz.map((f) => '$f MHz').join(', ')}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.onSurface,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!_hasContactOfType(gw.callsign, StationType.winlink))
+                IconButton(
+                  tooltip: l10n.mapStationAddWinlink,
+                  icon: const Icon(Icons.person_add_alt, size: 20),
+                  onPressed: () => _addContactFrom(StationInfo(
+                    callsign: gw.callsign,
+                    stationType: StationType.winlink,
+                  )),
+                ),
+              IconButton(
+                tooltip: 'Center on map',
+                icon: const Icon(Icons.center_focus_strong, size: 20),
+                onPressed: () => _mapController.move(
+                  pos,
+                  math.max(_mapController.camera.zoom, 16.0),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Close',
+                icon: const Icon(Icons.close, size: 20),
+                onPressed: () =>
+                    setState(() => _selectedWinlinkCallsign = null),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1954,98 +2370,86 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     );
   }
 
-  /// Selects the tapped station for the info overlay. When several stations
-  /// overlap at the same spot, a picker is shown first so the user can choose
-  /// which one's card to display.
+  /// Selects the tapped station for the info overlay. When several
+  /// stations/gateways overlap at the same spot, a picker is shown first.
   void _selectStationFromTap(
     Offset globalPosition,
     _StationMarkerData station,
   ) {
-    final near = _stationsNear(station);
+    final near = _entitiesNear(station.position);
     if (near.length > 1) {
-      _showStationPicker(globalPosition, near);
+      _showEntityPicker(globalPosition, near, forContextMenu: false);
     } else {
-      setState(() => _selectedStationCallsign = station.callsign);
+      _selectStation(station);
     }
   }
 
-  /// Lists the stations overlapping at the tapped spot; picking one shows its
-  /// info overlay at the bottom of the map.
-  Future<void> _showStationPicker(
-    Offset globalPosition,
-    List<_StationMarkerData> stations,
-  ) async {
-    final l10n = AppLocalizations.of(context);
-    final selected = await showMenu<_StationMarkerData>(
-      context: context,
-      position: _menuPositionAt(globalPosition),
-      items: [
-        PopupMenuItem<_StationMarkerData>(
-          enabled: false,
-          height: 28,
-          child: Text(
-            l10n.mapStationsHere,
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
-        ),
-        const PopupMenuDivider(height: 8),
-        for (final s in stations)
-          PopupMenuItem<_StationMarkerData>(
-            value: s,
-            height: 36,
-            child: Text(s.callsign),
-          ),
-      ],
-    );
-    if (selected != null && mounted) {
-      setState(() => _selectedStationCallsign = selected.callsign);
-    }
+  void _selectStation(_StationMarkerData station) {
+    setState(() {
+      _selectedWinlinkCallsign = null;
+      _selectedStationCallsign = station.callsign;
+    });
+    _lookupLicense(station.callsign);
   }
 
-  /// Returns every currently-visible callsign station (APRS + voice/BSS) whose
-  /// on-screen position is within a few pixels of [target], so overlapping
-  /// markers can be disambiguated. The returned list always starts with
-  /// [target].
-  List<_StationMarkerData> _stationsNear(_StationMarkerData target) {
+  /// Returns every currently-visible map entity (APRS/voice station or Winlink
+  /// gateway) whose on-screen position is within a few pixels of [anchor], so
+  /// overlapping markers can be disambiguated.
+  List<_MapEntity> _entitiesNear(LatLng anchor) {
     final camera = _mapController.camera;
-    final Offset anchor = camera.latLngToScreenOffset(target.position);
+    final Offset anchorPx = camera.latLngToScreenOffset(anchor);
     const double thresholdPx = 22;
     final contactCallsigns =
         _showContactsOnly ? _getContactCallsigns() : null;
-    final result = <_StationMarkerData>[target];
+    final result = <_MapEntity>[];
 
     bool hidden(_StationMarkerData s) =>
         contactCallsigns != null &&
         !s.isSelf &&
         !contactCallsigns.contains(s.callsign.toUpperCase());
 
-    void consider(_StationMarkerData s) {
-      if (identical(s, target)) return;
+    void considerStation(_StationMarkerData s) {
       if (!_passesTimeFilter(s.time) || hidden(s)) return;
       final Offset o = camera.latLngToScreenOffset(s.position);
-      if ((o - anchor).distance <= thresholdPx) result.add(s);
+      if ((o - anchorPx).distance <= thresholdPx) {
+        result.add(_MapEntity.station(s));
+      }
     }
 
     for (final s in _aprsStations.values) {
       if (s.fromAprsIs && !_showAprsIs) continue;
-      consider(s);
+      considerStation(s);
     }
     for (final s in _voiceStations.values) {
-      consider(s);
+      considerStation(s);
+    }
+
+    // Winlink gateways are only drawn (and so only pickable) at zoom >= 6.
+    if (_showWinlinkGateways && camera.zoom >= 6) {
+      final svc = WinlinkGatewayService.instance;
+      if (svc.isAvailable) {
+        final b = camera.visibleBounds;
+        for (final g in svc.withinBounds(b.south, b.west, b.north, b.east)) {
+          final Offset o =
+              camera.latLngToScreenOffset(LatLng(g.latitude, g.longitude));
+          if ((o - anchorPx).distance <= thresholdPx) {
+            result.add(_MapEntity.gateway(g));
+          }
+        }
+      }
     }
     return result;
   }
 
-  /// Opens the station context menu at [globalPosition]. When several stations
-  /// overlap the tapped one, a picker is shown first so the user can choose
-  /// which station to act on.
+  /// Opens the station context menu, showing the overlap picker first when
+  /// several stations/gateways sit under the tapped one.
   void _showStationContextMenu(
     Offset globalPosition,
     _StationMarkerData station,
   ) {
-    final near = _stationsNear(station);
+    final near = _entitiesNear(station.position);
     if (near.length > 1) {
-      _showOverlappingStationsMenu(globalPosition, near);
+      _showEntityPicker(globalPosition, near, forContextMenu: true);
     } else {
       _showStationActionMenu(globalPosition, station);
     }
@@ -2060,18 +2464,20 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     );
   }
 
-  /// Lists the stations overlapping at the same spot (UIView32 style). Picking
-  /// one opens that station's action menu.
-  Future<void> _showOverlappingStationsMenu(
+  /// Lists the overlapping stations/gateways at the tapped spot. Picking one
+  /// either shows its info bar ([forContextMenu] false) or opens its action
+  /// menu ([forContextMenu] true).
+  Future<void> _showEntityPicker(
     Offset globalPosition,
-    List<_StationMarkerData> stations,
-  ) async {
+    List<_MapEntity> entities, {
+    required bool forContextMenu,
+  }) async {
     final l10n = AppLocalizations.of(context);
-    final selected = await showMenu<_StationMarkerData>(
+    final selected = await showMenu<_MapEntity>(
       context: context,
       position: _menuPositionAt(globalPosition),
       items: [
-        PopupMenuItem<_StationMarkerData>(
+        PopupMenuItem<_MapEntity>(
           enabled: false,
           height: 28,
           child: Text(
@@ -2080,16 +2486,36 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
           ),
         ),
         const PopupMenuDivider(height: 8),
-        for (final s in stations)
-          PopupMenuItem<_StationMarkerData>(
-            value: s,
+        for (final e in entities)
+          PopupMenuItem<_MapEntity>(
+            value: e,
             height: 36,
-            child: Text(s.callsign),
+            child: Row(
+              children: [
+                if (e.isGateway) ...[
+                  const Icon(Icons.cell_tower,
+                      size: 14, color: Color(0xFF6A1B9A)),
+                  const SizedBox(width: 6),
+                ],
+                Text(e.label),
+              ],
+            ),
           ),
       ],
     );
-    if (selected != null && mounted) {
-      _showStationActionMenu(globalPosition, selected);
+    if (selected == null || !mounted) return;
+    if (forContextMenu) {
+      if (selected.isGateway) {
+        _showWinlinkActionMenu(globalPosition, selected.gateway!);
+      } else {
+        _showStationActionMenu(globalPosition, selected.station!);
+      }
+    } else {
+      if (selected.isGateway) {
+        _selectWinlink(selected.gateway!);
+      } else {
+        _selectStation(selected.station!);
+      }
     }
   }
 
@@ -2180,7 +2606,12 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 
   /// Whether an APRS-type contact already exists for [callsign] in the address
   /// book (device 0 `Stations`).
-  bool _hasAprsContact(String callsign) {
+  bool _hasAprsContact(String callsign) =>
+      _hasContactOfType(callsign, StationType.aprs);
+
+  /// Whether a contact of [type] already exists for [callsign] in the address
+  /// book (device 0 `Stations`).
+  bool _hasContactOfType(String callsign, StationType type) {
     final target = callsign.toUpperCase();
     final raw = _broker.getValueDynamic(0, 'Stations', null);
     if (raw is! List) return false;
@@ -2196,21 +2627,39 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       final typeRaw = map['StationType'] ?? map['stationType'];
       final typeStr = '$typeRaw'.toLowerCase();
       final typeIndex = typeRaw is int ? typeRaw : int.tryParse(typeStr);
-      if (typeIndex == 1 || typeStr == 'aprs') return true;
+      if (typeIndex == type.index || typeStr == type.name) return true;
     }
     return false;
   }
 
   /// Opens the add-contact dialog pre-filled with [station]'s callsign as a new
   /// APRS contact and persists it to the address book (device 0 `Stations`).
-  Future<void> _addStationContact(_StationMarkerData station) async {
-    final result = await showStationDialog(
-      context,
-      existing: StationInfo(
+  Future<void> _addStationContact(_StationMarkerData station) =>
+      _addContactFrom(StationInfo(
         callsign: station.callsign,
         stationType: StationType.aprs,
-      ),
-    );
+      ));
+
+  /// Opens the add-contact dialog seeded with [seed] and persists the result to
+  /// the address book (device 0 `Stations`), replacing any existing entry with
+  /// the same callsign + type.
+  Future<void> _addContactFrom(StationInfo seed) async {
+    // Pre-fill the name and location from the offline callsign database when it
+    // is installed and the seed doesn't already carry them.
+    final service = CallsignLookupService.instance;
+    if (service.isAvailable && (seed.name.isEmpty || seed.description.isEmpty)) {
+      try {
+        final rec = (await service.lookup(seed.callsign))?.record;
+        if (rec != null) {
+          if (seed.name.isEmpty && rec.name.isNotEmpty) seed.name = rec.name;
+          if (seed.description.isEmpty && rec.location.isNotEmpty) {
+            seed.description = rec.location;
+          }
+        }
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    final result = await showStationDialog(context, existing: seed);
     if (result == null || !mounted) return;
 
     final stations = <StationInfo>[];
@@ -2354,6 +2803,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// heard. Mirrors the RepeaterBook map's info card.
   Widget _buildStationInfoCard(_StationMarkerData station) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     final own = _ownPosition;
     String? relative;
     if (own != null && !station.isSelf) {
@@ -2363,6 +2813,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       relative = '$compass  •  ${_formatDistanceShort(meters)}';
     }
     final lastMessage = station.lastMessage.trim();
+    final license = _buildLicenseLine(station.callsign);
+    final gradeText = _licenseGradeText(station.callsign);
     return Positioned(
       left: 8,
       right: 8,
@@ -2386,10 +2838,27 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      station.callsign,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Text(
+                          station.callsign,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (gradeText != null) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              gradeText,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     if (relative != null)
                       Row(
@@ -2409,6 +2878,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                           ),
                         ],
                       ),
+                    ?license,
                     if (lastMessage.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
@@ -2436,6 +2906,12 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                   ],
                 ),
               ),
+              if (!station.isSelf && !_hasAprsContact(station.callsign))
+                IconButton(
+                  tooltip: l10n.mapStationAddContact,
+                  icon: const Icon(Icons.person_add_alt, size: 20),
+                  onPressed: () => _addStationContact(station),
+                ),
               if (!station.isSelf)
                 IconButton(
                   tooltip: 'Message',
@@ -2689,8 +3165,12 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                   ),
                   onPositionChanged: _onMapPositionChanged,
                   onTap: (_, _) {
-                    if (_selectedStationCallsign != null) {
-                      setState(() => _selectedStationCallsign = null);
+                    if (_selectedStationCallsign != null ||
+                        _selectedWinlinkCallsign != null) {
+                      setState(() {
+                        _selectedStationCallsign = null;
+                        _selectedWinlinkCallsign = null;
+                      });
                     }
                   },
                 ),
@@ -2719,13 +3199,15 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                       return tiles;
                     },
                   ),
+                  // Winlink gateways sit at the bottom of the overlay stack so
+                  // they render behind tracks and every other marker.
+                  if (_showWinlinkGateways)
+                    MarkerLayer(markers: _buildWinlinkGatewayMarkers()),
                   if (tracks.isNotEmpty) PolylineLayer(polylines: tracks),
                   if (stationMarkers.isNotEmpty)
                     MarkerLayer(markers: stationMarkers),
                   if (_showAirplanes && _airplanes.isNotEmpty)
                     MarkerLayer(markers: _buildAirplaneMarkers()),
-                  if (_showWinlinkGateways)
-                    MarkerLayer(markers: _buildWinlinkGatewayMarkers()),
                   if (_showSatellites && _satelliteSupport) ...[
                     if (_satellites.isNotEmpty)
                       CircleLayer(circles: _buildSatelliteFootprints()),
@@ -2952,7 +3434,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
               // Selected-station info overlay (bottom), showing the station's
               // relative position and last beaconed text.
               if (_selectedStation != null)
-                _buildStationInfoCard(_selectedStation!),
+                _buildStationInfoCard(_selectedStation!)
+              else if (_selectedWinlinkGateway != null)
+                _buildWinlinkInfoCard(_selectedWinlinkGateway!),
             ],
           ),
         ),

@@ -825,6 +825,7 @@
   "mapStationMessage": "发送消息",
   "mapStationCenter": "缩放到该台站",
   "mapStationAddContact": "添加联系人",
+  "mapStationAddWinlink": "添加 Winlink",
   "mapStationsHere": "此处的台站",
 
   "aprsNoChannel": "没有带 APRS 信道的电台可用",

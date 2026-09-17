@@ -2513,6 +2513,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get mapStationAddContact => '連絡先を追加';
 
   @override
+  String get mapStationAddWinlink => 'Winlink を追加';
+
+  @override
   String get mapStationsHere => 'ここの局';
 
   @override

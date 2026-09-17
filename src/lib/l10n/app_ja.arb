@@ -825,6 +825,7 @@
   "mapStationMessage": "メッセージを送信",
   "mapStationCenter": "局にズーム",
   "mapStationAddContact": "連絡先を追加",
+  "mapStationAddWinlink": "Winlink を追加",
   "mapStationsHere": "ここの局",
 
   "aprsNoChannel": "APRS チャンネルを持つ無線機がありません",

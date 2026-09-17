@@ -817,6 +817,7 @@
   "mapStationMessage": "Invia messaggio",
   "mapStationCenter": "Zoom sulla stazione",
   "mapStationAddContact": "Aggiungi contatto",
+  "mapStationAddWinlink": "Aggiungi Winlink",
   "mapStationsHere": "Stazioni qui",
 
   "aprsNoChannel": "Nessuna radio con un canale APRS è disponibile",

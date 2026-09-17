@@ -825,6 +825,7 @@
   "mapStationMessage": "Nachricht senden",
   "mapStationCenter": "Zur Station zoomen",
   "mapStationAddContact": "Kontakt hinzufügen",
+  "mapStationAddWinlink": "Winlink hinzufügen",
   "mapStationsHere": "Stationen hier",
 
   "aprsNoChannel": "Kein Funkgerät mit APRS-Kanal verfügbar",

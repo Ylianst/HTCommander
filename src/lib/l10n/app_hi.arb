@@ -825,6 +825,7 @@
   "mapStationMessage": "संदेश भेजें",
   "mapStationCenter": "स्टेशन पर ज़ूम करें",
   "mapStationAddContact": "संपर्क जोड़ें",
+  "mapStationAddWinlink": "Winlink जोड़ें",
   "mapStationsHere": "यहाँ के स्टेशन",
 
   "aprsNoChannel": "APRS चैनल वाला कोई रेडियो उपलब्ध नहीं है",
