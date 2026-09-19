@@ -220,12 +220,15 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
+        # Build on Ubuntu 22.04 (glibc 2.35 / GLIBCXX_3.4.30) rather than 24.04
+        # (glibc 2.39 / GLIBCXX_3.4.32) so compiled Flutter C++ plugins stay
+        # loadable on Raspberry Pi OS (Bookworm) and other older-glibc distros.
         include:
           - arch: x64
-            runner: ubuntu-latest
+            runner: ubuntu-22.04
             appimagetool_arch: x86_64
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
             appimagetool_arch: aarch64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

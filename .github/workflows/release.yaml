@@ -276,14 +276,20 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
+        # Build on Ubuntu 22.04 (glibc 2.35 / GLIBCXX_3.4.30) rather than 24.04
+        # (glibc 2.39 / GLIBCXX_3.4.32). The compiled Flutter C++ plugins link
+        # against the build host's glibc/libstdc++ symbol versions, and newer
+        # symbols are not present on Raspberry Pi OS (Bookworm, glibc 2.36 /
+        # GLIBCXX_3.4.30) or other older distros, causing "version not found"
+        # load failures. 22.04 is old enough to stay compatible with the Pi.
         include:
           - arch: x64
-            runner: ubuntu-latest
+            runner: ubuntu-22.04
             deb_arch: amd64
             rpm_arch: x86_64
             appimagetool_arch: x86_64
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
             deb_arch: arm64
             rpm_arch: aarch64
             appimagetool_arch: aarch64
