@@ -129,8 +129,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # --latest=false keeps this rolling release from hijacking the repo's
+          # "Latest" pointer, which the website's releases/latest/download links
+          # rely on to resolve the app installers.
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" \
+              --latest=false \
               --title "Winlink Gateway Database" \
               --notes "Offline Winlink 1200-baud packet gateway directory. Rolling release; the asset is replaced automatically."
           fi

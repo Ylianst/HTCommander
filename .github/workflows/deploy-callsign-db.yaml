@@ -180,8 +180,12 @@ jobs:
         run: |
           set -euo pipefail
           # Ensure the rolling release exists, then replace its assets.
+          # --latest=false keeps this rolling release from hijacking the repo's
+          # "Latest" pointer, which the website's releases/latest/download links
+          # rely on to resolve the app installers.
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" \
+              --latest=false \
               --title "Callsign Database" \
               --notes "Offline US amateur callsign database (FCC ULS). Rolling release; assets are replaced automatically."
           fi

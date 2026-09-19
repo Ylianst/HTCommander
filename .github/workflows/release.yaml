@@ -1056,6 +1056,10 @@ jobs:
         with:
           name: HTCommander ${{ github.ref_name }}
           generate_release_notes: true
+          # Force this versioned app release to be the repo's "Latest" so the
+          # website's releases/latest/download links resolve to the installers,
+          # even though rolling database releases are published more recently.
+          make_latest: true
           files: |
             artifacts/windows-msi-x64/HTCommander-x64.msi
             artifacts/macos-dmg/HTCommander.dmg
