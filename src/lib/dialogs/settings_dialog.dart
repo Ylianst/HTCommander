@@ -221,6 +221,13 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   /// Builds the content widget for a given tab title (see [_visibleTabs]).
   Widget _buildTabContentFor(String title) {
+    // Build each tab lazily inside its own subtree (rather than eagerly in the
+    // dialog's build) so an exception while constructing one tab is isolated to
+    // that tab instead of graying out the entire settings dialog (issue #59).
+    return Builder(builder: (_) => _buildTabBody(title));
+  }
+
+  Widget _buildTabBody(String title) {
     switch (title) {
       case 'License':
         return _buildLicenseTab();
@@ -2417,6 +2424,7 @@ class _SettingsDialogState extends State<SettingsDialog>
           const SizedBox(height: 4),
           DropdownButtonFormField<String>(
             initialValue: model.id,
+            isExpanded: true,
             decoration: _inputDecoration(),
             items: SherpaModelManager.models.map((m) {
               final size = m.downloadLabel.replaceAll(' download', '');
@@ -2444,6 +2452,7 @@ class _SettingsDialogState extends State<SettingsDialog>
             const SizedBox(height: 4),
             DropdownButtonFormField<String>(
               initialValue: sttLang,
+              isExpanded: true,
               decoration: _inputDecoration(),
               items: langCodes
                   .map(

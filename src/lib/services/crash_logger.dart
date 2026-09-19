@@ -69,6 +69,44 @@ class CrashLogger {
     }
   }
 
+  /// Returns the most recent logged error: its `[ERROR]` line plus the top of
+  /// its stack trace (the throw site), or an empty string when none is found.
+  ///
+  /// Crash stack traces can be hundreds of frames deep, so [readTail] alone
+  /// often captures only the outermost frames and drops the error message and
+  /// the actual failing code. This surfaces the diagnostic head of the newest
+  /// error so an embedded crash report is actionable.
+  Future<String> readRecentError({int maxLines = 30}) async {
+    final file = _file;
+    if (file == null) return '';
+    try {
+      if (!await file.exists()) return '';
+      final lines = (await file.readAsString()).split('\n');
+      var errorIndex = -1;
+      for (var i = lines.length - 1; i >= 0; i--) {
+        if (lines[i].contains('[ERROR]')) {
+          errorIndex = i;
+          break;
+        }
+      }
+      if (errorIndex < 0) return '';
+      final timestamped = RegExp(r'^\[\d{4}-\d\d-\d\d');
+      final out = <String>[lines[errorIndex]];
+      for (var i = errorIndex + 1;
+          i < lines.length && out.length < maxLines;
+          i++) {
+        final line = lines[i];
+        // Stack frames after the first are not timestamped; a new timestamped
+        // line that is not a frame marks the start of an unrelated log entry.
+        if (timestamped.hasMatch(line) && !line.contains('#')) break;
+        out.add(line);
+      }
+      return out.join('\n').trimRight();
+    } catch (_) {
+      return '';
+    }
+  }
+
   String get _platformLabel {
     if (kIsWeb) return 'web';
     switch (defaultTargetPlatform) {
@@ -166,6 +204,11 @@ class CrashLogger {
       }
     }
 
+    // The head of the newest error (message + throw site). Deep stack traces
+    // push this out of [logTail], so surface it explicitly to keep the report
+    // actionable.
+    final recentError = await readRecentError();
+
     final body = StringBuffer()
       ..writeln(promptHeader)
       ..writeln(promptHint)
@@ -173,6 +216,14 @@ class CrashLogger {
       ..writeln('**App version:** $version')
       ..writeln('**Platform:** $_platformLabel')
       ..writeln();
+    if (recentError.isNotEmpty) {
+      body
+        ..writeln('**Most recent error:**')
+        ..writeln('```')
+        ..writeln(recentError)
+        ..writeln('```')
+        ..writeln();
+    }
     if (logTail.isNotEmpty) {
       body
         ..writeln('**Recent log:**')
