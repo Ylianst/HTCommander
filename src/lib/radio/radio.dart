@@ -635,7 +635,17 @@ class Radio implements FirmwareRadio {
         writeSettings(settings!.toByteArrayWith(channelA: channelId));
         break;
       case 'ChannelChangeVfoB':
-        writeSettings(settings!.toByteArrayWith(channelB: channelId));
+        // The radio only commits the channel of the currently selected VFO, so
+        // when in dual-channel mode also select VFO B (doubleChannel=2) in the
+        // same write; otherwise the firmware drops the change while VFO A holds
+        // focus.
+        final selectVfoB = settings!.doubleChannel != 0 ? 2 : null;
+        writeSettings(
+          settings!.toByteArrayWith(
+            channelB: channelId,
+            doubleChannel: selectVfoB,
+          ),
+        );
         break;
     }
   }

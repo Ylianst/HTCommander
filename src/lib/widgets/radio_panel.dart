@@ -1022,6 +1022,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     if (widget.deviceId <= 0) {
       return;
     }
+    // Tapping a channel retargets the currently selected VFO, so in
+    // dual-channel mode with VFO B selected the tap changes channel B.
+    if (_isDualChannel && _selectedVfo == 2) {
+      _setChannelB(channelId);
+      return;
+    }
     _broker.dispatch(
       deviceId: widget.deviceId,
       name: 'ChannelChangeVfoA',
