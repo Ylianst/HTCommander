@@ -225,6 +225,68 @@ class _StartupFailureApp extends StatelessWidget {
   }
 }
 
+/// Readable replacement for Flutter's default [ErrorWidget] (an opaque gray box
+/// in release builds). Shown in place of any widget subtree that throws during
+/// build, so the failure is legible instead of a blank gray screen (issue #59).
+///
+/// Uses self-contained, theme-independent colors and only primitive widgets so
+/// it renders even when the failure occurs above the app's theme/Directionality.
+class _ReadableErrorWidget extends StatelessWidget {
+  const _ReadableErrorWidget({required this.details});
+
+  final FlutterErrorDetails details;
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Container(
+        color: const Color(0xFF2A1416),
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.error_outline, color: Color(0xFFFF8A80), size: 26),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Something went wrong drawing this screen',
+                      style: TextStyle(
+                        color: Color(0xFFFFFFFF),
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                details.exceptionAsString(),
+                style: const TextStyle(
+                  color: Color(0xFFFFD3CF),
+                  fontSize: 12.5,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'This error was written to the crash log. Please report it with '
+                'the log file attached.',
+                style: TextStyle(color: Color(0xFFC7B3B3), fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Application entry point, executed inside the guarded zone set up by [main].
 Future<void> _startApp(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -259,6 +321,13 @@ Future<void> _startApp(List<String> args) async {
     _forwardErrorToDebugTab('${details.exception}');
     originalOnError?.call(details);
   };
+
+  // Replace Flutter's default build-failure placeholder (an opaque gray box in
+  // release builds, see issue #59) with a readable panel that shows the error
+  // message and points at the crash log, so a failed widget build is
+  // self-diagnosing instead of just graying out the screen.
+  ErrorWidget.builder = (FlutterErrorDetails details) =>
+      _ReadableErrorWidget(details: details);
 
   // Initialize the DataBroker for cross-component communication
   await DataBroker.initialize();
