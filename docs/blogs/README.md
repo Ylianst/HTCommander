@@ -277,6 +277,14 @@ Working amateur radio satellites with a handheld — tracking, passes, and Doppl
    the honest ledger of what's left: driving the radio's own native
    `SET_SATELLITE_INFO` command, whose payload isn't decoded yet.
 
+2. **[Bring Your Own Birds: Editing, Importing and Exporting Satellite Data](editing-satellite-data.md)**
+   Adding, editing and deleting satellites and their frequencies from the tab —
+   the responsive edit dialogs that work on desktop and mobile, the precedence
+   rules that keep your edits safe across online refreshes (edits win, deletions
+   stick, frequency-only edits still auto-update the orbit), the *Restore to
+   default* escape hatch, and the versioned JSON import/export format for backing
+   up or sharing a whole catalog.
+
 ---
 
 ## Emergency Beacons

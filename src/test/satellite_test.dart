@@ -16,6 +16,7 @@ limitations under the License.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/satellite/satellite_models.dart';
+import 'package:htcommander/satellite/user_satellite_store.dart';
 import 'package:satellite_observer/satellite_observer.dart';
 
 // The bundled seed TLE (assets/satellites/amateur.tle) as a raw 3LE block.
@@ -187,4 +188,105 @@ void main() {
       expect(restored.transponders[1].uplinkHz, isNull);
     });
   });
+
+  group('UserSatelliteStore', () {
+    SatelliteInfo makeSat(int norad, String name, {String usage = 'Repeater'}) {
+      return SatelliteInfo(
+        tle: SatelliteTle(
+          name: name,
+          noradId: norad,
+          line1: '1 ${norad}U 98067A   26209.15252568  .00010831  '
+              '00000+0  20282-3 0  9992',
+          line2: '2 ${norad}  51.6320  97.3682 0007093 345.6120  '
+              '14.4666 15.49220842578109',
+        ),
+        transponders: [
+          SatelliteTransponder(
+            noradId: norad,
+            name: '$name $usage',
+            usage: usage,
+            uplinkHz: 145990000,
+            downlinkHz: 437800000,
+            mode: 'FM',
+            ctcssHz: 67.0,
+            inverting: false,
+            status: 'active',
+          ),
+        ],
+      );
+    }
+
+    test('upsert stores an override and pins the orbit when asked', () async {
+      final store = UserSatelliteStore();
+      await store.upsert(makeSat(99999, 'CUSTOM'), pinOrbit: true);
+      expect(store.isOverridden(99999), isTrue);
+      expect(store.isOrbitPinned(99999), isTrue);
+      expect(store.overrides[99999]!.transponders.first.usage, 'Repeater');
+    });
+
+    test('upsert without pinOrbit leaves the orbit unpinned', () async {
+      final store = UserSatelliteStore();
+      await store.upsert(makeSat(25544, 'ISS'), pinOrbit: false);
+      expect(store.isOverridden(25544), isTrue);
+      expect(store.isOrbitPinned(25544), isFalse);
+    });
+
+    test('delete hides the satellite and drops any override', () async {
+      final store = UserSatelliteStore();
+      await store.upsert(makeSat(25544, 'ISS'), pinOrbit: true);
+      await store.delete(25544);
+      expect(store.hidden.contains(25544), isTrue);
+      expect(store.isOverridden(25544), isFalse);
+    });
+
+    test('restore clears override and un-hides', () async {
+      final store = UserSatelliteStore();
+      await store.upsert(makeSat(25544, 'ISS'), pinOrbit: true);
+      await store.delete(25544);
+      await store.restore(25544);
+      expect(store.hidden.contains(25544), isFalse);
+      expect(store.isOverridden(25544), isFalse);
+    });
+
+    test('upsert un-hides a previously deleted satellite', () async {
+      final store = UserSatelliteStore();
+      await store.delete(25544);
+      await store.upsert(makeSat(25544, 'ISS'), pinOrbit: true);
+      expect(store.hidden.contains(25544), isFalse);
+      expect(store.isOverridden(25544), isTrue);
+    });
+
+    test('toJson / importJson round-trip preserves overrides and hidden',
+        () async {
+      final store = UserSatelliteStore();
+      await store.upsert(makeSat(99999, 'CUSTOM'), pinOrbit: true);
+      await store.upsert(makeSat(25544, 'ISS'), pinOrbit: false);
+      await store.delete(43678);
+      final json = store.toJson();
+
+      final restored = UserSatelliteStore();
+      final applied = await restored.importJson(json);
+      expect(applied, 2);
+      expect(restored.isOrbitPinned(99999), isTrue);
+      expect(restored.isOrbitPinned(25544), isFalse);
+      expect(restored.hidden.contains(43678), isTrue);
+      expect(restored.overrides[99999]!.name, 'CUSTOM');
+    });
+
+    test('importing a full-catalog payload applies each satellite', () async {
+      final store = UserSatelliteStore();
+      final payload = {
+        'version': 1,
+        'satellites': [
+          makeSat(25544, 'ISS').toJson(),
+          makeSat(27607, 'SO-50').toJson(),
+        ],
+      };
+      final applied = await store.importJson(payload);
+      expect(applied, 2);
+      expect(store.isOverridden(25544), isTrue);
+      expect(store.isOverridden(27607), isTrue);
+    });
+  });
 }
+

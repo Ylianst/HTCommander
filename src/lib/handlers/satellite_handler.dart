@@ -14,6 +14,7 @@ import '../models/radio_models.dart';
 import '../satellite/satellite_models.dart';
 import '../satellite/tle_repository.dart';
 import '../satellite/transponder_repository.dart';
+import '../satellite/user_satellite_store.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 
@@ -47,6 +48,7 @@ class SatelliteHandler {
   final DataBrokerClient _broker = DataBrokerClient();
   final TleRepository _tleRepo = TleRepository();
   final TransponderRepository _transponderRepo = TransponderRepository();
+  final UserSatelliteStore _userStore = UserSatelliteStore();
 
   /// Workable FM satellites, keyed by NORAD id.
   final Map<int, SatelliteInfo> _catalog = {};
@@ -139,6 +141,26 @@ class SatelliteHandler {
       name: 'SatelliteTrackTarget',
       callback: _onTrackTargetChanged,
     );
+    _broker.subscribe(
+      deviceId: _settingsDeviceId,
+      name: 'SatelliteUpsert',
+      callback: _onSatelliteUpsert,
+    );
+    _broker.subscribe(
+      deviceId: _settingsDeviceId,
+      name: 'SatelliteDelete',
+      callback: _onSatelliteDelete,
+    );
+    _broker.subscribe(
+      deviceId: _settingsDeviceId,
+      name: 'SatelliteRestore',
+      callback: _onSatelliteRestore,
+    );
+    _broker.subscribe(
+      deviceId: _settingsDeviceId,
+      name: 'SatelliteImport',
+      callback: _onSatelliteImport,
+    );
 
     _minElevationDeg =
         (_broker.getValue<num>(_settingsDeviceId, 'SatMinElevationDeg', 10) ??
@@ -164,6 +186,7 @@ class SatelliteHandler {
     if (!_loaded) {
       await _tleRepo.load();
       await _transponderRepo.load();
+      await _userStore.load();
       _loaded = true;
     }
     if (_disposed || !_enabled) return;
@@ -248,6 +271,64 @@ class SatelliteHandler {
     unawaited(_refresh());
   }
 
+  void _onSatelliteUpsert(int deviceId, String name, Object? data) {
+    SatelliteInfo? info;
+    var pinOrbit = false;
+    if (data is SatelliteInfo) {
+      info = data;
+    } else if (data is Map) {
+      final s = data['satellite'];
+      if (s is SatelliteInfo) {
+        info = s;
+      } else if (s is Map) {
+        info = SatelliteInfo.fromJson(Map<String, dynamic>.from(s));
+      }
+      pinOrbit = data['pinOrbit'] == true;
+    }
+    if (info == null || info.noradId == 0) return;
+    final target = info;
+    unawaited(() async {
+      await _userStore.upsert(target, pinOrbit: pinOrbit);
+      _applyUserChange();
+    }());
+  }
+
+  void _onSatelliteDelete(int deviceId, String name, Object? data) {
+    final id = data is num ? data.toInt() : int.tryParse('$data');
+    if (id == null) return;
+    unawaited(() async {
+      await _userStore.delete(id);
+      _applyUserChange();
+    }());
+  }
+
+  void _onSatelliteRestore(int deviceId, String name, Object? data) {
+    final id = data is num ? data.toInt() : int.tryParse('$data');
+    if (id == null) return;
+    unawaited(() async {
+      await _userStore.restore(id);
+      _applyUserChange();
+    }());
+  }
+
+  void _onSatelliteImport(int deviceId, String name, Object? data) {
+    unawaited(() async {
+      await _userStore.importJson(data);
+      _applyUserChange();
+    }());
+  }
+
+  /// Re-applies user overrides and republishes the catalog after an edit,
+  /// deletion, restore or import.
+  void _applyUserChange() {
+    if (_disposed) return;
+    _rebuildCatalog();
+    _rebuildObservers();
+    _publishCatalog();
+    _recomputeAllNextPasses();
+    _recomputePasses();
+  }
+
   void _onResyncRequested(int deviceId, String name, Object? data) {
     // Re-emit the cached snapshot for a UI that subscribed after startup.
     _broker.dispatch(
@@ -330,19 +411,53 @@ class SatelliteHandler {
   void _rebuildCatalog() {
     _catalog.clear();
     final transponders = _transponderRepo.byNorad;
-    for (final tle in _tleRepo.tles) {
-      final usages = transponders[tle.noradId];
+    final overrides = _userStore.overrides;
+    final hidden = _userStore.hidden;
+
+    // Live orbital elements keyed by NORAD for quick lookup, so a user override
+    // that does not pin its orbit can keep tracking the auto-updating TLE.
+    final liveTles = <int, SatelliteTle>{
+      for (final tle in _tleRepo.tles) tle.noradId: tle,
+    };
+
+    // Build from every NORAD known to either the online catalog or the user's
+    // overrides, minus anything the user deleted.
+    final noradIds = <int>{...liveTles.keys, ...overrides.keys}
+      ..removeAll(hidden);
+
+    for (final noradId in noradIds) {
+      final override = overrides[noradId];
+      final liveTle = liveTles[noradId];
+
+      if (override != null) {
+        // A user override always appears, even receive-only birds, and its
+        // usages replace the online/seed data. The orbit comes from the stored
+        // TLE when pinned or when the bird isn't in the online catalog;
+        // otherwise the live TLE keeps its elements up to date.
+        final tle = (_userStore.isOrbitPinned(noradId) || liveTle == null)
+            ? override.tle
+            : liveTle;
+        final usages = _orderUsages(override.transponders);
+        _catalog[noradId] = SatelliteInfo(tle: tle, transponders: usages);
+        continue;
+      }
+
+      if (liveTle == null) continue;
+      final usages = transponders[noradId];
       if (usages == null || !usages.any((t) => t.isWorkableFm)) continue;
-      // Primary (workable FM repeater) first so SatelliteInfo.transponder and
-      // list sorting use it; the rest (APRS/SSTV/voice) follow.
-      final ordered = [
-        ...usages.where((t) => t.isWorkableFm),
-        ...usages.where((t) => !t.isWorkableFm),
-      ];
-      _catalog[tle.noradId] =
-          SatelliteInfo(tle: tle, transponders: ordered);
+      _catalog[noradId] =
+          SatelliteInfo(tle: liveTle, transponders: _orderUsages(usages));
     }
   }
+
+  /// Orders usages so the primary workable FM repeater is first (used by
+  /// [SatelliteInfo.transponder] and list sorting); the rest follow in order.
+  static List<SatelliteTransponder> _orderUsages(
+    List<SatelliteTransponder> usages,
+  ) => [
+    ...usages.where((t) => t.isWorkableFm),
+    ...usages.where((t) => !t.isWorkableFm),
+  ];
 
   void _rebuildObservers() {
     _observers.clear();

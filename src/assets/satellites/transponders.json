@@ -156,6 +156,30 @@
       "inverting": false,
       "status": "active",
       "infoUrl": "https://orbital-space.com/dashboard"
+    },
+    {
+      "noradId": 26931,
+      "name": "NO-44 (PCSAT-1) APRS Digipeater",
+      "usage": "APRS",
+      "uplinkHz": 145825000,
+      "downlinkHz": 145825000,
+      "mode": "FM",
+      "ctcssHz": null,
+      "inverting": false,
+      "status": "active",
+      "infoUrl": "https://www.aprs.org/pcsat.html"
+    },
+    {
+      "noradId": 59112,
+      "name": "SONATE-2 APRS Digipeater",
+      "usage": "APRS",
+      "uplinkHz": 145825000,
+      "downlinkHz": 145825000,
+      "mode": "FM",
+      "ctcssHz": null,
+      "inverting": false,
+      "status": "active",
+      "infoUrl": "https://amsat-uk.org/tag/sonate-2/"
     }
   ]
 }

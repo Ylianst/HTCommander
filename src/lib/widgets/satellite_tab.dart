@@ -5,7 +5,11 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -14,6 +18,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../dialogs/aprs_location_dialog.dart';
+import '../dialogs/satellite_edit_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../radio/radio.dart';
 import '../radio/radio_models.dart';
@@ -468,6 +473,153 @@ class _SatelliteTabState extends State<SatelliteTab> {
     );
   }
 
+  Future<void> _addSatellite() async {
+    final result = await showSatelliteEditDialog(context);
+    if (result == null) return;
+    _broker.dispatch(
+      deviceId: _deviceId,
+      name: 'SatelliteUpsert',
+      data: {'satellite': result.info, 'pinOrbit': result.pinOrbit},
+      store: false,
+    );
+  }
+
+  Future<void> _editSatellite(SatelliteInfo sat) async {
+    final result = await showSatelliteEditDialog(context, existing: sat);
+    if (result == null) return;
+    _broker.dispatch(
+      deviceId: _deviceId,
+      name: 'SatelliteUpsert',
+      data: {'satellite': result.info, 'pinOrbit': result.pinOrbit},
+      store: false,
+    );
+  }
+
+  Future<void> _deleteSatellite(SatelliteInfo sat) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete satellite'),
+        content: Text(
+          'Remove "${sat.name}" from the list? You can restore it later with '
+          'Refresh or Restore.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    _broker.dispatch(
+      deviceId: _deviceId,
+      name: 'SatelliteDelete',
+      data: sat.noradId,
+      store: false,
+    );
+    if (mounted) setState(() => _narrowShowDetail = false);
+  }
+
+  void _restoreSatellite(SatelliteInfo sat) {
+    _broker.dispatch(
+      deviceId: _deviceId,
+      name: 'SatelliteRestore',
+      data: sat.noradId,
+      store: false,
+    );
+  }
+
+  Future<void> _exportSatellites() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final payload = <String, dynamic>{
+      'version': 1,
+      'satellites': _catalog.values.map((i) => i.toJson()).toList(),
+    };
+    final content = const JsonEncoder.withIndent('  ').convert(payload);
+    final needsBytes = kIsWeb || Platform.isAndroid || Platform.isIOS;
+    try {
+      final outputPath = await FilePicker.saveFile(
+        dialogTitle: 'Export satellites',
+        fileName: 'satellites.json',
+        type: needsBytes ? FileType.any : FileType.custom,
+        allowedExtensions: needsBytes ? null : const ['json'],
+        bytes: needsBytes ? Uint8List.fromList(utf8.encode(content)) : null,
+      );
+      if (outputPath == null) return;
+      if (!needsBytes) await File(outputPath).writeAsString(content);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Satellites exported.')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Error exporting satellites: $e')),
+      );
+    }
+  }
+
+  Future<void> _importSatellites() async {
+    final messenger = ScaffoldMessenger.of(context);
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.pickFiles(
+        dialogTitle: 'Import satellites',
+        type: FileType.any,
+        withData: true,
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Error opening file dialog: $e')),
+      );
+      return;
+    }
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.single;
+    String? content;
+    try {
+      if (file.bytes != null) {
+        content = utf8.decode(file.bytes!, allowMalformed: true);
+      } else if (!kIsWeb && file.path != null) {
+        content = await File(file.path!).readAsString();
+      }
+    } catch (_) {
+      content = null;
+    }
+    if (content == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not read the file.')),
+      );
+      return;
+    }
+    Object? decoded;
+    try {
+      decoded = jsonDecode(content);
+    } catch (_) {
+      decoded = null;
+    }
+    if (decoded is! Map || decoded['satellites'] is! List) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Not a valid satellite export file.')),
+      );
+      return;
+    }
+    _broker.dispatch(
+      deviceId: _deviceId,
+      name: 'SatelliteImport',
+      data: decoded,
+      store: false,
+    );
+    final count = (decoded['satellites'] as List).length;
+    messenger.showSnackBar(
+      SnackBar(content: Text('Imported $count satellite(s).')),
+    );
+  }
+
   void _showOnMap(String name, int noradId, SatellitePosition pos) {
     final notifier = ValueNotifier<LatLng>(
       LatLng(pos.latitudeDeg, pos.longitudeDeg),
@@ -524,6 +676,29 @@ class _SatelliteTabState extends State<SatelliteTab> {
           padding: menuItemPadding,
           child: Row(children: [SizedBox(width: 20), Text('Refresh')]),
         ),
+        const PopupMenuDivider(height: 8),
+        const PopupMenuItem<String>(
+          value: 'add',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(children: [SizedBox(width: 20), Text('Add satellite…')]),
+        ),
+        const PopupMenuItem<String>(
+          value: 'import',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [SizedBox(width: 20), Text('Import satellites…')],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'export',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [SizedBox(width: 20), Text('Export satellites…')],
+          ),
+        ),
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
@@ -541,6 +716,15 @@ class _SatelliteTabState extends State<SatelliteTab> {
       switch (value) {
         case 'refresh':
           _requestRefresh();
+          break;
+        case 'add':
+          _addSatellite();
+          break;
+        case 'import':
+          _importSatellites();
+          break;
+        case 'export':
+          _exportSatellites();
           break;
         case 'detach':
           windowService.createWindow('satellite');
@@ -989,6 +1173,35 @@ class _SatelliteTabState extends State<SatelliteTab> {
                   ? () => _openAntennaPointer(sat.noradId, sat.name)
                   : null,
             ),
+          IconButton(
+            icon: Icon(Icons.edit, color: scheme.onPrimaryContainer),
+            tooltip: 'Edit satellite',
+            onPressed: () => _editSatellite(sat),
+          ),
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert, color: scheme.onPrimaryContainer),
+            tooltip: 'More',
+            onSelected: (value) {
+              switch (value) {
+                case 'delete':
+                  _deleteSatellite(sat);
+                  break;
+                case 'restore':
+                  _restoreSatellite(sat);
+                  break;
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem<String>(
+                value: 'restore',
+                child: Text('Restore to default'),
+              ),
+              PopupMenuItem<String>(
+                value: 'delete',
+                child: Text('Delete satellite'),
+              ),
+            ],
+          ),
         ],
       ),
     );
