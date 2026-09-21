@@ -504,13 +504,18 @@ class DataBroker {
 
     final prefKey = 'databroker_$name';
 
-    // Handle primitive types
+    // Handle primitive types. Read the raw stored value and convert numeric
+    // types defensively: a value meant to be a double can be persisted as an
+    // int (e.g. a whole number arriving as JSON via the web bridge is decoded
+    // as int, then stored with setInt). Calling getDouble/getInt directly would
+    // then throw "type 'int' is not a subtype of type 'double?'" because
+    // SharedPreferences casts the cached value with `as double?`/`as int?`.
     if (_isType<T, int>()) {
-      final value = _prefs!.getInt(prefKey);
-      if (value != null) return value as T;
+      final raw = _prefs!.get(prefKey);
+      if (raw is num) return raw.toInt() as T;
     } else if (_isType<T, double>()) {
-      final value = _prefs!.getDouble(prefKey);
-      if (value != null) return value as T;
+      final raw = _prefs!.get(prefKey);
+      if (raw is num) return raw.toDouble() as T;
     } else if (_isType<T, String>()) {
       final value = _prefs!.getString(prefKey);
       if (value != null && !value.startsWith('~~JSON:')) {
