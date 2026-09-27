@@ -19,6 +19,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   flutter::DartProject project(L"data");
 
+  // Disable the Impeller (OpenGLES) rendering backend on Windows. Impeller
+  // fail-fasts (0xc0000409) during startup on machines with old/incompatible
+  // GPU drivers - e.g. 2017-era Intel HD Graphics - when it cannot create a
+  // complete GL framebuffer, crashing before the Dart side can report it.
+  // Falling back to the ANGLE/Direct3D backend (with WARP software fallback)
+  // is far more compatible with such drivers. See issue #67.
+  project.set_impeller_switch(flutter::ImpellerSwitch::Disabled);
+
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();
 
