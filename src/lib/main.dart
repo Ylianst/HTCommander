@@ -1027,6 +1027,12 @@ class _MainFormState extends State<MainForm>
   // Whether the app checks for updates in the background (on start and when the
   // menu item is toggled on). Enabled by default.
   bool _checkForUpdatesEnabled = true;
+  // Set once the main window has begun closing/destroying. Guards against
+  // querying window_manager (isMaximized/getSize/...) from late resize/state
+  // events GTK fires during teardown: on Linux the native view is already gone
+  // by then, so the query would call gtk_window_is_maximized(NULL) and SIGSEGV.
+  // See https://github.com/Ylianst/HTCommander/issues/68.
+  bool _isClosing = false;
   // Tabs the user has chosen to hide via the context menu.
   Set<String> _hiddenTabs = {};
   // When true, all tabs are shown regardless of _hiddenTabs.
@@ -3017,7 +3023,10 @@ class _MainFormState extends State<MainForm>
   void onWindowClose() async {
     // Persist the final window size before closing so it is restored next launch
     // (also covers platforms where onWindowResized doesn't fire, e.g. Linux).
+    // Save while the native view is still alive, then mark the window as closing
+    // so late resize/state events don't query a destroyed view during teardown.
     await _saveMainWindowSize();
+    _isClosing = true;
     // Close all child windows before closing main window
     await windowService.closeAllChildren();
     await windowManager.destroy();
@@ -3025,7 +3034,10 @@ class _MainFormState extends State<MainForm>
 
   @override
   void onWindowResized() {
-    // Fired when the user finishes resizing the window (macOS/Windows).
+    // Fired when the user finishes resizing the window (macOS/Windows). GTK also
+    // fires this during teardown on Linux; skip once closing so we don't query a
+    // destroyed native window (see _isClosing).
+    if (_isClosing) return;
     _saveMainWindowSize();
   }
 
@@ -3057,6 +3069,9 @@ class _MainFormState extends State<MainForm>
     if (!isDesktop) return;
     // macOS never restores the size on startup, so there is nothing to save.
     if (Platform.isMacOS) return;
+    // Don't touch window_manager once teardown has begun: on Linux the native
+    // view may already be destroyed, making isMaximized()/getSize() crash.
+    if (_isClosing) return;
     try {
       if (await windowManager.isMaximized() ||
           await windowManager.isMinimized() ||
@@ -3087,6 +3102,10 @@ class _MainFormState extends State<MainForm>
   /// and destroys the main window; elsewhere it falls back to popping the route.
   void _onExit() async {
     if (isDesktop) {
+      // Save size while the native view is still alive, then guard against late
+      // teardown events before destroying the window.
+      await _saveMainWindowSize();
+      _isClosing = true;
       await windowService.closeAllChildren();
       await windowManager.destroy();
     } else {
