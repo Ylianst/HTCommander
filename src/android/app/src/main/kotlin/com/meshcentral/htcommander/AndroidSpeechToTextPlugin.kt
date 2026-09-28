@@ -150,7 +150,9 @@ class AndroidSpeechToTextPlugin(
      * itself unsupported and speech-to-text stays disabled.
      */
     private fun initialize(): Boolean {
-        if (!isDeviceSupported()) return false
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || !isDeviceSupported()) {
+            return false
+        }
         if (recognizer != null) return true
         return try {
             recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(context).apply {

@@ -17,7 +17,9 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.meshcentral.htcommander"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_android 14.x requires API 37. Compiling against a
+    // newer SDK remains backward-compatible with the min/target SDK settings.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
