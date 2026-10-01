@@ -41,16 +41,16 @@ dependencies:
   latlong2: ^0.10.1
   desktop_multi_window: ^0.3.0
   window_manager: ^0.5.2
-  file_picker: ^11.0.2
+  file_picker: ^13.1.0
   shared_preferences: ^2.2.3
-  flutter_blue_plus: ^1.35.2
+  flutter_blue_plus: ^2.3.13
   permission_handler: ^13.0.1
   path_provider: ^2.1.4
   crypto: ^3.0.0
   # OS-native encrypted storage for secrets (RepeaterBook token): Keychain
   # (iOS/macOS), Keystore/EncryptedSharedPreferences (Android), DPAPI (Windows),
   # libsecret (Linux). Mirrors the C# ISecretStore approach.
-  flutter_secure_storage: ^10.3.1
+  flutter_secure_storage: ^11.2.0
   es_compression: ^2.0.13
   http: ^1.6.0
   # GBK/GB2312 codec: the radio stores channel and region names in GBK (code
@@ -59,7 +59,7 @@ dependencies:
   flutter_pcm_sound: ^3.1.6
   audioplayers: ^6.7.1
   intl: ^0.20.2
-  desktop_drop: ^0.7.1
+  desktop_drop: ^0.8.4
   libserialport: ^0.3.0+1
   ffi: ^2.0.0
   flutter_tts: ^4.2.5
@@ -67,8 +67,8 @@ dependencies:
   sherpa_onnx: ^1.13.3
   archive: ^4.0.9
   pasteboard: ^0.5.0
-  desktop_updater: ^2.4.2
-  package_info_plus: ^9.0.1
+  desktop_updater: ^3.2.0
+  package_info_plus: ^10.2.1
   grpc: ^5.1.0
   mqtt_client: ^10.9.0
   satellite_observer: ^1.0.1
@@ -79,8 +79,8 @@ dependencies:
   # Firebase Cloud Messaging: lets the app register with HTCloudServer
   # (aprs.meshcentral.com) and receive pushed APRS messages on Android/iOS.
   # Each mobile platform requires its Firebase configuration file.
-  firebase_core: ^3.6.0
-  firebase_messaging: ^15.1.3
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
   # Cross-platform (web + dart:io) WebSocket client. On the web build served by
   # the desktop app, the Flutter UI connects back to the host over this to share
   # the host's radio via the existing /websocket.aspx bridge, instead of using
