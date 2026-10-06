@@ -3231,6 +3231,17 @@ class CommsHandler {
     }
   }
 
+  /// Immediately writes any pending (debounced) history changes to the
+  /// database. Called on app shutdown so the most recently received entries —
+  /// e.g. a just-decoded SSTV image — are durably stored before the window is
+  /// torn down, rather than being lost while the debounce timer is still
+  /// pending.
+  Future<void> flush() async {
+    _saveHistoryTimer?.cancel();
+    _saveHistoryTimer = null;
+    if (_historyDirty) await _writeVoiceTextHistory();
+  }
+
   // ---------------------------------------------------------------------------
   // Broker event dispatch
   // ---------------------------------------------------------------------------

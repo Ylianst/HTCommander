@@ -3027,6 +3027,15 @@ class _MainFormState extends State<MainForm>
     // so late resize/state events don't query a destroyed view during teardown.
     await _saveMainWindowSize();
     _isClosing = true;
+    // Flush any debounced history writes (e.g. a just-received SSTV image) so
+    // they are durably stored before the app terminates. The comms history is
+    // written on a short debounce, so without this the most recently received
+    // entries would be lost when the window is destroyed below.
+    try {
+      await DataBroker.getDataHandler<CommsHandler>('CommsHandler')?.flush();
+    } catch (e) {
+      debugPrint('Main: error flushing comms history on close: $e');
+    }
     // Close all child windows before closing main window
     await windowService.closeAllChildren();
     await windowManager.destroy();
