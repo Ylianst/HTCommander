@@ -61,6 +61,10 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         root.updateSections(rootSections(bridge))
         root.trailingNavigationBarButtons =
             (bridge.connected && bridge.powerOn) ? [optionsBarButton()] : []
+        // Offer a radio switcher only when two or more radios are connected
+        // (physical radios plus any online EchoLink / AllStarLink).
+        root.leadingNavigationBarButtons =
+            (bridge.connectedRadios.count >= 2) ? [radioSwitcherBarButton()] : []
     }
 
     private func rootSections(_ bridge: CarBridge) -> [CPListSection] {
@@ -90,9 +94,8 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         let items = named.map { channel -> CPListItem in
             let item = CPListItem(text: channel.name, detailText: channel.frequency)
             item.isPlaying = channel.id == bridge.vfoA.channelId
-            item.handler = { [weak self] _, completion in
+            item.handler = { _, completion in
                 CarBridge.shared.requestChannel(channelId: channel.id, vfo: "A")
-                self?.showNowPlaying()
                 completion()
             }
             return item
@@ -161,6 +164,34 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         }
     }
 
+    // MARK: - Radio switcher
+
+    private func radioSwitcherBarButton() -> CPBarButton {
+        return CPBarButton(title: "Radios") { [weak self] _ in
+            self?.pushRadioSwitcher()
+        }
+    }
+
+    /// Lists the connected radios and switches the preferred one to the tapped
+    /// radio. The current radio is marked. Only reachable when 2+ are connected.
+    private func pushRadioSwitcher() {
+        let bridge = CarBridge.shared
+        let items = bridge.connectedRadios.map { radio -> CPListItem in
+            let current = radio.id == bridge.selectedRadioId
+            let name = radio.name.isEmpty ? "Radio \(radio.id)" : radio.name
+            let item = CPListItem(text: name, detailText: current ? "Current" : nil)
+            item.isPlaying = current
+            item.handler = { [weak self] _, completion in
+                if !current { CarBridge.shared.requestSelectRadio(id: radio.id) }
+                self?.interfaceController?.popTemplate(animated: true, completion: nil)
+                completion()
+            }
+            return item
+        }
+        let template = CPListTemplate(title: "Radio", sections: [CPListSection(items: items)])
+        interfaceController?.pushTemplate(template, animated: true, completion: nil)
+    }
+
     private func pushOptions() {
         let bridge = CarBridge.shared
         var rows: [CPListItem] = []
@@ -173,19 +204,23 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         }
         rows.append(regionRow)
 
-        let scanRow = CPListItem(text: "Scan", detailText: bridge.scan ? "On" : "Off")
-        scanRow.handler = { _, completion in
-            CarBridge.shared.requestScan(!bridge.scan)
-            completion()
-        }
-        rows.append(scanRow)
+        // Scan and Dual Watch are physical-radio features only; EchoLink and
+        // AllStarLink don't support them, so omit the rows for those.
+        if !bridge.isVirtualRadio {
+            let scanRow = CPListItem(text: "Scan", detailText: bridge.scan ? "On" : "Off")
+            scanRow.handler = { _, completion in
+                CarBridge.shared.requestScan(!bridge.scan)
+                completion()
+            }
+            rows.append(scanRow)
 
-        let dualRow = CPListItem(text: "Dual Watch", detailText: bridge.dualWatch ? "On" : "Off")
-        dualRow.handler = { _, completion in
-            CarBridge.shared.requestDualWatch(!bridge.dualWatch)
-            completion()
+            let dualRow = CPListItem(text: "Dual Watch", detailText: bridge.dualWatch ? "On" : "Off")
+            dualRow.handler = { _, completion in
+                CarBridge.shared.requestDualWatch(!bridge.dualWatch)
+                completion()
+            }
+            rows.append(dualRow)
         }
-        rows.append(dualRow)
 
         let powerOff = CPListItem(text: "Power off", detailText: nil)
         powerOff.handler = { [weak self] _, completion in

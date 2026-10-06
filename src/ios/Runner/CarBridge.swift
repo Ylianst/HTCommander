@@ -44,6 +44,11 @@ final class CarBridge: NSObject {
         let name: String
     }
 
+    struct CarConnectedRadio {
+        let id: Int
+        let name: String
+    }
+
     struct CarRegion {
         let index: Int
         let name: String
@@ -73,6 +78,9 @@ final class CarBridge: NSObject {
     private(set) var connectingRadioId = ""
     private(set) var radioConnectionErrorId = ""
     private(set) var availableRadios: [CarRadio] = []
+    private(set) var connectedRadios: [CarConnectedRadio] = []
+    private(set) var selectedRadioId = -1
+    private(set) var isVirtualRadio = false
     private(set) var radioName = ""
     private(set) var regionName = ""
     private(set) var regionIndex = -1
@@ -158,6 +166,10 @@ final class CarBridge: NSObject {
         methodChannel?.invokeMethod("connectRadio", arguments: ["id": id])
     }
 
+    func requestSelectRadio(id: Int) {
+        methodChannel?.invokeMethod("selectRadio", arguments: id)
+    }
+
     func requestRadioPower(_ on: Bool) {
         methodChannel?.invokeMethod("setRadioPower", arguments: on)
     }
@@ -185,6 +197,12 @@ final class CarBridge: NSObject {
             guard let id = m["id"] as? String else { return nil }
             return CarRadio(id: id, name: m["name"] as? String ?? "")
         }
+        connectedRadios = (map["connectedRadios"] as? [[String: Any]] ?? []).compactMap { m in
+            guard let id = (m["id"] as? NSNumber)?.intValue else { return nil }
+            return CarConnectedRadio(id: id, name: m["name"] as? String ?? "")
+        }
+        selectedRadioId = (map["selectedRadioId"] as? NSNumber)?.intValue ?? -1
+        isVirtualRadio = map["isVirtualRadio"] as? Bool ?? false
         radioName = map["radioName"] as? String ?? ""
         regionName = map["regionName"] as? String ?? ""
         regionIndex = (map["regionIndex"] as? NSNumber)?.intValue ?? -1

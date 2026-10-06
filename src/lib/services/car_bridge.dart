@@ -11,6 +11,8 @@ import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
+import '../allstar/allstar_client.dart' show allStarDeviceId;
+import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../models/radio_models.dart';
 import '../radio/radio_transport.dart';
 import '../winlink/winlink_mail.dart';
@@ -60,6 +62,12 @@ class CarBridge {
   String _connectingRadioId = '';
   String _radioConnectionErrorId = '';
   List<DiscoveredDevice> _availableRadios = const [];
+
+  /// Whether the EchoLink / AllStarLink pseudo-radios are currently online, so
+  /// the car radio switcher can offer them alongside the physical radios. These
+  /// are not part of device 1's `ConnectedRadios` aggregate.
+  bool _echoLinkOnline = false;
+  bool _allStarOnline = false;
 
   /// Whether a car (Android Auto) session is currently projecting. Incoming
   /// messages are only read aloud while this is true.
@@ -136,6 +144,19 @@ class CarBridge {
       callback: _onRadioStateChanged,
     );
 
+    // Track EchoLink / AllStarLink online state so the car radio switcher lists
+    // them (as connected radios) only while they are online.
+    _broker.subscribe(
+      deviceId: echoLinkDeviceId,
+      name: 'State',
+      callback: _onEchoLinkStateChanged,
+    );
+    _broker.subscribe(
+      deviceId: allStarDeviceId,
+      name: 'State',
+      callback: _onAllStarStateChanged,
+    );
+
     // On-air chat messages (APRS + other) directed to us, from the unified
     // comms history. The full snapshot is re-dispatched after every new entry.
     _broker.subscribe(
@@ -172,6 +193,13 @@ class CarBridge {
     if (history is List) _rebuildTextMessages(history);
     _requestMailList();
 
+    _echoLinkOnline = _isVirtualRadioOnline(
+      _broker.getValue<String>(echoLinkDeviceId, 'State'),
+    );
+    _allStarOnline = _isVirtualRadioOnline(
+      _broker.getValue<String>(allStarDeviceId, 'State'),
+    );
+
     _pushState();
   }
 
@@ -203,6 +231,12 @@ class CarBridge {
         if (args is Map) {
           final radioId = args['id'] as String? ?? '';
           await _connectRadio(radioId);
+        }
+        return null;
+      case 'selectRadio':
+        final id = (call.arguments as num?)?.toInt();
+        if (id != null && id != _preferredRadioId) {
+          _broker.dispatch(deviceId: 1, name: 'SetPreferredRadio', data: id);
         }
         return null;
       case 'setRadioPower':
@@ -287,6 +321,56 @@ class CarBridge {
 
   void _onRadioStateChanged(int deviceId, String name, Object? data) {
     _pushState();
+  }
+
+  /// True when an EchoLink / AllStarLink device `State` reports it is online
+  /// (connected as a radio: logged in, connecting, or in a QSO).
+  bool _isVirtualRadioOnline(String? state) =>
+      state == 'Online' || state == 'Connecting' || state == 'Connected';
+
+  void _onEchoLinkStateChanged(int deviceId, String name, Object? data) {
+    final online = _isVirtualRadioOnline(data is String ? data : null);
+    if (online == _echoLinkOnline) return;
+    _echoLinkOnline = online;
+    _pushState();
+  }
+
+  void _onAllStarStateChanged(int deviceId, String name, Object? data) {
+    final online = _isVirtualRadioOnline(data is String ? data : null);
+    if (online == _allStarOnline) return;
+    _allStarOnline = online;
+    _pushState();
+  }
+
+  /// Whether the preferred radio is a software pseudo-radio (EchoLink or
+  /// AllStarLink) rather than a physical Bluetooth radio. Those don't support
+  /// the radio-only Scan and Dual-Watch features.
+  bool get _isVirtualRadio =>
+      _preferredRadioId == echoLinkDeviceId ||
+      _preferredRadioId == allStarDeviceId;
+
+  /// The radios the car switcher can switch between: device 1's connected
+  /// radios plus EchoLink / AllStarLink while they are online (de-duplicated).
+  List<Map<String, Object?>> _connectedRadiosList() {
+    final radios = _broker.getJsonListValue<ConnectedRadioInfo>(
+      1,
+      'ConnectedRadios',
+      (json) => ConnectedRadioInfo.fromJson(json),
+    );
+    final seen = <int>{};
+    final out = <Map<String, Object?>>[];
+    for (final r in radios ?? const <ConnectedRadioInfo>[]) {
+      if (seen.add(r.deviceId)) {
+        out.add({'id': r.deviceId, 'name': r.friendlyName});
+      }
+    }
+    if (_echoLinkOnline && seen.add(echoLinkDeviceId)) {
+      out.add({'id': echoLinkDeviceId, 'name': 'EchoLink'});
+    }
+    if (_allStarOnline && seen.add(allStarDeviceId)) {
+      out.add({'id': allStarDeviceId, 'name': 'AllStarLink'});
+    }
+    return out;
   }
 
   Future<void> _refreshAvailableRadios() async {
@@ -629,6 +713,9 @@ class CarBridge {
         for (final radio in _availableRadios)
           {'id': radio.id, 'name': _friendlyName(radio)},
       ],
+      'connectedRadios': _connectedRadiosList(),
+      'selectedRadioId': _preferredRadioId,
+      'isVirtualRadio': _isVirtualRadio,
       'radioName': _radioName(),
       'regionName': _regionName(),
       'regionIndex': _currRegion(),
