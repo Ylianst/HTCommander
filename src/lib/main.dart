@@ -657,7 +657,34 @@ Future<void> _startApp(List<String> args) async {
   // its window is unfocused.
   await NotificationService.instance.init();
 
+  // On mobile there is no window-close hook (the desktop path flushes on
+  // onWindowClose), so register a lifecycle observer that flushes debounced
+  // Comms history when the app is backgrounded. `paused` is the last callback
+  // reliably delivered before Android/iOS may reclaim the process, so without
+  // this the most recent decoded-text entries are lost on the next launch.
+  if (!kIsWeb && !isDesktop) {
+    WidgetsBinding.instance.addObserver(_persistenceLifecycleObserver);
+  }
+
   runApp(const HTCommanderApp());
+}
+
+/// Flushes debounced on-disk persistence when the app is backgrounded on
+/// mobile, where the process can be killed without a clean shutdown.
+final _PersistenceLifecycleObserver _persistenceLifecycleObserver =
+    _PersistenceLifecycleObserver();
+
+class _PersistenceLifecycleObserver with WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      unawaited(
+        DataBroker.getDataHandler<CommsHandler>('CommsHandler')?.flush(),
+      );
+    }
+  }
 }
 
 /// Best-effort forward of an error string into the Debug tab log. The broker may
