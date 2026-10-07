@@ -6,10 +6,19 @@ endif()
 
 set(PROJECT_NAME "flutter_tts")
 project(${PROJECT_NAME} LANGUAGES CXX)
+include(FetchContent)
+
+FetchContent_Declare(nuget
+    URL "https://dist.nuget.org/win-x86-commandline/v6.5.0/nuget.exe"
+    URL_HASH SHA256=d5fce5185de92b7356ea9264b997a620e35c6f6c3c061e471e0dc3a84b3d74fd
+    DOWNLOAD_NO_EXTRACT true
+)
 
 find_program(NUGET_EXE NAMES nuget)
 if(NOT NUGET_EXE)
-    message(FATAL_ERROR "nuget.exe not found. Please install it.")
+    message(STATUS "nuget.exe not found, trying to download or use cached version.")
+    FetchContent_MakeAvailable(nuget)
+    set(NUGET_EXE "${nuget_SOURCE_DIR}/nuget.exe")
 endif()
 
 execute_process(
@@ -17,7 +26,11 @@ execute_process(
         -Version 2.0.210503.1
         -ExcludeVersion
         -OutputDirectory ${CMAKE_BINARY_DIR}/packages
+        RESULT_VARIABLE NUGET_RESULT
 )
+if(NOT NUGET_RESULT EQUAL 0)
+    message(FATAL_ERROR "Failed to install NuGet package Microsoft.Windows.CppWinRT.2.0.210503.1")
+endif()
 
 set(PLUGIN_NAME "flutter_tts_plugin")
 

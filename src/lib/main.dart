@@ -161,7 +161,11 @@ class _StartupApp extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.radio, size: 56),
+              Image(
+                image: AssetImage('assets/images/AppIcon.png'),
+                width: 56,
+                height: 56,
+              ),
               SizedBox(height: 20),
               Text('Handi-Talky Commander'),
               SizedBox(height: 20),
@@ -2295,10 +2299,12 @@ class _MainFormState extends State<MainForm>
       _regionCount = (info is Map ? info['regionCount'] as int? : null) ?? 0;
       _supportRadio =
           (info is Map ? info['supportRadio'] as bool? : null) ?? false;
-      _allChannelsLoaded = (DataBroker.getValueDynamic(
+      _allChannelsLoaded =
+          (DataBroker.getValueDynamic(
                 _currentRadioDeviceId,
                 'AllChannelsLoaded',
-              ) as bool?) ??
+              )
+              as bool?) ??
           false;
       final htStatus = DataBroker.getValueDynamic(
         _currentRadioDeviceId,
