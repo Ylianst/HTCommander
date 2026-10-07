@@ -7,14 +7,14 @@ name: Deploy Callsign Database (Canada)
 # breaks, it must not affect the US database pipeline. The two share only the
 # GitHub Pages concurrency group so their Pages deploys never overlap.
 #
-# The large database is uploaded as an asset on its own rolling GitHub Release
-# tag (so it never bloats the git history); only the tiny manifest (which points
-# at that asset) is committed under docs/callsign/ and served from GitHub Pages.
+# The large database is uploaded as an asset on its own GitHub Release tag
+# (so it never bloats the git history); only the tiny manifest, pointing at
+# immutable, content-addressed assets, is committed and served from GitHub Pages.
 #
-# It only does work when ISED has published newer data: the ISED file's
-# Last-Modified date is compared against the sourceDate of the currently
-# deployed manifest. When they match, the job exits without building or
-# deploying.
+# It only rebuilds when ISED has published newer data: the ISED file's
+# Last-Modified date is compared against the sourceDate in the repository
+# manifest. Pages is also compared with that manifest so a failed deployment is
+# retried without unnecessarily rebuilding the database.
 
 on:
   schedule:
@@ -43,10 +43,10 @@ concurrency:
 env:
   ISED_URL: https://apc-cap.ic.gc.ca/datafiles/amateur_delim.zip
   MANIFEST: docs/callsign/ised_amateur_manifest.json
-  # The database archives are hosted as assets on this (rolling) release tag,
-  # separate from the US/FCC "callsign-db" tag, so the two never touch each
-  # other. The full baseline is replaced only when it is promoted; the small
-  # weekly overlay is replaced every run.
+  PAGES_MANIFEST: https://ylianst.github.io/HTCommander/callsign/ised_amateur_manifest.json
+  # This release stays separate from the US/FCC "callsign-db" tag. Asset names
+  # include their MD5, making every manifest valid even if Pages deployment
+  # fails and an older manifest remains live.
   RELEASE_TAG: callsign-db-ca
   BASELINE_ASSET: ised_amateur.cdb.xz
   OVERLAY_ASSET: ised_amateur_overlay.cdb.xz
@@ -81,20 +81,34 @@ jobs:
             echo "ised_date=$ised_date" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Read deployed database date
+      - name: Read current database dates
         id: current
         run: |
           set -euo pipefail
-          # The newest data currently deployed is the overlay's source date (it
-          # always tracks the latest weekly build); fall back to the baseline
-          # date for a legacy v1 manifest that predates overlays.
+          # The repository manifest is the source of truth. Also read the live
+          # Pages manifest so a previously failed Pages deployment is retried
+          # even when the ISED data itself has not changed.
           if [ -f "$MANIFEST" ]; then
             cur=$(jq -r '.overlay.sourceDate // .sourceDate // 0' "$MANIFEST")
           else
             cur=0
           fi
-          echo "Deployed data date: $cur"
+          live_manifest=$(mktemp)
+          live=0
+          pages_current=false
+          if curl -fsSL "${PAGES_MANIFEST}?run=${{ github.run_id }}" \
+               -o "$live_manifest" && jq -e . "$live_manifest" >/dev/null; then
+            live=$(jq -r '.overlay.sourceDate // .sourceDate // 0' "$live_manifest")
+            if cmp -s "$MANIFEST" "$live_manifest"; then
+              pages_current=true
+            fi
+          fi
+          rm -f "$live_manifest"
+          echo "Repository data date: $cur"
+          echo "Pages data date: $live"
           echo "source_date=$cur" >> "$GITHUB_OUTPUT"
+          echo "pages_date=$live" >> "$GITHUB_OUTPUT"
+          echo "pages_current=$pages_current" >> "$GITHUB_OUTPUT"
 
       - name: Decide whether to build
         id: decide
@@ -103,6 +117,7 @@ jobs:
           force='${{ github.event.inputs.force }}'
           ised='${{ steps.ised.outputs.ised_date }}'
           cur='${{ steps.current.outputs.source_date }}'
+          pages_current='${{ steps.current.outputs.pages_current }}'
           if [ "$force" = "true" ]; then
             echo "Forced rebuild requested."
             echo "build=true" >> "$GITHUB_OUTPUT"
@@ -115,6 +130,15 @@ jobs:
           else
             echo "Database already up to date ($cur); nothing to do."
             echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$force" = "true" ] || \
+             { [ -n "$ised" ] && [ "$ised" != "$cur" ]; } || \
+             [ "$pages_current" != "true" ]; then
+            echo "Pages deployment required."
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Pages is already up to date."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up Python
@@ -134,9 +158,11 @@ jobs:
           # against. Pull it into a path *separate* from the one the builder
           # writes to. A missing asset (first run) leaves the path empty, which
           # makes the builder promote a fresh full baseline.
-          if gh release download "$RELEASE_TAG" --pattern "$BASELINE_ASSET" \
+          baseline_asset=$(jq -r '.url // "" | split("/")[-1]' "$MANIFEST")
+          if [ -n "$baseline_asset" ] && \
+             gh release download "$RELEASE_TAG" --pattern "$baseline_asset" \
                --output prev_baseline.cdb.xz 2>/dev/null; then
-            echo "Downloaded baseline asset $BASELINE_ASSET."
+            echo "Downloaded baseline asset $baseline_asset."
             echo "path=prev_baseline.cdb.xz" >> "$GITHUB_OUTPUT"
           else
             echo "No baseline asset on the release yet (first run)."
@@ -176,6 +202,43 @@ jobs:
             echo "Published an overlay update; baseline unchanged."
             echo "promoted=false" >> "$GITHUB_OUTPUT"
           fi
+
+          # Retain old assets so a cached or stale Pages manifest remains valid.
+          overlay_md5=$(jq -r '.overlay.md5' "$MANIFEST")
+          overlay_asset="ised_amateur_overlay-${overlay_md5}.cdb.xz"
+          mv "docs/callsign/$OVERLAY_ASSET" "docs/callsign/$overlay_asset"
+          overlay_url="https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/${overlay_asset}"
+          jq --arg url "$overlay_url" '.overlay.url = $url' "$MANIFEST" > "$MANIFEST.tmp"
+          mv "$MANIFEST.tmp" "$MANIFEST"
+          echo "overlay_asset=$overlay_asset" >> "$GITHUB_OUTPUT"
+
+          if [ "$new_date" = "${{ steps.ised.outputs.ised_date }}" ]; then
+            baseline_md5=$(jq -r '.md5' "$MANIFEST")
+            baseline_asset="ised_amateur-${baseline_md5}.cdb.xz"
+            mv "docs/callsign/$BASELINE_ASSET" "docs/callsign/$baseline_asset"
+            baseline_url="https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/${baseline_asset}"
+            jq --arg url "$baseline_url" '.url = $url' "$MANIFEST" > "$MANIFEST.tmp"
+            mv "$MANIFEST.tmp" "$MANIFEST"
+            echo "baseline_asset=$baseline_asset" >> "$GITHUB_OUTPUT"
+          fi
+
+          verify_local_asset() {
+            local path="$1"
+            local manifest_path="$2"
+            local expected_md5 expected_size actual_md5 actual_size
+            expected_md5=$(jq -r "${manifest_path}.md5" "$MANIFEST")
+            expected_size=$(jq -r "${manifest_path}.sizeBytes" "$MANIFEST")
+            actual_md5=$(md5sum "$path" | awk '{print $1}')
+            actual_size=$(stat -c '%s' "$path")
+            if [ "$actual_md5" != "$expected_md5" ] || [ "$actual_size" != "$expected_size" ]; then
+              echo "::error::Checksum or size mismatch for $path"
+              return 1
+            fi
+          }
+          verify_local_asset "docs/callsign/$overlay_asset" '.overlay'
+          if [ "$new_date" = "${{ steps.ised.outputs.ised_date }}" ]; then
+            verify_local_asset "docs/callsign/$baseline_asset" ''
+          fi
           ls -l docs/callsign
 
       - name: Publish database to Release
@@ -184,7 +247,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          # Ensure the rolling release exists, then replace its assets.
+          # Ensure the database release exists, then upload immutable assets.
           # --latest=false keeps this rolling release from hijacking the repo's
           # "Latest" pointer, which the website's releases/latest/download links
           # rely on to resolve the app installers.
@@ -192,18 +255,49 @@ jobs:
             gh release create "$RELEASE_TAG" \
               --latest=false \
               --title "Callsign Database (Canada)" \
-              --notes "Offline Canadian amateur callsign database (ISED). Rolling release; assets are replaced automatically."
+              --notes "Offline Canadian amateur callsign database (ISED). Assets are content-addressed and published automatically."
           fi
-          # The small weekly overlay is always (re)published.
-          gh release upload "$RELEASE_TAG" "docs/callsign/$OVERLAY_ASSET" --clobber
-          # The full baseline is only re-uploaded when it was promoted.
+
+          # Reruns may reuse an asset only when its bytes match exactly.
+          publish_asset() {
+            local path="$1"
+            local name="$2"
+            local temp_dir check
+            temp_dir=$(mktemp -d)
+            check="$temp_dir/$name"
+            if gh release download "$RELEASE_TAG" --pattern "$name" --output "$check" 2>/dev/null; then
+              cmp "$path" "$check" || {
+                echo "::error::Existing release asset $name does not match local bytes."
+                rm -f "$check"
+                rmdir "$temp_dir"
+                return 1
+              }
+              echo "Verified existing release asset $name."
+            else
+              rm -f "$check"
+              gh release upload "$RELEASE_TAG" "$path"
+              gh release download "$RELEASE_TAG" --pattern "$name" --output "$check"
+              cmp "$path" "$check" || {
+                echo "::error::Uploaded release asset $name does not match local bytes."
+                rm -f "$check"
+                rmdir "$temp_dir"
+                return 1
+              }
+              echo "Uploaded and verified release asset $name."
+            fi
+            rm -f "$check"
+            rmdir "$temp_dir"
+          }
+          publish_asset \
+            "docs/callsign/${{ steps.build.outputs.overlay_asset }}" \
+            "${{ steps.build.outputs.overlay_asset }}"
           if [ "${{ steps.build.outputs.promoted }}" = "true" ]; then
-            gh release upload "$RELEASE_TAG" "docs/callsign/$BASELINE_ASSET" --clobber
+            publish_asset \
+              "docs/callsign/${{ steps.build.outputs.baseline_asset }}" \
+              "${{ steps.build.outputs.baseline_asset }}"
           fi
           # Keep every archive out of the committed docs tree / Pages artifact.
-          rm -f docs/callsign/ised_amateur.cdb docs/callsign/ised_amateur.cdb.xz \
-                docs/callsign/ised_amateur_overlay.cdb docs/callsign/ised_amateur_overlay.cdb.xz \
-                prev_baseline.cdb.xz
+          rm -f docs/callsign/*.cdb docs/callsign/*.cdb.xz prev_baseline.cdb.xz
 
       - name: Commit updated manifest
         if: steps.decide.outputs.build == 'true'
@@ -220,16 +314,16 @@ jobs:
           fi
 
       - name: Setup Pages
-        if: steps.decide.outputs.build == 'true'
+        if: steps.decide.outputs.deploy == 'true'
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
 
       - name: Upload artifact
-        if: steps.decide.outputs.build == 'true'
+        if: steps.decide.outputs.deploy == 'true'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: docs
 
       - name: Deploy to GitHub Pages
         id: deployment
-        if: steps.decide.outputs.build == 'true'
+        if: steps.decide.outputs.deploy == 'true'
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

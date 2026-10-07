@@ -229,12 +229,14 @@ jobs:
             expected_size=$(jq -r "${manifest_path}.sizeBytes" "$MANIFEST")
             actual_md5=$(md5sum "$path" | awk '{print $1}')
             actual_size=$(stat -c '%s' "$path")
-            test "$actual_md5" = "$expected_md5"
-            test "$actual_size" = "$expected_size"
+            if [ "$actual_md5" != "$expected_md5" ] || [ "$actual_size" != "$expected_size" ]; then
+              echo "::error::Checksum or size mismatch for $path"
+              return 1
+            fi
           }
           verify_local_asset "docs/callsign/$overlay_asset" '.overlay'
           if [ "$new_date" = "${{ steps.fcc.outputs.fcc_date }}" ]; then
-            verify_local_asset "docs/callsign/$baseline_asset" '.'
+            verify_local_asset "docs/callsign/$baseline_asset" ''
           fi
           ls -l docs/callsign
 
@@ -264,13 +266,23 @@ jobs:
             temp_dir=$(mktemp -d)
             check="$temp_dir/$name"
             if gh release download "$RELEASE_TAG" --pattern "$name" --output "$check" 2>/dev/null; then
-              cmp "$path" "$check"
+              cmp "$path" "$check" || {
+                echo "::error::Existing release asset $name does not match local bytes."
+                rm -f "$check"
+                rmdir "$temp_dir"
+                return 1
+              }
               echo "Verified existing release asset $name."
             else
               rm -f "$check"
               gh release upload "$RELEASE_TAG" "$path"
               gh release download "$RELEASE_TAG" --pattern "$name" --output "$check"
-              cmp "$path" "$check"
+              cmp "$path" "$check" || {
+                echo "::error::Uploaded release asset $name does not match local bytes."
+                rm -f "$check"
+                rmdir "$temp_dir"
+                return 1
+              }
               echo "Uploaded and verified release asset $name."
             fi
             rm -f "$check"
