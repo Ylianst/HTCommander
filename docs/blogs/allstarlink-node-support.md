@@ -341,7 +341,8 @@ Two places, mirroring how the feature splits:
 | **Allow Web Transceiver** | Accept token-validated public WT clients |
 
 **The Comms tab** is where you actually go on the air. Select a connected
-handheld, tap the new **node** button in the header, confirm the control-operator
+handheld, tap the new **node** button in the header (it appears once a node
+number and password are set), confirm the control-operator
 notice, and HTCommander locks that radio, registers, and starts relaying. The
 button glows while hosting and shows how many nodes are linked; tap it again to
 stop. Because a hosted node listens on the internet, you'll need to forward UDP

@@ -105,6 +105,7 @@ class _CommsTabState extends State<CommsTab>
   // AllStarLink node hosting (device 203) state, reflected in the header.
   String _allStarNodeState = 'Stopped';
   int _allStarNodePeerCount = 0;
+  bool _allStarNodeConfigured = false;
 
   VoiceTransmitMode _currentMode = VoiceTransmitMode.chat;
   bool _audioEnabled = false;
@@ -311,6 +312,18 @@ class _CommsTabState extends State<CommsTab>
       name: 'PeerCount',
       callback: _onAllStarNodePeerCountChanged,
     );
+    // Node-hosting configuration (device 0); the header control is only shown
+    // once a node number and password are set.
+    _broker.subscribe(
+      deviceId: 0,
+      name: allStarNodeNumberKey,
+      callback: _onAllStarNodeConfigChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: allStarNodePasswordKey,
+      callback: _onAllStarNodeConfigChanged,
+    );
     _broker.subscribe(
       deviceId: 1,
       name: 'VoiceTextCleared',
@@ -382,6 +395,7 @@ class _CommsTabState extends State<CommsTab>
         _broker.getValue<String>(echoLinkDeviceId, 'StationInfo', '') ?? '';
     _allStarInCall =
         _broker.getValue<String>(allStarDeviceId, 'State') == 'Connected';
+    _allStarNodeConfigured = _readAllStarNodeConfigured();
     _softwareModemMode =
         (_broker.getValue<String>(0, 'SoftwareModemMode', 'none') ?? 'none')
             .toLowerCase();
@@ -868,12 +882,29 @@ class _CommsTabState extends State<CommsTab>
     setState(() => _allStarNodePeerCount = data);
   }
 
+  /// Whether an AllStarLink node number and password are configured.
+  bool _readAllStarNodeConfigured() {
+    final String node =
+        (_broker.getValue<String>(0, allStarNodeNumberKey, '') ?? '').trim();
+    final String pass =
+        _broker.getValue<String>(0, allStarNodePasswordKey, '') ?? '';
+    return node.isNotEmpty && pass.isNotEmpty;
+  }
+
+  void _onAllStarNodeConfigChanged(int deviceId, String name, Object? data) {
+    final configured = _readAllStarNodeConfigured();
+    if (configured == _allStarNodeConfigured || !mounted) return;
+    setState(() => _allStarNodeConfigured = configured);
+  }
+
   /// Whether HTCommander is currently hosting an AllStarLink node.
   bool get _allStarNodeHosting => _allStarNodeState == 'Hosting';
 
   /// Whether the current radio is a physical, connected radio that can host a
-  /// node (excludes EchoLink / AllStar / APRS-IS internet pseudo-radios).
+  /// node (excludes EchoLink / AllStar / APRS-IS internet pseudo-radios) and
+  /// node hosting has been configured in settings.
   bool get _canHostAllStarNode {
+    if (!_allStarNodeConfigured) return false;
     if (_currentRadioDeviceId <= 0) return false;
     return _radioIds(DataBroker.getValueDynamic(1, 'ConnectedRadios'))
         .contains(_currentRadioDeviceId);
