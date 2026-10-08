@@ -1268,6 +1268,7 @@ class BleRadioTransport implements RadioTransport {
       // Connect to the device
       _logInfo('Opening GATT connection (timeout 15s)...');
       await _bleDevice!.connect(
+        license: License.nonprofit,
         timeout: const Duration(seconds: 15),
         autoConnect: false,
       );
