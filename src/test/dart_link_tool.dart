@@ -15,13 +15,13 @@ limitations under the License.
 */
 
 //
-// dart_link_test.dart - Tests for the DART link layer (datagrams + ARQ).
+// dart_link_tool.dart - Tests for the DART link layer (datagrams + ARQ).
 //
 // Usage:
-//   dart run test/dart_link_test.dart datagram   # connectionless multicast
-//   dart run test/dart_link_test.dart arq        # reliable ARQ round-trip
-//   dart run test/dart_link_test.dart adapt      # rate adaptation up/down
-//   dart run test/dart_link_test.dart all
+//   dart run test/dart_link_tool.dart datagram   # connectionless multicast
+//   dart run test/dart_link_tool.dart arq        # reliable ARQ round-trip
+//   dart run test/dart_link_tool.dart adapt      # rate adaptation up/down
+//   dart run test/dart_link_tool.dart all
 //
 
 // ignore_for_file: avoid_print

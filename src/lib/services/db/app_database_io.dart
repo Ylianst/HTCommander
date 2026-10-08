@@ -108,7 +108,7 @@ class AppDatabase {
         onConfigure: (db) async {
           // WAL: durable per-transaction commits with far fewer fsyncs than the
           // old flush-on-every-write flat files.
-          await db.execute('PRAGMA journal_mode=WAL');
+          await db.setJournalMode('WAL');
           await db.execute('PRAGMA synchronous=NORMAL');
         },
         onCreate: (db, version) async {

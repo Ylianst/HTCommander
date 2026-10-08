@@ -15,14 +15,14 @@ limitations under the License.
 */
 
 //
-// dart_modem_test.dart - Test harness for the DART modem.
+// dart_modem_tool.dart - Test harness for the DART modem.
 //
 // Usage:
-//   dart run test/dart_modem_test.dart encode -m 2 -o output.wav "Hello, world!"
-//   dart run test/dart_modem_test.dart decode output.wav
-//   dart run test/dart_modem_test.dart loopback
-//   dart run test/dart_modem_test.dart loopback --sbc
-//   dart run test/dart_modem_test.dart sweep
+//   dart run test/dart_modem_tool.dart encode -m 2 -o output.wav "Hello, world!"
+//   dart run test/dart_modem_tool.dart decode output.wav
+//   dart run test/dart_modem_tool.dart loopback
+//   dart run test/dart_modem_tool.dart loopback --sbc
+//   dart run test/dart_modem_tool.dart sweep
 //
 
 // ignore_for_file: avoid_print
