@@ -97,6 +97,12 @@ class OrientationService {
   }
 
   void _emit() {
+    // Sensor subscriptions are cancelled asynchronously, so a late in-flight
+    // compass/accelerometer event (or a declination update) can still arrive
+    // after [dispose] has closed the controller; dropping it here avoids a
+    // "Cannot add new event after calling close" error firing at the sensor
+    // rate.
+    if (_controller.isClosed) return;
     if (_magneticHeadingDeg == null || _pitchDeg == null) return;
     final trueHeading = _normalize(_magneticHeadingDeg! + _declinationDeg);
     _controller.add(
@@ -120,7 +126,9 @@ class OrientationService {
 
   void dispose() {
     _compassSub?.cancel();
+    _compassSub = null;
     _accelSub?.cancel();
+    _accelSub = null;
     _controller.close();
   }
 }
