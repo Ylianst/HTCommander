@@ -64,11 +64,31 @@ class SatelliteTle {
     return result;
   }
 
-  /// Extracts the 5-digit NORAD catalog number from TLE line 1 (columns 3-7).
+  /// Extracts the NORAD catalog number from TLE line 1 (columns 3-7),
+  /// including the Alpha-5 form (e.g. `A0470` = 100470) used above 99999.
   static int? _parseNoradId(String line1) {
     if (line1.length < 7) return null;
-    final field = line1.substring(2, 7).trim();
-    return int.tryParse(field);
+    return parseCatalogNumber(line1.substring(2, 7));
+  }
+
+  /// Decodes a 5-character TLE catalog field, plain digits or Alpha-5.
+  static int? parseCatalogNumber(String field) {
+    final f = field.trim().toUpperCase();
+    if (f.isEmpty) return null;
+    final first = f.codeUnitAt(0);
+    if (first < 0x41 || first > 0x5A) {
+      return RegExp(r'^\d+$').hasMatch(f) ? int.parse(f) : null;
+    }
+    if (f.length != 5 || !RegExp(r'^\d{4}$').hasMatch(f.substring(1))) {
+      return null;
+    }
+    // Alpha-5 skips I and O: A=10..H=17, J=18..N=22, P=23..Z=33.
+    final letter = f[0];
+    if (letter == 'I' || letter == 'O') return null;
+    var value = first - 0x41 + 10;
+    if (first > 0x49) value--;
+    if (first > 0x4F) value--;
+    return value * 10000 + int.parse(f.substring(1));
   }
 
   Map<String, dynamic> toJson() => {

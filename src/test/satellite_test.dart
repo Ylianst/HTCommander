@@ -59,6 +59,30 @@ void main() {
       final tles = SatelliteTle.parseThreeLine('GARBAGE\n1 only one line\n');
       expect(tles, isEmpty);
     });
+
+    test('parses Alpha-5 catalog numbers (issue #78)', () {
+      const l1 =
+          '1 A0470U 26195F   26280.72619864  .00004254  00000-0  26453-3 0  9993';
+      const l2 =
+          '2 A0470  97.5407 353.8404 0013969 122.1334 238.1253 15.10090346  6588';
+      final tles = SatelliteTle.parseThreeLine('TEST SAT\n$l1\n$l2\n');
+      expect(tles.length, 1);
+      expect(tles.first.noradId, 100470);
+      expect(tles.first.line1, l1);
+      expect(() => GpElements.fromTle(l1, l2), returnsNormally);
+    });
+
+    test('Alpha-5 letter mapping skips I and O', () {
+      expect(SatelliteTle.parseCatalogNumber('25544'), 25544);
+      expect(SatelliteTle.parseCatalogNumber('A0000'), 100000);
+      expect(SatelliteTle.parseCatalogNumber('H9999'), 179999);
+      expect(SatelliteTle.parseCatalogNumber('J0000'), 180000);
+      expect(SatelliteTle.parseCatalogNumber('P0000'), 230000);
+      expect(SatelliteTle.parseCatalogNumber('Z9999'), 339999);
+      expect(SatelliteTle.parseCatalogNumber('I0000'), isNull);
+      expect(SatelliteTle.parseCatalogNumber('O0000'), isNull);
+      expect(SatelliteTle.parseCatalogNumber('A12X4'), isNull);
+    });
   });
 
   group('SGP4 propagation via satellite_observer', () {
