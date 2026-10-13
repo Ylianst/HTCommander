@@ -52,8 +52,8 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   String _friendlyName = '';
 
   /// Supported frequency bands read from the radio (READ_FREQ_RANGE), each a
-  /// `[lowHz, highHz]` pair. Empty until the reply has been received.
-  List<List<int>> _freqRanges = const [];
+  /// range with its reported modulation. Empty until the reply is received.
+  List<({int lowHz, int highHz, int? mod})> _freqRanges = const [];
 
   @override
   void initState() {
@@ -230,16 +230,18 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     });
   }
 
-  /// Normalizes the broker's `FreqRanges` value (a list of `{lowHz, highHz}`
-  /// maps, possibly round-tripped through JSON) into `[lowHz, highHz]` pairs.
-  List<List<int>> _parseFreqRanges(Object? data) {
+  /// Normalizes the broker's `FreqRanges` maps, retaining modulation flags.
+  List<({int lowHz, int highHz, int? mod})> _parseFreqRanges(Object? data) {
     if (data is! List) return const [];
-    final ranges = <List<int>>[];
+    final ranges = <({int lowHz, int highHz, int? mod})>[];
     for (final entry in data) {
       if (entry is Map) {
         final low = (entry['lowHz'] as num?)?.toInt();
         final high = (entry['highHz'] as num?)?.toInt();
-        if (low != null && high != null) ranges.add([low, high]);
+        final mod = (entry['mod'] as num?)?.toInt();
+        if (low != null && high != null) {
+          ranges.add((lowHz: low, highHz: high, mod: mod));
+        }
       }
     }
     return ranges;
@@ -447,10 +449,18 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
       for (int r = 0; r < _freqRanges.length; r++)
         _row(
           'Frequency Range ${r + 1}',
-          '${_formatMhz(_freqRanges[r][0])} - ${_formatMhz(_freqRanges[r][1])} MHz',
+          '${_formatMhz(_freqRanges[r].lowHz)} - ${_formatMhz(_freqRanges[r].highHz)} MHz${_formatModulation(_freqRanges[r].mod)}',
         ),
     ];
   }
+
+  String _formatModulation(int? mod) => switch (mod) {
+    0 => ' (FM RX)',
+    1 => ' (AM RX)',
+    2 => ' (FM RX/TX)',
+    null => '',
+    _ => ' (mod=$mod)',
+  };
 
   /// Formats a frequency in Hz as MHz with 3 decimals (e.g. 146500000 ->
   /// "146.500").
