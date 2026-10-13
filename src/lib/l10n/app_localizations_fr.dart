@@ -1703,6 +1703,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get riSectionPosition => 'Position';
 
   @override
+  String get riSectionFreqRanges => 'Plages de fréquences';
+
+  @override
   String get riName => 'Nom';
 
   @override

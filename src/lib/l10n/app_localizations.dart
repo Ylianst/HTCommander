@@ -3112,6 +3112,12 @@ abstract class AppLocalizations {
   /// **'Position'**
   String get riSectionPosition;
 
+  /// No description provided for @riSectionFreqRanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequency Ranges'**
+  String get riSectionFreqRanges;
+
   /// No description provided for @riName.
   ///
   /// In en, this message translates to:

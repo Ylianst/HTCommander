@@ -1693,6 +1693,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get riSectionPosition => 'स्थिति';
 
   @override
+  String get riSectionFreqRanges => 'आवृत्ति रेंज';
+
+  @override
   String get riName => 'नाम';
 
   @override

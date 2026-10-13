@@ -1658,6 +1658,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get riSectionPosition => '位置';
 
   @override
+  String get riSectionFreqRanges => '周波数範囲';
+
+  @override
   String get riName => '名前';
 
   @override

@@ -551,6 +551,7 @@
   "riSectionDeviceSettings": "Paramètres de l'appareil",
   "riSectionBss": "Paramètres BSS",
   "riSectionPosition": "Position",
+  "riSectionFreqRanges": "Plages de fréquences",
   "riName": "Nom",
   "riStatus": "État",
   "riSettingsLabel": "Paramètres",

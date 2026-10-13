@@ -1640,6 +1640,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get riSectionPosition => '位置';
 
   @override
+  String get riSectionFreqRanges => '频率范围';
+
+  @override
   String get riName => '名称';
 
   @override

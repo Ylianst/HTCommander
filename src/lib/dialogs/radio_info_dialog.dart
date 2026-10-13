@@ -51,6 +51,10 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   RadioPosition? _position;
   String _friendlyName = '';
 
+  /// Supported frequency bands read from the radio (READ_FREQ_RANGE), each a
+  /// `[lowHz, highHz]` pair. Empty until the reply has been received.
+  List<List<int>> _freqRanges = const [];
+
   @override
   void initState() {
     super.initState();
@@ -116,6 +120,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
           _bssSettings = null;
           _position = null;
           _friendlyName = '';
+          _freqRanges = const [];
         }
       }
     });
@@ -155,6 +160,9 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     );
     _friendlyName =
         _broker.getValue<String>(newDeviceId, 'FriendlyName', '') ?? '';
+    _freqRanges = _parseFreqRanges(
+      _broker.getValue<Object?>(newDeviceId, 'FreqRanges', null),
+    );
 
     _broker.subscribeMultiple(
       deviceId: newDeviceId,
@@ -165,6 +173,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
         'BssSettings',
         'Position',
         'FriendlyName',
+        'FreqRanges',
       ],
       callback: _onDeviceValueChanged,
     );
@@ -178,6 +187,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     _broker.unsubscribe(deviceId, 'BssSettings');
     _broker.unsubscribe(deviceId, 'Position');
     _broker.unsubscribe(deviceId, 'FriendlyName');
+    _broker.unsubscribe(deviceId, 'FreqRanges');
   }
 
   void _onDeviceValueChanged(int deviceId, String name, Object? data) {
@@ -213,8 +223,26 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
         case 'FriendlyName':
           _friendlyName = data is String ? data : '';
           break;
+        case 'FreqRanges':
+          _freqRanges = _parseFreqRanges(data);
+          break;
       }
     });
+  }
+
+  /// Normalizes the broker's `FreqRanges` value (a list of `{lowHz, highHz}`
+  /// maps, possibly round-tripped through JSON) into `[lowHz, highHz]` pairs.
+  List<List<int>> _parseFreqRanges(Object? data) {
+    if (data is! List) return const [];
+    final ranges = <List<int>>[];
+    for (final entry in data) {
+      if (entry is Map) {
+        final low = (entry['lowHz'] as num?)?.toInt();
+        final high = (entry['highHz'] as num?)?.toInt();
+        if (low != null && high != null) ranges.add([low, high]);
+      }
+    }
+    return ranges;
   }
 
   String _radioLabel(ConnectedRadioInfo radio) {
@@ -367,6 +395,10 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
           _buildSection(l10n.riSectionBss, _bssRows()),
           const SizedBox(height: 12),
           _buildSection(l10n.riSectionPosition, _positionRows()),
+          if (_freqRanges.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildSection(l10n.riSectionFreqRanges, _freqRangeRows()),
+          ],
         ],
       ),
     );
@@ -407,6 +439,22 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
       _row(l10n.riFreqRangeCount, '${i.freqRangeCount}'),
     ];
   }
+
+  List<_InfoRow> _freqRangeRows() {
+    final l10n = AppLocalizations.of(context);
+    if (_freqRanges.isEmpty) return [_InfoRow(l10n.riStatus, l10n.riNoData)];
+    return [
+      for (int r = 0; r < _freqRanges.length; r++)
+        _row(
+          'Frequency Range ${r + 1}',
+          '${_formatMhz(_freqRanges[r][0])} - ${_formatMhz(_freqRanges[r][1])} MHz',
+        ),
+    ];
+  }
+
+  /// Formats a frequency in Hz as MHz with 3 decimals (e.g. 146500000 ->
+  /// "146.500").
+  String _formatMhz(int hz) => (hz / 1000000).toStringAsFixed(3);
 
   List<_InfoRow> _statusRows() {
     final l10n = AppLocalizations.of(context);

@@ -551,6 +551,7 @@
   "riSectionDeviceSettings": "设备设置",
   "riSectionBss": "BSS 设置",
   "riSectionPosition": "位置",
+  "riSectionFreqRanges": "频率范围",
   "riName": "名称",
   "riStatus": "状态",
   "riSettingsLabel": "设置",

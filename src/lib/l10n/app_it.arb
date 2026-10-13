@@ -543,6 +543,7 @@
   "riSectionDeviceSettings": "Impostazioni dispositivo",
   "riSectionBss": "Impostazioni BSS",
   "riSectionPosition": "Posizione",
+  "riSectionFreqRanges": "Gamme di frequenza",
   "riName": "Nome",
   "riStatus": "Stato",
   "riSettingsLabel": "Impostazioni",

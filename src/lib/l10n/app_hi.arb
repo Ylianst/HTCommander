@@ -551,6 +551,7 @@
   "riSectionDeviceSettings": "डिवाइस सेटिंग्स",
   "riSectionBss": "BSS सेटिंग्स",
   "riSectionPosition": "स्थिति",
+  "riSectionFreqRanges": "आवृत्ति रेंज",
   "riName": "नाम",
   "riStatus": "स्थिति",
   "riSettingsLabel": "सेटिंग्स",

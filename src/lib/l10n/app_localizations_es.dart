@@ -1701,6 +1701,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get riSectionPosition => 'Posición';
 
   @override
+  String get riSectionFreqRanges => 'Rangos de frecuencia';
+
+  @override
   String get riName => 'Nombre';
 
   @override

@@ -258,6 +258,9 @@ class Radio implements FirmwareRadio {
   // comma-separated string (e.g. "WIDE1-1,WIDE2-1"). Null until the first
   // GET_APRS_PATH reply has been received.
   String? aprsPath;
+  // Frequency bands the radio can tune, each as `[lowHz, highHz]`. Populated
+  // from the READ_FREQ_RANGE reply; empty until that reply has been received.
+  List<List<int>> freqRanges = const [];
   bool hardwareModemEnabled = true;
 
   /// Live general software-modem mode (enum name, e.g. 'afsk1200' / 'none'),
@@ -2099,6 +2102,18 @@ class Radio implements FirmwareRadio {
     _sendCommand(RadioCommandGroup.basic, RadioBasicCommand.getAprsPath, null);
   }
 
+  /// Requests the radio's supported frequency ranges (READ_FREQ_RANGE). The
+  /// reply is handled by [_handleReadFreqRange], which parses the bands into
+  /// [freqRanges] and dispatches the `FreqRanges` event. The number of ranges
+  /// is reported by GET_DEV_INFO's `freqRangeCount`.
+  void readFreqRange() {
+    _sendCommand(
+      RadioCommandGroup.basic,
+      RadioBasicCommand.readFreqRange,
+      null,
+    );
+  }
+
   /// Writes the APRS beacon path/route to the radio (SET_APRS_PATH). [path] is
   /// a comma-separated digipeater path (e.g. "WIDE1-1,WIDE2-1"). The value is
   /// sent as variable-length UTF-8. The local [aprsPath] cache is updated
@@ -2928,6 +2943,9 @@ class Radio implements FirmwareRadio {
       case RadioBasicCommand.getAprsPath:
         _handleGetAprsPath(cmd);
         break;
+      case RadioBasicCommand.readFreqRange:
+        _handleReadFreqRange(cmd);
+        break;
       case RadioBasicCommand.setAprsPath:
         // The radio does not notify after an APRS path write, so re-read it to
         // refresh the cached value. cmd[4] is the status byte (0 = success).
@@ -3055,6 +3073,10 @@ class Radio implements FirmwareRadio {
         RadioBasicCommand.getHtStatus,
         null,
       );
+      // Read the radio's supported frequency bands when it advertises any.
+      if (info!.freqRangeCount > 0) {
+        readFreqRange();
+      }
       _updateChannels();
       _updateRegionNames();
     }
@@ -3193,6 +3215,43 @@ class Radio implements FirmwareRadio {
     if (data[4] != 0) return;
     aprsPath = RadioUtils.decodeUtf8Trimmed(data, 5, data.length - 5);
     _dispatch('AprsPath', aprsPath);
+  }
+
+  /// Parses a READ_FREQ_RANGE reply into the frequency bands the radio can
+  /// tune. Layout (full command frame):
+  ///   data[0..3] = vendor + command header
+  ///   data[4]    = reply status (0 = success)
+  ///   data[5..]  = band edges as big-endian uint16 values in (low, high)
+  ///                pairs. The low 14 bits are the edge frequency in whole MHz;
+  ///                the top 2 bits carry a modulation flag (FM=0, AM=1, DMR=2).
+  ///                A zero edge terminates the list (trailing bytes are padding).
+  ///
+  /// Example body `40 6C 40 88 80 88 00 AE 01 2C 02 26 81 90 02 08 40 00 00 00`
+  /// decodes to 108-136, 136-174, 300-550 and 400-520 MHz. The raw bytes are
+  /// logged and the parsed bands dispatched as `FreqRanges` (a list of
+  /// `{lowHz, highHz}` maps); the raw reply is dispatched as `FreqRangesRaw`.
+  void _handleReadFreqRange(Uint8List data) {
+    if (data.length < 5 || data[4] != 0) return;
+    final body = Uint8List.fromList(data.sublist(5));
+    _broker.logInfo(
+      '[Radio $deviceId] READ_FREQ_RANGE reply (${body.length} bytes): '
+      '${RadioUtils.bytesToHex(body)}',
+    );
+
+    final ranges = <List<int>>[];
+    for (int p = 5; p + 3 < data.length; p += 4) {
+      final lowMhz = RadioUtils.getShort(data, p) & 0x3FFF;
+      final highMhz = RadioUtils.getShort(data, p + 2) & 0x3FFF;
+      if (lowMhz == 0 || highMhz == 0 || lowMhz >= highMhz) break;
+      ranges.add([lowMhz * 1000000, highMhz * 1000000]);
+    }
+
+    freqRanges = ranges;
+    _dispatch(
+      'FreqRanges',
+      ranges.map((r) => {'lowHz': r[0], 'highHz': r[1]}).toList(),
+    );
+    _dispatch('FreqRangesRaw', RadioUtils.bytesToHex(data));
   }
 
   void _handleGetPosition(Uint8List data) {
