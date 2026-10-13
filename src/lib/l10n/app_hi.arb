@@ -963,6 +963,7 @@
   "beaconShareLocation": "स्थान साझा करें",
   "beaconSendVoltage": "वोल्टेज भेजें",
   "beaconAllowPositionCheck": "स्थिति जाँच की अनुमति दें",
+  "beaconSmartBeacon": "स्मार्ट बीकनिंग",
   "beaconChannelCurrent": "वर्तमान (अनुशंसित नहीं)",
   "beaconEverySeconds": "हर {n} सेकंड",
   "beaconEveryMinutes": "हर {n} मिनट",

@@ -487,6 +487,7 @@ class RadioBssSettings {
   final int packetFormat;
   final bool allowPositionCheck;
   final int aprsSsid;
+  final bool smartBeacon;
   final int locationShareInterval;
   final int bssUserIdLower;
   final String pttReleaseIdInfo;
@@ -505,6 +506,7 @@ class RadioBssSettings {
     this.packetFormat = 0,
     this.allowPositionCheck = false,
     this.aprsSsid = 0,
+    this.smartBeacon = false,
     this.locationShareInterval = 0,
     this.bssUserIdLower = 0,
     this.pttReleaseIdInfo = '',
@@ -526,6 +528,7 @@ class RadioBssSettings {
       packetFormat: json['packetFormat'] as int? ?? 0,
       allowPositionCheck: json['allowPositionCheck'] as bool? ?? false,
       aprsSsid: json['aprsSsid'] as int? ?? 0,
+      smartBeacon: json['smartBeacon'] as bool? ?? false,
       locationShareInterval: json['locationShareInterval'] as int? ?? 0,
       bssUserIdLower: json['bssUserIdLower'] as int? ?? 0,
       pttReleaseIdInfo: json['pttReleaseIdInfo'] as String? ?? '',

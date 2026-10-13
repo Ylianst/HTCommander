@@ -105,6 +105,7 @@ class BeaconSettingsPanelState extends State<BeaconSettingsPanel>
   bool _shareLocation = false;
   bool _sendVoltage = false;
   bool _allowPositionCheck = false;
+  bool _smartBeacon = false;
 
   // APRS symbol (table identifier + symbol code), e.g. '/' + '-' (house).
   String _symbolTable = '/';
@@ -233,6 +234,7 @@ class BeaconSettingsPanelState extends State<BeaconSettingsPanel>
       _shareLocation = bss.shouldShareLocation;
       _sendVoltage = bss.sendPwrVoltage;
       _allowPositionCheck = bss.allowPositionCheck;
+      _smartBeacon = bss.smartBeacon;
       _intervalIndex = _intervalIndexForSeconds(bss.locationShareInterval);
       final symbol = bss.aprsSymbol;
       _symbolTable = symbol.isNotEmpty ? symbol[0] : '/';
@@ -381,6 +383,7 @@ class BeaconSettingsPanelState extends State<BeaconSettingsPanel>
     newSettings.shouldShareLocation = _shareLocation;
     newSettings.sendPwrVoltage = _sendVoltage;
     newSettings.allowPositionCheck = _allowPositionCheck;
+    newSettings.smartBeacon = _smartBeacon;
     if (_intervalIndex >= 0 && _intervalIndex < _intervalSeconds.length) {
       newSettings.locationShareInterval = _intervalSeconds[_intervalIndex];
     }
@@ -504,6 +507,11 @@ class BeaconSettingsPanelState extends State<BeaconSettingsPanel>
             AppLocalizations.of(context).beaconAllowPositionCheck,
             _allowPositionCheck,
             (v) => setState(() => _allowPositionCheck = v),
+          ),
+          _buildCheckbox(
+            AppLocalizations.of(context).beaconSmartBeacon,
+            _smartBeacon,
+            (v) => setState(() => _smartBeacon = v),
           ),
         ],
       ),

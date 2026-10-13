@@ -5596,6 +5596,12 @@ abstract class AppLocalizations {
   /// **'Allow Position Check'**
   String get beaconAllowPositionCheck;
 
+  /// No description provided for @beaconSmartBeacon.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart Beaconing'**
+  String get beaconSmartBeacon;
+
   /// No description provided for @beaconChannelCurrent.
   ///
   /// In en, this message translates to:

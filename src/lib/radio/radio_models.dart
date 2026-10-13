@@ -907,6 +907,7 @@ class RadioBssSettings {
   int packetFormat;
   bool allowPositionCheck;
   int aprsSsid;
+  bool smartBeacon;
   int locationShareInterval;
   int bssUserIdLower;
   String pttReleaseIdInfo;
@@ -925,6 +926,7 @@ class RadioBssSettings {
       packetFormat = (RadioUtils.getByte(msg, 6) & 0x04) >> 2,
       allowPositionCheck = (RadioUtils.getByte(msg, 6) & 0x02) != 0,
       aprsSsid = (RadioUtils.getByte(msg, 7) & 0xF0) >> 4,
+      smartBeacon = (RadioUtils.getByte(msg, 7) & 0x08) != 0,
       locationShareInterval = RadioUtils.getByte(msg, 8) * 10,
       bssUserIdLower = _getInt32LESafe(msg, 9),
       pttReleaseIdInfo = RadioUtils.decodeUtf8Trimmed(msg, 13, 12),
@@ -959,7 +961,7 @@ class RadioBssSettings {
         (sendPwrVoltage ? 0x08 : 0) |
         ((packetFormat & 0x01) << 2) |
         (allowPositionCheck ? 0x02 : 0);
-    msg[2] = ((aprsSsid & 0x0F) << 4);
+    msg[2] = ((aprsSsid & 0x0F) << 4) | (smartBeacon ? 0x08 : 0);
     msg[3] = (locationShareInterval ~/ 10);
     _setInt32LE(msg, 4, bssUserIdLower);
 
@@ -996,6 +998,7 @@ class RadioBssSettings {
     'packetFormat': packetFormat,
     'allowPositionCheck': allowPositionCheck,
     'aprsSsid': aprsSsid,
+    'smartBeacon': smartBeacon,
     'locationShareInterval': locationShareInterval,
     'bssUserIdLower': bssUserIdLower,
     'pttReleaseIdInfo': pttReleaseIdInfo,
@@ -1017,6 +1020,7 @@ class RadioBssSettings {
     required this.packetFormat,
     required this.allowPositionCheck,
     required this.aprsSsid,
+    required this.smartBeacon,
     required this.locationShareInterval,
     required this.bssUserIdLower,
     required this.pttReleaseIdInfo,
@@ -1041,6 +1045,7 @@ class RadioBssSettings {
       packetFormat: json['packetFormat'] as int? ?? 0,
       allowPositionCheck: json['allowPositionCheck'] as bool? ?? false,
       aprsSsid: json['aprsSsid'] as int? ?? 0,
+      smartBeacon: json['smartBeacon'] as bool? ?? false,
       locationShareInterval: json['locationShareInterval'] as int? ?? 0,
       bssUserIdLower: json['bssUserIdLower'] as int? ?? 0,
       pttReleaseIdInfo: json['pttReleaseIdInfo'] as String? ?? '',

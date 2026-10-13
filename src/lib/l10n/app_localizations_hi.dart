@@ -3070,6 +3070,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get beaconAllowPositionCheck => 'स्थिति जाँच की अनुमति दें';
 
   @override
+  String get beaconSmartBeacon => 'स्मार्ट बीकनिंग';
+
+  @override
   String get beaconChannelCurrent => 'वर्तमान (अनुशंसित नहीं)';
 
   @override

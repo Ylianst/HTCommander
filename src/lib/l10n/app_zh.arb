@@ -963,6 +963,7 @@
   "beaconShareLocation": "共享位置",
   "beaconSendVoltage": "发送电压",
   "beaconAllowPositionCheck": "允许位置检查",
+  "beaconSmartBeacon": "智能信标",
   "beaconChannelCurrent": "当前（不推荐）",
   "beaconEverySeconds": "每 {n} 秒",
   "beaconEveryMinutes": "每 {n} 分钟",

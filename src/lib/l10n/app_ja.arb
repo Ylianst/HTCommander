@@ -963,6 +963,7 @@
   "beaconShareLocation": "位置を共有",
   "beaconSendVoltage": "電圧を送信",
   "beaconAllowPositionCheck": "位置チェックを許可",
+  "beaconSmartBeacon": "スマートビーコン",
   "beaconChannelCurrent": "現在（非推奨）",
   "beaconEverySeconds": "{n} 秒ごと",
   "beaconEveryMinutes": "{n} 分ごと",

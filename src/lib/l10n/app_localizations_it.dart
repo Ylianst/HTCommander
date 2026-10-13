@@ -3089,6 +3089,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get beaconAllowPositionCheck => 'Consenti verifica posizione';
 
   @override
+  String get beaconSmartBeacon => 'Beaconing intelligente';
+
+  @override
   String get beaconChannelCurrent => 'Attuale (non consigliato)';
 
   @override

@@ -975,6 +975,7 @@
   "beaconShareLocation": "Condividi posizione",
   "beaconSendVoltage": "Invia tensione",
   "beaconAllowPositionCheck": "Consenti verifica posizione",
+  "beaconSmartBeacon": "Beaconing intelligente",
   "beaconChannelCurrent": "Attuale (non consigliato)",
   "beaconEverySeconds": "Ogni {n} secondi",
   "beaconEveryMinutes": "Ogni {n} minuti",

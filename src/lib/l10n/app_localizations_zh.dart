@@ -2983,6 +2983,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get beaconAllowPositionCheck => '允许位置检查';
 
   @override
+  String get beaconSmartBeacon => '智能信标';
+
+  @override
   String get beaconChannelCurrent => '当前（不推荐）';
 
   @override

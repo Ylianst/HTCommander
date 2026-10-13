@@ -3010,6 +3010,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get beaconAllowPositionCheck => '位置チェックを許可';
 
   @override
+  String get beaconSmartBeacon => 'スマートビーコン';
+
+  @override
   String get beaconChannelCurrent => '現在（非推奨）';
 
   @override

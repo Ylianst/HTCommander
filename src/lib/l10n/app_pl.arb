@@ -963,6 +963,7 @@
   "beaconShareLocation": "Udostępnij lokalizację",
   "beaconSendVoltage": "Wyślij napięcie",
   "beaconAllowPositionCheck": "Zezwól na sprawdzanie pozycji",
+  "beaconSmartBeacon": "Inteligentne beaconowanie",
   "beaconChannelCurrent": "Bieżący (niezalecane)",
   "beaconEverySeconds": "Co {n} sekund",
   "beaconEveryMinutes": "Co {n} minut",

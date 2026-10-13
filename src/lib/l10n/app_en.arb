@@ -1861,6 +1861,7 @@
   "beaconShareLocation": "Should Share Location",
   "beaconSendVoltage": "Send Voltage",
   "beaconAllowPositionCheck": "Allow Position Check",
+  "beaconSmartBeacon": "Smart Beaconing",
   "beaconChannelCurrent": "Current (Not Recommended)",
   "beaconEverySeconds": "Every {n} seconds",
   "@beaconEverySeconds": {
