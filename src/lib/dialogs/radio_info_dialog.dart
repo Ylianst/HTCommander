@@ -448,7 +448,7 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     return [
       for (int r = 0; r < _freqRanges.length; r++)
         _row(
-          'Frequency Range ${r + 1}',
+          'Range ${r + 1}',
           '${_formatMhz(_freqRanges[r].lowHz)} - ${_formatMhz(_freqRanges[r].highHz)} MHz${_formatModulation(_freqRanges[r].mod)}',
         ),
     ];
