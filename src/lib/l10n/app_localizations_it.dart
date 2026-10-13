@@ -3036,10 +3036,58 @@ class AppLocalizationsIt extends AppLocalizations {
   }
 
   @override
-  String get smsTitle => 'Invia messaggio SMS';
+  String get smsTitle => 'APRS SMS';
 
   @override
   String get smsPhoneNumber => 'Numero di telefono';
+
+  @override
+  String get smsAliasLabel => 'Alias';
+
+  @override
+  String get smsOperation => 'Operazione';
+
+  @override
+  String get smsOpSendPhone => 'Invia un messaggio a un numero di telefono';
+
+  @override
+  String get smsOpSendAlias => 'Invia un messaggio a un alias';
+
+  @override
+  String get smsOpCreateAlias => 'Crea un alias';
+
+  @override
+  String get smsOpRemoveAlias => 'Rimuovi un alias';
+
+  @override
+  String get smsOpCheckMissed => 'Controlla i messaggi persi';
+
+  @override
+  String get smsOpDeleteMissed => 'Elimina i messaggi persi';
+
+  @override
+  String get smsHelpSendPhone =>
+      'Inserisci il numero di telefono di destinazione e il tuo messaggio. I numeri hanno 10 cifre negli USA, in Canada e a Porto Rico, 11 in Australia e 12 nel Regno Unito, senza l\'1 iniziale.';
+
+  @override
+  String get smsHelpSendAlias =>
+      'Inserisci un alias creato in precedenza e il tuo messaggio.';
+
+  @override
+  String get smsHelpCreateAlias =>
+      'Crea un alias breve per un numero di telefono così da non doverlo digitare ogni volta. Usa un numero di 10 cifre senza l\'1 iniziale (Regno Unito: 12 cifre).';
+
+  @override
+  String get smsHelpRemoveAlias =>
+      'Rimuovi un alias creato in precedenza. Il numero di telefono deve corrispondere a quello usato per crearlo.';
+
+  @override
+  String get smsHelpCheckMissed =>
+      'Chiedi al gateway di reinviare i messaggi che potresti aver perso. Non è richiesto altro.';
+
+  @override
+  String get smsHelpDeleteMissed =>
+      'Elimina tutti i messaggi persi in coda per il tuo nominativo, inclusi tutti gli SSID. Questa azione non può essere annullata.';
 
   @override
   String get smsIntro =>

@@ -1838,8 +1838,22 @@
     }
   },
 
-  "smsTitle": "Send SMS Message",
+  "smsTitle": "APRS SMS",
   "smsPhoneNumber": "Phone Number",
+  "smsAliasLabel": "Alias",
+  "smsOperation": "Operation",
+  "smsOpSendPhone": "Send a message to a phone number",
+  "smsOpSendAlias": "Send a message to an alias",
+  "smsOpCreateAlias": "Create an alias",
+  "smsOpRemoveAlias": "Remove an alias",
+  "smsOpCheckMissed": "Check for missed messages",
+  "smsOpDeleteMissed": "Delete missed messages",
+  "smsHelpSendPhone": "Enter the destination phone number and your message. Numbers use 10 digits in the US, Canada & Puerto Rico, 11 in Australia and 12 in the UK, with no leading 1.",
+  "smsHelpSendAlias": "Enter an alias you created earlier and your message.",
+  "smsHelpCreateAlias": "Create a short alias for a phone number so you don't have to type the number each time. Use a 10-digit number with no leading 1 (UK: 12 digits).",
+  "smsHelpRemoveAlias": "Remove an alias you created earlier. The phone number must match the one used to create it.",
+  "smsHelpCheckMissed": "Ask the gateway to resend any messages you may have missed. No other input is required.",
+  "smsHelpDeleteMissed": "Delete all missed messages queued for your callsign, including every SSID. This cannot be undone.",
   "smsIntro": "You can send SMS messages to phones in the USA, Puerto Rico, Canada, Australia & UK as long as the phone number has already opted in to the service. You can opt-in at: ",
 
   "locationTitle": "Location",

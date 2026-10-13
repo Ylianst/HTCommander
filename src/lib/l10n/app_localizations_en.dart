@@ -3003,10 +3003,58 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get smsTitle => 'Send SMS Message';
+  String get smsTitle => 'APRS SMS';
 
   @override
   String get smsPhoneNumber => 'Phone Number';
+
+  @override
+  String get smsAliasLabel => 'Alias';
+
+  @override
+  String get smsOperation => 'Operation';
+
+  @override
+  String get smsOpSendPhone => 'Send a message to a phone number';
+
+  @override
+  String get smsOpSendAlias => 'Send a message to an alias';
+
+  @override
+  String get smsOpCreateAlias => 'Create an alias';
+
+  @override
+  String get smsOpRemoveAlias => 'Remove an alias';
+
+  @override
+  String get smsOpCheckMissed => 'Check for missed messages';
+
+  @override
+  String get smsOpDeleteMissed => 'Delete missed messages';
+
+  @override
+  String get smsHelpSendPhone =>
+      'Enter the destination phone number and your message. Numbers use 10 digits in the US, Canada & Puerto Rico, 11 in Australia and 12 in the UK, with no leading 1.';
+
+  @override
+  String get smsHelpSendAlias =>
+      'Enter an alias you created earlier and your message.';
+
+  @override
+  String get smsHelpCreateAlias =>
+      'Create a short alias for a phone number so you don\'t have to type the number each time. Use a 10-digit number with no leading 1 (UK: 12 digits).';
+
+  @override
+  String get smsHelpRemoveAlias =>
+      'Remove an alias you created earlier. The phone number must match the one used to create it.';
+
+  @override
+  String get smsHelpCheckMissed =>
+      'Ask the gateway to resend any messages you may have missed. No other input is required.';
+
+  @override
+  String get smsHelpDeleteMissed =>
+      'Delete all missed messages queued for your callsign, including every SSID. This cannot be undone.';
 
   @override
   String get smsIntro =>

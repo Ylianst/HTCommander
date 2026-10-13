@@ -2932,10 +2932,54 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get smsTitle => '发送 SMS 消息';
+  String get smsTitle => 'APRS SMS';
 
   @override
   String get smsPhoneNumber => '电话号码';
+
+  @override
+  String get smsAliasLabel => '别名';
+
+  @override
+  String get smsOperation => '操作';
+
+  @override
+  String get smsOpSendPhone => '向电话号码发送消息';
+
+  @override
+  String get smsOpSendAlias => '向别名发送消息';
+
+  @override
+  String get smsOpCreateAlias => '创建别名';
+
+  @override
+  String get smsOpRemoveAlias => '删除别名';
+
+  @override
+  String get smsOpCheckMissed => '检查未收到的消息';
+
+  @override
+  String get smsOpDeleteMissed => '删除未收到的消息';
+
+  @override
+  String get smsHelpSendPhone =>
+      '输入目标电话号码和您的消息。号码在美国、加拿大和波多黎各为 10 位，在澳大利亚为 11 位，在英国为 12 位，且不要加前导 1。';
+
+  @override
+  String get smsHelpSendAlias => '输入您之前创建的别名和您的消息。';
+
+  @override
+  String get smsHelpCreateAlias =>
+      '为电话号码创建一个简短的别名，这样就不必每次都输入号码。使用不带前导 1 的 10 位号码（英国：12 位）。';
+
+  @override
+  String get smsHelpRemoveAlias => '删除您之前创建的别名。电话号码必须与创建时使用的号码一致。';
+
+  @override
+  String get smsHelpCheckMissed => '请求网关重新发送您可能未收到的消息。无需其他输入。';
+
+  @override
+  String get smsHelpDeleteMissed => '删除为您的呼号排队的所有未收到的消息，包括所有 SSID。此操作无法撤消。';
 
   @override
   String get smsIntro =>

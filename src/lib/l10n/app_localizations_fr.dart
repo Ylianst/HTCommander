@@ -3034,10 +3034,58 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get smsTitle => 'Envoyer un message SMS';
+  String get smsTitle => 'APRS SMS';
 
   @override
   String get smsPhoneNumber => 'Numéro de téléphone';
+
+  @override
+  String get smsAliasLabel => 'Alias';
+
+  @override
+  String get smsOperation => 'Opération';
+
+  @override
+  String get smsOpSendPhone => 'Envoyer un message à un numéro de téléphone';
+
+  @override
+  String get smsOpSendAlias => 'Envoyer un message à un alias';
+
+  @override
+  String get smsOpCreateAlias => 'Créer un alias';
+
+  @override
+  String get smsOpRemoveAlias => 'Supprimer un alias';
+
+  @override
+  String get smsOpCheckMissed => 'Vérifier les messages manqués';
+
+  @override
+  String get smsOpDeleteMissed => 'Supprimer les messages manqués';
+
+  @override
+  String get smsHelpSendPhone =>
+      'Saisissez le numéro de téléphone de destination et votre message. Les numéros comptent 10 chiffres aux États-Unis, au Canada et à Porto Rico, 11 en Australie et 12 au Royaume-Uni, sans le 1 initial.';
+
+  @override
+  String get smsHelpSendAlias =>
+      'Saisissez un alias que vous avez créé précédemment et votre message.';
+
+  @override
+  String get smsHelpCreateAlias =>
+      'Créez un alias court pour un numéro de téléphone afin de ne pas avoir à le saisir à chaque fois. Utilisez un numéro à 10 chiffres sans le 1 initial (Royaume-Uni : 12 chiffres).';
+
+  @override
+  String get smsHelpRemoveAlias =>
+      'Supprimez un alias que vous avez créé précédemment. Le numéro de téléphone doit correspondre à celui utilisé pour le créer.';
+
+  @override
+  String get smsHelpCheckMissed =>
+      'Demandez à la passerelle de renvoyer les messages que vous auriez manqués. Aucune autre saisie n\'est nécessaire.';
+
+  @override
+  String get smsHelpDeleteMissed =>
+      'Supprimez tous les messages manqués en file d\'attente pour votre indicatif, y compris tous les SSID. Cette action est irréversible.';
 
   @override
   String get smsIntro =>

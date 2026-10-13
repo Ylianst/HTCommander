@@ -5503,7 +5503,7 @@ abstract class AppLocalizations {
   /// No description provided for @smsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Send SMS Message'**
+  /// **'APRS SMS'**
   String get smsTitle;
 
   /// No description provided for @smsPhoneNumber.
@@ -5511,6 +5511,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Phone Number'**
   String get smsPhoneNumber;
+
+  /// No description provided for @smsAliasLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Alias'**
+  String get smsAliasLabel;
+
+  /// No description provided for @smsOperation.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation'**
+  String get smsOperation;
+
+  /// No description provided for @smsOpSendPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Send a message to a phone number'**
+  String get smsOpSendPhone;
+
+  /// No description provided for @smsOpSendAlias.
+  ///
+  /// In en, this message translates to:
+  /// **'Send a message to an alias'**
+  String get smsOpSendAlias;
+
+  /// No description provided for @smsOpCreateAlias.
+  ///
+  /// In en, this message translates to:
+  /// **'Create an alias'**
+  String get smsOpCreateAlias;
+
+  /// No description provided for @smsOpRemoveAlias.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove an alias'**
+  String get smsOpRemoveAlias;
+
+  /// No description provided for @smsOpCheckMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for missed messages'**
+  String get smsOpCheckMissed;
+
+  /// No description provided for @smsOpDeleteMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete missed messages'**
+  String get smsOpDeleteMissed;
+
+  /// No description provided for @smsHelpSendPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the destination phone number and your message. Numbers use 10 digits in the US, Canada & Puerto Rico, 11 in Australia and 12 in the UK, with no leading 1.'**
+  String get smsHelpSendPhone;
+
+  /// No description provided for @smsHelpSendAlias.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an alias you created earlier and your message.'**
+  String get smsHelpSendAlias;
+
+  /// No description provided for @smsHelpCreateAlias.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a short alias for a phone number so you don\'t have to type the number each time. Use a 10-digit number with no leading 1 (UK: 12 digits).'**
+  String get smsHelpCreateAlias;
+
+  /// No description provided for @smsHelpRemoveAlias.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove an alias you created earlier. The phone number must match the one used to create it.'**
+  String get smsHelpRemoveAlias;
+
+  /// No description provided for @smsHelpCheckMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask the gateway to resend any messages you may have missed. No other input is required.'**
+  String get smsHelpCheckMissed;
+
+  /// No description provided for @smsHelpDeleteMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all missed messages queued for your callsign, including every SSID. This cannot be undone.'**
+  String get smsHelpDeleteMissed;
 
   /// No description provided for @smsIntro.
   ///

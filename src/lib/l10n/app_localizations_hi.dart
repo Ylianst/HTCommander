@@ -3017,10 +3017,58 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get smsTitle => 'SMS संदेश भेजें';
+  String get smsTitle => 'APRS SMS';
 
   @override
   String get smsPhoneNumber => 'फ़ोन नंबर';
+
+  @override
+  String get smsAliasLabel => 'उपनाम';
+
+  @override
+  String get smsOperation => 'ऑपरेशन';
+
+  @override
+  String get smsOpSendPhone => 'किसी फ़ोन नंबर पर संदेश भेजें';
+
+  @override
+  String get smsOpSendAlias => 'किसी उपनाम पर संदेश भेजें';
+
+  @override
+  String get smsOpCreateAlias => 'उपनाम बनाएँ';
+
+  @override
+  String get smsOpRemoveAlias => 'उपनाम हटाएँ';
+
+  @override
+  String get smsOpCheckMissed => 'छूटे संदेश जाँचें';
+
+  @override
+  String get smsOpDeleteMissed => 'छूटे संदेश हटाएँ';
+
+  @override
+  String get smsHelpSendPhone =>
+      'गंतव्य फ़ोन नंबर और अपना संदेश दर्ज करें। नंबर अमेरिका, कनाडा और प्यूर्टो रिको में 10 अंक, ऑस्ट्रेलिया में 11 और यूके में 12 अंक के होते हैं, बिना आरंभिक 1 के।';
+
+  @override
+  String get smsHelpSendAlias =>
+      'पहले बनाया गया उपनाम और अपना संदेश दर्ज करें।';
+
+  @override
+  String get smsHelpCreateAlias =>
+      'किसी फ़ोन नंबर के लिए एक छोटा उपनाम बनाएँ ताकि आपको हर बार नंबर टाइप न करना पड़े। बिना आरंभिक 1 के 10 अंकों का नंबर उपयोग करें (यूके: 12 अंक)।';
+
+  @override
+  String get smsHelpRemoveAlias =>
+      'पहले बनाया गया उपनाम हटाएँ। फ़ोन नंबर उसी से मेल खाना चाहिए जिससे इसे बनाया गया था।';
+
+  @override
+  String get smsHelpCheckMissed =>
+      'गेटवे से उन संदेशों को फिर से भेजने के लिए कहें जो आपसे छूट गए हों। किसी अन्य इनपुट की आवश्यकता नहीं है।';
+
+  @override
+  String get smsHelpDeleteMissed =>
+      'अपने कॉलसाइन के लिए कतार में लगे सभी छूटे संदेश हटाएँ, सभी SSID सहित। इसे पूर्ववत नहीं किया जा सकता।';
 
   @override
   String get smsIntro =>

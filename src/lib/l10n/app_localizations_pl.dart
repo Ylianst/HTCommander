@@ -3031,10 +3031,58 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
-  String get smsTitle => 'Wyślij wiadomość SMS';
+  String get smsTitle => 'APRS SMS';
 
   @override
   String get smsPhoneNumber => 'Numer telefonu';
+
+  @override
+  String get smsAliasLabel => 'Alias';
+
+  @override
+  String get smsOperation => 'Operacja';
+
+  @override
+  String get smsOpSendPhone => 'Wyślij wiadomość na numer telefonu';
+
+  @override
+  String get smsOpSendAlias => 'Wyślij wiadomość na alias';
+
+  @override
+  String get smsOpCreateAlias => 'Utwórz alias';
+
+  @override
+  String get smsOpRemoveAlias => 'Usuń alias';
+
+  @override
+  String get smsOpCheckMissed => 'Sprawdź pominięte wiadomości';
+
+  @override
+  String get smsOpDeleteMissed => 'Usuń pominięte wiadomości';
+
+  @override
+  String get smsHelpSendPhone =>
+      'Wpisz docelowy numer telefonu i swoją wiadomość. Numery mają 10 cyfr w USA, Kanadzie i Portoryko, 11 w Australii i 12 w Wielkiej Brytanii, bez początkowej 1.';
+
+  @override
+  String get smsHelpSendAlias =>
+      'Wpisz wcześniej utworzony alias i swoją wiadomość.';
+
+  @override
+  String get smsHelpCreateAlias =>
+      'Utwórz krótki alias dla numeru telefonu, aby nie wpisywać numeru za każdym razem. Użyj 10-cyfrowego numeru bez początkowej 1 (Wielka Brytania: 12 cyfr).';
+
+  @override
+  String get smsHelpRemoveAlias =>
+      'Usuń wcześniej utworzony alias. Numer telefonu musi być zgodny z użytym podczas tworzenia.';
+
+  @override
+  String get smsHelpCheckMissed =>
+      'Poproś bramkę o ponowne wysłanie wiadomości, które mogłeś przegapić. Nie są wymagane żadne inne dane.';
+
+  @override
+  String get smsHelpDeleteMissed =>
+      'Usuń wszystkie pominięte wiadomości w kolejce dla Twojego znaku wywoławczego, w tym wszystkie SSID. Tej operacji nie można cofnąć.';
 
   @override
   String get smsIntro =>

@@ -1359,7 +1359,7 @@ class _AprsTabState extends State<AprsTab>
       name: 'SendAprsMessage',
       data: AprsSendMessageData(
         destination: 'SMS',
-        message: '@${result.phoneNumber} ${result.message}',
+        message: result.gatewayMessage,
         radioDeviceId: radioDeviceId,
         route: _getSelectedRoute(),
       ),

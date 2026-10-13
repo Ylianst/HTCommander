@@ -3036,10 +3036,58 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get smsTitle => 'Enviar un mensaje SMS';
+  String get smsTitle => 'APRS SMS';
 
   @override
   String get smsPhoneNumber => 'Número de teléfono';
+
+  @override
+  String get smsAliasLabel => 'Alias';
+
+  @override
+  String get smsOperation => 'Operación';
+
+  @override
+  String get smsOpSendPhone => 'Enviar un mensaje a un número de teléfono';
+
+  @override
+  String get smsOpSendAlias => 'Enviar un mensaje a un alias';
+
+  @override
+  String get smsOpCreateAlias => 'Crear un alias';
+
+  @override
+  String get smsOpRemoveAlias => 'Eliminar un alias';
+
+  @override
+  String get smsOpCheckMissed => 'Comprobar mensajes perdidos';
+
+  @override
+  String get smsOpDeleteMissed => 'Eliminar mensajes perdidos';
+
+  @override
+  String get smsHelpSendPhone =>
+      'Introduzca el número de teléfono de destino y su mensaje. Los números tienen 10 dígitos en EE. UU., Canadá y Puerto Rico, 11 en Australia y 12 en el Reino Unido, sin el 1 inicial.';
+
+  @override
+  String get smsHelpSendAlias =>
+      'Introduzca un alias que haya creado antes y su mensaje.';
+
+  @override
+  String get smsHelpCreateAlias =>
+      'Cree un alias corto para un número de teléfono para no tener que escribirlo cada vez. Use un número de 10 dígitos sin el 1 inicial (Reino Unido: 12 dígitos).';
+
+  @override
+  String get smsHelpRemoveAlias =>
+      'Elimine un alias que haya creado antes. El número de teléfono debe coincidir con el usado al crearlo.';
+
+  @override
+  String get smsHelpCheckMissed =>
+      'Pida a la puerta de enlace que reenvíe los mensajes que pueda haber perdido. No se necesita ninguna otra entrada.';
+
+  @override
+  String get smsHelpDeleteMissed =>
+      'Elimine todos los mensajes perdidos en cola para su indicativo, incluidos todos los SSID. Esto no se puede deshacer.';
 
   @override
   String get smsIntro =>

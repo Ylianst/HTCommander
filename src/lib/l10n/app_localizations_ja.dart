@@ -2958,10 +2958,57 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get smsTitle => 'SMS メッセージを送信';
+  String get smsTitle => 'APRS SMS';
 
   @override
   String get smsPhoneNumber => '電話番号';
+
+  @override
+  String get smsAliasLabel => 'エイリアス';
+
+  @override
+  String get smsOperation => '操作';
+
+  @override
+  String get smsOpSendPhone => '電話番号にメッセージを送信';
+
+  @override
+  String get smsOpSendAlias => 'エイリアスにメッセージを送信';
+
+  @override
+  String get smsOpCreateAlias => 'エイリアスを作成';
+
+  @override
+  String get smsOpRemoveAlias => 'エイリアスを削除';
+
+  @override
+  String get smsOpCheckMissed => '見逃したメッセージを確認';
+
+  @override
+  String get smsOpDeleteMissed => '見逃したメッセージを削除';
+
+  @override
+  String get smsHelpSendPhone =>
+      '宛先の電話番号とメッセージを入力します。番号は米国・カナダ・プエルトリコで 10 桁、オーストラリアで 11 桁、英国で 12 桁で、先頭の 1 は付けません。';
+
+  @override
+  String get smsHelpSendAlias => '以前に作成したエイリアスとメッセージを入力します。';
+
+  @override
+  String get smsHelpCreateAlias =>
+      '電話番号に短いエイリアスを作成すると、毎回番号を入力する必要がなくなります。先頭の 1 を付けない 10 桁の番号を使用します（英国: 12 桁）。';
+
+  @override
+  String get smsHelpRemoveAlias =>
+      '以前に作成したエイリアスを削除します。電話番号は作成時に使用したものと一致する必要があります。';
+
+  @override
+  String get smsHelpCheckMissed =>
+      '見逃した可能性のあるメッセージの再送信をゲートウェイに依頼します。他の入力は不要です。';
+
+  @override
+  String get smsHelpDeleteMissed =>
+      'すべての SSID を含め、あなたのコールサイン宛てにキューされている見逃したメッセージをすべて削除します。元に戻せません。';
 
   @override
   String get smsIntro =>

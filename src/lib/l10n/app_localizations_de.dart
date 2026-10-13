@@ -3041,10 +3041,58 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get smsTitle => 'SMS-Nachricht senden';
+  String get smsTitle => 'APRS SMS';
 
   @override
   String get smsPhoneNumber => 'Telefonnummer';
+
+  @override
+  String get smsAliasLabel => 'Alias';
+
+  @override
+  String get smsOperation => 'Vorgang';
+
+  @override
+  String get smsOpSendPhone => 'Nachricht an eine Telefonnummer senden';
+
+  @override
+  String get smsOpSendAlias => 'Nachricht an einen Alias senden';
+
+  @override
+  String get smsOpCreateAlias => 'Alias erstellen';
+
+  @override
+  String get smsOpRemoveAlias => 'Alias entfernen';
+
+  @override
+  String get smsOpCheckMissed => 'Verpasste Nachrichten abrufen';
+
+  @override
+  String get smsOpDeleteMissed => 'Verpasste Nachrichten löschen';
+
+  @override
+  String get smsHelpSendPhone =>
+      'Geben Sie die Zieltelefonnummer und Ihre Nachricht ein. Nummern haben 10 Stellen in den USA, Kanada und Puerto Rico, 11 in Australien und 12 im Vereinigten Königreich, ohne führende 1.';
+
+  @override
+  String get smsHelpSendAlias =>
+      'Geben Sie einen zuvor erstellten Alias und Ihre Nachricht ein.';
+
+  @override
+  String get smsHelpCreateAlias =>
+      'Erstellen Sie einen kurzen Alias für eine Telefonnummer, damit Sie die Nummer nicht jedes Mal eingeben müssen. Verwenden Sie eine 10-stellige Nummer ohne führende 1 (UK: 12 Stellen).';
+
+  @override
+  String get smsHelpRemoveAlias =>
+      'Entfernen Sie einen zuvor erstellten Alias. Die Telefonnummer muss mit der bei der Erstellung verwendeten übereinstimmen.';
+
+  @override
+  String get smsHelpCheckMissed =>
+      'Bitten Sie das Gateway, verpasste Nachrichten erneut zu senden. Keine weitere Eingabe erforderlich.';
+
+  @override
+  String get smsHelpDeleteMissed =>
+      'Löschen Sie alle verpassten Nachrichten für Ihr Rufzeichen, einschließlich aller SSIDs. Dies kann nicht rückgängig gemacht werden.';
 
   @override
   String get smsIntro =>
