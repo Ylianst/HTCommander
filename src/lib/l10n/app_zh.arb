@@ -858,6 +858,7 @@
   "softwareBeaconRadio": "首选无线电",
   "softwareBeaconInternetOnly": "仅互联网",
   "softwareBeaconNoCallsign": "在使用软件信标之前，请在设置中配置您的呼号。",
+  "softwareBeaconSmartHint": "在间隔信标之间，当您移动较远距离或改变方向时发送额外的信标。",
   "aprsSendSms": "发送 SMS 消息...",
   "aprsWeatherReport": "天气报告...",
   "aprsBeaconSettingsMenu": "信标设置...",

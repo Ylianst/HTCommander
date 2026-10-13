@@ -2655,6 +2655,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Configure your callsign in Settings before using the software beacon.';
 
   @override
+  String get softwareBeaconSmartHint =>
+      'Sends an extra beacon when you move a significant distance or change direction, between interval beacons.';
+
+  @override
   String get aprsDigipeaterMenu => 'Digipeater...';
 
   @override

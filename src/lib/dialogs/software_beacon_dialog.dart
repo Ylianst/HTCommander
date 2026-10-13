@@ -62,6 +62,7 @@ class _SoftwareBeaconDialogState extends State<SoftwareBeaconDialog> {
 
   int _intervalIndex = 0;
   bool _includeLocation = true;
+  bool _smartBeacon = false;
   String _symbolTable = '/';
   String _symbolCode = '-';
 
@@ -79,6 +80,7 @@ class _SoftwareBeaconDialogState extends State<SoftwareBeaconDialog> {
 
     final config = _loadConfig();
     _includeLocation = config.includeLocation;
+    _smartBeacon = config.smartBeacon;
     _symbolTable = config.symbolTable;
     _symbolCode = config.symbolCode;
     _messageController.text = config.message;
@@ -177,6 +179,7 @@ class _SoftwareBeaconDialogState extends State<SoftwareBeaconDialog> {
       message: _messageController.text.trim(),
       includeLocation: _includeLocation,
       radioDeviceId: _selectedRadioId,
+      smartBeacon: _includeLocation && _smartBeacon,
     );
 
     _broker.dispatch(
@@ -274,6 +277,22 @@ class _SoftwareBeaconDialogState extends State<SoftwareBeaconDialog> {
             l10n.softwareBeaconIncludeLocation,
             _includeLocation,
             (v) => setState(() => _includeLocation = v),
+          ),
+          _buildCheckbox(
+            l10n.beaconSmartBeacon,
+            _includeLocation && _smartBeacon,
+            (v) => setState(() => _smartBeacon = v),
+            enabled: _includeLocation,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 2),
+            child: Text(
+              l10n.softwareBeaconSmartHint,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
         ],
       ),
@@ -441,14 +460,28 @@ class _SoftwareBeaconDialogState extends State<SoftwareBeaconDialog> {
     );
   }
 
-  Widget _buildCheckbox(String label, bool value, ValueChanged<bool> onChanged) {
+  Widget _buildCheckbox(
+    String label,
+    bool value,
+    ValueChanged<bool> onChanged, {
+    bool enabled = true,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Checkbox(value: value, onChanged: (v) => onChanged(v ?? false)),
+        Checkbox(
+          value: value,
+          onChanged: enabled ? (v) => onChanged(v ?? false) : null,
+        ),
         Expanded(
           child: GestureDetector(
-            onTap: () => onChanged(!value),
-            child: Text(label),
+            onTap: enabled ? () => onChanged(!value) : null,
+            child: Text(
+              label,
+              style: enabled
+                  ? null
+                  : TextStyle(color: scheme.onSurface.withValues(alpha: 0.38)),
+            ),
           ),
         ),
       ],

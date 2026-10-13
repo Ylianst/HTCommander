@@ -858,6 +858,7 @@
   "softwareBeaconRadio": "Radio préférée",
   "softwareBeaconInternetOnly": "Internet uniquement",
   "softwareBeaconNoCallsign": "Configurez votre indicatif dans les Paramètres avant d'utiliser la balise logicielle.",
+  "softwareBeaconSmartHint": "Envoie une balise supplémentaire entre les balises d'intervalle lorsque vous vous déplacez de manière significative ou changez de direction.",
   "aprsSendSms": "Envoyer un message SMS...",
   "aprsWeatherReport": "Rapport météo...",
   "aprsBeaconSettingsMenu": "Paramètres de balise...",

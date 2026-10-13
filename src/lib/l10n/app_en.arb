@@ -1666,6 +1666,7 @@
   "softwareBeaconRadio": "Preferred radio",
   "softwareBeaconInternetOnly": "Internet only",
   "softwareBeaconNoCallsign": "Configure your callsign in Settings before using the software beacon.",
+  "softwareBeaconSmartHint": "Sends an extra beacon when you move a significant distance or change direction, between interval beacons.",
   "aprsDigipeaterMenu": "Digipeater...",
   "digipeaterTitle": "APRS Digipeater",
   "digipeaterIntro": "The digipeater re-transmits eligible APRS packets it hears on the APRS channel. While enabled, the selected radio is locked to the APRS channel.",

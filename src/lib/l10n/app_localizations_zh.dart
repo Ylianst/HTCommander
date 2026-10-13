@@ -2601,6 +2601,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get softwareBeaconNoCallsign => '在使用软件信标之前，请在设置中配置您的呼号。';
 
   @override
+  String get softwareBeaconSmartHint => '在间隔信标之间，当您移动较远距离或改变方向时发送额外的信标。';
+
+  @override
   String get aprsDigipeaterMenu => '数字中继器...';
 
   @override

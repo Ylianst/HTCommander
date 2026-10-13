@@ -2684,6 +2684,10 @@ class AppLocalizationsFr extends AppLocalizations {
       'Configurez votre indicatif dans les Paramètres avant d\'utiliser la balise logicielle.';
 
   @override
+  String get softwareBeaconSmartHint =>
+      'Envoie une balise supplémentaire entre les balises d\'intervalle lorsque vous vous déplacez de manière significative ou changez de direction.';
+
+  @override
   String get aprsDigipeaterMenu => 'Digipeater...';
 
   @override

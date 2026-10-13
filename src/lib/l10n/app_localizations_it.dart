@@ -2686,6 +2686,10 @@ class AppLocalizationsIt extends AppLocalizations {
       'Configura il tuo nominativo nelle Impostazioni prima di usare il beacon software.';
 
   @override
+  String get softwareBeaconSmartHint =>
+      'Invia un beacon aggiuntivo tra i beacon a intervallo quando ti sposti di una distanza significativa o cambi direzione.';
+
+  @override
   String get aprsDigipeaterMenu => 'Digipeater...';
 
   @override

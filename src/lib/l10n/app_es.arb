@@ -858,6 +858,7 @@
   "softwareBeaconRadio": "Radio preferida",
   "softwareBeaconInternetOnly": "Solo Internet",
   "softwareBeaconNoCallsign": "Configura tu indicativo en Ajustes antes de usar la baliza de software.",
+  "softwareBeaconSmartHint": "Envía una baliza adicional entre las balizas por intervalo cuando te mueves una distancia significativa o cambias de dirección.",
   "aprsSendSms": "Enviar un mensaje SMS...",
   "aprsWeatherReport": "Informe meteorológico...",
   "aprsBeaconSettingsMenu": "Configuración de baliza...",

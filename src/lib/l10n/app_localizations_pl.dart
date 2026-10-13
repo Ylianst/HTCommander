@@ -2681,6 +2681,10 @@ class AppLocalizationsPl extends AppLocalizations {
       'Skonfiguruj swój znak wywoławczy w Ustawieniach przed użyciem beacona programowego.';
 
   @override
+  String get softwareBeaconSmartHint =>
+      'Wysyła dodatkowy beacon między beaconami interwałowymi, gdy przemieścisz się na znaczną odległość lub zmienisz kierunek.';
+
+  @override
   String get aprsDigipeaterMenu => 'Digipeater...';
 
   @override

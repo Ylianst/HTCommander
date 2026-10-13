@@ -858,6 +858,7 @@
   "softwareBeaconRadio": "Preferowane radio",
   "softwareBeaconInternetOnly": "Tylko Internet",
   "softwareBeaconNoCallsign": "Skonfiguruj swój znak wywoławczy w Ustawieniach przed użyciem beacona programowego.",
+  "softwareBeaconSmartHint": "Wysyła dodatkowy beacon między beaconami interwałowymi, gdy przemieścisz się na znaczną odległość lub zmienisz kierunek.",
   "aprsSendSms": "Wyślij wiadomość SMS...",
   "aprsWeatherReport": "Raport pogodowy...",
   "aprsBeaconSettingsMenu": "Ustawienia beacona...",

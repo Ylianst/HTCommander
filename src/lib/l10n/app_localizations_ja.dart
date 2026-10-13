@@ -2621,6 +2621,10 @@ class AppLocalizationsJa extends AppLocalizations {
       'ソフトウェアビーコンを使用する前に、設定でコールサインを設定してください。';
 
   @override
+  String get softwareBeaconSmartHint =>
+      '一定の距離を移動したり方向を変えたりすると、インターバルビーコンの間に追加のビーコンを送信します。';
+
+  @override
   String get aprsDigipeaterMenu => 'デジピーター...';
 
   @override

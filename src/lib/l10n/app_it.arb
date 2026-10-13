@@ -850,6 +850,7 @@
   "softwareBeaconRadio": "Radio preferita",
   "softwareBeaconInternetOnly": "Solo Internet",
   "softwareBeaconNoCallsign": "Configura il tuo nominativo nelle Impostazioni prima di usare il beacon software.",
+  "softwareBeaconSmartHint": "Invia un beacon aggiuntivo tra i beacon a intervallo quando ti sposti di una distanza significativa o cambi direzione.",
   "aprsSendSms": "Invia messaggio SMS...",
   "aprsWeatherReport": "Bollettino meteo...",
   "aprsBeaconSettingsMenu": "Impostazioni beacon...",

@@ -36,6 +36,12 @@ class SoftwareBeaconConfig {
   /// APRS channel is used as a fallback).
   final int radioDeviceId;
 
+  /// When true (and [includeLocation] is set), the beacon also fires early
+  /// between interval ticks when the station moves significantly — faster when
+  /// moving quickly and on sharp turns. The configured [intervalSeconds] acts
+  /// as the maximum (slowest) interval.
+  final bool smartBeacon;
+
   const SoftwareBeaconConfig({
     this.intervalSeconds = 0,
     this.symbolTable = '/',
@@ -43,6 +49,7 @@ class SoftwareBeaconConfig {
     this.message = '',
     this.includeLocation = true,
     this.radioDeviceId = -1,
+    this.smartBeacon = false,
   });
 
   bool get enabled => intervalSeconds > 0;
@@ -54,6 +61,7 @@ class SoftwareBeaconConfig {
     String? message,
     bool? includeLocation,
     int? radioDeviceId,
+    bool? smartBeacon,
   }) {
     return SoftwareBeaconConfig(
       intervalSeconds: intervalSeconds ?? this.intervalSeconds,
@@ -62,6 +70,7 @@ class SoftwareBeaconConfig {
       message: message ?? this.message,
       includeLocation: includeLocation ?? this.includeLocation,
       radioDeviceId: radioDeviceId ?? this.radioDeviceId,
+      smartBeacon: smartBeacon ?? this.smartBeacon,
     );
   }
 
@@ -72,6 +81,7 @@ class SoftwareBeaconConfig {
     'message': message,
     'includeLocation': includeLocation,
     'radioDeviceId': radioDeviceId,
+    'smartBeacon': smartBeacon,
   };
 
   static SoftwareBeaconConfig fromJson(Map<String, dynamic> json) {
@@ -93,6 +103,7 @@ class SoftwareBeaconConfig {
       message: (json['message'] as String?) ?? '',
       includeLocation: asBool(json['includeLocation'], true),
       radioDeviceId: asInt(json['radioDeviceId'], -1),
+      smartBeacon: asBool(json['smartBeacon'], false),
     );
   }
 }

@@ -2667,6 +2667,10 @@ class AppLocalizationsHi extends AppLocalizations {
       'सॉफ़्टवेयर बीकन का उपयोग करने से पहले सेटिंग्स में अपना कॉलसाइन कॉन्फ़िगर करें।';
 
   @override
+  String get softwareBeaconSmartHint =>
+      'जब आप काफी दूरी तय करते हैं या दिशा बदलते हैं, तो अंतराल बीकन के बीच एक अतिरिक्त बीकन भेजता है।';
+
+  @override
   String get aprsDigipeaterMenu => 'डिजीपीटर...';
 
   @override

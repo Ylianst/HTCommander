@@ -15,6 +15,7 @@ import '../models/radio_models.dart';
 import '../radio/ax25_address.dart';
 import '../radio/ax25_packet.dart';
 import '../radio/radio.dart';
+import '../radio/utils.dart';
 import '../services/data_broker_client.dart';
 import 'software_beacon_config.dart';
 
@@ -29,11 +30,27 @@ import 'software_beacon_config.dart';
 class SoftwareBeaconHandler {
   static const int _aprsDeviceId = 1;
 
+  /// SmartBeaconing parameters (classic APRS algorithm). Speeds are in knots to
+  /// match the speed-over-ground reported in [GpsData].
+  static const double _sbLowSpeedKnots = 5.0; // at/below: use the slow rate
+  static const double _sbHighSpeedKnots = 60.0; // at/above: use the fast rate
+  static const int _sbFastRateSecs = 60; // fastest interval between beacons
+  static const double _sbTurnMinDegrees = 28.0; // min turn angle for corner peg
+  static const double _sbTurnSlope = 26.0; // corner-peg sensitivity vs. speed
+  static const int _sbTurnTimeSecs = 30; // min interval between corner pegs
+  static const double _sbMinMoveMetres = 150.0; // distance that forces a beacon
+
   final DataBrokerClient _broker = DataBrokerClient();
 
   SoftwareBeaconConfig _config = const SoftwareBeaconConfig();
   Timer? _timer;
   bool _disposed = false;
+
+  // SmartBeaconing state: position/heading/time of the last transmitted beacon.
+  DateTime? _lastBeaconTime;
+  double? _lastBeaconLat;
+  double? _lastBeaconLon;
+  double? _lastBeaconHeading;
 
   SoftwareBeaconConfig get config => _config;
 
@@ -44,6 +61,11 @@ class SoftwareBeaconHandler {
       deviceId: 0,
       name: 'SoftwareBeaconConfig',
       callback: _onConfigChanged,
+    );
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'GpsData',
+      callback: _onGpsChanged,
     );
 
     _loadConfig(_broker.getValueDynamic(0, 'SoftwareBeaconConfig', null));
@@ -63,6 +85,16 @@ class SoftwareBeaconHandler {
     _restartTimer();
     // Give the user immediate feedback when they enable/update the beacon.
     if (_config.enabled) _sendBeacon();
+  }
+
+  /// SmartBeaconing: when enabled, a new GPS fix may trigger an early beacon
+  /// before the configured interval elapses if the station has moved enough.
+  void _onGpsChanged(int deviceId, String name, Object? data) {
+    if (_disposed || !_config.enabled) return;
+    if (!_config.smartBeacon || !_config.includeLocation) return;
+    final gps = _currentFix();
+    if (gps == null) return;
+    if (_shouldSmartBeacon(gps, DateTime.now())) _sendBeacon();
   }
 
   void _loadConfig(Object? data) {
@@ -161,6 +193,91 @@ class SoftwareBeaconHandler {
         store: false,
       );
     }
+
+    _recordBeaconState(now);
+    // Measure the configured interval from this beacon so an early SmartBeacon
+    // push does not cause an extra beacon right after on the periodic tick.
+    _restartTimer();
+  }
+
+  /// Remembers the time, position and heading of the beacon just sent so the
+  /// SmartBeaconing logic can measure movement since then.
+  void _recordBeaconState(DateTime now) {
+    _lastBeaconTime = now;
+    if (_config.includeLocation) {
+      final gps = _currentFix();
+      if (gps != null) {
+        _lastBeaconLat = gps.latitude;
+        _lastBeaconLon = gps.longitude;
+        _lastBeaconHeading = gps.heading;
+        return;
+      }
+    }
+    _lastBeaconLat = null;
+    _lastBeaconLon = null;
+    _lastBeaconHeading = null;
+  }
+
+  /// Classic APRS SmartBeaconing decision: beacon early when moving fast, on a
+  /// sharp turn (corner pegging) or after moving a significant distance. The
+  /// configured interval remains the slowest (maximum) beacon rate.
+  bool _shouldSmartBeacon(GpsData gps, DateTime now) {
+    // No reference beacon yet, or the last beacon had no position fix: let the
+    // periodic timer send the next one and establish a reference.
+    if (_lastBeaconTime == null ||
+        _lastBeaconLat == null ||
+        _lastBeaconLon == null) {
+      return false;
+    }
+
+    final secsSinceLast = now.difference(_lastBeaconTime!).inSeconds;
+    // Never beacon faster than the fast rate, regardless of movement.
+    if (secsSinceLast < _sbFastRateSecs) return false;
+
+    final speed = gps.speed;
+    final slowRateSecs = _config.intervalSeconds;
+
+    // Corner pegging: beacon early on a sharp heading change. Heading is
+    // unreliable when nearly stationary, so only apply it above the low speed.
+    if (speed > _sbLowSpeedKnots &&
+        _lastBeaconHeading != null &&
+        !_lastBeaconHeading!.isNaN) {
+      final turnThreshold = _sbTurnMinDegrees + _sbTurnSlope / speed;
+      final headingChange = _headingDelta(_lastBeaconHeading!, gps.heading);
+      if (headingChange > turnThreshold && secsSinceLast >= _sbTurnTimeSecs) {
+        return true;
+      }
+    }
+
+    // Distance trigger: beacon as soon as we have moved a significant distance
+    // from the last beacon position. This covers sources (e.g. manual/phone
+    // location) that do not report a reliable speed.
+    final movedMetres = RadioUtils.haversineMetres(
+      _lastBeaconLat!,
+      _lastBeaconLon!,
+      gps.latitude,
+      gps.longitude,
+    );
+    if (movedMetres >= _sbMinMoveMetres) return true;
+
+    // Speed-adaptive rate: faster when moving quickly, slower when stopped.
+    final int beaconRateSecs;
+    if (speed <= _sbLowSpeedKnots) {
+      beaconRateSecs = slowRateSecs;
+    } else if (speed >= _sbHighSpeedKnots) {
+      beaconRateSecs = _sbFastRateSecs;
+    } else {
+      final rate = (_sbFastRateSecs * _sbHighSpeedKnots / speed).round();
+      beaconRateSecs = rate.clamp(_sbFastRateSecs, slowRateSecs);
+    }
+    return secsSinceLast >= beaconRateSecs;
+  }
+
+  /// Smallest absolute difference between two headings in degrees (0-180).
+  static double _headingDelta(double a, double b) {
+    var diff = (a - b).abs() % 360.0;
+    if (diff > 180.0) diff = 360.0 - diff;
+    return diff;
   }
 
   /// Builds the APRS information field: a position report when location is

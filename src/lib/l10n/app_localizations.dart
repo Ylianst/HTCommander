@@ -4900,6 +4900,12 @@ abstract class AppLocalizations {
   /// **'Configure your callsign in Settings before using the software beacon.'**
   String get softwareBeaconNoCallsign;
 
+  /// No description provided for @softwareBeaconSmartHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sends an extra beacon when you move a significant distance or change direction, between interval beacons.'**
+  String get softwareBeaconSmartHint;
+
   /// No description provided for @aprsDigipeaterMenu.
   ///
   /// In en, this message translates to:

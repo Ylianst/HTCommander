@@ -2686,6 +2686,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'Configura tu indicativo en Ajustes antes de usar la baliza de software.';
 
   @override
+  String get softwareBeaconSmartHint =>
+      'Envía una baliza adicional entre las balizas por intervalo cuando te mueves una distancia significativa o cambias de dirección.';
+
+  @override
   String get aprsDigipeaterMenu => 'Digipeater...';
 
   @override

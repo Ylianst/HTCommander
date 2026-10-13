@@ -858,6 +858,7 @@
   "softwareBeaconRadio": "Bevorzugtes Funkgerät",
   "softwareBeaconInternetOnly": "Nur Internet",
   "softwareBeaconNoCallsign": "Konfigurieren Sie Ihr Rufzeichen in den Einstellungen, bevor Sie die Software-Bake verwenden.",
+  "softwareBeaconSmartHint": "Sendet zwischen den Intervall-Baken eine zusätzliche Bake, wenn Sie sich deutlich bewegen oder die Richtung ändern.",
   "aprsSendSms": "SMS-Nachricht senden...",
   "aprsWeatherReport": "Wetterbericht...",
   "aprsBeaconSettingsMenu": "Baken-Einstellungen...",

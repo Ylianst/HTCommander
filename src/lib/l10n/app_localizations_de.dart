@@ -2692,6 +2692,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Konfigurieren Sie Ihr Rufzeichen in den Einstellungen, bevor Sie die Software-Bake verwenden.';
 
   @override
+  String get softwareBeaconSmartHint =>
+      'Sendet zwischen den Intervall-Baken eine zusätzliche Bake, wenn Sie sich deutlich bewegen oder die Richtung ändern.';
+
+  @override
   String get aprsDigipeaterMenu => 'Digipeater...';
 
   @override

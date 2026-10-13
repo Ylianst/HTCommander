@@ -858,6 +858,7 @@
   "softwareBeaconRadio": "पसंदीदा रेडियो",
   "softwareBeaconInternetOnly": "केवल इंटरनेट",
   "softwareBeaconNoCallsign": "सॉफ़्टवेयर बीकन का उपयोग करने से पहले सेटिंग्स में अपना कॉलसाइन कॉन्फ़िगर करें।",
+  "softwareBeaconSmartHint": "जब आप काफी दूरी तय करते हैं या दिशा बदलते हैं, तो अंतराल बीकन के बीच एक अतिरिक्त बीकन भेजता है।",
   "aprsSendSms": "SMS संदेश भेजें...",
   "aprsWeatherReport": "मौसम रिपोर्ट...",
   "aprsBeaconSettingsMenu": "बीकन सेटिंग्स...",

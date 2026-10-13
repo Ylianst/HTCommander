@@ -100,6 +100,11 @@ class EchoLinkProxyNetwork implements EchoLinkNetwork {
       onDone: () => _onSocketDown(const SocketException('Proxy closed')),
       cancelOnError: true,
     );
+    // Writes via sock.add() are buffered; a failing write (e.g. the socket was
+    // destroyed while a UDP-tunnel packet was still queued) reports its error
+    // through the done future, NOT synchronously at the add() call. Without a
+    // handler here that becomes an uncaught async "Bad file descriptor" error.
+    unawaited(sock.done.catchError((Object e) => _onSocketDown(e)));
     // The proxy is silent on success (no explicit ACK); it only speaks up with a
     // SYSTEM error on a bad password/ACL. Complete once the nonce arrives and we
     // have sent our credentials, but fail if the handshake never gets that far.

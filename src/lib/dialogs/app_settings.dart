@@ -201,7 +201,7 @@ class AppSettings {
     this.winlinkUseStationId = false,
     this.echoLinkPassword = '',
     this.echoLinkLocation = '',
-    this.echoLinkProxyEnabled = false,
+    this.echoLinkProxyEnabled = true,
     this.echoLinkProxyAuto = true,
     this.echoLinkProxyHost = '',
     this.echoLinkProxyPort = 8100,
@@ -399,7 +399,7 @@ class AppSettings {
       echoLinkLocation:
           DataBroker.getValue<String>(0, 'EchoLinkLocation', '') ?? '',
       echoLinkProxyEnabled:
-          (DataBroker.getValue<int>(0, 'EchoLinkProxyEnabled', 0) ?? 0) == 1,
+          (DataBroker.getValue<int>(0, 'EchoLinkProxyEnabled', 1) ?? 1) == 1,
       echoLinkProxyAuto:
           (DataBroker.getValue<int>(0, 'EchoLinkProxyAuto', 1) ?? 1) == 1,
       echoLinkProxyHost:
