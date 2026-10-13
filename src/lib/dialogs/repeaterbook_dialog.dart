@@ -116,6 +116,11 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
 
   RepeaterBookClient? _client;
 
+  // Tunable bands reported by the radio (READ_FREQ_RANGE), each in MHz with a
+  // modulation flag (0=FM, 1=AM, 2=DMR). Empty until the radio reports them, in
+  // which case the built-in FM VHF/UHF limits are used instead.
+  List<({double lowMhz, double highMhz, int mod})> _radioBands = const [];
+
   @override
   void initState() {
     super.initState();
@@ -129,13 +134,22 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
     _state = DataBroker.getValue<String>(0, 'RepeaterBookState', '') ?? '';
     _city = DataBroker.getValue<String>(0, 'RepeaterBookCity', '') ?? '';
     _showMap =
-        DataBroker.getValue<bool>(0, 'RepeaterBookMapView', false) ?? false;
+        DataBroker.getValue<bool>(0, 'RepeaterBookMapView', true) ?? true;
+
+    // Track the radio's tunable frequency bands to gate unsupported repeaters.
+    _loadFreqRanges();
+    _broker.subscribe(
+      deviceId: widget.deviceId,
+      name: 'FreqRanges',
+      callback: _onFreqRangesChanged,
+    );
   }
 
   @override
   void dispose() {
     _client?.close();
     _mapController.dispose();
+    _broker.dispose();
     super.dispose();
   }
 
@@ -246,6 +260,7 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
   // --- Assign / write --------------------------------------------------------
 
   void _assign(RadioChannelInfo repeater, int slotId) {
+    if (!_isChannelSupported(repeater)) return;
     setState(() {
       _staged[slotId] = repeater;
       _selectedSlotId = slotId;
@@ -262,6 +277,60 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
 
   void _clearStaged(int slotId) {
     setState(() => _staged.remove(slotId));
+  }
+
+  // --- Radio frequency-range support ----------------------------------------
+
+  void _onFreqRangesChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(() => _radioBands = _parseBands(data));
+  }
+
+  void _loadFreqRanges() {
+    _radioBands = _parseBands(
+      _broker.getValue<Object?>(widget.deviceId, 'FreqRanges', null),
+    );
+  }
+
+  /// Normalizes the broker's `FreqRanges` value (a list of
+  /// `{lowHz, highHz, mod}` maps) into MHz bands.
+  List<({double lowMhz, double highMhz, int mod})> _parseBands(Object? data) {
+    if (data is! List) return const [];
+    final bands = <({double lowMhz, double highMhz, int mod})>[];
+    for (final e in data) {
+      if (e is Map) {
+        final low = (e['lowHz'] as num?)?.toDouble();
+        final high = (e['highHz'] as num?)?.toDouble();
+        final mod = (e['mod'] as num?)?.toInt() ?? 0;
+        if (low != null && high != null) {
+          bands.add((lowMhz: low / 1000000, highMhz: high / 1000000, mod: mod));
+        }
+      }
+    }
+    return bands;
+  }
+
+  /// True when [mhz] falls in an FM-capable band (FM or DMR, never AM airband).
+  /// Falls back to the built-in VHF/UHF limits until the radio reports bands.
+  bool _isFreqSupportedMhz(double mhz) {
+    if (_radioBands.isNotEmpty) {
+      for (final b in _radioBands) {
+        if (b.mod == 1) continue; // AM airband — not usable for FM repeaters
+        if (mhz >= b.lowMhz && mhz <= b.highMhz) return true;
+      }
+      return false;
+    }
+    if (mhz >= 136 && mhz <= 174) return true;
+    if (mhz >= 300 && mhz <= 550) return true;
+    return false;
+  }
+
+  /// True when both the repeater's output (RX) and input (TX) frequencies are
+  /// within the radio's supported ranges.
+  bool _isChannelSupported(RadioChannelInfo ch) {
+    final rxOk = ch.rxFreq > 0 && _isFreqSupportedMhz(ch.rxFreq / 1000000);
+    final txOk = ch.txFreq == 0 || _isFreqSupportedMhz(ch.txFreq / 1000000);
+    return rxOk && txOk;
   }
 
   void _onOk() {
@@ -643,6 +712,17 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
   Widget _buildMap() {
     final scheme = Theme.of(context).colorScheme;
 
+    // Station locations with at least one radio-tunable channel. A station can
+    // appear as several results (one per channel); its pin is red when any of
+    // them is supported, grey when none are.
+    final supportedPoints = <String>{};
+    for (final rc in _results) {
+      final lat = rc.source.latitude;
+      final lon = rc.source.longitude;
+      if (lat == null || lon == null) continue;
+      if (_isChannelSupported(rc.channel)) supportedPoints.add('$lat,$lon');
+    }
+
     final markers = <Marker>[];
     for (int i = 0; i < _results.length; i++) {
       final r = _results[i].source;
@@ -650,6 +730,7 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
       final lon = r.longitude;
       if (lat == null || lon == null) continue;
       final selected = _selectedResultIndex == i;
+      final supported = supportedPoints.contains('$lat,$lon');
       markers.add(
         Marker(
           point: LatLng(lat, lon),
@@ -658,12 +739,15 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
           alignment: Alignment.topCenter,
           child: GestureDetector(
             onTap: () => setState(() => _selectedResultIndex = i),
-            // Match the APRS map's large, icon-less station markers: a red
-            // location pin whose tip marks the exact position.
+            // Match the APRS map's large, icon-less station markers: a location
+            // pin whose tip marks the exact position. Grey marks a station with
+            // no channel the radio can tune.
             child: Icon(
               Icons.location_pin,
               size: selected ? 40 : 30,
-              color: selected ? scheme.primary : Colors.red,
+              color: selected
+                  ? scheme.primary
+                  : (supported ? Colors.red : Colors.grey),
               shadows: const [Shadow(blurRadius: 2, color: Colors.black45)],
             ),
           ),
@@ -837,6 +921,10 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
           highlight: dragging,
           width: _tileWidth,
         );
+    // Unsupported repeaters are greyed out and not draggable from the map card.
+    if (!_isChannelSupported(channel)) {
+      return Opacity(opacity: 0.4, child: tile());
+    }
     return Draggable<RadioChannelInfo>(
       data: channel,
       dragAnchorStrategy: pointerDragAnchorStrategy,
@@ -960,6 +1048,7 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
     final palette = ChannelPalette.of(context);
     final label = channel.name.isNotEmpty ? channel.name : 'RPT';
     final subtitle = _resultSubtitle(rc);
+    final supported = _isChannelSupported(channel);
 
     final tile = _channelTile(
       label: label,
@@ -968,7 +1057,9 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
       subtitle: subtitle,
       background: selected ? palette.selected : palette.base,
       highlight: selected,
-      onTap: () => setState(() => _selectedResultIndex = index),
+      onTap: supported
+          ? () => setState(() => _selectedResultIndex = index)
+          : null,
       onInfo: () => showChannelDetailsDialog(context, channel: channel),
       onContextMenu: (pos) => showChannelContextMenu(
         context: context,
@@ -977,6 +1068,18 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
         onDetails: () => showChannelDetailsDialog(context, channel: channel),
       ),
     );
+
+    // Repeaters outside the radio's tunable ranges are greyed out and cannot be
+    // selected or dragged onto a slot.
+    if (!supported) {
+      return Opacity(
+        opacity: 0.4,
+        child: Tooltip(
+          message: "Outside the radio's supported frequency ranges",
+          child: tile,
+        ),
+      );
+    }
 
     final feedback = Material(
       color: Colors.transparent,

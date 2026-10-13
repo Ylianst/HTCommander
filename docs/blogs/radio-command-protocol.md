@@ -247,7 +247,7 @@ radio sends it unsolicited; a reply always mirrors the request opcode with
 | 36 | `FREQ_MODE_GET_STATUS` | R | VFO tuned frequency |
 | 37 | `READ_RDA1846S_AGC` | R | RF chip register |
 | 38 | `WRITE_RDA1846S_AGC` | R | |
-| 39 | `READ_FREQ_RANGE` | R | |
+| 39 | `READ_FREQ_RANGE` | R | **Decoded** below → the radio's tunable bands |
 | 40 | `WRITE_DE_EMPH_COEFFS` | R | |
 | 41 | `STOP_RINGING` | R | |
 | 42 | `SET_TX_TIME_LIMIT` | R | |
@@ -324,6 +324,47 @@ block; fields are bit-packed starting at offset 5:
 `productId` also drives the friendly name (`0x0001` → VR-N7500, `0x0002` →
 VR-N76, `0x0003` → SA-888S, `0x0004` → HG-UV98, `0x0005` → HAM-AIO). This reply
 is what tells the app how many channels and regions to enumerate.
+
+### READ_FREQ_RANGE (39) → tunable bands
+
+`freqRangeCount` from `GET_DEV_INFO` only says *how many* bands the radio has;
+`READ_FREQ_RANGE` returns the bands themselves. The reply payload is undocumented
+elsewhere — benlink defines the opcode but never decodes it, and neither did the
+original C# app — so the layout below was reverse-engineered from a live capture.
+
+The request is sent with no payload (a single trailing `0x00`). The reply body
+starts at offset 5 and is a flat list of big-endian `uint16` **band edges** in
+`(low, high)` pairs. In each 16-bit value the low 14 bits are the edge frequency
+in **whole MHz** and the top 2 bits carry a modulation flag (`FM=0`, `AM=1`,
+`DMR=2` — matching the channel modulation encoding). A zero edge terminates the
+list; any remaining bytes are padding.
+
+| Offset | Bits | Field |
+| --- | --- | --- |
+| 4 | 8 | reply status (0 = success) |
+| 5 + 4·n | `0xC000` | band *n* modulation (FM=0, AM=1, DMR=2) |
+| 5 + 4·n | `0x3FFF` | band *n* low edge, MHz |
+| 7 + 4·n | `0xC000` | (high-edge flag, unused) |
+| 7 + 4·n | `0x3FFF` | band *n* high edge, MHz |
+
+Worked example — a real reply body from a dual-band HT:
+
+```
+40 6C  40 88  80 88  00 AE  01 2C  02 26  81 90  02 08  40 00  00 00
+└─P1──┘└─P1──┘└─P2──┘└─P2──┘└─P3──┘└─P3──┘└─P4──┘└─P4──┘└─term┘
+```
+
+| Pair | low (raw → MHz, mod) | high (raw → MHz) | Band |
+| --- | --- | --- | --- |
+| P1 | `0x406C` → 108, AM | `0x4088` → 136 | 108–136 MHz (AM airband) |
+| P2 | `0x8088` → 136, DMR | `0x00AE` → 174 | 136–174 MHz (2 m) |
+| P3 | `0x012C` → 300, FM | `0x0226` → 550 | 300–550 MHz (UHF wide) |
+| P4 | `0x8190` → 400, DMR | `0x0208` → 520 | 400–520 MHz (70 cm) |
+| term | `0x4000` → 0 | `0x0000` → 0 | end of list |
+
+HTCommander reads this on every connection (when `freqRangeCount > 0`) and uses
+the bands to validate channel-edit frequencies and to grey out RepeaterBook and
+Winlink stations the radio cannot tune.
 
 ### GET_HT_STATUS (20) → `RadioHtStatus`
 

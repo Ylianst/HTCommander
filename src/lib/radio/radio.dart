@@ -3229,7 +3229,8 @@ class Radio implements FirmwareRadio {
   /// Example body `40 6C 40 88 80 88 00 AE 01 2C 02 26 81 90 02 08 40 00 00 00`
   /// decodes to 108-136, 136-174, 300-550 and 400-520 MHz. The raw bytes are
   /// logged and the parsed bands dispatched as `FreqRanges` (a list of
-  /// `{lowHz, highHz}` maps); the raw reply is dispatched as `FreqRangesRaw`.
+  /// `{lowHz, highHz, mod}` maps, `mod`: FM=0, AM=1, DMR=2); the raw reply is
+  /// dispatched as `FreqRangesRaw`.
   void _handleReadFreqRange(Uint8List data) {
     if (data.length < 5 || data[4] != 0) return;
     final body = Uint8List.fromList(data.sublist(5));
@@ -3240,16 +3241,21 @@ class Radio implements FirmwareRadio {
 
     final ranges = <List<int>>[];
     for (int p = 5; p + 3 < data.length; p += 4) {
-      final lowMhz = RadioUtils.getShort(data, p) & 0x3FFF;
+      final lowRaw = RadioUtils.getShort(data, p);
+      final lowMhz = lowRaw & 0x3FFF;
       final highMhz = RadioUtils.getShort(data, p + 2) & 0x3FFF;
       if (lowMhz == 0 || highMhz == 0 || lowMhz >= highMhz) break;
-      ranges.add([lowMhz * 1000000, highMhz * 1000000]);
+      // Modulation support is carried in the low edge's top 2 bits.
+      final mod = (lowRaw >> 14) & 0x03;
+      ranges.add([lowMhz * 1000000, highMhz * 1000000, mod]);
     }
 
-    freqRanges = ranges;
+    freqRanges = ranges.map((r) => [r[0], r[1]]).toList();
     _dispatch(
       'FreqRanges',
-      ranges.map((r) => {'lowHz': r[0], 'highHz': r[1]}).toList(),
+      ranges
+          .map((r) => {'lowHz': r[0], 'highHz': r[1], 'mod': r[2]})
+          .toList(),
     );
     _dispatch('FreqRangesRaw', RadioUtils.bytesToHex(data));
   }

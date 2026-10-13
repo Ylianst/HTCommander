@@ -70,6 +70,11 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
   // edit, like fixed-frequency flags).
   RadioChannelInfo? _original;
 
+  // Tunable bands reported by the radio (READ_FREQ_RANGE), each in MHz with a
+  // modulation flag (0=FM, 1=AM, 2=DMR). Empty until the radio reports them, in
+  // which case validation falls back to the built-in VHF/UHF limits.
+  List<({double lowMhz, double highMhz, int mod})> _radioBands = const [];
+
   late TextEditingController _nameController;
   late TextEditingController _rxFreqController;
   late TextEditingController _txFreqController;
@@ -115,6 +120,14 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
       name: 'Channels',
       callback: _onChannelsChanged,
     );
+
+    // Track the radio's tunable frequency bands for validation.
+    _loadFreqRanges();
+    _broker.subscribe(
+      deviceId: widget.deviceId,
+      name: 'FreqRanges',
+      callback: _onFreqRangesChanged,
+    );
   }
 
   @override
@@ -131,6 +144,35 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
     // Only populate from the broker until the channel is first loaded, so a
     // later channel refresh does not clobber the user's in-progress edits.
     if (_original == null) _loadChannel();
+  }
+
+  void _onFreqRangesChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(() => _radioBands = _parseBands(data));
+  }
+
+  void _loadFreqRanges() {
+    _radioBands = _parseBands(
+      _broker.getValue<Object?>(widget.deviceId, 'FreqRanges', null),
+    );
+  }
+
+  /// Normalizes the broker's `FreqRanges` value (a list of
+  /// `{lowHz, highHz, mod}` maps) into MHz bands.
+  List<({double lowMhz, double highMhz, int mod})> _parseBands(Object? data) {
+    if (data is! List) return const [];
+    final bands = <({double lowMhz, double highMhz, int mod})>[];
+    for (final e in data) {
+      if (e is Map) {
+        final low = (e['lowHz'] as num?)?.toDouble();
+        final high = (e['highHz'] as num?)?.toDouble();
+        final mod = (e['mod'] as num?)?.toInt() ?? 0;
+        if (low != null && high != null) {
+          bands.add((lowMhz: low / 1000000, highMhz: high / 1000000, mod: mod));
+        }
+      }
+    }
+    return bands;
   }
 
   RadioChannelInfo? _readChannel() {
@@ -232,9 +274,26 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
 
   // --- Frequency validation (mirrors C# CheckFreqRange) ---------------------
 
+  /// Radio bands compatible with the currently selected modulation. FM channels
+  /// may use FM (0) or DMR (2) bands; AM channels use AM (1) bands.
+  List<({double lowMhz, double highMhz, int mod})> _bandsForMode() {
+    return _radioBands.where((b) {
+      if (_modeIndex == 1) return b.mod == 1;
+      return b.mod == 0 || b.mod == 2;
+    }).toList();
+  }
+
   bool _checkFreqRange(String text) {
     final freq = double.tryParse(text);
     if (freq == null) return false;
+    final bands = _bandsForMode();
+    if (bands.isNotEmpty) {
+      for (final b in bands) {
+        if (freq >= b.lowMhz && freq <= b.highMhz) return true;
+      }
+      return false;
+    }
+    // Fallback limits used until the radio reports its tunable bands.
     if (_modeIndex == 0) {
       // FM: 136-174 MHz or 300-550 MHz
       if (freq < 136) return false;
@@ -248,9 +307,21 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
     return true;
   }
 
-  String get _freqHelp => _modeIndex == 0
-      ? '136 MHz - 174 MHz, 300 MHz - 550 MHz'
-      : '108 MHz - 136 MHz';
+  String get _freqHelp {
+    final bands = _bandsForMode();
+    if (bands.isEmpty) {
+      return _modeIndex == 0
+          ? '136 MHz - 174 MHz, 300 MHz - 550 MHz'
+          : '108 MHz - 136 MHz';
+    }
+    return bands
+        .map((b) => '${_fmtMhz(b.lowMhz)} MHz - ${_fmtMhz(b.highMhz)} MHz')
+        .join(', ');
+  }
+
+  String _fmtMhz(double mhz) => mhz == mhz.roundToDouble()
+      ? mhz.toStringAsFixed(0)
+      : mhz.toStringAsFixed(3);
 
   bool get _rxFreqValid => _checkFreqRange(_rxFreqController.text);
   bool get _txFreqValid => _checkFreqRange(_txFreqController.text);

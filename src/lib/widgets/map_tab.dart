@@ -222,6 +222,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// (only once zoomed in enough to keep the marker count reasonable).
   bool _showWinlinkGateways = false;
 
+  /// Tunable bands (MHz, with modulation 0=FM/1=AM/2=DMR) aggregated across all
+  /// connected radios (READ_FREQ_RANGE). Used to grey out Winlink gateways the
+  /// radio cannot tune. Empty falls back to the built-in FM VHF/UHF limits.
+  List<({double lowMhz, double highMhz, int mod})> _radioBands = const [];
+
   /// When true the user is drawing a rectangle on the map to select a cache
   /// area. Interaction with markers/tracks is suppressed.
   bool _isSelectingCacheArea = false;
@@ -513,6 +518,14 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       name: 'ConnectedRadios',
       callback: _onConnectedRadiosChanged,
     );
+    // Track every radio's tunable frequency bands to grey out Winlink gateways
+    // the radio cannot reach.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'FreqRanges',
+      callback: _onFreqRangesChanged,
+    );
+    _rebuildRadioBands();
     // Load initial positions for any already connected radios that have a fix.
     _loadInitialRadioPositions();
   }
@@ -527,8 +540,71 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// radio list changes.
   void _onConnectedRadiosChanged(int deviceId, String name, Object? data) {
     if (!mounted) return;
-    setState(_loadInitialRadioPositions);
+    setState(() {
+      _loadInitialRadioPositions();
+      _rebuildRadioBands();
+    });
   }
+
+  void _onFreqRangesChanged(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(_rebuildRadioBands);
+  }
+
+  /// Rebuilds the aggregated tunable-band list from every connected radio's
+  /// reported `FreqRanges`. A frequency is considered tunable when any radio
+  /// supports it.
+  void _rebuildRadioBands() {
+    final radios = _broker.getValueDynamic(_aprsDeviceId, 'ConnectedRadios');
+    final bands = <({double lowMhz, double highMhz, int mod})>[];
+    if (radios is List) {
+      for (final radio in radios) {
+        if (radio is! Map) continue;
+        final id = radio['DeviceId'] as int? ?? radio['deviceId'] as int?;
+        if (id == null || id <= 0) continue;
+        bands.addAll(_parseBands(_broker.getValueDynamic(id, 'FreqRanges')));
+      }
+    }
+    _radioBands = bands;
+  }
+
+  /// Normalizes a broker `FreqRanges` value (a list of `{lowHz, highHz, mod}`
+  /// maps) into MHz bands.
+  List<({double lowMhz, double highMhz, int mod})> _parseBands(Object? data) {
+    if (data is! List) return const [];
+    final bands = <({double lowMhz, double highMhz, int mod})>[];
+    for (final e in data) {
+      if (e is Map) {
+        final low = (e['lowHz'] as num?)?.toDouble();
+        final high = (e['highHz'] as num?)?.toDouble();
+        final mod = (e['mod'] as num?)?.toInt() ?? 0;
+        if (low != null && high != null) {
+          bands.add((lowMhz: low / 1000000, highMhz: high / 1000000, mod: mod));
+        }
+      }
+    }
+    return bands;
+  }
+
+  /// True when [hz] falls in an FM-capable band (FM or DMR, never AM airband).
+  /// Falls back to the built-in VHF/UHF limits until a radio reports bands.
+  bool _isFreqHzSupported(int hz) {
+    final mhz = hz / 1000000;
+    if (_radioBands.isNotEmpty) {
+      for (final b in _radioBands) {
+        if (b.mod == 1) continue; // AM airband — not usable for FM packet
+        if (mhz >= b.lowMhz && mhz <= b.highMhz) return true;
+      }
+      return false;
+    }
+    if (mhz >= 136 && mhz <= 174) return true;
+    if (mhz >= 300 && mhz <= 550) return true;
+    return false;
+  }
+
+  /// True when the gateway has at least one radio-tunable frequency.
+  bool _isGatewaySupported(WinlinkGateway gw) =>
+      gw.frequenciesHz.any(_isFreqHzSupported);
 
   /// Loads the current position for every connected radio so the markers are
   /// present when switching to the Map tab. Mirrors the C#
@@ -1618,6 +1694,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     final markers = <Marker>[];
     for (final gw in gateways.take(400)) {
       if (!_isValidLatLng(gw.latitude, gw.longitude)) continue;
+      // Grey the pin when the radio cannot tune any of the gateway's channels.
+      final supported = _isGatewaySupported(gw);
       markers.add(
         Marker(
           point: LatLng(gw.latitude, gw.longitude),
@@ -1628,8 +1706,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             Tooltip(
               message: '${gw.callsign}\n'
                   '${gw.frequenciesMHz.join(', ')} MHz',
-              child: const Icon(Icons.cell_tower,
-                  color: Color(0xFF6A1B9A), size: 22),
+              child: Icon(Icons.cell_tower,
+                  color: supported ? const Color(0xFF6A1B9A) : Colors.grey,
+                  size: 22),
             ),
           ),
         ),
@@ -1877,6 +1956,14 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             ),
           ],
         ),
+      );
+    }
+
+    // A frequency the radio cannot tune is greyed out and not draggable.
+    if (!_isFreqHzSupported(freqHz)) {
+      return Tooltip(
+        message: "Outside the radio's supported frequency ranges",
+        child: Opacity(opacity: 0.4, child: tile()),
       );
     }
 
