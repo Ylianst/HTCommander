@@ -433,7 +433,7 @@ class _AprsTabState extends State<AprsTab>
 
         // SMS contacts are keyed by their digits-only phone number so gateway
         // messages ("@<phone> ...") thread into the matching contact.
-        final key = isSms ? _digitsOnly(id) : id.toUpperCase();
+        final key = isSms ? _digitsOnly(id) : _peerKey(id);
         if (key.isEmpty) continue;
         if (!addressBookIds.contains(key)) addressBookIds.add(key);
         if (isSms) smsContacts.add(key);
@@ -983,7 +983,7 @@ class _AprsTabState extends State<AprsTab>
 
       if (sender) {
         routingString = '→ $addressee';
-        peerCallsign = addressee;
+        peerCallsign = _peerKey(addressee);
       } else {
         if (senderAddr.address == addressee ||
             senderAddr.callSignWithId == addressee) {
@@ -992,7 +992,7 @@ class _AprsTabState extends State<AprsTab>
           routingString = '$senderCallsign → $addressee';
         }
         // Only messages addressed to us belong to one of our conversations.
-        if (forSelf) peerCallsign = senderCallsign;
+        if (forSelf) peerCallsign = _peerKey(senderCallsign);
       }
       if (packet.authState == AuthState.success) routingString += ' ✓';
       if (packet.authState == AuthState.failed) routingString += ' ❌';
@@ -1717,7 +1717,7 @@ class _AprsTabState extends State<AprsTab>
   /// Whether [callsign] (upper-cased) is a known APRS contact in the address
   /// book. SMS contacts (keyed by phone digits) are excluded.
   bool _isAprsContact(String callsign) {
-    final target = callsign.toUpperCase();
+    final target = _peerKey(callsign);
     return _addressBookIds.contains(target) && !_smsContacts.contains(target);
   }
 
@@ -1810,7 +1810,7 @@ class _AprsTabState extends State<AprsTab>
   void _openConversation(String callsign) {
     setState(() {
       _viewAllMessages = false;
-      _selectedContact = callsign.toUpperCase();
+      _selectedContact = _peerKey(callsign);
     });
     _rebuildMessages();
   }
@@ -2256,6 +2256,13 @@ class _AprsTabState extends State<AprsTab>
 
   /// Digits-only form of a phone number, used as the SMS conversation key.
   String _digitsOnly(String s) => s.replaceAll(RegExp(r'[^0-9]'), '');
+
+  /// Conversation key for a callsign: uppercased, with a "-0" SSID dropped so
+  /// "SMS" and "SMS-0" share one thread.
+  static String _peerKey(String callsign) {
+    final upper = callsign.trim().toUpperCase();
+    return upper.endsWith('-0') ? upper.substring(0, upper.length - 2) : upper;
+  }
 
   /// Whether [peer] looks like an SMS phone-number conversation key. SMS peers
   /// are threaded under the phone number's digits, whereas APRS callsigns
