@@ -94,8 +94,7 @@ void _testDatagram() {
     _check('payload delivered', event.delivered);
     _check(
       'payload matches',
-      event.payload != null &&
-          String.fromCharCodes(event.payload!) == message,
+      event.payload != null && String.fromCharCodes(event.payload!) == message,
     );
     _check('no ACK response (connectionless)', event.response == null);
     _check('signal quality present', event.info.quality != null);
@@ -310,7 +309,11 @@ void _testAdaptation() {
 }
 
 /// Build a NACK control frame from [bob] addressed to [dest] for [seqNum].
-DartTxFrame _makeNack(DartLink bob, {required String dest, required int seqNum}) {
+DartTxFrame _makeNack(
+  DartLink bob, {
+  required String dest,
+  required int seqNum,
+}) {
   final pcm = bob.modem.encode(
     payload: Uint8List(0),
     mode: DartMode.mode0,
@@ -362,10 +365,7 @@ void _testModeFFallback() {
   // into Mode F (the amplitude-immune fallback). The NACK also triggers a
   // selective retransmit, which now goes out at Mode F.
   const message = 'Fallback message over 4-FSK';
-  alice.sendReliable(
-    Uint8List.fromList(message.codeUnits),
-    destination: 'BOB',
-  );
+  alice.sendReliable(Uint8List.fromList(message.codeUnits), destination: 'BOB');
   final nack = _makeNack(bob, dest: 'ALICE', seqNum: alice.pendingSeq!);
   final nackEvent = alice.receive(_sbc(nack.pcm));
   print('  After NACK at mode 0: ${alice.mode}');
@@ -381,12 +381,16 @@ void _testModeFFallback() {
   if (nackEvent?.response != null) {
     final hostile = _hardClip(_sbc(nackEvent!.response!.pcm), 0.08);
     final ev = bob.receive(hostile);
-    _check('Mode F frame decoded through hostile path',
-        ev != null && ev.delivered);
+    _check(
+      'Mode F frame decoded through hostile path',
+      ev != null && ev.delivered,
+    );
     if (ev?.payload != null) {
       print('  RX: ${ev!.info.summary()}');
-      _check('payload matches over Mode F',
-          String.fromCharCodes(ev.payload!) == message);
+      _check(
+        'payload matches over Mode F',
+        String.fromCharCodes(ev.payload!) == message,
+      );
     }
   }
 
@@ -399,7 +403,10 @@ void _testModeFFallback() {
       allowModeF: false,
     ),
   );
-  noFallback.sendReliable(Uint8List.fromList('x'.codeUnits), destination: 'BOB');
+  noFallback.sendReliable(
+    Uint8List.fromList('x'.codeUnits),
+    destination: 'BOB',
+  );
   final nack2 = _makeNack(bob, dest: 'CARL', seqNum: noFallback.pendingSeq!);
   noFallback.receive(_sbc(nack2.pcm));
   _check('allowModeF=false stays at mode 0', noFallback.mode == DartMode.mode0);

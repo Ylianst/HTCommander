@@ -119,14 +119,28 @@ void _printUsage() {
   print('  papr');
   print('    Compare PAPR of plain OFDM vs DFT-spread (SC-FDMA).');
   print('');
-  print('  pipeline -m <mode> [--sbc] [--noise <dB>] [--bitpool <n>] -o <out.wav>');
-  print('           [--sbcalloc <snr|loudness>] [--png <file.png>] [--constellation] <message>');
+  print(
+    '  pipeline -m <mode> [--sbc] [--noise <dB>] [--bitpool <n>] -o <out.wav>',
+  );
+  print(
+    '           [--sbcalloc <snr|loudness>] [--png <file.png>] [--constellation] <message>',
+  );
   print('    Encode → [SBC] → [noise] → write WAV → decode → PNG.');
-  print('    --bitpool <n>: SBC quality 2..124 (radio uses 18); implies --sbc.');
-  print('    --sbcalloc: SBC bit-allocation method (default loudness); implies --sbc.');
-  print('    --phasenoise <deg>: add RMS carrier phase noise (models the FM audio path).');
-  print('    --echo <delaySamples> [--echoamp <a>]: add a multipath echo (ISI analysis).');
-  print('    --cp <samples>: override the OFDM cyclic-prefix length (ISI analysis).');
+  print(
+    '    --bitpool <n>: SBC quality 2..124 (radio uses 18); implies --sbc.',
+  );
+  print(
+    '    --sbcalloc: SBC bit-allocation method (default loudness); implies --sbc.',
+  );
+  print(
+    '    --phasenoise <deg>: add RMS carrier phase noise (models the FM audio path).',
+  );
+  print(
+    '    --echo <delaySamples> [--echoamp <a>]: add a multipath echo (ISI analysis).',
+  );
+  print(
+    '    --cp <samples>: override the OFDM cyclic-prefix length (ISI analysis).',
+  );
 }
 
 // ============================================================================
@@ -188,7 +202,9 @@ void _cmdEncode(List<String> args) {
   WavFile.write(output, pcm, params);
 
   final double durationMs = pcm.length * 1000.0 / modem.ofdmParams.sampleRate;
-  print('Written: $output (${pcm.length} samples, ${durationMs.toStringAsFixed(1)} ms)');
+  print(
+    'Written: $output (${pcm.length} samples, ${durationMs.toStringAsFixed(1)} ms)',
+  );
 }
 
 // ============================================================================
@@ -296,11 +312,14 @@ void _cmdPipeline(List<String> args) {
   final modem = cpOverride != null
       ? DartModem(
           params: DartOfdmParams(cpLength: cpOverride),
-          pilotsEnabled: pilotsEnabled)
+          pilotsEnabled: pilotsEnabled,
+        )
       : DartModem(pilotsEnabled: pilotsEnabled);
-  print('Carriers: ${modem.ofdmParams.numDataCarriers}'
-      '  Pilots: ${pilotsEnabled ? "on" : "off"}'
-      '  CP: ${modem.ofdmParams.cpLength}');
+  print(
+    'Carriers: ${modem.ofdmParams.numDataCarriers}'
+    '  Pilots: ${pilotsEnabled ? "on" : "off"}'
+    '  CP: ${modem.ofdmParams.cpLength}',
+  );
   final payload = Uint8List.fromList(message.codeUnits);
   var pcm = modem.encode(
     payload: payload,
@@ -308,22 +327,28 @@ void _cmdPipeline(List<String> args) {
     source: source,
     destination: dest,
   );
-  print('Encoded : ${pcm.length} samples '
-      '(${(pcm.length * 1000.0 / modem.ofdmParams.sampleRate).toStringAsFixed(1)} ms)');
+  print(
+    'Encoded : ${pcm.length} samples '
+    '(${(pcm.length * 1000.0 / modem.ofdmParams.sampleRate).toStringAsFixed(1)} ms)',
+  );
 
   // 2) SBC (Bluetooth) codec round-trip — models the app→radio hop.
   if (useSbc) {
     pcm = _sbcRoundTrip(pcm, bitpool: bitpool, allocation: sbcAlloc);
-    print('SBC     : applied codec round-trip '
-        '(bitpool $bitpool, ${sbcAlloc.name} allocation)');
+    print(
+      'SBC     : applied codec round-trip '
+      '(bitpool $bitpool, ${sbcAlloc.name} allocation)',
+    );
   }
 
   // 2b) Multipath echo (delay spread) — for inter-symbol-interference analysis.
   if (echoDelay > 0 && echoAmp != 0) {
     pcm = _addEcho(pcm, echoDelay, echoAmp);
-    print('Echo    : ${echoAmp.toStringAsFixed(2)} @ $echoDelay samples '
-        '(${(echoDelay * 1000.0 / modem.ofdmParams.sampleRate).toStringAsFixed(3)} ms; '
-        'CP is ${modem.ofdmParams.cpLength} samples)');
+    print(
+      'Echo    : ${echoAmp.toStringAsFixed(2)} @ $echoDelay samples '
+      '(${(echoDelay * 1000.0 / modem.ofdmParams.sampleRate).toStringAsFixed(3)} ms; '
+      'CP is ${modem.ofdmParams.cpLength} samples)',
+    );
   }
 
   // 3) Channel noise — models the RF link.
@@ -337,8 +362,10 @@ void _cmdPipeline(List<String> args) {
   // away, so only a time-varying phase impairment reproduces the ceiling).
   if (phaseNoiseDeg > 0) {
     pcm = _addPhaseNoise(pcm, phaseNoiseDeg, alpha: phaseRate);
-    print('Phase   : added ${phaseNoiseDeg.toStringAsFixed(1)}° RMS phase noise '
-        '(rate ${phaseRate.toStringAsFixed(5)})');
+    print(
+      'Phase   : added ${phaseNoiseDeg.toStringAsFixed(1)}° RMS phase noise '
+      '(rate ${phaseRate.toStringAsFixed(5)})',
+    );
   }
 
   // 4) Write the degraded WAV.
@@ -359,8 +386,10 @@ void _cmdPipeline(List<String> args) {
 
   print('--- decode result ---');
   print('  Mode: ${result.header.modeIndex} (${modeParams.description})');
-  print('  Payload (${result.payload.length} bytes): '
-      '${String.fromCharCodes(result.payload)}');
+  print(
+    '  Payload (${result.payload.length} bytes): '
+    '${String.fromCharCodes(result.payload)}',
+  );
   print('  LDPC corrections: ${result.ldpcCorrections}');
   print('  Signal: ${result.quality}');
   if (result.phaseDriftDeg != null) {
@@ -422,8 +451,10 @@ void _cmdDecode(List<String> args) {
   }
 
   var (Int16List samples, WavParams wavParams) = WavFile.read(input);
-  print('Read: $input (${samples.length} samples, '
-      '${wavParams.sampleRate} Hz)');
+  print(
+    'Read: $input (${samples.length} samples, '
+    '${wavParams.sampleRate} Hz)',
+  );
   if (noisedB.isFinite) {
     samples = _addNoise(samples, noisedB);
     print('  Applied ${noisedB.toStringAsFixed(1)} dB SNR noise');
@@ -450,8 +481,10 @@ void _cmdDecode(List<String> args) {
   print('  Source: ${result.header.source}');
   print('  Destination: ${result.header.destination}');
   print('  Seq#: ${result.header.seqNum}');
-  print('  Payload (${result.payload.length} bytes): '
-      '${String.fromCharCodes(result.payload)}');
+  print(
+    '  Payload (${result.payload.length} bytes): '
+    '${String.fromCharCodes(result.payload)}',
+  );
   print('  LDPC corrections: ${result.ldpcCorrections}');
   print('  Signal: ${result.quality}');
   if (result.phaseDriftDeg != null) {
@@ -459,15 +492,17 @@ void _cmdDecode(List<String> args) {
     final String regime = d < 3.0
         ? 'slow / decision-limited (pilots help)'
         : d < 8.0
-            ? 'moderate'
-            : 'fast / ICI-limited (irreducible)';
+        ? 'moderate'
+        : 'fast / ICI-limited (irreducible)';
     print('  Phase drift: ${d.toStringAsFixed(1)}°/symbol — $regime');
   }
   print('  CRC: ${result.crcOk ? "OK" : "FAIL"}');
 
   final syms = result.constellation;
   if (capture && (syms == null || syms.isEmpty)) {
-    print('  (No constellation available — Mode F / FSK has no constellation.)');
+    print(
+      '  (No constellation available — Mode F / FSK has no constellation.)',
+    );
   } else if (syms != null && syms.isNotEmpty) {
     if (showConstellation) {
       print('');
@@ -514,7 +549,8 @@ void _printAsciiConstellation(List<Complex> syms, ConstellationType type) {
       final int c = grid[y][x];
       if (c > 0) {
         final int idx =
-            1 + ((c - 1) * (ramp.length - 2) ~/ maxCount).clamp(0, ramp.length - 2);
+            1 +
+            ((c - 1) * (ramp.length - 2) ~/ maxCount).clamp(0, ramp.length - 2);
         sb.write(ramp[idx]);
       } else if (y == midY && x == midX) {
         sb.write('+'); // origin
@@ -534,7 +570,10 @@ void _printAsciiConstellation(List<Complex> syms, ConstellationType type) {
 /// Write a PNG constellation diagram: light grid + ideal points (blue) +
 /// received symbols (red). Uses dart:io's ZLibCodec for the PNG IDAT.
 void _writeConstellationPng(
-    List<Complex> syms, ConstellationType type, String path) {
+  List<Complex> syms,
+  ConstellationType type,
+  String path,
+) {
   const int size = 480;
   const double range = 1.6;
   final img = Uint8List(size * size * 3)..fillRange(0, size * size * 3, 255);
@@ -619,8 +658,12 @@ void _writeChunk(List<int> out, String type, List<int> data) {
   out.addAll(_be32(_pngCrc32(<int>[...typeBytes, ...data])));
 }
 
-List<int> _be32(int v) =>
-    [(v >> 24) & 0xFF, (v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF];
+List<int> _be32(int v) => [
+  (v >> 24) & 0xFF,
+  (v >> 16) & 0xFF,
+  (v >> 8) & 0xFF,
+  v & 0xFF,
+];
 
 int _pngCrc32(List<int> data) {
   int crc = 0xFFFFFFFF;
@@ -646,9 +689,11 @@ void _cmdAnalyze(List<String> args) {
   final (Int16List samples, WavParams wavParams) = WavFile.read(input);
   final double durMs = samples.length * 1000.0 / wavParams.sampleRate;
   print('File: $input');
-  print('  ${samples.length} samples, ${wavParams.sampleRate} Hz, '
-      '${wavParams.numChannels} ch, ${wavParams.bitsPerSample}-bit, '
-      '${durMs.toStringAsFixed(0)} ms');
+  print(
+    '  ${samples.length} samples, ${wavParams.sampleRate} Hz, '
+    '${wavParams.numChannels} ch, ${wavParams.bitsPerSample}-bit, '
+    '${durMs.toStringAsFixed(0)} ms',
+  );
 
   // Level stats.
   int peak = 0;
@@ -660,12 +705,25 @@ void _cmdAnalyze(List<String> args) {
   }
   final double rms = math.sqrt(sumSq / math.max(1, samples.length));
   final double papr = rms > 0 ? 20 * (math.log(peak / rms) / math.ln10) : 0;
-  print('  Peak: $peak (${(peak / 327.67).toStringAsFixed(1)}% FS), '
-      'RMS: ${rms.toStringAsFixed(0)} (${(rms / 327.67).toStringAsFixed(1)}% FS), '
-      'PAPR: ${papr.toStringAsFixed(1)} dB');
+  print(
+    '  Peak: $peak (${(peak / 327.67).toStringAsFixed(1)}% FS), '
+    'RMS: ${rms.toStringAsFixed(0)} (${(rms / 327.67).toStringAsFixed(1)}% FS), '
+    'PAPR: ${papr.toStringAsFixed(1)} dB',
+  );
 
   // Coarse band energy via Goertzel at a few probe frequencies.
-  final probes = [100.0, 300.0, 600.0, 1000.0, 1400.0, 1800.0, 2200.0, 2600.0, 3000.0, 3500.0];
+  final probes = [
+    100.0,
+    300.0,
+    600.0,
+    1000.0,
+    1400.0,
+    1800.0,
+    2200.0,
+    2600.0,
+    3000.0,
+    3500.0,
+  ];
   print('  Band energy (relative):');
   double maxE = 1e-9;
   final energies = <double>[];
@@ -677,8 +735,10 @@ void _cmdAnalyze(List<String> args) {
   for (int i = 0; i < probes.length; i++) {
     final double db = 10 * (math.log(energies[i] / maxE) / math.ln10);
     final int bars = ((energies[i] / maxE) * 40).round();
-    print('    ${probes[i].toStringAsFixed(0).padLeft(4)} Hz: '
-        '${db.toStringAsFixed(1).padLeft(6)} dB ${"#" * bars}');
+    print(
+      '    ${probes[i].toStringAsFixed(0).padLeft(4)} Hz: '
+      '${db.toStringAsFixed(1).padLeft(6)} dB ${"#" * bars}',
+    );
   }
 
   // Level envelope in ~50 ms windows (locate the actual signal vs silence).
@@ -704,15 +764,19 @@ void _cmdAnalyze(List<String> args) {
   print('  Preamble detection:');
   for (final thr in [0.6, 0.5, 0.4, 0.3, 0.2, 0.1]) {
     final det = modem.preamble.detectDetailed(rx, threshold: thr);
-    print('    threshold ${thr.toStringAsFixed(1)}: '
-        '${det.position >= 0 ? "FOUND at ${det.position} (corr ${det.correlation.toStringAsFixed(3)})" : "not found"}');
+    print(
+      '    threshold ${thr.toStringAsFixed(1)}: '
+      '${det.position >= 0 ? "FOUND at ${det.position} (corr ${det.correlation.toStringAsFixed(3)})" : "not found"}',
+    );
     if (det.position >= 0) break;
   }
 
   // Full decode attempt.
   final result = modem.decode(samples);
-  print('  Decode: ${result == null ? "FAIL (no frame)" : "mode ${result.header.modeIndex}, "
-      "payload \"${String.fromCharCodes(result.payload)}\", CRC ${result.crcOk ? "OK" : "FAIL"}"}');
+  print(
+    '  Decode: ${result == null ? "FAIL (no frame)" : "mode ${result.header.modeIndex}, "
+              "payload \"${String.fromCharCodes(result.payload)}\", CRC ${result.crcOk ? "OK" : "FAIL"}"}',
+  );
 }
 
 /// Goertzel energy at frequency [f] over the whole buffer.
@@ -740,7 +804,9 @@ void _cmdRateSearch(List<String> args) {
   }
   final input = args[0];
   final (Int16List samples, WavParams wavParams) = WavFile.read(input);
-  print('Rate search on $input (${samples.length} samples @ ${wavParams.sampleRate} Hz)');
+  print(
+    'Rate search on $input (${samples.length} samples @ ${wavParams.sampleRate} Hz)',
+  );
   print('');
 
   final modem = DartModem();
@@ -751,7 +817,9 @@ void _cmdRateSearch(List<String> args) {
     mean += s;
   }
   mean /= samples.length;
-  print('DC offset: ${mean.toStringAsFixed(1)} (${(mean / 327.67).toStringAsFixed(2)}% FS)');
+  print(
+    'DC offset: ${mean.toStringAsFixed(1)} (${(mean / 327.67).toStringAsFixed(2)}% FS)',
+  );
   print('');
 
   // Search resample factors: fine grid around 1.0 for clock drift, plus a few
@@ -760,8 +828,16 @@ void _cmdRateSearch(List<String> args) {
   for (double f = 0.90; f <= 1.10001; f += 0.01) {
     factors.add(double.parse(f.toStringAsFixed(3)));
   }
-  factors.addAll([0.6667, 0.7256, 1.3333, 1.5, 44100 / 32000, 32000 / 44100,
-    48000 / 32000, 32000 / 48000]);
+  factors.addAll([
+    0.6667,
+    0.7256,
+    1.3333,
+    1.5,
+    44100 / 32000,
+    32000 / 44100,
+    48000 / 32000,
+    32000 / 48000,
+  ]);
 
   double bestCorr = 0;
   double bestFactor = 1.0;
@@ -778,19 +854,27 @@ void _cmdRateSearch(List<String> args) {
     }
     if (decoded != null && decoded.crcOk) {
       anyDecode = true;
-      print('  factor ${factor.toStringAsFixed(4)}: corr ${det.correlation.toStringAsFixed(3)} '
-          '→ DECODED "${String.fromCharCodes(decoded.payload)}"');
+      print(
+        '  factor ${factor.toStringAsFixed(4)}: corr ${det.correlation.toStringAsFixed(3)} '
+        '→ DECODED "${String.fromCharCodes(decoded.payload)}"',
+      );
     } else if (det.correlation > 0.5) {
-      print('  factor ${factor.toStringAsFixed(4)}: corr ${det.correlation.toStringAsFixed(3)} '
-          '(preamble strong, decode ${decoded == null ? "no frame" : "CRC fail"})');
+      print(
+        '  factor ${factor.toStringAsFixed(4)}: corr ${det.correlation.toStringAsFixed(3)} '
+        '(preamble strong, decode ${decoded == null ? "no frame" : "CRC fail"})',
+      );
     }
   }
 
   print('');
-  print('Best preamble correlation: ${bestCorr.toStringAsFixed(3)} at factor ${bestFactor.toStringAsFixed(4)}');
-  print(anyDecode
-      ? 'A resample factor DECODED — the radio path has a clock/rate offset.'
-      : 'No factor decoded — the problem is not a simple sample-rate offset.');
+  print(
+    'Best preamble correlation: ${bestCorr.toStringAsFixed(3)} at factor ${bestFactor.toStringAsFixed(4)}',
+  );
+  print(
+    anyDecode
+        ? 'A resample factor DECODED — the radio path has a clock/rate offset.'
+        : 'No factor decoded — the problem is not a simple sample-rate offset.',
+  );
 }
 
 /// Linear-interpolation resampler: output length = input.length / factor.
@@ -845,8 +929,12 @@ void _cmdLoopback(List<String> args) {
 
   print('DART Modem Loopback Test');
   print('  SBC: ${useSbc ? "enabled" : "disabled"}');
-  print('  Noise: ${noisedB.isFinite ? "${noisedB.toStringAsFixed(1)} dB SNR" : "none"}');
-  print('  Clip: ${clip > 0 ? "${(clip * 100).toStringAsFixed(0)}% of peak" : "none"}');
+  print(
+    '  Noise: ${noisedB.isFinite ? "${noisedB.toStringAsFixed(1)} dB SNR" : "none"}',
+  );
+  print(
+    '  Clip: ${clip > 0 ? "${(clip * 100).toStringAsFixed(0)}% of peak" : "none"}',
+  );
   print('  Bandpass (300-2900 Hz radio filter): ${bandpass ? "on" : "off"}');
   print('  Modes: $modes');
   if (payloadSize != null) print('  Payload size: $payloadSize bytes');
@@ -855,7 +943,12 @@ void _cmdLoopback(List<String> args) {
   // Test messages of increasing length. When --size is given, test a single
   // generated payload of exactly that many bytes instead.
   final testMessages = payloadSize != null
-      ? [List.generate(payloadSize, (i) => String.fromCharCode(0x41 + i % 26)).join()]
+      ? [
+          List.generate(
+            payloadSize,
+            (i) => String.fromCharCode(0x41 + i % 26),
+          ).join(),
+        ]
       : [
           'Hi',
           'Hello, World!',
@@ -910,13 +1003,16 @@ void _cmdLoopback(List<String> args) {
       // Decode
       final result = modem.decode(processedPcm);
 
-      final bool ok = result != null &&
+      final bool ok =
+          result != null &&
           result.crcOk &&
           String.fromCharCodes(result.payload) == msg;
 
       if (ok) {
         pass++;
-        print('  PASS [${msg.length} bytes] (${result.ldpcCorrections} LDPC corrections)');
+        print(
+          '  PASS [${msg.length} bytes] (${result.ldpcCorrections} LDPC corrections)',
+        );
       } else {
         fail++;
         if (result == null) {
@@ -925,8 +1021,12 @@ void _cmdLoopback(List<String> args) {
           print('  FAIL [${msg.length} bytes]: CRC error');
         } else {
           print('  FAIL [${msg.length} bytes]: payload mismatch');
-          print('    Expected: ${msg.substring(0, math.min(40, msg.length))}...');
-          print('    Got:      ${String.fromCharCodes(result.payload).substring(0, math.min(40, result.payload.length))}...');
+          print(
+            '    Expected: ${msg.substring(0, math.min(40, msg.length))}...',
+          );
+          print(
+            '    Got:      ${String.fromCharCodes(result.payload).substring(0, math.min(40, result.payload.length))}...',
+          );
         }
       }
     }
@@ -1052,8 +1152,10 @@ void _cmdFftTest(List<String> args) {
     }
 
     final bool ok = maxError < 1e-10;
-    print('  Size $size: max error = ${maxError.toStringAsExponential(2)} '
-        '${ok ? "PASS" : "FAIL"}');
+    print(
+      '  Size $size: max error = ${maxError.toStringAsExponential(2)} '
+      '${ok ? "PASS" : "FAIL"}',
+    );
     ok ? pass++ : fail++;
   }
 
@@ -1092,7 +1194,9 @@ void _cmdConstellationTest(List<String> args) {
         final int decidedBit = llrs[b] < 0 ? 1 : 0;
         if (decidedBit != bits[b]) {
           allOk = false;
-          print('    FAIL: pattern $pattern, bit $b: expected ${bits[b]}, got $decidedBit');
+          print(
+            '    FAIL: pattern $pattern, bit $b: expected ${bits[b]}, got $decidedBit',
+          );
         }
       }
     }
@@ -1110,8 +1214,10 @@ void _cmdConstellationTest(List<String> args) {
     }
     avgPower /= c.points.length;
     final bool powerOk = (avgPower - 1.0).abs() < 0.01;
-    print('    Average power: ${avgPower.toStringAsFixed(4)} '
-        '${powerOk ? "PASS" : "FAIL (expected ~1.0)"}');
+    print(
+      '    Average power: ${avgPower.toStringAsFixed(4)} '
+      '${powerOk ? "PASS" : "FAIL (expected ~1.0)"}',
+    );
     powerOk ? pass++ : fail++;
   }
 
@@ -1259,14 +1365,18 @@ void _cmdPaprTest(List<String> args) {
     final double p99Plain = 10 * _log10(paprPlain[idx99]);
     final double p99Scfdma = 10 * _log10(paprScfdma[idx99]);
 
-    print('  ${type.name.padRight(6)}: '
-        'plain PAPR ${paprPlainDb.toStringAsFixed(1)} dB (99%: ${p99Plain.toStringAsFixed(1)}), '
-        'SC-FDMA ${paprScfdmaDb.toStringAsFixed(1)} dB (99%: ${p99Scfdma.toStringAsFixed(1)}), '
-        'gain ${(p99Plain - p99Scfdma).toStringAsFixed(1)} dB');
+    print(
+      '  ${type.name.padRight(6)}: '
+      'plain PAPR ${paprPlainDb.toStringAsFixed(1)} dB (99%: ${p99Plain.toStringAsFixed(1)}), '
+      'SC-FDMA ${paprScfdmaDb.toStringAsFixed(1)} dB (99%: ${p99Scfdma.toStringAsFixed(1)}), '
+      'gain ${(p99Plain - p99Scfdma).toStringAsFixed(1)} dB',
+    );
   }
 
   print('');
-  print('Lower PAPR = less headroom needed = safer against the FM limiter/AGC.');
+  print(
+    'Lower PAPR = less headroom needed = safer against the FM limiter/AGC.',
+  );
 }
 
 /// Peak-to-average power ratio (linear) of one time-domain symbol.
@@ -1316,8 +1426,13 @@ class _Biquad {
     final double cw = math.cos(w0), sw = math.sin(w0);
     final double alpha = sw / (2 * q);
     final double a0 = 1 + alpha;
-    return _Biquad((1 - cw) / 2 / a0, (1 - cw) / a0, (1 - cw) / 2 / a0,
-        -2 * cw / a0, (1 - alpha) / a0);
+    return _Biquad(
+      (1 - cw) / 2 / a0,
+      (1 - cw) / a0,
+      (1 - cw) / 2 / a0,
+      -2 * cw / a0,
+      (1 - alpha) / a0,
+    );
   }
 
   factory _Biquad.highpass(double f0, int fs, {double q = 0.707}) {
@@ -1325,8 +1440,13 @@ class _Biquad {
     final double cw = math.cos(w0), sw = math.sin(w0);
     final double alpha = sw / (2 * q);
     final double a0 = 1 + alpha;
-    return _Biquad((1 + cw) / 2 / a0, -(1 + cw) / a0, (1 + cw) / 2 / a0,
-        -2 * cw / a0, (1 - alpha) / a0);
+    return _Biquad(
+      (1 + cw) / 2 / a0,
+      -(1 + cw) / a0,
+      (1 + cw) / 2 / a0,
+      -2 * cw / a0,
+      (1 - alpha) / a0,
+    );
   }
 
   Float64List process(Float64List x) {
@@ -1378,7 +1498,8 @@ Int16List _addNoise(Int16List pcm, double snrDb) {
     // Box-Muller for Gaussian noise
     final double u1 = random.nextDouble().clamp(1e-10, 1.0);
     final double u2 = random.nextDouble();
-    final double noise = noiseStd * math.sqrt(-2 * math.log(u1)) * math.cos(2 * math.pi * u2);
+    final double noise =
+        noiseStd * math.sqrt(-2 * math.log(u1)) * math.cos(2 * math.pi * u2);
     output[i] = (pcm[i] + noise).round().clamp(-32767, 32767);
   }
   return output;
@@ -1394,7 +1515,11 @@ Int16List _addNoise(Int16List pcm, double snrDb) {
 /// it by e^{jθ[n]}, where θ is a bounded AR(1) random-walk phase with the given
 /// RMS deviation [rmsDeg] and correlation factor [alpha] (near 1 = slow drift).
 /// Taking the real part yields the impaired passband signal.
-Int16List _addPhaseNoise(Int16List pcm, double rmsDeg, {double alpha = 0.9995}) {
+Int16List _addPhaseNoise(
+  Int16List pcm,
+  double rmsDeg, {
+  double alpha = 0.9995,
+}) {
   if (rmsDeg <= 0) return pcm;
   final int n0 = pcm.length;
   int n = 1;
