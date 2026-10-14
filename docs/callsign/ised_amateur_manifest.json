@@ -8,12 +8,12 @@
   "md5": "c9e83f54fcd7e29e62551afe3368f68f",
   "recordCount": 91925,
   "overlay": {
-    "version": "2026.10.07",
-    "sourceDate": 20261007,
-    "url": "https://github.com/Ylianst/HTCommander/releases/download/callsign-db-ca/ised_amateur_overlay-a75d23ded04a81987c264b85d37647c1.cdb.xz",
+    "version": "2026.10.14",
+    "sourceDate": 20261014,
+    "url": "https://github.com/Ylianst/HTCommander/releases/download/callsign-db-ca/ised_amateur_overlay-958e01af9064113a390cec9942b4f5f3.cdb.xz",
     "compressed": true,
-    "sizeBytes": 9356,
-    "md5": "a75d23ded04a81987c264b85d37647c1",
-    "recordCount": 511
+    "sizeBytes": 9804,
+    "md5": "958e01af9064113a390cec9942b4f5f3",
+    "recordCount": 535
   }
 }
