@@ -2665,6 +2665,28 @@ class AppLocalizationsEn extends AppLocalizations {
       'Configure your callsign in Settings before using the software beacon.';
 
   @override
+  String get softwareBeaconManual => 'Manual';
+
+  @override
+  String aprsSoftwareBeaconActive(String interval) {
+    return 'Software beacon is active, interval: $interval. Click for options.';
+  }
+
+  @override
+  String get aprsSoftwareBeaconManualMode =>
+      'Software beacon is in manual mode. Click for options.';
+
+  @override
+  String get aprsSoftwareBeaconSendNow => 'Send Beacon Now';
+
+  @override
+  String get aprsSoftwareBeaconSent => 'Beacon sent.';
+
+  @override
+  String get aprsSoftwareBeaconNotSent =>
+      'Beacon not sent. Set your callsign and include your location or a message.';
+
+  @override
   String get softwareBeaconSmartHint =>
       'Sends an extra beacon when you move a significant distance or change direction, between interval beacons.';
 

@@ -15,7 +15,7 @@ import '../utils/num_parsing.dart';
 /// the "APRS" channel in APRS format, and is always gated to the Internet
 /// (APRS-IS) in addition to any selected radio.
 class SoftwareBeaconConfig {
-  /// Beacon interval in seconds. 0 disables the beacon.
+  /// Beacon interval in seconds. 0 disables the periodic beacon.
   final int intervalSeconds;
 
   /// APRS symbol table identifier (single character, '/' or '\').
@@ -42,8 +42,13 @@ class SoftwareBeaconConfig {
   /// as the maximum (slowest) interval.
   final bool smartBeacon;
 
+  /// Manual mode: no periodic beacon, but the user may send a one-time beacon
+  /// on demand. Only meaningful when [intervalSeconds] is 0.
+  final bool manual;
+
   const SoftwareBeaconConfig({
     this.intervalSeconds = 0,
+    this.manual = false,
     this.symbolTable = '/',
     this.symbolCode = '-',
     this.message = '',
@@ -52,10 +57,15 @@ class SoftwareBeaconConfig {
     this.smartBeacon = false,
   });
 
+  /// True when the periodic beacon is running.
   bool get enabled => intervalSeconds > 0;
+
+  /// True when the beacon is not off: periodic or manual.
+  bool get isActive => enabled || manual;
 
   SoftwareBeaconConfig copyWith({
     int? intervalSeconds,
+    bool? manual,
     String? symbolTable,
     String? symbolCode,
     String? message,
@@ -65,6 +75,7 @@ class SoftwareBeaconConfig {
   }) {
     return SoftwareBeaconConfig(
       intervalSeconds: intervalSeconds ?? this.intervalSeconds,
+      manual: manual ?? this.manual,
       symbolTable: symbolTable ?? this.symbolTable,
       symbolCode: symbolCode ?? this.symbolCode,
       message: message ?? this.message,
@@ -76,6 +87,7 @@ class SoftwareBeaconConfig {
 
   Map<String, dynamic> toJson() => {
     'intervalSeconds': intervalSeconds,
+    'manual': manual,
     'symbolTable': symbolTable,
     'symbolCode': symbolCode,
     'message': message,
@@ -96,8 +108,10 @@ class SoftwareBeaconConfig {
       return fallback;
     }
 
+    final intervalSeconds = asInt(json['intervalSeconds'], 0).clamp(0, 86400);
     return SoftwareBeaconConfig(
-      intervalSeconds: asInt(json['intervalSeconds'], 0).clamp(0, 86400),
+      intervalSeconds: intervalSeconds,
+      manual: intervalSeconds == 0 && asBool(json['manual'], false),
       symbolTable: asChar(json['symbolTable'], '/'),
       symbolCode: asChar(json['symbolCode'], '-'),
       message: (json['message'] as String?) ?? '',

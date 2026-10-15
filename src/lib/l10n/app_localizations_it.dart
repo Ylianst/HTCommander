@@ -2697,6 +2697,28 @@ class AppLocalizationsIt extends AppLocalizations {
       'Configura il tuo nominativo nelle Impostazioni prima di usare il beacon software.';
 
   @override
+  String get softwareBeaconManual => 'Manuale';
+
+  @override
+  String aprsSoftwareBeaconActive(String interval) {
+    return 'Il beacon software è attivo, intervallo: $interval. Fai clic per le opzioni.';
+  }
+
+  @override
+  String get aprsSoftwareBeaconManualMode =>
+      'Il beacon software è in modalità manuale. Fai clic per le opzioni.';
+
+  @override
+  String get aprsSoftwareBeaconSendNow => 'Invia beacon ora';
+
+  @override
+  String get aprsSoftwareBeaconSent => 'Beacon inviato.';
+
+  @override
+  String get aprsSoftwareBeaconNotSent =>
+      'Beacon non inviato. Imposta il tuo nominativo e includi la tua posizione o un messaggio.';
+
+  @override
   String get softwareBeaconSmartHint =>
       'Invia un beacon aggiuntivo tra i beacon a intervallo quando ti sposti di una distanza significativa o cambi direzione.';
 

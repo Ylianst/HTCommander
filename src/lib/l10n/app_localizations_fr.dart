@@ -2695,6 +2695,28 @@ class AppLocalizationsFr extends AppLocalizations {
       'Configurez votre indicatif dans les Paramètres avant d\'utiliser la balise logicielle.';
 
   @override
+  String get softwareBeaconManual => 'Manuel';
+
+  @override
+  String aprsSoftwareBeaconActive(String interval) {
+    return 'La balise logicielle est active, intervalle : $interval. Cliquez pour les options.';
+  }
+
+  @override
+  String get aprsSoftwareBeaconManualMode =>
+      'La balise logicielle est en mode manuel. Cliquez pour les options.';
+
+  @override
+  String get aprsSoftwareBeaconSendNow => 'Envoyer la balise maintenant';
+
+  @override
+  String get aprsSoftwareBeaconSent => 'Balise envoyée.';
+
+  @override
+  String get aprsSoftwareBeaconNotSent =>
+      'Balise non envoyée. Définissez votre indicatif et incluez votre position ou un message.';
+
+  @override
   String get softwareBeaconSmartHint =>
       'Envoie une balise supplémentaire entre les balises d\'intervalle lorsque vous vous déplacez de manière significative ou changez de direction.';
 

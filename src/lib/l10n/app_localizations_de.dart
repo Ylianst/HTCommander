@@ -2702,6 +2702,28 @@ class AppLocalizationsDe extends AppLocalizations {
       'Konfigurieren Sie Ihr Rufzeichen in den Einstellungen, bevor Sie die Software-Bake verwenden.';
 
   @override
+  String get softwareBeaconManual => 'Manuell';
+
+  @override
+  String aprsSoftwareBeaconActive(String interval) {
+    return 'Die Software-Bake ist aktiv, Intervall: $interval. Für Optionen klicken.';
+  }
+
+  @override
+  String get aprsSoftwareBeaconManualMode =>
+      'Die Software-Bake ist im manuellen Modus. Für Optionen klicken.';
+
+  @override
+  String get aprsSoftwareBeaconSendNow => 'Bake jetzt senden';
+
+  @override
+  String get aprsSoftwareBeaconSent => 'Bake gesendet.';
+
+  @override
+  String get aprsSoftwareBeaconNotSent =>
+      'Bake nicht gesendet. Legen Sie Ihr Rufzeichen fest und fügen Sie Ihren Standort oder eine Nachricht hinzu.';
+
+  @override
   String get softwareBeaconSmartHint =>
       'Sendet zwischen den Intervall-Baken eine zusätzliche Bake, wenn Sie sich deutlich bewegen oder die Richtung ändern.';
 

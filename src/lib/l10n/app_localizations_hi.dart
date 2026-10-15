@@ -2677,6 +2677,28 @@ class AppLocalizationsHi extends AppLocalizations {
       'सॉफ़्टवेयर बीकन का उपयोग करने से पहले सेटिंग्स में अपना कॉलसाइन कॉन्फ़िगर करें।';
 
   @override
+  String get softwareBeaconManual => 'मैन्युअल';
+
+  @override
+  String aprsSoftwareBeaconActive(String interval) {
+    return 'सॉफ़्टवेयर बीकन सक्रिय है, अंतराल: $interval। विकल्पों के लिए क्लिक करें।';
+  }
+
+  @override
+  String get aprsSoftwareBeaconManualMode =>
+      'सॉफ़्टवेयर बीकन मैन्युअल मोड में है। विकल्पों के लिए क्लिक करें।';
+
+  @override
+  String get aprsSoftwareBeaconSendNow => 'अभी बीकन भेजें';
+
+  @override
+  String get aprsSoftwareBeaconSent => 'बीकन भेजा गया।';
+
+  @override
+  String get aprsSoftwareBeaconNotSent =>
+      'बीकन नहीं भेजा गया। अपना कॉलसाइन सेट करें और अपना स्थान या संदेश शामिल करें।';
+
+  @override
   String get softwareBeaconSmartHint =>
       'जब आप काफी दूरी तय करते हैं या दिशा बदलते हैं, तो अंतराल बीकन के बीच एक अतिरिक्त बीकन भेजता है।';
 

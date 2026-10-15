@@ -63,6 +63,11 @@ class SoftwareBeaconHandler {
       callback: _onConfigChanged,
     );
     _broker.subscribe(
+      deviceId: 0,
+      name: 'SendSoftwareBeacon',
+      callback: _onSendRequested,
+    );
+    _broker.subscribe(
       deviceId: _aprsDeviceId,
       name: 'GpsData',
       callback: _onGpsChanged,
@@ -85,6 +90,19 @@ class SoftwareBeaconHandler {
     _restartTimer();
     // Give the user immediate feedback when they enable/update the beacon.
     if (_config.enabled) _sendBeacon();
+  }
+
+  /// Sends a one-time beacon on user request and reports the outcome on the
+  /// `SoftwareBeaconSent` event (data: bool) so the UI can give feedback.
+  void _onSendRequested(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    final sent = _sendBeacon();
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'SoftwareBeaconSent',
+      data: sent,
+      store: false,
+    );
   }
 
   /// SmartBeaconing: when enabled, a new GPS fix may trigger an early beacon
@@ -131,21 +149,21 @@ class SoftwareBeaconHandler {
   }
 
   /// Builds and transmits one beacon over the selected radio (if any) and, via
-  /// the `AprsFrame` echo, to APRS-IS.
-  void _sendBeacon() {
-    if (_disposed || !_config.enabled) return;
+  /// the `AprsFrame` echo, to APRS-IS. Returns false when nothing was sent.
+  bool _sendBeacon() {
+    if (_disposed || !_config.isActive) return false;
 
     final callsign = _broker.getValue<String>(0, 'CallSign', '') ?? '';
-    if (callsign.isEmpty) return;
+    if (callsign.isEmpty) return false;
     final stationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
     final srcCallsign = stationId > 0 ? '$callsign-$stationId' : callsign;
 
     final destAddr = AX25Address.parse('APRS');
     final srcAddr = AX25Address.parse(srcCallsign);
-    if (destAddr == null || srcAddr == null) return;
+    if (destAddr == null || srcAddr == null) return false;
 
     final info = _buildInformationField();
-    if (info == null) return;
+    if (info == null) return false;
 
     final now = DateTime.now();
     final packet = AX25Packet(
@@ -198,6 +216,7 @@ class SoftwareBeaconHandler {
     // Measure the configured interval from this beacon so an early SmartBeacon
     // push does not cause an extra beacon right after on the periodic tick.
     _restartTimer();
+    return true;
   }
 
   /// Remembers the time, position and heading of the beacon just sent so the

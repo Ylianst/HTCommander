@@ -1669,6 +1669,17 @@
   "softwareBeaconRadio": "Preferred radio",
   "softwareBeaconInternetOnly": "Internet only",
   "softwareBeaconNoCallsign": "Configure your callsign in Settings before using the software beacon.",
+  "softwareBeaconManual": "Manual",
+  "aprsSoftwareBeaconActive": "Software beacon is active, interval: {interval}. Click for options.",
+  "@aprsSoftwareBeaconActive": {
+    "placeholders": {
+      "interval": { "type": "String", "example": "5 minutes" }
+    }
+  },
+  "aprsSoftwareBeaconManualMode": "Software beacon is in manual mode. Click for options.",
+  "aprsSoftwareBeaconSendNow": "Send Beacon Now",
+  "aprsSoftwareBeaconSent": "Beacon sent.",
+  "aprsSoftwareBeaconNotSent": "Beacon not sent. Set your callsign and include your location or a message.",
   "softwareBeaconSmartHint": "Sends an extra beacon when you move a significant distance or change direction, between interval beacons.",
   "aprsDigipeaterMenu": "Digipeater...",
   "digipeaterTitle": "APRS Digipeater",

@@ -2631,6 +2631,28 @@ class AppLocalizationsJa extends AppLocalizations {
       'ソフトウェアビーコンを使用する前に、設定でコールサインを設定してください。';
 
   @override
+  String get softwareBeaconManual => '手動';
+
+  @override
+  String aprsSoftwareBeaconActive(String interval) {
+    return 'ソフトウェアビーコンがアクティブです。間隔: $interval。クリックでオプションを表示します。';
+  }
+
+  @override
+  String get aprsSoftwareBeaconManualMode =>
+      'ソフトウェアビーコンは手動モードです。クリックでオプションを表示します。';
+
+  @override
+  String get aprsSoftwareBeaconSendNow => '今すぐビーコンを送信';
+
+  @override
+  String get aprsSoftwareBeaconSent => 'ビーコンを送信しました。';
+
+  @override
+  String get aprsSoftwareBeaconNotSent =>
+      'ビーコンを送信できませんでした。コールサインを設定し、位置情報またはメッセージを含めてください。';
+
+  @override
   String get softwareBeaconSmartHint =>
       '一定の距離を移動したり方向を変えたりすると、インターバルビーコンの間に追加のビーコンを送信します。';
 

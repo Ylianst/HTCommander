@@ -28,9 +28,12 @@ Future<void> showSoftwareBeaconDialog(BuildContext context) {
   );
 }
 
-/// Beacon interval options in seconds. The first entry (0) disables the beacon.
+/// Beacon interval options in seconds. The first entry (0) disables the beacon
+/// and [_manualInterval] is the on-demand "Manual" mode.
+const int _manualInterval = -1;
 const List<int> _intervalSeconds = [
   0,
+  _manualInterval,
   60,
   120,
   180,
@@ -84,7 +87,7 @@ class _SoftwareBeaconDialogState extends State<SoftwareBeaconDialog> {
     _symbolTable = config.symbolTable;
     _symbolCode = config.symbolCode;
     _messageController.text = config.message;
-    _intervalIndex = _indexForInterval(config.intervalSeconds);
+    _intervalIndex = _indexForConfig(config);
 
     if (config.radioDeviceId > 0 &&
         _radioIdsList.contains(config.radioDeviceId)) {
@@ -120,10 +123,14 @@ class _SoftwareBeaconDialogState extends State<SoftwareBeaconDialog> {
     return const SoftwareBeaconConfig();
   }
 
-  int _indexForInterval(int seconds) {
+  int _indexForConfig(SoftwareBeaconConfig config) {
+    if (config.manual) return _intervalSeconds.indexOf(_manualInterval);
     var index = 0;
     for (int i = 0; i < _intervalSeconds.length; i++) {
-      if (seconds >= _intervalSeconds[i]) index = i;
+      if (_intervalSeconds[i] > 0 &&
+          config.intervalSeconds >= _intervalSeconds[i]) {
+        index = i;
+      }
     }
     return index;
   }
@@ -172,8 +179,10 @@ class _SoftwareBeaconDialogState extends State<SoftwareBeaconDialog> {
   }
 
   void _onSave() {
+    final selected = _intervalSeconds[_intervalIndex];
     final config = SoftwareBeaconConfig(
-      intervalSeconds: _intervalSeconds[_intervalIndex],
+      intervalSeconds: selected > 0 ? selected : 0,
+      manual: selected == _manualInterval,
       symbolTable: _symbolTable,
       symbolCode: _symbolCode,
       message: _messageController.text.trim(),
@@ -303,6 +312,7 @@ class _SoftwareBeaconDialogState extends State<SoftwareBeaconDialog> {
     final seconds = _intervalSeconds[index];
     final l10n = AppLocalizations.of(context);
     if (seconds == 0) return l10n.riOff;
+    if (seconds == _manualInterval) return l10n.softwareBeaconManual;
     if (seconds < 60) return l10n.beaconEverySeconds(seconds);
     return l10n.beaconEveryMinutes(seconds ~/ 60);
   }
@@ -430,8 +440,9 @@ class _SoftwareBeaconDialogState extends State<SoftwareBeaconDialog> {
       TextField(
         controller: _messageController,
         maxLength: 60,
-        decoration: _inputDecoration(hintText: l10n.softwareBeaconMessageHint)
-            .copyWith(counterText: ''),
+        decoration: _inputDecoration(
+          hintText: l10n.softwareBeaconMessageHint,
+        ).copyWith(counterText: ''),
       ),
     );
   }
@@ -446,8 +457,11 @@ class _SoftwareBeaconDialogState extends State<SoftwareBeaconDialog> {
       ),
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded,
-              size: 18, color: scheme.onErrorContainer),
+          Icon(
+            Icons.warning_amber_rounded,
+            size: 18,
+            color: scheme.onErrorContainer,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

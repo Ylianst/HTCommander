@@ -4918,6 +4918,42 @@ abstract class AppLocalizations {
   /// **'Configure your callsign in Settings before using the software beacon.'**
   String get softwareBeaconNoCallsign;
 
+  /// No description provided for @softwareBeaconManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get softwareBeaconManual;
+
+  /// No description provided for @aprsSoftwareBeaconActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Software beacon is active, interval: {interval}. Click for options.'**
+  String aprsSoftwareBeaconActive(String interval);
+
+  /// No description provided for @aprsSoftwareBeaconManualMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Software beacon is in manual mode. Click for options.'**
+  String get aprsSoftwareBeaconManualMode;
+
+  /// No description provided for @aprsSoftwareBeaconSendNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Beacon Now'**
+  String get aprsSoftwareBeaconSendNow;
+
+  /// No description provided for @aprsSoftwareBeaconSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Beacon sent.'**
+  String get aprsSoftwareBeaconSent;
+
+  /// No description provided for @aprsSoftwareBeaconNotSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Beacon not sent. Set your callsign and include your location or a message.'**
+  String get aprsSoftwareBeaconNotSent;
+
   /// No description provided for @softwareBeaconSmartHint.
   ///
   /// In en, this message translates to:

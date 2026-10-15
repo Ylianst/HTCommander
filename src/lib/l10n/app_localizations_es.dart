@@ -2697,6 +2697,28 @@ class AppLocalizationsEs extends AppLocalizations {
       'Configura tu indicativo en Ajustes antes de usar la baliza de software.';
 
   @override
+  String get softwareBeaconManual => 'Manual';
+
+  @override
+  String aprsSoftwareBeaconActive(String interval) {
+    return 'La baliza de software está activa, intervalo: $interval. Haz clic para ver las opciones.';
+  }
+
+  @override
+  String get aprsSoftwareBeaconManualMode =>
+      'La baliza de software está en modo manual. Haz clic para ver las opciones.';
+
+  @override
+  String get aprsSoftwareBeaconSendNow => 'Enviar baliza ahora';
+
+  @override
+  String get aprsSoftwareBeaconSent => 'Baliza enviada.';
+
+  @override
+  String get aprsSoftwareBeaconNotSent =>
+      'Baliza no enviada. Configura tu indicativo e incluye tu ubicación o un mensaje.';
+
+  @override
   String get softwareBeaconSmartHint =>
       'Envía una baliza adicional entre las balizas por intervalo cuando te mueves una distancia significativa o cambias de dirección.';
 

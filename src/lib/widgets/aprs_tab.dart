@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import '../dialogs/dialog_utils.dart';
 import '../dialogs/aprs_location_dialog.dart';
 import '../dialogs/edit_beacon_settings_dialog.dart';
 import '../dialogs/software_beacon_dialog.dart';
+import '../handlers/software_beacon_config.dart';
 import '../dialogs/digipeater_dialog.dart';
 import '../dialogs/add_station_dialog.dart';
 import '../dialogs/callsign_lookup_dialog.dart';
@@ -184,6 +186,8 @@ class _AprsTabState extends State<AprsTab>
   int _beaconInterval = 0; // seconds; 0 = off
   bool _beaconOnCurrentChannel = false;
 
+  // Software beacon indicator state.
+  SoftwareBeaconConfig _softwareBeacon = const SoftwareBeaconConfig();
   @override
   bool get wantKeepAlive => true;
 
@@ -252,7 +256,11 @@ class _AprsTabState extends State<AprsTab>
         setState(() {
           _showAprsIs = show;
           for (final e in _entries) {
-            e.visible = _computeVisible(e.messageType, e.aprsPacket.fromAprsIs);
+            e.visible = _computeVisible(
+              e.messageType,
+              e.aprsPacket.fromAprsIs,
+              e.sender,
+            );
           }
         });
         _rebuildMessages();
@@ -341,8 +349,20 @@ class _AprsTabState extends State<AprsTab>
       callback: _onBeaconStateChanged,
     );
 
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SoftwareBeaconConfig',
+      callback: _onSoftwareBeaconConfigChanged,
+    );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SoftwareBeaconSent',
+      callback: _onSoftwareBeaconSent,
+    );
+
     _recomputeChannelState();
     _recomputeBeaconState();
+    _loadSoftwareBeaconConfig();
     _seedLockStates();
 
     // Request the historical APRS packet list.
@@ -582,6 +602,47 @@ class _AprsTabState extends State<AprsTab>
 
   void _onBeaconStateChanged(int deviceId, String name, Object? data) {
     _recomputeBeaconState();
+  }
+
+  void _onSoftwareBeaconConfigChanged(int deviceId, String name, Object? data) {
+    _loadSoftwareBeaconConfig();
+  }
+
+  void _loadSoftwareBeaconConfig() {
+    var config = const SoftwareBeaconConfig();
+    final raw = _broker.getValueDynamic(0, 'SoftwareBeaconConfig', null);
+    try {
+      if (raw is String && raw.isNotEmpty) {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          config = SoftwareBeaconConfig.fromJson(decoded);
+        }
+      } else if (raw is Map<String, dynamic>) {
+        config = SoftwareBeaconConfig.fromJson(raw);
+      }
+    } catch (_) {
+      // Malformed configuration: treat the software beacon as off.
+    }
+    if (!mounted) {
+      _softwareBeacon = config;
+      return;
+    }
+    setState(() => _softwareBeacon = config);
+  }
+
+  void _onSoftwareBeaconSent(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          data == true
+              ? l10n.aprsSoftwareBeaconSent
+              : l10n.aprsSoftwareBeaconNotSent,
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _recomputeBeaconState() {
@@ -1027,6 +1088,11 @@ class _AprsTabState extends State<AprsTab>
           aprsPacket.dataType != PacketDataType.micECurrent &&
           aprsPacket.dataType != PacketDataType.micEOld) {
         messageText = aprsPacket.comment;
+      } else if (aprsPacket.dataType == PacketDataType.status &&
+          aprsPacket.informationField.isNotEmpty) {
+        // Status reports keep their text in the information field, not the
+        // comment, so a status-only beacon would otherwise show nothing.
+        messageText = aprsPacket.informationField;
       }
     }
 
@@ -1059,7 +1125,7 @@ class _AprsTabState extends State<AprsTab>
       messageType: messageType,
       imageIndex: imageIndex,
       authState: packet.authState,
-      visible: _computeVisible(messageType, aprsPacket.fromAprsIs),
+      visible: _computeVisible(messageType, aprsPacket.fromAprsIs, sender),
       peerCallsign: peerCallsign,
     );
 
@@ -1098,7 +1164,9 @@ class _AprsTabState extends State<AprsTab>
     } else {
       // Keep the short duplicate window for beacons and other non-message
       // packets, where identical content can be a legitimate later update.
+      // Our own transmissions are exempt so every manual beacon shows.
       for (final n in _entries) {
+        if (sender && !aprsPacket.fromAprsIs) break;
         if (entry.messageId == n.messageId &&
             entry.messageText == n.messageText &&
             entry.senderCallsign == n.senderCallsign &&
@@ -1763,7 +1831,11 @@ class _AprsTabState extends State<AprsTab>
     setState(() {
       _showAllMessages = !_showAllMessages;
       for (final e in _entries) {
-        e.visible = _computeVisible(e.messageType, e.aprsPacket.fromAprsIs);
+        e.visible = _computeVisible(
+          e.messageType,
+          e.aprsPacket.fromAprsIs,
+          e.sender,
+        );
       }
     });
     _broker.dispatch(
@@ -1776,9 +1848,11 @@ class _AprsTabState extends State<AprsTab>
 
   /// Computes whether an entry should be shown given the current filters. APRS-IS
   /// (internet) traffic is hidden entirely when [_showAprsIs] is off; otherwise
-  /// the usual telemetry/message rule applies.
-  bool _computeVisible(PacketDataType type, bool fromAprsIs) {
+  /// the usual telemetry/message rule applies. Packets we transmitted ourselves
+  /// (e.g. software beacons) are always shown.
+  bool _computeVisible(PacketDataType type, bool fromAprsIs, bool sender) {
     if (fromAprsIs && !_showAprsIs) return false;
+    if (sender && !fromAprsIs) return true;
     return _showAllMessages || type == PacketDataType.message;
   }
 
@@ -1786,7 +1860,11 @@ class _AprsTabState extends State<AprsTab>
     setState(() {
       _showAprsIs = !_showAprsIs;
       for (final e in _entries) {
-        e.visible = _computeVisible(e.messageType, e.aprsPacket.fromAprsIs);
+        e.visible = _computeVisible(
+          e.messageType,
+          e.aprsPacket.fromAprsIs,
+          e.sender,
+        );
       }
     });
     _broker.dispatch(
@@ -2528,6 +2606,77 @@ class _AprsTabState extends State<AprsTab>
     );
   }
 
+  Widget _buildSoftwareBeaconIcon() {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final tooltip = _softwareBeacon.manual
+        ? l10n.aprsSoftwareBeaconManualMode
+        : l10n.aprsSoftwareBeaconActive(
+            _formatBeaconInterval(_softwareBeacon.intervalSeconds),
+          );
+
+    return Builder(
+      builder: (iconContext) => Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: () => _showSoftwareBeaconMenu(iconContext),
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Icon(Icons.cell_tower, color: scheme.tertiary, size: 24),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Offers a one-time beacon or the software beacon settings.
+  Future<void> _showSoftwareBeaconMenu(BuildContext anchorContext) async {
+    final l10n = AppLocalizations.of(context);
+    final box = anchorContext.findRenderObject() as RenderBox;
+    final overlay =
+        Overlay.of(anchorContext).context.findRenderObject() as RenderBox;
+    final topLeft = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final position = RelativeRect.fromRect(
+      Rect.fromLTWH(
+        topLeft.dx,
+        topLeft.dy + box.size.height,
+        box.size.width,
+        0,
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    final value = await showMenu<String>(
+      context: context,
+      position: position,
+      items: [
+        PopupMenuItem<String>(
+          value: 'sendNow',
+          child: Text(l10n.aprsSoftwareBeaconSendNow),
+        ),
+        PopupMenuItem<String>(
+          value: 'settings',
+          child: Text(l10n.aprsSoftwareBeaconMenu),
+        ),
+      ],
+    );
+    if (value == null || !mounted) return;
+    switch (value) {
+      case 'sendNow':
+        _broker.dispatch(
+          deviceId: 0,
+          name: 'SendSoftwareBeacon',
+          data: true,
+          store: false,
+        );
+        break;
+      case 'settings':
+        showSoftwareBeaconDialog(context);
+        break;
+    }
+  }
+
   String _formatBeaconInterval(int seconds) {
     final l10n = AppLocalizations.of(context);
     if (seconds < 60) return l10n.aprsIntervalSeconds(seconds);
@@ -2756,6 +2905,10 @@ class _AprsTabState extends State<AprsTab>
               // Beacon active indicator - opens beacon settings on tap.
               if (_beaconInterval > 0) _buildBeaconIcon(),
               if (_beaconInterval > 0) const SizedBox(width: 4),
+              // Software beacon indicator (periodic or manual) - tap for
+              // send-now / settings.
+              if (_softwareBeacon.isActive) _buildSoftwareBeaconIcon(),
+              if (_softwareBeacon.isActive) const SizedBox(width: 4),
               // APRS Route dropdown - hide when too narrow or only one route.
               if (showDropdown)
                 Container(

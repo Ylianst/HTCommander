@@ -2691,6 +2691,28 @@ class AppLocalizationsPl extends AppLocalizations {
       'Skonfiguruj swój znak wywoławczy w Ustawieniach przed użyciem beacona programowego.';
 
   @override
+  String get softwareBeaconManual => 'Ręcznie';
+
+  @override
+  String aprsSoftwareBeaconActive(String interval) {
+    return 'Beacon programowy jest aktywny, interwał: $interval. Kliknij, aby zobaczyć opcje.';
+  }
+
+  @override
+  String get aprsSoftwareBeaconManualMode =>
+      'Beacon programowy działa w trybie ręcznym. Kliknij, aby zobaczyć opcje.';
+
+  @override
+  String get aprsSoftwareBeaconSendNow => 'Wyślij beacon teraz';
+
+  @override
+  String get aprsSoftwareBeaconSent => 'Beacon wysłany.';
+
+  @override
+  String get aprsSoftwareBeaconNotSent =>
+      'Beacon nie został wysłany. Ustaw swój znak wywoławczy i dołącz swoją lokalizację lub wiadomość.';
+
+  @override
   String get softwareBeaconSmartHint =>
       'Wysyła dodatkowy beacon między beaconami interwałowymi, gdy przemieścisz się na znaczną odległość lub zmienisz kierunek.';
 

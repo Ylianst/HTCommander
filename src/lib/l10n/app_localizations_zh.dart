@@ -2611,6 +2611,26 @@ class AppLocalizationsZh extends AppLocalizations {
   String get softwareBeaconNoCallsign => '在使用软件信标之前，请在设置中配置您的呼号。';
 
   @override
+  String get softwareBeaconManual => '手动';
+
+  @override
+  String aprsSoftwareBeaconActive(String interval) {
+    return '软件信标处于活动状态，间隔：$interval。点击查看选项。';
+  }
+
+  @override
+  String get aprsSoftwareBeaconManualMode => '软件信标处于手动模式。点击查看选项。';
+
+  @override
+  String get aprsSoftwareBeaconSendNow => '立即发送信标';
+
+  @override
+  String get aprsSoftwareBeaconSent => '信标已发送。';
+
+  @override
+  String get aprsSoftwareBeaconNotSent => '信标未发送。请设置您的呼号，并包含您的位置或消息。';
+
+  @override
   String get softwareBeaconSmartHint => '在间隔信标之间，当您移动较远距离或改变方向时发送额外的信标。';
 
   @override
