@@ -43,6 +43,9 @@ class RadioPanelControl extends StatefulWidget {
 }
 
 class _RadioPanelControlState extends State<RadioPanelControl> {
+  // Channel tile drag in progress (any panel), used to detect same-radio drops.
+  static ({int deviceId, radio.RadioChannelInfo data})? _activeChannelDrag;
+
   // DataBroker client for subscriptions
   final DataBrokerClient _broker = DataBrokerClient();
 
@@ -3522,6 +3525,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     final draggable = Draggable<radio.RadioChannelInfo>(
       data: full,
       dragAnchorStrategy: pointerDragAnchorStrategy,
+      onDragStarted: () =>
+          _activeChannelDrag = (deviceId: widget.deviceId, data: full),
+      onDragEnd: (_) => _activeChannelDrag = null,
       feedback: _buildChannelDragFeedback(channel),
       childWhenDragging: Opacity(opacity: 0.4, child: tile),
       child: tile,
@@ -3565,6 +3571,17 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     int slotId,
   ) async {
     if (widget.deviceId <= 0) return;
+    final drag = _activeChannelDrag;
+    final destination = _fullChannels[slotId];
+    if (drag != null &&
+        drag.deviceId == widget.deviceId &&
+        identical(drag.data, channel) &&
+        channel.rxFreq > 0 &&
+        destination != null &&
+        destination.rxFreq > 0) {
+      await _swapChannels(channel, destination);
+      return;
+    }
     final name = channel.name.isNotEmpty ? channel.name : 'Channel';
     final freq =
         channel.rxFreq > 0 ? ' (${channel.frequencyDisplay} MHz)' : '';
@@ -3600,6 +3617,57 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Programming slot ${slotId + 1} with "$name"...'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Swaps two non-empty channels on the same radio after confirmation.
+  Future<void> _swapChannels(
+    radio.RadioChannelInfo source,
+    radio.RadioChannelInfo destination,
+  ) async {
+    final srcSlot = source.channelId;
+    final dstSlot = destination.channelId;
+    String label(radio.RadioChannelInfo c) =>
+        '"${c.name.isNotEmpty ? c.name : 'Channel'}" (${c.frequencyDisplay} MHz)';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Swap channels'),
+        content: Text(
+          'Swap slot ${srcSlot + 1} ${label(source)} with '
+          'slot ${dstSlot + 1} ${label(destination)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Swap'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    _broker.dispatch(
+      deviceId: widget.deviceId,
+      name: 'WriteChannel',
+      data: source.copyWith(channelId: dstSlot),
+      store: false,
+    );
+    _broker.dispatch(
+      deviceId: widget.deviceId,
+      name: 'WriteChannel',
+      data: destination.copyWith(channelId: srcSlot),
+      store: false,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Swapping slots ${srcSlot + 1} and ${dstSlot + 1}...'),
         duration: const Duration(seconds: 2),
       ),
     );
