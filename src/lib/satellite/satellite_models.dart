@@ -54,6 +54,7 @@ class SatelliteTle {
       final l1 = lines[i + 1];
       final l2 = lines[i + 2];
       if (!l1.startsWith('1 ') || !l2.startsWith('2 ')) continue;
+      if (l1.length < 69 || l2.length < 69) continue;
       final id = _parseNoradId(l1);
       if (id == null) continue;
       result.add(

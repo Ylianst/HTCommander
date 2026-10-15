@@ -60,6 +60,24 @@ void main() {
       expect(tles, isEmpty);
     });
 
+    test('rejects either truncated TLE line even with a valid catalog number', () {
+      final tle = SatelliteTle.parseThreeLine(_seedTle).first;
+      for (final length in [7, 68]) {
+        expect(
+          SatelliteTle.parseThreeLine(
+            'Test\n${tle.line1.substring(0, length)}\n${tle.line2}',
+          ),
+          isEmpty,
+        );
+        expect(
+          SatelliteTle.parseThreeLine(
+            'Test\n${tle.line1}\n${tle.line2.substring(0, length)}',
+          ),
+          isEmpty,
+        );
+      }
+    });
+
     test('parses Alpha-5 catalog numbers (issue #78)', () {
       const l1 =
           '1 A0470U 26195F   26280.72619864  .00004254  00000-0  26453-3 0  9993';

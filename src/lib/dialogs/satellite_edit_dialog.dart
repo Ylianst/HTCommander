@@ -81,6 +81,7 @@ class _SatelliteEditDialogState extends State<_SatelliteEditDialog> {
     final t = (value ?? '').trim();
     if (t.isEmpty) return 'Required';
     if (!t.startsWith(prefix)) return 'Must start with "$prefix"';
+    if (t.length < 69) return 'TLE line must be at least 69 characters long';
     return null;
   }
 
