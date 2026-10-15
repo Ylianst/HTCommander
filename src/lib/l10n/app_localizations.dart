@@ -1228,6 +1228,24 @@ abstract class AppLocalizations {
   /// **'Set manually'**
   String get settingsLocationSourceManual;
 
+  /// No description provided for @settingsLocationSourcePhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this device\'s location'**
+  String get settingsLocationSourcePhone;
+
+  /// No description provided for @settingsLocationPhoneDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Location access was denied or is not available. HTCommander cannot use this device\'s location.'**
+  String get settingsLocationPhoneDenied;
+
+  /// No description provided for @settingsLocationPhoneOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get settingsLocationPhoneOpenSettings;
+
   /// No description provided for @settingsLocationLatitude.
   ///
   /// In en, this message translates to:

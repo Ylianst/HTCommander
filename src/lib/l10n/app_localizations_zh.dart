@@ -598,6 +598,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsLocationSourceManual => '手动设置';
 
   @override
+  String get settingsLocationSourcePhone => '使用本设备的位置';
+
+  @override
+  String get settingsLocationPhoneDenied =>
+      '位置访问被拒绝或不可用。HTCommander 无法使用本设备的位置。';
+
+  @override
+  String get settingsLocationPhoneOpenSettings => '打开设置';
+
+  @override
   String get settingsLocationLatitude => '纬度';
 
   @override

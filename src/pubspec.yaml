@@ -93,6 +93,8 @@ dependencies:
   sqflite: ^2.4.4
   sqflite_common_ffi: ^2.4.3
   sqlite3_flutter_libs: ^0.6.0+eol
+  # Opt-in phone GPS (License tab) on Android/iOS; see lib/handlers/location_handler.dart.
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:

@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:pasteboard/pasteboard.dart';
@@ -18,6 +19,7 @@ import '../allstar/allstar_portal_service.dart';
 import '../allstar/iax2_constants.dart' show iax2DefaultPort;
 import '../aprsis/aprsfi_client.dart';
 import '../echolink/echolink_credential_test.dart';
+import '../handlers/location_handler.dart';
 import '../radio/repeaterbook_client.dart';
 import '../services/serial/serial_port.dart';
 import '../services/data_broker_client.dart';
@@ -35,6 +37,8 @@ import 'contact_logo_picker_dialog.dart';
 import 'echolink_create_account_dialog.dart';
 import 'image_crop_dialog.dart';
 import 'location_picker_dialog.dart';
+
+enum _LocationSource { gps, manual, phone }
 
 /// Settings dialog with tabbed interface
 class SettingsDialog extends StatefulWidget {
@@ -56,6 +60,8 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   late TabController _tabController;
   late AppSettings _settings;
+  bool _phoneLocationDenied = false;
+  bool _showLocationSettingsButton = false;
 
   // Operator's own avatar for the License tab. Mirrors [_settings] and is
   // written back on save. A custom [_avatarImage] takes precedence over a
@@ -1601,6 +1607,12 @@ class _SettingsDialogState extends State<SettingsDialog>
   Widget _buildLocationSection() {
     final l10n = AppLocalizations.of(context);
     final manual = _settings.manualLocationEnabled;
+    final phoneSupported = LocationHandler.deviceGpsSupported;
+    final source = manual
+        ? _LocationSource.manual
+        : (phoneSupported && _settings.phoneLocationEnabled)
+        ? _LocationSource.phone
+        : _LocationSource.gps;
     final hasCoords =
         _settings.manualLatitude != 0 || _settings.manualLongitude != 0;
     return Container(
@@ -1613,24 +1625,29 @@ class _SettingsDialogState extends State<SettingsDialog>
           const SizedBox(height: 8),
           Text(l10n.settingsLocationInfo, style: _secondaryStyle()),
           const SizedBox(height: 8),
-          RadioGroup<bool>(
-            groupValue: manual,
-            onChanged: (value) => setState(
-              () => _settings.manualLocationEnabled = value ?? false,
-            ),
+          RadioGroup<_LocationSource>(
+            groupValue: source,
+            onChanged: _onLocationSourceChanged,
             child: Material(
               color: Colors.transparent,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  RadioListTile<bool>(
-                    value: false,
+                  RadioListTile<_LocationSource>(
+                    value: _LocationSource.gps,
                     title: Text(l10n.settingsLocationSourceGps),
                     contentPadding: EdgeInsets.zero,
                     dense: true,
                   ),
-                  RadioListTile<bool>(
-                    value: true,
+                  if (phoneSupported)
+                    RadioListTile<_LocationSource>(
+                      value: _LocationSource.phone,
+                      title: Text(l10n.settingsLocationSourcePhone),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  RadioListTile<_LocationSource>(
+                    value: _LocationSource.manual,
                     title: Text(l10n.settingsLocationSourceManual),
                     contentPadding: EdgeInsets.zero,
                     dense: true,
@@ -1639,6 +1656,21 @@ class _SettingsDialogState extends State<SettingsDialog>
               ),
             ),
           ),
+          if (_phoneLocationDenied) ...[
+            const SizedBox(height: 8),
+            Text(
+              l10n.settingsLocationPhoneDenied,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+            if (_showLocationSettingsButton) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => Geolocator.openAppSettings(),
+                icon: const Icon(Icons.settings, size: 18),
+                label: Text(l10n.settingsLocationPhoneOpenSettings),
+              ),
+            ],
+          ],
           if (manual) ...[
             const SizedBox(height: 8),
             if (hasCoords)
@@ -1671,6 +1703,45 @@ class _SettingsDialogState extends State<SettingsDialog>
         ],
       ),
     );
+  }
+
+  /// Applies a Location source choice. Selecting the phone GPS asks the OS for
+  /// location permission first and only takes effect if it is granted.
+  Future<void> _onLocationSourceChanged(_LocationSource? value) async {
+    if (value == _LocationSource.phone) {
+      LocationPermission permission;
+      try {
+        permission = await Geolocator.requestPermission();
+        // No permission model (Linux GeoClue, some browsers): probe for a fix.
+        if (permission == LocationPermission.unableToDetermine) {
+          await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              timeLimit: Duration(seconds: 15),
+            ),
+          );
+        }
+      } catch (_) {
+        permission = LocationPermission.denied;
+      }
+      if (!mounted) return;
+      final granted = LocationHandler.isPermissionUsable(permission);
+      setState(() {
+        _phoneLocationDenied = !granted;
+        _showLocationSettingsButton =
+            !granted && LocationHandler.canOpenLocationSettings;
+        if (granted) {
+          _settings.manualLocationEnabled = false;
+          _settings.phoneLocationEnabled = true;
+        }
+      });
+      return;
+    }
+    setState(() {
+      _phoneLocationDenied = false;
+      _showLocationSettingsButton = false;
+      _settings.manualLocationEnabled = value == _LocationSource.manual;
+      _settings.phoneLocationEnabled = false;
+    });
   }
 
   /// Small labelled read-only coordinate display used by the Location section.

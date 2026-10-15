@@ -96,6 +96,8 @@ class AppSettings {
   bool manualLocationEnabled;
   double manualLatitude;
   double manualLongitude;
+  // Opt-in: use the phone's own GPS (Android/iOS only).
+  bool phoneLocationEnabled;
 
   // Application tab
   bool satelliteSupport;
@@ -221,6 +223,7 @@ class AppSettings {
     this.manualLocationEnabled = false,
     this.manualLatitude = 0.0,
     this.manualLongitude = 0.0,
+    this.phoneLocationEnabled = false,
     this.satelliteSupport = false,
     this.messageNotifications = true,
     this.maxAprsMessages = 0,
@@ -274,6 +277,7 @@ class AppSettings {
     bool? manualLocationEnabled,
     double? manualLatitude,
     double? manualLongitude,
+    bool? phoneLocationEnabled,
     bool? satelliteSupport,
     bool? messageNotifications,
     int? maxAprsMessages,
@@ -330,6 +334,7 @@ class AppSettings {
           manualLocationEnabled ?? this.manualLocationEnabled,
       manualLatitude: manualLatitude ?? this.manualLatitude,
       manualLongitude: manualLongitude ?? this.manualLongitude,
+      phoneLocationEnabled: phoneLocationEnabled ?? this.phoneLocationEnabled,
       satelliteSupport: satelliteSupport ?? this.satelliteSupport,
       messageNotifications:
           messageNotifications ?? this.messageNotifications,
@@ -437,6 +442,8 @@ class AppSettings {
           DataBroker.getValue<double>(0, 'ManualLatitude', 0.0) ?? 0.0,
       manualLongitude:
           DataBroker.getValue<double>(0, 'ManualLongitude', 0.0) ?? 0.0,
+      phoneLocationEnabled:
+          (DataBroker.getValue<int>(0, 'PhoneLocationEnabled', 0) ?? 0) == 1,
       satelliteSupport:
           (DataBroker.getValue<int>(0, 'SatelliteSupport', 0) ?? 0) == 1,
       messageNotifications:
@@ -638,6 +645,11 @@ class AppSettings {
       deviceId: 0,
       name: 'ManualLongitude',
       data: manualLongitude,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'PhoneLocationEnabled',
+      data: phoneLocationEnabled ? 1 : 0,
     );
     DataBroker.dispatch(
       deviceId: 0,

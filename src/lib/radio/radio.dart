@@ -524,6 +524,11 @@ class Radio implements FirmwareRadio {
       name: 'ManualLocationEnabled',
       callback: _onShareSerialGpsChanged,
     );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'PhoneLocationEnabled',
+      callback: _onShareSerialGpsChanged,
+    );
   }
 
   void _onShareSerialGpsChanged(int devId, String name, dynamic data) {
@@ -1050,12 +1055,15 @@ class Radio implements FirmwareRadio {
     // The setting is persisted as an int (0/1), so read it as an int rather
     // than a bool: getValue<bool> would fail the type check on the stored int
     // and always return the default, silently disabling GPS sharing.
-    // A manual location (License tab) is always sent to the radio.
+    // A manual location or opted-in phone GPS (License tab) is always sent to
+    // the radio.
     final manualEnabled =
         (_broker.getValue<int>(0, 'ManualLocationEnabled', 0) ?? 0) == 1;
+    final phoneEnabled =
+        (_broker.getValue<int>(0, 'PhoneLocationEnabled', 0) ?? 0) == 1;
     final shareEnabled =
         (_broker.getValue<int>(0, 'ShareSerialGpsLocation', 0) ?? 0) == 1;
-    if (!manualEnabled && !shareEnabled) {
+    if (!manualEnabled && !phoneEnabled && !shareEnabled) {
       _debugGpsReason(
         'sharingDisabled',
         'Serial GPS: dropping fix - sharing disabled '
@@ -1850,7 +1858,10 @@ class Radio implements FirmwareRadio {
         (_broker.getValue<int>(0, 'ShareSerialGpsLocation', 0) ?? 0) == 1;
     final manualLocation =
         (_broker.getValue<int>(0, 'ManualLocationEnabled', 0) ?? 0) == 1;
-    final wantRegistered = _gpsEnabled || shareSerialGps || manualLocation;
+    final phoneLocation =
+        (_broker.getValue<int>(0, 'PhoneLocationEnabled', 0) ?? 0) == 1;
+    final wantRegistered =
+        _gpsEnabled || shareSerialGps || manualLocation || phoneLocation;
     if (wantRegistered == _positionNotifyRegistered) return;
     _positionNotifyRegistered = wantRegistered;
     _sendCommand(

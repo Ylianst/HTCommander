@@ -606,6 +606,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsLocationSourceManual => '手動で設定';
 
   @override
+  String get settingsLocationSourcePhone => 'このデバイスの位置情報を使用';
+
+  @override
+  String get settingsLocationPhoneDenied =>
+      '位置情報へのアクセスが拒否されたか、利用できません。HTCommanderはこのデバイスの位置情報を使用できません。';
+
+  @override
+  String get settingsLocationPhoneOpenSettings => '設定を開く';
+
+  @override
   String get settingsLocationLatitude => '緯度';
 
   @override

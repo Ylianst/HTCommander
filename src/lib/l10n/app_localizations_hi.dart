@@ -611,6 +611,16 @@ class AppLocalizationsHi extends AppLocalizations {
   String get settingsLocationSourceManual => 'मैन्युअल रूप से सेट करें';
 
   @override
+  String get settingsLocationSourcePhone => 'इस डिवाइस का स्थान उपयोग करें';
+
+  @override
+  String get settingsLocationPhoneDenied =>
+      'स्थान पहुँच अस्वीकार कर दी गई या उपलब्ध नहीं है। HTCommander इस डिवाइस का स्थान उपयोग नहीं कर सकता।';
+
+  @override
+  String get settingsLocationPhoneOpenSettings => 'सेटिंग्स खोलें';
+
+  @override
   String get settingsLocationLatitude => 'अक्षांश';
 
   @override

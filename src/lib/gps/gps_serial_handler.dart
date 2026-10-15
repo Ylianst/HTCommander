@@ -10,6 +10,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../handlers/location_handler.dart';
 import '../services/serial/serial_port.dart';
 import '../services/data_broker_client.dart';
 import 'gps_data.dart';
@@ -46,13 +47,16 @@ class GpsSerialHandler {
   GpsData _gpsData = GpsData();
   bool _isCommunicating = false;
   bool _disposed = false;
+  bool _overrideWasActive = false;
 
-  /// True while the user has selected a manual location (License tab). The
-  /// serial port stays closed so the manual fix is the only source of `GpsData`.
+  /// True while the user has selected a manual or device location (License
+  /// tab). The serial port stays closed so that is the only source of `GpsData`.
   bool get _manualLocationActive =>
-      (_broker.getValue<int>(_settingsDeviceId, 'ManualLocationEnabled', 0) ??
-          0) ==
-      1;
+      _isOn('ManualLocationEnabled') ||
+      (LocationHandler.deviceGpsSupported && _isOn('PhoneLocationEnabled'));
+
+  bool _isOn(String name) =>
+      (_broker.getValue<int>(_settingsDeviceId, name, 0) ?? 0) == 1;
 
   /// Whether serial port access is available on the current platform.
   static bool get _serialSupported =>
@@ -94,6 +98,11 @@ class GpsSerialHandler {
       name: 'ManualLocationEnabled',
       callback: _onManualLocationChanged,
     );
+    _broker.subscribe(
+      deviceId: _settingsDeviceId,
+      name: 'PhoneLocationEnabled',
+      callback: _onManualLocationChanged,
+    );
 
     // Read current settings and open port if already configured.
     _currentPortName =
@@ -101,7 +110,8 @@ class GpsSerialHandler {
         'None';
     _currentBaudRate =
         _broker.getValue<int>(_settingsDeviceId, 'GpsBaudRate', 4800) ?? 4800;
-    if (!_manualLocationActive) {
+    _overrideWasActive = _manualLocationActive;
+    if (!_overrideWasActive) {
       _startPort(_currentPortName, _currentBaudRate);
     }
   }
@@ -155,7 +165,10 @@ class GpsSerialHandler {
   /// mode is on (the LocationHandler owns `GpsData` then) and reopens the
   /// configured port when manual mode is turned back off.
   void _onManualLocationChanged(int deviceId, String name, Object? value) {
-    if (_manualLocationActive) {
+    final active = _manualLocationActive;
+    if (active == _overrideWasActive) return;
+    _overrideWasActive = active;
+    if (active) {
       _stopPort();
     } else {
       final portConfigured =

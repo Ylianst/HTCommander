@@ -611,6 +611,17 @@ class AppLocalizationsIt extends AppLocalizations {
   String get settingsLocationSourceManual => 'Imposta manualmente';
 
   @override
+  String get settingsLocationSourcePhone =>
+      'Usa la posizione di questo dispositivo';
+
+  @override
+  String get settingsLocationPhoneDenied =>
+      'L\'accesso alla posizione è stato negato o non è disponibile. HTCommander non può usare la posizione di questo dispositivo.';
+
+  @override
+  String get settingsLocationPhoneOpenSettings => 'Apri impostazioni';
+
+  @override
   String get settingsLocationLatitude => 'Latitudine';
 
   @override

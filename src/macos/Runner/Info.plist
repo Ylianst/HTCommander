@@ -47,5 +47,9 @@
 	<string>HTCommander uses speech recognition to transcribe received radio audio into text.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>HTCommander uses the microphone to display a live audio spectrogram.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>If you enable "Use this device's location" in Settings, HTCommander sends your position to your radio.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>If you enable "Use this device's location" in Settings, HTCommander sends your position to your radio.</string>
 </dict>
 </plist>
