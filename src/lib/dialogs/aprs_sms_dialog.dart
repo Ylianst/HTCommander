@@ -59,9 +59,27 @@ class _AprsSmsDialogState extends State<_AprsSmsDialog> {
 
   SmsOperation _operation = SmsOperation.sendPhone;
 
+  static const int _maxHistory = 16;
+  List<String> _phoneHistory = const [];
+  List<String> _aliasHistory = const [];
+
+  List<String> _loadHistory(String key) => List<String>.from(
+        _broker.getValue<List<String>>(0, key, const <String>[]) ??
+            const <String>[],
+      );
+
+  /// Returns [history] with [value] moved to the top, capped at [_maxHistory].
+  List<String> _withMostRecent(List<String> history, String value) {
+    return [value, ...history.where((e) => e != value)]
+        .take(_maxHistory)
+        .toList();
+  }
+
   @override
   void initState() {
     super.initState();
+    _phoneHistory = _loadHistory('SmsPhoneHistory');
+    _aliasHistory = _loadHistory('SmsAliasHistory');
     // Restore the last-used phone number and alias from device 0.
     final savedPhone = _broker.getValue<String>(0, 'SmsPhone', '') ?? '';
     final savedAlias = _broker.getValue<String>(0, 'SmsAlias', '') ?? '';
@@ -150,18 +168,26 @@ class _AprsSmsDialogState extends State<_AprsSmsDialog> {
 
   void _onOk() {
     if (_showPhone) {
-      _broker.dispatch(
-        deviceId: 0,
-        name: 'SmsPhone',
-        data: _phoneController.text.trim(),
-      );
+      final phone = _phoneController.text.trim();
+      _broker.dispatch(deviceId: 0, name: 'SmsPhone', data: phone);
+      if (phone.isNotEmpty) {
+        _broker.dispatch(
+          deviceId: 0,
+          name: 'SmsPhoneHistory',
+          data: _withMostRecent(_phoneHistory, phone),
+        );
+      }
     }
     if (_showAlias) {
-      _broker.dispatch(
-        deviceId: 0,
-        name: 'SmsAlias',
-        data: _aliasController.text.trim(),
-      );
+      final alias = _aliasController.text.trim();
+      _broker.dispatch(deviceId: 0, name: 'SmsAlias', data: alias);
+      if (alias.isNotEmpty) {
+        _broker.dispatch(
+          deviceId: 0,
+          name: 'SmsAliasHistory',
+          data: _withMostRecent(_aliasHistory, alias),
+        );
+      }
     }
     Navigator.of(context).pop(AprsSmsResult(_buildGatewayMessage()));
   }
@@ -258,7 +284,11 @@ class _AprsSmsDialogState extends State<_AprsSmsDialog> {
                     FilteringTextInputFormatter.deny(RegExp(r'[\s@#~|}]')),
                     LengthLimitingTextInputFormatter(32),
                   ],
-                  decoration: _inputDecoration(labelText: l10n.smsAliasLabel),
+                  decoration: _historyDecoration(
+                    labelText: l10n.smsAliasLabel,
+                    history: _aliasHistory,
+                    controller: _aliasController,
+                  ),
                 ),
               ],
               if (_showPhone) ...[
@@ -270,7 +300,11 @@ class _AprsSmsDialogState extends State<_AprsSmsDialog> {
                     FilteringTextInputFormatter.digitsOnly,
                     LengthLimitingTextInputFormatter(12),
                   ],
-                  decoration: _inputDecoration(labelText: l10n.smsPhoneNumber),
+                  decoration: _historyDecoration(
+                    labelText: l10n.smsPhoneNumber,
+                    history: _phoneHistory,
+                    controller: _phoneController,
+                  ),
                 ),
               ],
               if (_showMessage) ...[
@@ -328,6 +362,33 @@ class _AprsSmsDialogState extends State<_AprsSmsDialog> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Input decoration with a dropdown of recent values (most recent first).
+  InputDecoration _historyDecoration({
+    required String labelText,
+    required List<String> history,
+    required TextEditingController controller,
+  }) {
+    final base = _inputDecoration(labelText: labelText);
+    if (history.isEmpty) return base;
+    return base.copyWith(
+      suffixIcon: PopupMenuButton<String>(
+        icon: const Icon(Icons.arrow_drop_down),
+        tooltip: '',
+        constraints: const BoxConstraints(maxHeight: 320),
+        onSelected: (value) {
+          controller.value = TextEditingValue(
+            text: value,
+            selection: TextSelection.collapsed(offset: value.length),
+          );
+        },
+        itemBuilder: (context) => [
+          for (final entry in history)
+            PopupMenuItem<String>(value: entry, child: Text(entry)),
         ],
       ),
     );
