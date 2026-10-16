@@ -11,10 +11,12 @@ Future<bool> _isBluetoothOnWeb() async {
 Future<List<DiscoveredDevice>> _findCompatibleDevicesWeb(
   BluetoothService service, {
   required Duration timeout,
+  void Function(DiscoveredDevice device)? onDeviceFound,
 }) async {
   return _findCompatibleDevicesBle(
     service,
     timeout: timeout,
+    onDeviceFound: onDeviceFound,
     useServiceScanFilter: true,
     matchByName: false,
     returnEarlyOnFirstMatch: true,

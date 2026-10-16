@@ -1115,6 +1115,14 @@ class _MainFormState extends State<MainForm>
   // Connected radios tracking (list of device IDs)
   List<int> _connectedRadioIds = [];
 
+  // Radio connection dialog state: whether it is open, and the in-flight radio
+  // scan (shared so reopening the dialog does not start a second scan).
+  bool _connectDialogOpen = false;
+  Future<RadioScanOutcome>? _radioScan;
+  final List<CompatibleDevice> _radioScanFound = <CompatibleDevice>[];
+  final Set<void Function(CompatibleDevice)> _radioScanListeners =
+      <void Function(CompatibleDevice)>{};
+
   // Hosted web build: the host's radios (each {deviceId, name}) and which one is
   // bridged, so the browser can show the current radio and offer a switcher.
   List<Map<String, dynamic>> _hostRadioList = const [];
@@ -4596,7 +4604,10 @@ class _MainFormState extends State<MainForm>
   // ============================================================================
 
   void _onConnect() async {
-    _broker.logInfo('Connect requested - checking Bluetooth...');
+    // The dialog opens immediately and scans in the background, so ignore
+    // repeated Connect clicks while it is already showing.
+    if (_connectDialogOpen) return;
+    _connectDialogOpen = true;
 
     // EchoLink and AllStarLink can be connected over the internet even when
     // Bluetooth is unavailable or no radios are found, so they are always
@@ -4605,168 +4616,70 @@ class _MainFormState extends State<MainForm>
       if (_echoLinkAvailable) _echoLinkCompatibleDevice(),
       if (_allStarAvailable) _allStarCompatibleDevice(),
     ];
-    final bool echoLinkAvailable = internetDevices.isNotEmpty;
 
-    setState(() {
-      _statusText = AppLocalizations.of(context).statusCheckingBluetooth;
+    setState(() => _statusText = '');
+    try {
+      await RadioConnectionDialog.show(
+        context,
+        internetDevices,
+        scanner: _scanForRadios,
+      );
+    } finally {
+      _connectDialogOpen = false;
+    }
+  }
+
+  /// Background radio scan used by the connection dialog. Reports each radio
+  /// (with its stored friendly name) through [onFound] as soon as it is
+  /// discovered. If a scan is already running, joins it instead of starting
+  /// another one.
+  Future<RadioScanOutcome> _scanForRadios(
+    void Function(CompatibleDevice device) onFound,
+  ) {
+    final Future<RadioScanOutcome>? running = _radioScan;
+    if (running != null) {
+      _radioScanFound.forEach(onFound);
+      _radioScanListeners.add(onFound);
+      return running.whenComplete(() => _radioScanListeners.remove(onFound));
+    }
+
+    _radioScanFound.clear();
+    _radioScanListeners.add(onFound);
+    final Future<RadioScanOutcome> scan = _runRadioScan().whenComplete(() {
+      _radioScan = null;
+      _radioScanListeners.clear();
     });
+    _radioScan = scan;
+    return scan;
+  }
 
-    // Check if Bluetooth is available
+  Future<RadioScanOutcome> _runRadioScan() async {
+    _broker.logInfo('Connect requested - checking Bluetooth...');
     final bluetoothAvailable = await BluetoothService.checkBluetooth();
     if (!bluetoothAvailable) {
-      if (!mounted) return;
       _broker.logError('Bluetooth not available');
-      if (echoLinkAvailable) {
-        // Offer EchoLink even though Bluetooth radios cannot be reached.
-        setState(() => _statusText = '');
-        await RadioConnectionDialog.show(context, internetDevices);
-        return;
-      }
-      setState(() {
-        _statusText = AppLocalizations.of(context).statusBluetoothNotAvailable;
-      });
-      _showBluetoothWarning();
-      return;
+      return RadioScanOutcome.bluetoothUnavailable;
     }
 
     _broker.logInfo('Scanning for compatible radios...');
-    setState(() {
-      _statusText = AppLocalizations.of(context).statusScanningForRadios;
-    });
-
-    // Find compatible devices
-    final bluetoothService = BluetoothService();
-    List<DiscoveredDevice> allDevices;
-
     try {
-      allDevices = await bluetoothService.findCompatibleDevices(
+      final devices = await BluetoothService().findCompatibleDevices(
         timeout: const Duration(seconds: 5),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      _broker.logError('Error scanning for radios: $e');
-      if (echoLinkAvailable) {
-        setState(() => _statusText = '');
-        await RadioConnectionDialog.show(context, internetDevices);
-        return;
-      }
-      setState(() {
-        _statusText = AppLocalizations.of(context).statusErrorScanning;
-      });
-      _showErrorDialog(
-        AppLocalizations.of(context).commonError,
-        AppLocalizations.of(context).connectScanError(e.toString()),
-      );
-      return;
-    }
-
-    if (!mounted) return;
-
-    // No compatible devices found
-    if (allDevices.isEmpty) {
-      _broker.logInfo('No compatible radios found');
-      if (echoLinkAvailable) {
-        setState(() => _statusText = '');
-        await RadioConnectionDialog.show(context, internetDevices);
-        return;
-      }
-      setState(() {
-        _statusText = AppLocalizations.of(context).statusNoCompatibleRadios;
-      });
-      _showInfoDialog(
-        AppLocalizations.of(context).connectNoRadiosTitle,
-        AppLocalizations.of(context).connectNoRadiosBody,
-      );
-      return;
-    }
-
-    _broker.logInfo('Found ${allDevices.length} compatible device(s)');
-    for (final device in allDevices) {
-      _broker.logInfo('  ${device.name} (${device.id})');
-    }
-
-    // Apply stored friendly names
-    final compatibleDevices = _applyStoredFriendlyNames(allDevices);
-
-    // Filter out already connected radios
-    final connectedMacs = <String>{};
-    for (final radioId in _connectedRadioIds) {
-      final mac = DataBroker.getValue<String>(radioId, 'MacAddress', '');
-      if (mac != null && mac.isNotEmpty) {
-        connectedMacs.add(mac.toUpperCase());
-      }
-    }
-
-    final availableDevices = compatibleDevices.where((device) {
-      return !connectedMacs.contains(device.mac.toUpperCase());
-    }).toList();
-
-    // When EchoLink is available it is always shown in the dialog, so skip the
-    // "all radios already connected" shortcut and the single-radio auto-connect.
-    if (!echoLinkAvailable) {
-      if (availableDevices.isEmpty) {
-        _broker.logInfo('All radios already connected');
-        setState(() {
-          _statusText = AppLocalizations.of(context).statusAllRadiosConnected;
-        });
-        _showInfoDialog(
-          AppLocalizations.of(context).connectAllConnectedTitle,
-          AppLocalizations.of(context).connectAllConnectedBody,
-        );
-        return;
-      }
-
-      // If only 1 available radio and it's the only one found, connect directly
-      if (availableDevices.length == 1 && allDevices.length == 1) {
-        final device = availableDevices.first;
-        _broker.logInfo('Connecting to ${device.name}...');
-        setState(() {
-          _statusText = AppLocalizations.of(
-            context,
-          ).statusConnectingTo(device.name);
-        });
-
-        final deviceId = await bluetoothService.connectToRadio(
-          device.mac,
-          device.name,
-        );
-
-        if (!mounted) return;
-
-        if (deviceId != null) {
-          _broker.logInfo('Connected to ${device.name} (deviceId: $deviceId)');
-          setState(() {
-            _statusText = AppLocalizations.of(
-              context,
-            ).statusConnectedTo(device.name);
-          });
-        } else {
-          _broker.logError('Failed to connect to ${device.name}');
-          setState(() {
-            _statusText = AppLocalizations.of(
-              context,
-            ).statusFailedToConnect(device.name);
-          });
-          if (defaultTargetPlatform == TargetPlatform.macOS) {
-            await RadioConnectionDialog.showCannotConnect(context);
+        onDeviceFound: (device) {
+          _broker.logInfo('  Found ${device.name} (${device.id})');
+          final compatible = _applyStoredFriendlyNames([device]).first;
+          _radioScanFound.add(compatible);
+          for (final listener in List.of(_radioScanListeners)) {
+            listener(compatible);
           }
-        }
-        return;
-      }
+        },
+      );
+      _broker.logInfo('Found ${devices.length} compatible device(s)');
+      return RadioScanOutcome.completed;
+    } catch (e) {
+      _broker.logError('Error scanning for radios: $e');
+      rethrow;
     }
-
-    // Show the radio connection dialog. EchoLink is appended last so physical
-    // radios keep their natural order.
-    _broker.logInfo('Showing radio selection dialog...');
-    setState(() {
-      _statusText = '';
-    });
-
-    final dialogDevices = <CompatibleDevice>[
-      ...compatibleDevices,
-      ...internetDevices,
-    ];
-    await RadioConnectionDialog.show(context, dialogDevices);
   }
 
   /// Builds the EchoLink entry shown in the connection dialog. EchoLink connects
@@ -4822,56 +4735,6 @@ class _MainFormState extends State<MainForm>
     }
 
     return result;
-  }
-
-  void _showBluetoothWarning() {
-    final l10n = AppLocalizations.of(context);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.connectBluetoothOffTitle),
-        content: Text(l10n.connectBluetoothOffBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.commonOk),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showInfoDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(AppLocalizations.of(context).commonOk),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showErrorDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        icon: const Icon(Icons.error_outline, color: Colors.red),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(AppLocalizations.of(context).commonOk),
-          ),
-        ],
-      ),
-    );
   }
 
   void _onDisconnect() async {

@@ -142,27 +142,56 @@ class BluetoothService {
   }
 
   /// Find compatible radio devices
-  /// Returns a list of discovered devices that match known radio patterns
+  /// Returns a list of discovered devices that match known radio patterns.
+  ///
+  /// [onDeviceFound], when provided, is invoked once per compatible radio as
+  /// soon as it is identified (before the returned future completes), so a UI
+  /// can list radios progressively while the scan is still running.
   Future<List<DiscoveredDevice>> findCompatibleDevices({
     Duration timeout = const Duration(seconds: 5),
+    void Function(DiscoveredDevice device)? onDeviceFound,
   }) async {
     if (kIsWeb) {
-      return _findCompatibleDevicesWeb(this, timeout: timeout);
+      return _findCompatibleDevicesWeb(
+        this,
+        timeout: timeout,
+        onDeviceFound: onDeviceFound,
+      );
     }
     if (Platform.isWindows) {
-      return _findCompatibleDevicesWindows(this, timeout: timeout);
+      return _findCompatibleDevicesWindows(
+        this,
+        timeout: timeout,
+        onDeviceFound: onDeviceFound,
+      );
     }
     if (Platform.isMacOS) {
-      return _findCompatibleDevicesMacos(this, timeout: timeout);
+      return _findCompatibleDevicesMacos(
+        this,
+        timeout: timeout,
+        onDeviceFound: onDeviceFound,
+      );
     }
     if (Platform.isAndroid) {
-      return _findCompatibleDevicesAndroid(this, timeout: timeout);
+      return _findCompatibleDevicesAndroid(
+        this,
+        timeout: timeout,
+        onDeviceFound: onDeviceFound,
+      );
     }
     if (Platform.isIOS) {
-      return _findCompatibleDevicesIos(this, timeout: timeout);
+      return _findCompatibleDevicesIos(
+        this,
+        timeout: timeout,
+        onDeviceFound: onDeviceFound,
+      );
     }
     if (Platform.isLinux) {
-      return _findCompatibleDevicesLinux(this, timeout: timeout);
+      return _findCompatibleDevicesLinux(
+        this,
+        timeout: timeout,
+        onDeviceFound: onDeviceFound,
+      );
     }
     return const [];
   }

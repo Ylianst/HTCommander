@@ -11,8 +11,9 @@ Future<bool> _isBluetoothOnWindows() async {
 Future<List<DiscoveredDevice>> _findCompatibleDevicesWindows(
   BluetoothService service, {
   required Duration timeout,
+  void Function(DiscoveredDevice device)? onDeviceFound,
 }) async {
-  return _findCompatibleDevicesClassic(service);
+  return _findCompatibleDevicesClassic(service, onDeviceFound: onDeviceFound);
 }
 
 Future<int?> _connectToRadioWindows(

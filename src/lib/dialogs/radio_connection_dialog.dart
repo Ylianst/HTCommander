@@ -42,20 +42,40 @@ class CompatibleDevice {
   });
 }
 
+/// Outcome of a background radio scan run by [RadioConnectionDialog].
+enum RadioScanOutcome { completed, bluetoothUnavailable }
+
+/// Scans for radios while the connection dialog is open. Must call [onFound]
+/// once per radio as it is discovered and complete when the scan is over.
+/// Throws if the scan fails.
+typedef RadioScanner =
+    Future<RadioScanOutcome> Function(
+      void Function(CompatibleDevice device) onFound,
+    );
+
+enum _ScanState { idle, scanning, done, bluetoothUnavailable, error }
+
 /// Dialog for connecting to Bluetooth radios
 class RadioConnectionDialog extends StatefulWidget {
+  /// Devices listed as soon as the dialog opens (e.g. EchoLink / AllStarLink).
   final List<CompatibleDevice> devices;
 
-  const RadioConnectionDialog({super.key, required this.devices});
+  /// Optional background scan; radios it finds are added to the list live.
+  final RadioScanner? scanner;
 
-  /// Shows the radio connection dialog
+  const RadioConnectionDialog({super.key, required this.devices, this.scanner});
+
+  /// Shows the radio connection dialog. When [scanner] is given the dialog
+  /// opens immediately and radios are added as the scan discovers them.
   static Future<void> show(
     BuildContext context,
-    List<CompatibleDevice> devices,
-  ) {
+    List<CompatibleDevice> devices, {
+    RadioScanner? scanner,
+  }) {
     return showDialog(
       context: context,
-      builder: (context) => RadioConnectionDialog(devices: devices),
+      builder: (context) =>
+          RadioConnectionDialog(devices: devices, scanner: scanner),
     );
   }
 
@@ -129,10 +149,22 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
   // Current device-202 (AllStarLink) state, used when an AllStar row is shown.
   String _allStarState = 'Disconnected';
 
+  // Devices listed in the dialog; grows as the background scan finds radios.
+  late final List<CompatibleDevice> _devices = List<CompatibleDevice>.of(
+    widget.devices,
+  );
+
+  _ScanState _scanState = _ScanState.idle;
+  String _scanError = '';
+
   @override
   void initState() {
     super.initState();
 
+    if (widget.scanner != null) {
+      _scanState = _ScanState.scanning;
+      _runScan(widget.scanner!);
+    }
     // Load initial connected radios state
     _loadConnectedRadiosState();
 
@@ -162,6 +194,28 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
   void dispose() {
     _broker.dispose();
     super.dispose();
+  }
+
+  Future<void> _runScan(RadioScanner scanner) async {
+    _ScanState result;
+    try {
+      final outcome = await scanner(_onDeviceFound);
+      result = outcome == RadioScanOutcome.bluetoothUnavailable
+          ? _ScanState.bluetoothUnavailable
+          : _ScanState.done;
+    } catch (e) {
+      _scanError = e.toString();
+      result = _ScanState.error;
+    }
+    if (!mounted) return;
+    setState(() => _scanState = result);
+  }
+
+  void _onDeviceFound(CompatibleDevice device) {
+    if (!mounted) return;
+    final mac = device.mac.toUpperCase();
+    if (_devices.any((d) => d.mac.toUpperCase() == mac)) return;
+    setState(() => _devices.add(device));
   }
 
   void _loadConnectedRadiosState() {
@@ -267,7 +321,7 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
   }
 
   String _friendlyNameForMac(String mac) {
-    for (final device in widget.devices) {
+    for (final device in _devices) {
       if (device.mac.toUpperCase() == mac.toUpperCase()) {
         return device.name;
       }
@@ -369,7 +423,7 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
 
     // Use the original discovered Bluetooth name as the default name.
     String defaultFriendlyName = '';
-    for (final device in widget.devices) {
+    for (final device in _devices) {
       if (device.mac.toUpperCase() == macKey) {
         defaultFriendlyName = device.bluetoothName;
         break;
@@ -477,7 +531,7 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
           : newName;
 
       // Update the device's name in memory
-      for (final device in widget.devices) {
+      for (final device in _devices) {
         if (device.mac.toUpperCase() == macKey) {
           device.name = finalName;
           break;
@@ -529,14 +583,13 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    // Sort radios by name, but always keep the internet pseudo-radios last.
-    final sortedDevices = List<CompatibleDevice>.from(widget.devices)
-      ..sort((a, b) {
-        final bool aNet = a.isEchoLink || a.isAllStar;
-        final bool bNet = b.isEchoLink || b.isAllStar;
-        if (aNet != bNet) return aNet ? 1 : -1;
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      });
+    // Internet pseudo-radios stay at the top and radios follow in discovery
+    // order, so newly found radios are only ever appended at the bottom and
+    // never shift an entry the user is about to click.
+    final sortedDevices = <CompatibleDevice>[
+      ..._devices.where((d) => d.isEchoLink || d.isAllStar),
+      ..._devices.where((d) => !d.isEchoLink && !d.isAllStar),
+    ];
 
     return HTDialog(
       title: l10n.radioConnectionTitle,
@@ -555,11 +608,16 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                 color: scheme.surface,
                 child: sortedDevices.isEmpty
                     ? Center(
-                        child: Text(
-                          l10n.radioConnectionEmpty,
-                          textAlign: TextAlign.center,
-                          style: DialogStyles.bodyStyle,
-                        ),
+                        child: _scanState == _ScanState.scanning
+                            ? _buildScanningIndicator(l10n)
+                            : Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Text(
+                                  _emptyListMessage(l10n),
+                                  textAlign: TextAlign.center,
+                                  style: DialogStyles.bodyStyle,
+                                ),
+                              ),
                       )
                     : ListView.builder(
                         itemCount: sortedDevices.length,
@@ -655,10 +713,15 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
             ),
           ),
           const SizedBox(height: 16),
-          // Buttons
+          // Scan status and buttons
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              Expanded(
+                child: sortedDevices.isEmpty
+                    ? const SizedBox.shrink()
+                    : _buildScanStatus(l10n, scheme),
+              ),
+              const SizedBox(width: 12),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: DialogStyles.primaryButtonStyle(context),
@@ -668,6 +731,93 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Message shown in place of the list when no devices are available.
+  String _emptyListMessage(AppLocalizations l10n) {
+    switch (_scanState) {
+      case _ScanState.bluetoothUnavailable:
+        return l10n.connectBluetoothOffBody;
+      case _ScanState.error:
+        return l10n.connectScanError(_scanError);
+      default:
+        return l10n.radioConnectionEmpty;
+    }
+  }
+
+  Widget _buildScanningIndicator(AppLocalizations l10n) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Text(
+            l10n.statusScanningForRadios,
+            style: DialogStyles.bodyStyle,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Scan progress / result shown next to the Close button while the list
+  /// already has entries.
+  Widget _buildScanStatus(AppLocalizations l10n, ColorScheme scheme) {
+    switch (_scanState) {
+      case _ScanState.scanning:
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: _buildScanningIndicator(l10n),
+        );
+      case _ScanState.bluetoothUnavailable:
+        return _buildScanMessage(
+          Icons.bluetooth_disabled,
+          l10n.statusBluetoothNotAvailable,
+          scheme.error,
+        );
+      case _ScanState.error:
+        return Tooltip(
+          message: l10n.connectScanError(_scanError),
+          child: _buildScanMessage(
+            Icons.error_outline,
+            l10n.statusErrorScanning,
+            scheme.error,
+          ),
+        );
+      case _ScanState.done:
+        if (_devices.any((d) => !d.isEchoLink && !d.isAllStar)) {
+          return const SizedBox.shrink();
+        }
+        return _buildScanMessage(
+          Icons.info_outline,
+          l10n.statusNoCompatibleRadios,
+          scheme.onSurfaceVariant,
+        );
+      case _ScanState.idle:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildScanMessage(IconData icon, String text, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            text,
+            style: DialogStyles.bodyStyle.copyWith(color: color),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }

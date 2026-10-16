@@ -11,10 +11,12 @@ Future<bool> _isBluetoothOnIos() async {
 Future<List<DiscoveredDevice>> _findCompatibleDevicesIos(
   BluetoothService service, {
   required Duration timeout,
+  void Function(DiscoveredDevice device)? onDeviceFound,
 }) async {
   return _findCompatibleDevicesBle(
     service,
     timeout: timeout,
+    onDeviceFound: onDeviceFound,
     // iOS: these radios do NOT advertise their 128-bit control service; they
     // only advertise unrelated UUIDs (e.g. `88a1`), and CoreBluetooth hides
     // any 128-bit overflow UUIDs from an unfiltered scan. So scan unfiltered

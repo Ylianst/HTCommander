@@ -58,14 +58,59 @@ Future<bool> _isBluetoothOnBleAdapter() async {
 }
 
 Future<List<DiscoveredDevice>> _findCompatibleDevicesClassic(
-  BluetoothService service,
-) async {
+  BluetoothService service, {
+  void Function(DiscoveredDevice device)? onDeviceFound,
+}) async {
   final devices = <DiscoveredDevice>[];
+  final seen = <String>{};
 
-  // Enumerate every paired device first for diagnostics. This makes field
-  // reports of "no compatible radios found" (see GitHub issue #35) actionable:
-  // the Debug log then shows exactly what the OS Bluetooth stack reports for
-  // each paired device, including the SDP service UUIDs used for matching.
+  void addDevice(BluetoothClassicDevice device) {
+    if (!seen.add(device.address.toUpperCase().replaceAll('-', ':'))) return;
+    final discovered = DiscoveredDevice(
+      id: device.address,
+      name: device.name,
+      type: BluetoothType.classic,
+      rssi: 0,
+      serviceUuids: device.serviceUuids,
+    );
+    devices.add(discovered);
+    onDeviceFound?.call(discovered);
+  }
+
+  // Platforms that support it report each radio as soon as it is identified,
+  // ahead of the complete list.
+  final StreamSubscription<BluetoothClassicDevice>? foundSub =
+      onDeviceFound == null
+      ? null
+      : BluetoothClassicMacOS.instance.discoveredDevices.listen(addDevice);
+
+  try {
+    final classicDevices = await BluetoothClassicMacOS.instance
+        .findCompatibleDevices();
+    service._broker.logInfo(
+      '[BT-Classic] ${classicDevices.length} compatible radio(s) identified',
+    );
+    classicDevices.forEach(addDevice);
+  } catch (e) {
+    service._broker.logError(
+      '[BT-Classic] Error finding compatible devices: $e',
+    );
+  } finally {
+    await foundSub?.cancel();
+  }
+
+  // Enumerate every paired device for diagnostics. This makes field reports of
+  // "no compatible radios found" (see GitHub issue #35) actionable: the Debug
+  // log then shows exactly what the OS Bluetooth stack reports for each paired
+  // device, including the SDP service UUIDs used for matching. It repeats the
+  // per-device SDP lookups, so it runs in the background rather than delaying
+  // the scan result.
+  unawaited(_logPairedClassicDevices(service));
+
+  return devices;
+}
+
+Future<void> _logPairedClassicDevices(BluetoothService service) async {
   try {
     final paired = await BluetoothClassicMacOS.instance.getPairedDevices();
     service._broker.logInfo(
@@ -82,32 +127,6 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesClassic(
       '[BT-Classic] Failed to enumerate paired devices: $e',
     );
   }
-
-  try {
-    final classicDevices = await BluetoothClassicMacOS.instance
-        .findCompatibleDevices();
-    service._broker.logInfo(
-      '[BT-Classic] ${classicDevices.length} compatible radio(s) identified',
-    );
-
-    for (final device in classicDevices) {
-      devices.add(
-        DiscoveredDevice(
-          id: device.address,
-          name: device.name,
-          type: BluetoothType.classic,
-          rssi: 0,
-          serviceUuids: device.serviceUuids,
-        ),
-      );
-    }
-  } catch (e) {
-    service._broker.logError(
-      '[BT-Classic] Error finding compatible devices: $e',
-    );
-  }
-
-  return devices;
 }
 
 Future<List<DiscoveredDevice>> _findCompatibleDevicesBle(
@@ -116,6 +135,7 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesBle(
   required bool useServiceScanFilter,
   required bool matchByName,
   required bool returnEarlyOnFirstMatch,
+  void Function(DiscoveredDevice device)? onDeviceFound,
 }) async {
   final devices = <DiscoveredDevice>[];
   final seen = <String>{};
@@ -171,6 +191,7 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesBle(
         if (isMatch) {
           seen.add(deviceId);
           devices.add(device);
+          onDeviceFound?.call(device);
           if (returnEarlyOnFirstMatch) {
             return devices;
           }
@@ -202,6 +223,7 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesBle(
       if (discovered.isCompatibleRadio) {
         seen.add(deviceId);
         devices.add(discovered);
+        onDeviceFound?.call(discovered);
       }
     }
   } catch (_) {

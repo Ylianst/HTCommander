@@ -353,8 +353,11 @@ struct BluetoothClassicPlugin::Impl {
       uint64_t bt_address,
       std::initializer_list<winrt::guid> service_uuids);
 
-  // Helper: enumerate all paired Classic BT devices.
-  flutter::EncodableList GetPairedDeviceList(bool compatible_only);
+  // Helper: enumerate all paired Classic BT devices. When emit_found is set,
+  // each included device is also sent immediately as a "found" event on the
+  // control event channel so the UI can list radios as they are identified.
+  flutter::EncodableList GetPairedDeviceList(bool compatible_only,
+                                             bool emit_found = false);
 };
 
 // ---------------------------------------------------------------------------
@@ -561,7 +564,8 @@ BluetoothClassicPlugin::Impl::OpenRfcommSocket(
 // GetPairedDeviceList helper
 // ---------------------------------------------------------------------------
 flutter::EncodableList
-BluetoothClassicPlugin::Impl::GetPairedDeviceList(bool compatible_only) {
+BluetoothClassicPlugin::Impl::GetPairedDeviceList(bool compatible_only,
+                                                  bool emit_found) {
   flutter::EncodableList list;
   try {
     auto selector =
@@ -600,6 +604,14 @@ BluetoothClassicPlugin::Impl::GetPairedDeviceList(bool compatible_only) {
         dev[flutter::EncodableValue("isConnected")] = flutter::EncodableValue(false);
         dev[flutter::EncodableValue("serviceUuids")] =
             flutter::EncodableValue(std::move(service_uuids));
+
+        if (emit_found && !shutdown.load() && data_handler) {
+          flutter::EncodableMap ev = dev;
+          ev[flutter::EncodableValue("event")] =
+              flutter::EncodableValue(std::string("found"));
+          data_handler->Send(flutter::EncodableValue(std::move(ev)));
+        }
+
         list.push_back(flutter::EncodableValue(std::move(dev)));
       } catch (...) {}
     }
@@ -695,7 +707,7 @@ void BluetoothClassicPlugin::Impl::DoFindCompatibleDevices(
 
   std::thread([res, self]() {
     winrt::init_apartment(winrt::apartment_type::multi_threaded);
-    res->Success(flutter::EncodableValue(self->GetPairedDeviceList(true)));
+    res->Success(flutter::EncodableValue(self->GetPairedDeviceList(true, true)));
     winrt::uninit_apartment();
   }).detach();
 }

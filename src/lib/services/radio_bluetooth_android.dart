@@ -11,6 +11,7 @@ Future<bool> _isBluetoothOnAndroid() async {
 Future<List<DiscoveredDevice>> _findCompatibleDevicesAndroid(
   BluetoothService service, {
   required Duration timeout,
+  void Function(DiscoveredDevice device)? onDeviceFound,
 }) async {
   // Android 12+ (API 31+) requires the BLUETOOTH_CONNECT (and BLUETOOTH_SCAN)
   // runtime permissions before paired devices can be enumerated. On first run
@@ -23,7 +24,7 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesAndroid(
   // Android uses Bluetooth Classic (RFCOMM/SPP) for the radio control channel.
   // Compatible radios must be paired (bonded) in the Android Bluetooth settings;
   // they are enumerated from the bonded device list by the native plugin.
-  return _findCompatibleDevicesClassic(service);
+  return _findCompatibleDevicesClassic(service, onDeviceFound: onDeviceFound);
 }
 
 /// Requests the runtime Bluetooth permissions needed to enumerate and connect

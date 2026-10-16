@@ -48,6 +48,17 @@ class BluetoothClassicMacOS {
       StreamController<BluetoothClassicEvent>.broadcast();
   final _audioDataControllers = <String, StreamController<Uint8List>>{};
 
+  // Compatible radios reported one at a time while [findCompatibleDevices] runs.
+  final _discoveredController =
+      StreamController<BluetoothClassicDevice>.broadcast();
+
+  /// Compatible radios as the native plugin identifies them during
+  /// [findCompatibleDevices], before the full result list is returned. Only
+  /// platforms that report incremental results (currently Windows) emit here;
+  /// on others every device arrives only in the final list.
+  Stream<BluetoothClassicDevice> get discoveredDevices =>
+      _discoveredController.stream;
+
   /// Stream of connection events (connected, disconnected)
   Stream<BluetoothClassicEvent> get connectionEvents =>
       _connectionController.stream;
@@ -93,6 +104,18 @@ class BluetoothClassicMacOS {
           final address = _normalizeAddress(rawAddress);
 
           switch (eventType) {
+            case 'found':
+              _discoveredController.add(
+                BluetoothClassicDevice(
+                  name: event['name'] as String? ?? '',
+                  address: address,
+                  isPaired: true,
+                  serviceUuids: (event['serviceUuids'] as List?)
+                      ?.whereType<String>()
+                      .toList(),
+                ),
+              );
+              break;
             case 'connected':
               _connectionController.add(
                 BluetoothClassicEvent(
@@ -370,6 +393,7 @@ class BluetoothClassicMacOS {
       controller.close();
     }
     _audioDataControllers.clear();
+    _discoveredController.close();
   }
 }
 
