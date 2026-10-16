@@ -337,6 +337,15 @@ struct BluetoothClassicPlugin::Impl {
       const std::string& address,
       std::vector<uint8_t> data,
       std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
+  // BLE pairing for devices that require an authenticated (PIN) bond before
+  // exposing their GATT characteristics, e.g. MeshCore companion radios.
+  void DoBlePair(
+      const std::string& address,
+      const std::string& pin,
+      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
+  void DoBleUnpair(
+      const std::string& address,
+      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
 
   // Read loop — runs on a background thread per connection.
   void ReadLoop(std::shared_ptr<RfcommConn> conn, bool is_audio);
@@ -478,6 +487,19 @@ void BluetoothClassicPlugin::Impl::HandleMethodCall(
     DoSendAudio(std::get<std::string>(*addr),
                 std::get<std::vector<uint8_t>>(*data),
                 std::move(result));
+  } else if (method == "blePair") {
+    auto* addr = GetArg("address");
+    auto* pin = GetArg("pin");
+    if (!addr) { result->Error("INVALID_ARGS", "Missing address"); return; }
+    std::string pin_str;
+    if (pin) {
+      if (const auto* s = std::get_if<std::string>(pin)) pin_str = *s;
+    }
+    DoBlePair(std::get<std::string>(*addr), pin_str, std::move(result));
+  } else if (method == "bleUnpair") {
+    auto* addr = GetArg("address");
+    if (!addr) { result->Error("INVALID_ARGS", "Missing address"); return; }
+    DoBleUnpair(std::get<std::string>(*addr), std::move(result));
   } else {
     result->NotImplemented();
   }
@@ -931,6 +953,105 @@ void BluetoothClassicPlugin::Impl::DoSendAudio(
     } catch (...) {
       res->Success(flutter::EncodableValue(false));
     }
+    winrt::uninit_apartment();
+  }).detach();
+}
+
+// Pairs with a BLE device using a caller-supplied PIN. Returns a status string:
+// "paired", "alreadyPaired", "notFound", "cannotPair", "authFailed",
+// "failed:<DevicePairingResultStatus>" or "error".
+void BluetoothClassicPlugin::Impl::DoBlePair(
+    const std::string& address,
+    const std::string& pin,
+    std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+  auto res = std::shared_ptr<
+      flutter::MethodResult<flutter::EncodableValue>>(std::move(result));
+
+  std::thread([address, pin, res]() {
+    winrt::init_apartment(winrt::apartment_type::multi_threaded);
+    std::string status = "error";
+    try {
+      auto device =
+          bt::BluetoothLEDevice::FromBluetoothAddressAsync(ParseMac(address))
+              .get();
+      if (!device) {
+        status = "notFound";
+      } else {
+        auto pairing = device.DeviceInformation().Pairing();
+        if (pairing.IsPaired()) {
+          status = "alreadyPaired";
+        } else if (!pairing.CanPair()) {
+          status = "cannotPair";
+        } else {
+          auto custom = pairing.Custom();
+          const winrt::hstring hpin = winrt::to_hstring(pin);
+          auto token = custom.PairingRequested(
+              [hpin](const denum::DeviceInformationCustomPairing&,
+                     const denum::DevicePairingRequestedEventArgs& args) {
+                if (args.PairingKind() ==
+                    denum::DevicePairingKinds::ProvidePin) {
+                  args.Accept(hpin);
+                } else {
+                  args.Accept();
+                }
+              });
+          const auto kinds = denum::DevicePairingKinds::ConfirmOnly |
+                             denum::DevicePairingKinds::ProvidePin |
+                             denum::DevicePairingKinds::ConfirmPinMatch |
+                             denum::DevicePairingKinds::DisplayPin;
+          auto pair_result =
+              custom
+                  .PairAsync(kinds, denum::DevicePairingProtectionLevel::
+                                        EncryptionAndAuthentication)
+                  .get();
+          custom.PairingRequested(token);
+          switch (pair_result.Status()) {
+            case denum::DevicePairingResultStatus::Paired:
+              status = "paired";
+              break;
+            case denum::DevicePairingResultStatus::AlreadyPaired:
+              status = "alreadyPaired";
+              break;
+            case denum::DevicePairingResultStatus::AuthenticationFailure:
+            case denum::DevicePairingResultStatus::AuthenticationTimeout:
+            case denum::DevicePairingResultStatus::RejectedByHandler:
+              status = "authFailed";
+              break;
+            default:
+              status = "failed:" +
+                       std::to_string(static_cast<int>(pair_result.Status()));
+              break;
+          }
+        }
+      }
+    } catch (...) {
+      status = "error";
+    }
+    res->Success(flutter::EncodableValue(status));
+    winrt::uninit_apartment();
+  }).detach();
+}
+
+void BluetoothClassicPlugin::Impl::DoBleUnpair(
+    const std::string& address,
+    std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+  auto res = std::shared_ptr<
+      flutter::MethodResult<flutter::EncodableValue>>(std::move(result));
+
+  std::thread([address, res]() {
+    winrt::init_apartment(winrt::apartment_type::multi_threaded);
+    bool ok = false;
+    try {
+      auto device =
+          bt::BluetoothLEDevice::FromBluetoothAddressAsync(ParseMac(address))
+              .get();
+      if (device) {
+        auto r = device.DeviceInformation().Pairing().UnpairAsync().get();
+        ok = r.Status() == denum::DeviceUnpairingResultStatus::Unpaired ||
+             r.Status() == denum::DeviceUnpairingResultStatus::AlreadyUnpaired;
+      }
+    } catch (...) {}
+    res->Success(flutter::EncodableValue(ok));
     winrt::uninit_apartment();
   }).detach();
 }

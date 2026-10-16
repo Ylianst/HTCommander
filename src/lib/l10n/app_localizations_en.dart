@@ -2612,7 +2612,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aprsMessengerMode => 'Messenger Mode';
 
   @override
-  String get aprsAllMessages => 'All Messages';
+  String get aprsAllMessages => 'All APRS Messages';
 
   @override
   String get aprsAddContact => 'Add Contact...';
@@ -4012,5 +4012,194 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String radioTransmitStalled(int seconds) {
     return 'The data packet has not been transmitted after $seconds seconds. The channel may be busy. This often happens when the squelch is set too low (for example 0), so the radio never sees a clear channel. Try raising the squelch level.';
+  }
+
+  @override
+  String get tabMessaging => 'Messaging';
+
+  @override
+  String get meshAllMessages => 'All MeshCore Messages';
+
+  @override
+  String get meshConnectionMenu => 'MeshCore Connection...';
+
+  @override
+  String get meshConnectionTitle => 'MeshCore Connection';
+
+  @override
+  String get meshUser => 'MeshCore User';
+
+  @override
+  String get meshGroup => 'MeshCore Group';
+
+  @override
+  String get meshAddUserTitle => 'Add MeshCore User';
+
+  @override
+  String get meshAddGroupTitle => 'Add MeshCore Group';
+
+  @override
+  String get meshName => 'Name';
+
+  @override
+  String get meshPublicKey => 'Public key';
+
+  @override
+  String get meshPublicKeyHint => '64 hexadecimal digits';
+
+  @override
+  String get meshInvalidPublicKey => 'Enter a 64-digit hexadecimal public key.';
+
+  @override
+  String get meshInvalidName => 'Enter a name.';
+
+  @override
+  String get meshGroupType => 'Group type';
+
+  @override
+  String get meshGroupPublic => 'Public';
+
+  @override
+  String get meshGroupHashtag => 'Hashtag';
+
+  @override
+  String get meshGroupPrivate => 'Private';
+
+  @override
+  String get meshGroupPublicHelp =>
+      'The well-known public channel. Anyone can read it.';
+
+  @override
+  String get meshGroupHashtagHelp =>
+      'Encrypted on air, but anyone who knows or guesses the name can read it.';
+
+  @override
+  String get meshGroupPrivateHelp =>
+      'Only people who have the secret key can read it. Share the key privately.';
+
+  @override
+  String get meshSecret => 'Secret key';
+
+  @override
+  String get meshSecretHint => '32 hexadecimal digits';
+
+  @override
+  String get meshInvalidSecret => 'Enter a 32-digit hexadecimal secret key.';
+
+  @override
+  String get meshGenerate => 'Generate';
+
+  @override
+  String get meshScan => 'Scan';
+
+  @override
+  String get meshScanning => 'Scanning...';
+
+  @override
+  String get meshNoDevices =>
+      'No MeshCore devices found. Make sure the companion radio is powered on and not connected to another phone or computer.';
+
+  @override
+  String get meshPin => 'PIN';
+
+  @override
+  String get meshPinHint =>
+      'Shown on the device screen, or 123456 if it has no screen';
+
+  @override
+  String get meshForgetPairing => 'Forget Pairing';
+
+  @override
+  String get meshSendAdvert => 'Send Advert';
+
+  @override
+  String get meshRefresh => 'Refresh';
+
+  @override
+  String get meshAutoConnect => 'Reconnect automatically at startup';
+
+  @override
+  String get meshStatusDisconnected => 'Disconnected';
+
+  @override
+  String get meshStatusPairing => 'Pairing...';
+
+  @override
+  String get meshStatusConnecting => 'Connecting...';
+
+  @override
+  String get meshStatusSyncing => 'Synchronizing...';
+
+  @override
+  String get meshStatusConnected => 'Connected';
+
+  @override
+  String get meshStatusError => 'Connection failed';
+
+  @override
+  String get meshDevice => 'Device';
+
+  @override
+  String get meshFirmware => 'Firmware';
+
+  @override
+  String get meshRadio => 'Radio';
+
+  @override
+  String get meshBattery => 'Battery';
+
+  @override
+  String get meshCopyPublicKey => 'Copy Public Key';
+
+  @override
+  String get meshNotConnected => 'MeshCore is not connected.';
+
+  @override
+  String get meshTypeMessage => 'Type a MeshCore message...';
+
+  @override
+  String meshBytesLeft(int count) {
+    return '$count bytes left';
+  }
+
+  @override
+  String get meshResend => 'Resend';
+
+  @override
+  String get meshRemoveGroup => 'Remove Group from Radio';
+
+  @override
+  String get meshDirect => 'Direct';
+
+  @override
+  String meshHops(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hops',
+      one: '1 hop',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String meshActionFailed(String error) {
+    return 'MeshCore: $error';
+  }
+
+  @override
+  String get meshAdvertSent => 'Advert sent.';
+
+  @override
+  String get meshPairingForgotten =>
+      'Pairing removed. Enter the PIN on the next connection.';
+
+  @override
+  String get meshClearPrompt =>
+      'Clear all MeshCore messages? This cannot be undone.';
+
+  @override
+  String meshRemoveGroupPrompt(String name) {
+    return 'Remove the group \"$name\" from the MeshCore radio? Its message history is kept.';
   }
 }

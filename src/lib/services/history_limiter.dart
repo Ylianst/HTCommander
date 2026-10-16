@@ -33,6 +33,9 @@ class HistoryLimiter {
   /// self-compacting file enforced (there is no user setting for it).
   static const int _aprsIsHardCap = 1000;
 
+  /// Upper bound kept on MeshCore message history (no user setting yet).
+  static const int _meshCoreHardCap = 5000;
+
   /// Fallback cap for comms events when no user limit is set. The old
   /// voicetext.json was implicitly bounded to the in-memory history size
   /// because it rewrote the whole (trimmed) list; keep that bound so the table
@@ -182,6 +185,7 @@ class HistoryLimiter {
         );
         // Bound the internet APRS history the way the old file self-compacted.
         await db.aprsis.enforceLimit(_aprsIsHardCap);
+        await db.meshcore.enforceLimit(_meshCoreHardCap);
       } catch (e) {
         debugPrint('HistoryLimiter: failed to enforce limits: $e');
       }

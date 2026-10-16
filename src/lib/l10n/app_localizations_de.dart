@@ -2649,7 +2649,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get aprsMessengerMode => 'Messenger-Modus';
 
   @override
-  String get aprsAllMessages => 'Alle Nachrichten';
+  String get aprsAllMessages => 'Alle APRS-Nachrichten';
 
   @override
   String get aprsAddContact => 'Kontakt hinzufügen...';
@@ -4055,6 +4055,197 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String radioTransmitStalled(int seconds) {
-    return 'Das Datenpaket wurde nach $seconds Sekunden noch nicht gesendet. Der Kanal ist m?glicherweise belegt. Dies passiert h?ufig, wenn die Rauschsperre (Squelch) zu niedrig eingestellt ist (z. B. 0), sodass das Funkger?t nie einen freien Kanal erkennt. Erh?hen Sie die Squelch-Stufe.';
+    return 'Das Datenpaket wurde nach $seconds Sekunden noch nicht gesendet. Der Kanal ist möglicherweise belegt. Das passiert häufig, wenn die Rauschsperre (Squelch) zu niedrig eingestellt ist (zum Beispiel 0), sodass das Funkgerät nie einen freien Kanal erkennt. Erhöhen Sie die Rauschsperre.';
+  }
+
+  @override
+  String get tabMessaging => 'Nachrichten';
+
+  @override
+  String get meshAllMessages => 'Alle MeshCore-Nachrichten';
+
+  @override
+  String get meshConnectionMenu => 'MeshCore-Verbindung...';
+
+  @override
+  String get meshConnectionTitle => 'MeshCore-Verbindung';
+
+  @override
+  String get meshUser => 'MeshCore-Benutzer';
+
+  @override
+  String get meshGroup => 'MeshCore-Gruppe';
+
+  @override
+  String get meshAddUserTitle => 'MeshCore-Benutzer hinzufügen';
+
+  @override
+  String get meshAddGroupTitle => 'MeshCore-Gruppe hinzufügen';
+
+  @override
+  String get meshName => 'Name';
+
+  @override
+  String get meshPublicKey => 'Öffentlicher Schlüssel';
+
+  @override
+  String get meshPublicKeyHint => '64 Hexadezimalziffern';
+
+  @override
+  String get meshInvalidPublicKey =>
+      'Öffentlichen Schlüssel mit 64 Hexadezimalziffern eingeben.';
+
+  @override
+  String get meshInvalidName => 'Namen eingeben.';
+
+  @override
+  String get meshGroupType => 'Gruppentyp';
+
+  @override
+  String get meshGroupPublic => 'Öffentlich';
+
+  @override
+  String get meshGroupHashtag => 'Hashtag';
+
+  @override
+  String get meshGroupPrivate => 'Privat';
+
+  @override
+  String get meshGroupPublicHelp =>
+      'Der bekannte öffentliche Kanal. Jeder kann ihn lesen.';
+
+  @override
+  String get meshGroupHashtagHelp =>
+      'Über Funk verschlüsselt, aber jeder, der den Namen kennt oder errät, kann ihn lesen.';
+
+  @override
+  String get meshGroupPrivateHelp =>
+      'Nur wer den geheimen Schlüssel hat, kann ihn lesen. Den Schlüssel vertraulich weitergeben.';
+
+  @override
+  String get meshSecret => 'Geheimer Schlüssel';
+
+  @override
+  String get meshSecretHint => '32 Hexadezimalziffern';
+
+  @override
+  String get meshInvalidSecret =>
+      'Geheimen Schlüssel mit 32 Hexadezimalziffern eingeben.';
+
+  @override
+  String get meshGenerate => 'Erzeugen';
+
+  @override
+  String get meshScan => 'Suchen';
+
+  @override
+  String get meshScanning => 'Suche läuft...';
+
+  @override
+  String get meshNoDevices =>
+      'Keine MeshCore-Geräte gefunden. Prüfen Sie, ob das Companion-Funkgerät eingeschaltet und nicht mit einem anderen Telefon oder Computer verbunden ist.';
+
+  @override
+  String get meshPin => 'PIN';
+
+  @override
+  String get meshPinHint =>
+      'Wird auf dem Gerätedisplay angezeigt, oder 123456, wenn es kein Display hat';
+
+  @override
+  String get meshForgetPairing => 'Kopplung entfernen';
+
+  @override
+  String get meshSendAdvert => 'Ankündigung senden';
+
+  @override
+  String get meshRefresh => 'Aktualisieren';
+
+  @override
+  String get meshAutoConnect => 'Beim Start automatisch neu verbinden';
+
+  @override
+  String get meshStatusDisconnected => 'Getrennt';
+
+  @override
+  String get meshStatusPairing => 'Kopplung...';
+
+  @override
+  String get meshStatusConnecting => 'Verbindung wird hergestellt...';
+
+  @override
+  String get meshStatusSyncing => 'Synchronisierung...';
+
+  @override
+  String get meshStatusConnected => 'Verbunden';
+
+  @override
+  String get meshStatusError => 'Verbindung fehlgeschlagen';
+
+  @override
+  String get meshDevice => 'Gerät';
+
+  @override
+  String get meshFirmware => 'Firmware';
+
+  @override
+  String get meshRadio => 'Funk';
+
+  @override
+  String get meshBattery => 'Akku';
+
+  @override
+  String get meshCopyPublicKey => 'Öffentlichen Schlüssel kopieren';
+
+  @override
+  String get meshNotConnected => 'MeshCore ist nicht verbunden.';
+
+  @override
+  String get meshTypeMessage => 'MeshCore-Nachricht eingeben...';
+
+  @override
+  String meshBytesLeft(int count) {
+    return 'Noch $count Bytes';
+  }
+
+  @override
+  String get meshResend => 'Erneut senden';
+
+  @override
+  String get meshRemoveGroup => 'Gruppe vom Funkgerät entfernen';
+
+  @override
+  String get meshDirect => 'Direkt';
+
+  @override
+  String meshHops(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Hops',
+      one: '1 Hop',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String meshActionFailed(String error) {
+    return 'MeshCore: $error';
+  }
+
+  @override
+  String get meshAdvertSent => 'Ankündigung gesendet.';
+
+  @override
+  String get meshPairingForgotten =>
+      'Kopplung entfernt. Bei der nächsten Verbindung die PIN eingeben.';
+
+  @override
+  String get meshClearPrompt =>
+      'Alle MeshCore-Nachrichten löschen? Diese Aktion kann nicht rückgängig gemacht werden.';
+
+  @override
+  String meshRemoveGroupPrompt(String name) {
+    return 'Die Gruppe „$name“ vom MeshCore-Funkgerät entfernen? Der Nachrichtenverlauf bleibt erhalten.';
   }
 }

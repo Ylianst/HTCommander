@@ -2624,7 +2624,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get aprsMessengerMode => 'मैसेंजर मोड';
 
   @override
-  String get aprsAllMessages => 'सभी संदेश';
+  String get aprsAllMessages => 'सभी APRS संदेश';
 
   @override
   String get aprsAddContact => 'संपर्क जोड़ें...';
@@ -4024,6 +4024,197 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String radioTransmitStalled(int seconds) {
-    return '???? ????? $seconds ????? ?? ??? ?? ???????? ???? ??? ??? ???? ?????? ?? ???? ??? ??? ????? ?? ???? ?? ?? ????????? ???? ?? (?????? ?? ??? 0) ?? ??? ??, ????? ?????? ?? ??? ???? ???? ???? ?????? ????????? ???? ?????? ??????';
+    return 'डेटा पैकेट $seconds सेकंड के बाद भी प्रसारित नहीं हुआ है। चैनल व्यस्त हो सकता है। ऐसा अक्सर तब होता है जब स्क्वेल्च बहुत कम (उदाहरण के लिए 0) पर सेट होता है, जिससे रेडियो को कभी खाली चैनल नहीं मिलता। स्क्वेल्च स्तर बढ़ाकर देखें।';
+  }
+
+  @override
+  String get tabMessaging => 'संदेश';
+
+  @override
+  String get meshAllMessages => 'सभी MeshCore संदेश';
+
+  @override
+  String get meshConnectionMenu => 'MeshCore कनेक्शन...';
+
+  @override
+  String get meshConnectionTitle => 'MeshCore कनेक्शन';
+
+  @override
+  String get meshUser => 'MeshCore उपयोगकर्ता';
+
+  @override
+  String get meshGroup => 'MeshCore समूह';
+
+  @override
+  String get meshAddUserTitle => 'MeshCore उपयोगकर्ता जोड़ें';
+
+  @override
+  String get meshAddGroupTitle => 'MeshCore समूह जोड़ें';
+
+  @override
+  String get meshName => 'नाम';
+
+  @override
+  String get meshPublicKey => 'सार्वजनिक कुंजी';
+
+  @override
+  String get meshPublicKeyHint => '64 हेक्साडेसिमल अंक';
+
+  @override
+  String get meshInvalidPublicKey =>
+      '64 अंकों की हेक्साडेसिमल सार्वजनिक कुंजी दर्ज करें।';
+
+  @override
+  String get meshInvalidName => 'एक नाम दर्ज करें।';
+
+  @override
+  String get meshGroupType => 'समूह का प्रकार';
+
+  @override
+  String get meshGroupPublic => 'सार्वजनिक';
+
+  @override
+  String get meshGroupHashtag => 'हैशटैग';
+
+  @override
+  String get meshGroupPrivate => 'निजी';
+
+  @override
+  String get meshGroupPublicHelp =>
+      'सर्वविदित सार्वजनिक चैनल। इसे कोई भी पढ़ सकता है।';
+
+  @override
+  String get meshGroupHashtagHelp =>
+      'प्रसारण में एन्क्रिप्टेड, लेकिन जो भी नाम जानता है या अनुमान लगा लेता है, वह इसे पढ़ सकता है।';
+
+  @override
+  String get meshGroupPrivateHelp =>
+      'केवल वे लोग इसे पढ़ सकते हैं जिनके पास गुप्त कुंजी है। कुंजी निजी रूप से साझा करें।';
+
+  @override
+  String get meshSecret => 'गुप्त कुंजी';
+
+  @override
+  String get meshSecretHint => '32 हेक्साडेसिमल अंक';
+
+  @override
+  String get meshInvalidSecret =>
+      '32 अंकों की हेक्साडेसिमल गुप्त कुंजी दर्ज करें।';
+
+  @override
+  String get meshGenerate => 'बनाएँ';
+
+  @override
+  String get meshScan => 'स्कैन करें';
+
+  @override
+  String get meshScanning => 'स्कैन किया जा रहा है...';
+
+  @override
+  String get meshNoDevices =>
+      'कोई MeshCore डिवाइस नहीं मिला। सुनिश्चित करें कि साथी रेडियो चालू है और किसी अन्य फ़ोन या कंप्यूटर से कनेक्ट नहीं है।';
+
+  @override
+  String get meshPin => 'PIN';
+
+  @override
+  String get meshPinHint =>
+      'डिवाइस की स्क्रीन पर दिखाया जाता है, या स्क्रीन न होने पर 123456';
+
+  @override
+  String get meshForgetPairing => 'पेयरिंग हटाएँ';
+
+  @override
+  String get meshSendAdvert => 'घोषणा भेजें';
+
+  @override
+  String get meshRefresh => 'रीफ़्रेश करें';
+
+  @override
+  String get meshAutoConnect => 'स्टार्टअप पर अपने-आप फिर से कनेक्ट करें';
+
+  @override
+  String get meshStatusDisconnected => 'डिस्कनेक्ट';
+
+  @override
+  String get meshStatusPairing => 'पेयर किया जा रहा है...';
+
+  @override
+  String get meshStatusConnecting => 'कनेक्ट किया जा रहा है...';
+
+  @override
+  String get meshStatusSyncing => 'सिंक किया जा रहा है...';
+
+  @override
+  String get meshStatusConnected => 'कनेक्ट है';
+
+  @override
+  String get meshStatusError => 'कनेक्शन विफल';
+
+  @override
+  String get meshDevice => 'डिवाइस';
+
+  @override
+  String get meshFirmware => 'फ़र्मवेयर';
+
+  @override
+  String get meshRadio => 'रेडियो';
+
+  @override
+  String get meshBattery => 'बैटरी';
+
+  @override
+  String get meshCopyPublicKey => 'सार्वजनिक कुंजी कॉपी करें';
+
+  @override
+  String get meshNotConnected => 'MeshCore कनेक्ट नहीं है।';
+
+  @override
+  String get meshTypeMessage => 'एक MeshCore संदेश लिखें...';
+
+  @override
+  String meshBytesLeft(int count) {
+    return '$count बाइट शेष';
+  }
+
+  @override
+  String get meshResend => 'फिर से भेजें';
+
+  @override
+  String get meshRemoveGroup => 'रेडियो से समूह हटाएँ';
+
+  @override
+  String get meshDirect => 'सीधा';
+
+  @override
+  String meshHops(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count हॉप',
+      one: '1 हॉप',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String meshActionFailed(String error) {
+    return 'MeshCore: $error';
+  }
+
+  @override
+  String get meshAdvertSent => 'घोषणा भेजी गई।';
+
+  @override
+  String get meshPairingForgotten =>
+      'पेयरिंग हटा दी गई। अगली बार कनेक्ट करते समय PIN दर्ज करें।';
+
+  @override
+  String get meshClearPrompt =>
+      'सभी MeshCore संदेश साफ़ करें? यह क्रिया पूर्ववत नहीं की जा सकती।';
+
+  @override
+  String meshRemoveGroupPrompt(String name) {
+    return 'MeshCore रेडियो से समूह \"$name\" हटाएँ? इसका संदेश इतिहास रखा जाएगा।';
   }
 }

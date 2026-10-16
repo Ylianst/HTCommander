@@ -101,6 +101,7 @@ class AppSettings {
 
   // Application tab
   bool satelliteSupport;
+  bool meshCoreSupport;
   bool messageNotifications;
 
   // Limits tab (0 = unlimited)
@@ -225,6 +226,7 @@ class AppSettings {
     this.manualLongitude = 0.0,
     this.phoneLocationEnabled = false,
     this.satelliteSupport = false,
+    this.meshCoreSupport = false,
     this.messageNotifications = true,
     this.maxAprsMessages = 0,
     this.maxPackets = 0,
@@ -279,6 +281,7 @@ class AppSettings {
     double? manualLongitude,
     bool? phoneLocationEnabled,
     bool? satelliteSupport,
+    bool? meshCoreSupport,
     bool? messageNotifications,
     int? maxAprsMessages,
     int? maxPackets,
@@ -336,6 +339,7 @@ class AppSettings {
       manualLongitude: manualLongitude ?? this.manualLongitude,
       phoneLocationEnabled: phoneLocationEnabled ?? this.phoneLocationEnabled,
       satelliteSupport: satelliteSupport ?? this.satelliteSupport,
+      meshCoreSupport: meshCoreSupport ?? this.meshCoreSupport,
       messageNotifications:
           messageNotifications ?? this.messageNotifications,
       maxAprsMessages: maxAprsMessages ?? this.maxAprsMessages,
@@ -446,6 +450,8 @@ class AppSettings {
           (DataBroker.getValue<int>(0, 'PhoneLocationEnabled', 0) ?? 0) == 1,
       satelliteSupport:
           (DataBroker.getValue<int>(0, 'SatelliteSupport', 0) ?? 0) == 1,
+      meshCoreSupport:
+          (DataBroker.getValue<int>(0, 'MeshCoreSupport', 0) ?? 0) == 1,
       messageNotifications:
           (DataBroker.getValue<int>(0, 'MessageNotifications', 1) ?? 1) == 1,
       maxAprsMessages:
@@ -655,6 +661,11 @@ class AppSettings {
       deviceId: 0,
       name: 'SatelliteSupport',
       data: satelliteSupport ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'MeshCoreSupport',
+      data: meshCoreSupport ? 1 : 0,
     );
     DataBroker.dispatch(
       deviceId: 0,

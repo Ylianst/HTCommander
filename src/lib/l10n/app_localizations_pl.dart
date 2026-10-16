@@ -2638,7 +2638,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get aprsMessengerMode => 'Tryb komunikatora';
 
   @override
-  String get aprsAllMessages => 'Wszystkie wiadomości';
+  String get aprsAllMessages => 'Wszystkie wiadomości APRS';
 
   @override
   String get aprsAddContact => 'Dodaj kontakt...';
@@ -4046,6 +4046,199 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String radioTransmitStalled(int seconds) {
-    return 'Pakiet danych nie zosta? wys?any po $seconds sekundach. Kana? mo?e by? zaj?ty. Dzieje si? tak cz?sto, gdy blokada szum?w (squelch) jest ustawiona zbyt nisko (np. 0), przez co radiotelefon nigdy nie wykrywa wolnego kana?u. Spr?buj zwi?kszy? poziom squelch.';
+    return 'Pakiet danych nie został wysłany po $seconds sekundach. Kanał może być zajęty. Często dzieje się tak, gdy blokada szumów (squelch) jest ustawiona zbyt nisko (np. 0), przez co radio nigdy nie wykrywa wolnego kanału. Spróbuj zwiększyć poziom blokady szumów.';
+  }
+
+  @override
+  String get tabMessaging => 'Wiadomości';
+
+  @override
+  String get meshAllMessages => 'Wszystkie wiadomości MeshCore';
+
+  @override
+  String get meshConnectionMenu => 'Połączenie MeshCore...';
+
+  @override
+  String get meshConnectionTitle => 'Połączenie MeshCore';
+
+  @override
+  String get meshUser => 'Użytkownik MeshCore';
+
+  @override
+  String get meshGroup => 'Grupa MeshCore';
+
+  @override
+  String get meshAddUserTitle => 'Dodaj użytkownika MeshCore';
+
+  @override
+  String get meshAddGroupTitle => 'Dodaj grupę MeshCore';
+
+  @override
+  String get meshName => 'Nazwa';
+
+  @override
+  String get meshPublicKey => 'Klucz publiczny';
+
+  @override
+  String get meshPublicKeyHint => '64 cyfry szesnastkowe';
+
+  @override
+  String get meshInvalidPublicKey =>
+      'Wpisz klucz publiczny składający się z 64 cyfr szesnastkowych.';
+
+  @override
+  String get meshInvalidName => 'Wpisz nazwę.';
+
+  @override
+  String get meshGroupType => 'Typ grupy';
+
+  @override
+  String get meshGroupPublic => 'Publiczna';
+
+  @override
+  String get meshGroupHashtag => 'Hashtag';
+
+  @override
+  String get meshGroupPrivate => 'Prywatna';
+
+  @override
+  String get meshGroupPublicHelp =>
+      'Powszechnie znany kanał publiczny. Każdy może go czytać.';
+
+  @override
+  String get meshGroupHashtagHelp =>
+      'Szyfrowany w eterze, ale każdy, kto zna lub odgadnie nazwę, może go czytać.';
+
+  @override
+  String get meshGroupPrivateHelp =>
+      'Mogą go czytać tylko osoby, które mają tajny klucz. Udostępniaj klucz prywatnie.';
+
+  @override
+  String get meshSecret => 'Tajny klucz';
+
+  @override
+  String get meshSecretHint => '32 cyfry szesnastkowe';
+
+  @override
+  String get meshInvalidSecret =>
+      'Wpisz tajny klucz składający się z 32 cyfr szesnastkowych.';
+
+  @override
+  String get meshGenerate => 'Generuj';
+
+  @override
+  String get meshScan => 'Skanuj';
+
+  @override
+  String get meshScanning => 'Skanowanie...';
+
+  @override
+  String get meshNoDevices =>
+      'Nie znaleziono urządzeń MeshCore. Upewnij się, że radio towarzyszące jest włączone i nie jest połączone z innym telefonem ani komputerem.';
+
+  @override
+  String get meshPin => 'PIN';
+
+  @override
+  String get meshPinHint =>
+      'Wyświetlany na ekranie urządzenia lub 123456, jeśli nie ma ono ekranu';
+
+  @override
+  String get meshForgetPairing => 'Zapomnij parowanie';
+
+  @override
+  String get meshSendAdvert => 'Wyślij ogłoszenie';
+
+  @override
+  String get meshRefresh => 'Odśwież';
+
+  @override
+  String get meshAutoConnect => 'Łącz ponownie automatycznie przy uruchomieniu';
+
+  @override
+  String get meshStatusDisconnected => 'Rozłączono';
+
+  @override
+  String get meshStatusPairing => 'Parowanie...';
+
+  @override
+  String get meshStatusConnecting => 'Łączenie...';
+
+  @override
+  String get meshStatusSyncing => 'Synchronizowanie...';
+
+  @override
+  String get meshStatusConnected => 'Połączono';
+
+  @override
+  String get meshStatusError => 'Połączenie nie powiodło się';
+
+  @override
+  String get meshDevice => 'Urządzenie';
+
+  @override
+  String get meshFirmware => 'Oprogramowanie';
+
+  @override
+  String get meshRadio => 'Radio';
+
+  @override
+  String get meshBattery => 'Bateria';
+
+  @override
+  String get meshCopyPublicKey => 'Kopiuj klucz publiczny';
+
+  @override
+  String get meshNotConnected => 'MeshCore nie jest połączony.';
+
+  @override
+  String get meshTypeMessage => 'Wpisz wiadomość MeshCore...';
+
+  @override
+  String meshBytesLeft(int count) {
+    return 'Pozostało bajtów: $count';
+  }
+
+  @override
+  String get meshResend => 'Wyślij ponownie';
+
+  @override
+  String get meshRemoveGroup => 'Usuń grupę z radia';
+
+  @override
+  String get meshDirect => 'Bezpośrednio';
+
+  @override
+  String meshHops(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count przeskoku',
+      many: '$count przeskoków',
+      few: '$count przeskoki',
+      one: '1 przeskok',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String meshActionFailed(String error) {
+    return 'MeshCore: $error';
+  }
+
+  @override
+  String get meshAdvertSent => 'Wysłano ogłoszenie.';
+
+  @override
+  String get meshPairingForgotten =>
+      'Usunięto parowanie. Przy następnym połączeniu wpisz PIN.';
+
+  @override
+  String get meshClearPrompt =>
+      'Wyczyścić wszystkie wiadomości MeshCore? Tej operacji nie można cofnąć.';
+
+  @override
+  String meshRemoveGroupPrompt(String name) {
+    return 'Usunąć grupę „$name” z radia MeshCore? Historia wiadomości zostanie zachowana.';
   }
 }

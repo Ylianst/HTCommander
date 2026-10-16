@@ -34,6 +34,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'aprsis_dao.dart';
 import 'comms_dao.dart';
 import 'legacy_import.dart';
+import 'meshcore_dao.dart';
 import 'packets_dao.dart';
 
 /// Owns the shared SQLite connection and exposes one DAO per stored table.
@@ -41,7 +42,8 @@ class AppDatabase {
   AppDatabase._(this.db)
     : comms = CommsDao(db),
       packets = PacketsDao(db),
-      aprsis = AprsisDao(db);
+      aprsis = AprsisDao(db),
+      meshcore = MeshCoreDao(db);
 
   /// The open database handle. DAOs run their statements against this.
   final Database db;
@@ -55,9 +57,12 @@ class AppDatabase {
   /// Internet-gated (APRS-IS) message history.
   final AprsisDao aprsis;
 
+  /// MeshCore direct and group message history.
+  final MeshCoreDao meshcore;
+
   /// Current schema version. Bump and add an [onUpgrade] branch when the schema
   /// changes.
-  static const int _schemaVersion = 1;
+  static const int _schemaVersion = 2;
 
   static const String _dbFileName = 'htcommander.db';
 
@@ -115,7 +120,7 @@ class AppDatabase {
           await _createSchema(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
-          // No migrations yet (v1). Future schema changes branch on oldVersion.
+          if (oldVersion < 2) await MeshCoreDao.createSchema(db);
         },
       ),
     );
@@ -175,6 +180,8 @@ class AppDatabase {
       )
     ''');
     await db.execute('CREATE INDEX idx_aprsis_time ON aprsis_history(time_us)');
+
+    await MeshCoreDao.createSchema(db);
   }
 
   /// Runs a quick integrity check so a corrupt database is rebuilt rather than

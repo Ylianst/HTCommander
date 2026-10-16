@@ -1652,7 +1652,7 @@
   "aprsShowAll": "Show Telemetry",
   "aprsShowAprsIs": "Show Internet Traffic",
   "aprsMessengerMode": "Messenger Mode",
-  "aprsAllMessages": "All Messages",
+  "aprsAllMessages": "All APRS Messages",
   "aprsAddContact": "Add Contact...",
   "aprsNoConversations": "No conversations yet",
   "aprsSelectConversation": "Select a conversation",
@@ -2363,6 +2363,89 @@
         "type": "int",
         "example": "10"
       }
+    }
+  },
+  "tabMessaging": "Messaging",
+  "@tabMessaging": {
+    "description": "Tab that shows APRS and MeshCore conversations (formerly the APRS tab)."
+  },
+  "meshAllMessages": "All MeshCore Messages",
+  "meshConnectionMenu": "MeshCore Connection...",
+  "meshConnectionTitle": "MeshCore Connection",
+  "meshUser": "MeshCore User",
+  "meshGroup": "MeshCore Group",
+  "meshAddUserTitle": "Add MeshCore User",
+  "meshAddGroupTitle": "Add MeshCore Group",
+  "meshName": "Name",
+  "meshPublicKey": "Public key",
+  "meshPublicKeyHint": "64 hexadecimal digits",
+  "meshInvalidPublicKey": "Enter a 64-digit hexadecimal public key.",
+  "meshInvalidName": "Enter a name.",
+  "meshGroupType": "Group type",
+  "meshGroupPublic": "Public",
+  "meshGroupHashtag": "Hashtag",
+  "meshGroupPrivate": "Private",
+  "meshGroupPublicHelp": "The well-known public channel. Anyone can read it.",
+  "meshGroupHashtagHelp": "Encrypted on air, but anyone who knows or guesses the name can read it.",
+  "meshGroupPrivateHelp": "Only people who have the secret key can read it. Share the key privately.",
+  "meshSecret": "Secret key",
+  "meshSecretHint": "32 hexadecimal digits",
+  "meshInvalidSecret": "Enter a 32-digit hexadecimal secret key.",
+  "meshGenerate": "Generate",
+  "meshScan": "Scan",
+  "meshScanning": "Scanning...",
+  "meshNoDevices": "No MeshCore devices found. Make sure the companion radio is powered on and not connected to another phone or computer.",
+  "meshPin": "PIN",
+  "meshPinHint": "Shown on the device screen, or 123456 if it has no screen",
+  "meshForgetPairing": "Forget Pairing",
+  "meshSendAdvert": "Send Advert",
+  "meshRefresh": "Refresh",
+  "meshAutoConnect": "Reconnect automatically at startup",
+  "meshStatusDisconnected": "Disconnected",
+  "meshStatusPairing": "Pairing...",
+  "meshStatusConnecting": "Connecting...",
+  "meshStatusSyncing": "Synchronizing...",
+  "meshStatusConnected": "Connected",
+  "meshStatusError": "Connection failed",
+  "meshDevice": "Device",
+  "meshFirmware": "Firmware",
+  "meshRadio": "Radio",
+  "meshBattery": "Battery",
+  "meshCopyPublicKey": "Copy Public Key",
+  "meshNotConnected": "MeshCore is not connected.",
+  "meshTypeMessage": "Type a MeshCore message...",
+  "meshBytesLeft": "{count} bytes left",
+  "@meshBytesLeft": {
+    "description": "Remaining UTF-8 bytes in a MeshCore message.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "meshResend": "Resend",
+  "meshRemoveGroup": "Remove Group from Radio",
+  "meshDirect": "Direct",
+  "meshHops": "{count, plural, one{1 hop} other{{count} hops}}",
+  "@meshHops": {
+    "description": "Number of repeater hops a MeshCore message travelled.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "meshActionFailed": "MeshCore: {error}",
+  "@meshActionFailed": {
+    "description": "Error shown when a MeshCore action fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "meshAdvertSent": "Advert sent.",
+  "meshPairingForgotten": "Pairing removed. Enter the PIN on the next connection.",
+  "meshClearPrompt": "Clear all MeshCore messages? This cannot be undone.",
+  "meshRemoveGroupPrompt": "Remove the group \"{name}\" from the MeshCore radio? Its message history is kept.",
+  "@meshRemoveGroupPrompt": {
+    "description": "Confirmation before removing a MeshCore group channel from the companion radio.",
+    "placeholders": {
+      "name": { "type": "String" }
     }
   }
 }

@@ -4819,7 +4819,7 @@ abstract class AppLocalizations {
   /// No description provided for @aprsAllMessages.
   ///
   /// In en, this message translates to:
-  /// **'All Messages'**
+  /// **'All APRS Messages'**
   String get aprsAllMessages;
 
   /// No description provided for @aprsAddContact.
@@ -7329,6 +7329,342 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The data packet has not been transmitted after {seconds} seconds. The channel may be busy. This often happens when the squelch is set too low (for example 0), so the radio never sees a clear channel. Try raising the squelch level.'**
   String radioTransmitStalled(int seconds);
+
+  /// Tab that shows APRS and MeshCore conversations (formerly the APRS tab).
+  ///
+  /// In en, this message translates to:
+  /// **'Messaging'**
+  String get tabMessaging;
+
+  /// No description provided for @meshAllMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'All MeshCore Messages'**
+  String get meshAllMessages;
+
+  /// No description provided for @meshConnectionMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'MeshCore Connection...'**
+  String get meshConnectionMenu;
+
+  /// No description provided for @meshConnectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'MeshCore Connection'**
+  String get meshConnectionTitle;
+
+  /// No description provided for @meshUser.
+  ///
+  /// In en, this message translates to:
+  /// **'MeshCore User'**
+  String get meshUser;
+
+  /// No description provided for @meshGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'MeshCore Group'**
+  String get meshGroup;
+
+  /// No description provided for @meshAddUserTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add MeshCore User'**
+  String get meshAddUserTitle;
+
+  /// No description provided for @meshAddGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add MeshCore Group'**
+  String get meshAddGroupTitle;
+
+  /// No description provided for @meshName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get meshName;
+
+  /// No description provided for @meshPublicKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Public key'**
+  String get meshPublicKey;
+
+  /// No description provided for @meshPublicKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'64 hexadecimal digits'**
+  String get meshPublicKeyHint;
+
+  /// No description provided for @meshInvalidPublicKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a 64-digit hexadecimal public key.'**
+  String get meshInvalidPublicKey;
+
+  /// No description provided for @meshInvalidName.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name.'**
+  String get meshInvalidName;
+
+  /// No description provided for @meshGroupType.
+  ///
+  /// In en, this message translates to:
+  /// **'Group type'**
+  String get meshGroupType;
+
+  /// No description provided for @meshGroupPublic.
+  ///
+  /// In en, this message translates to:
+  /// **'Public'**
+  String get meshGroupPublic;
+
+  /// No description provided for @meshGroupHashtag.
+  ///
+  /// In en, this message translates to:
+  /// **'Hashtag'**
+  String get meshGroupHashtag;
+
+  /// No description provided for @meshGroupPrivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Private'**
+  String get meshGroupPrivate;
+
+  /// No description provided for @meshGroupPublicHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The well-known public channel. Anyone can read it.'**
+  String get meshGroupPublicHelp;
+
+  /// No description provided for @meshGroupHashtagHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypted on air, but anyone who knows or guesses the name can read it.'**
+  String get meshGroupHashtagHelp;
+
+  /// No description provided for @meshGroupPrivateHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Only people who have the secret key can read it. Share the key privately.'**
+  String get meshGroupPrivateHelp;
+
+  /// No description provided for @meshSecret.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret key'**
+  String get meshSecret;
+
+  /// No description provided for @meshSecretHint.
+  ///
+  /// In en, this message translates to:
+  /// **'32 hexadecimal digits'**
+  String get meshSecretHint;
+
+  /// No description provided for @meshInvalidSecret.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a 32-digit hexadecimal secret key.'**
+  String get meshInvalidSecret;
+
+  /// No description provided for @meshGenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate'**
+  String get meshGenerate;
+
+  /// No description provided for @meshScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan'**
+  String get meshScan;
+
+  /// No description provided for @meshScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning...'**
+  String get meshScanning;
+
+  /// No description provided for @meshNoDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'No MeshCore devices found. Make sure the companion radio is powered on and not connected to another phone or computer.'**
+  String get meshNoDevices;
+
+  /// No description provided for @meshPin.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN'**
+  String get meshPin;
+
+  /// No description provided for @meshPinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown on the device screen, or 123456 if it has no screen'**
+  String get meshPinHint;
+
+  /// No description provided for @meshForgetPairing.
+  ///
+  /// In en, this message translates to:
+  /// **'Forget Pairing'**
+  String get meshForgetPairing;
+
+  /// No description provided for @meshSendAdvert.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Advert'**
+  String get meshSendAdvert;
+
+  /// No description provided for @meshRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get meshRefresh;
+
+  /// No description provided for @meshAutoConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnect automatically at startup'**
+  String get meshAutoConnect;
+
+  /// No description provided for @meshStatusDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected'**
+  String get meshStatusDisconnected;
+
+  /// No description provided for @meshStatusPairing.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing...'**
+  String get meshStatusPairing;
+
+  /// No description provided for @meshStatusConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting...'**
+  String get meshStatusConnecting;
+
+  /// No description provided for @meshStatusSyncing.
+  ///
+  /// In en, this message translates to:
+  /// **'Synchronizing...'**
+  String get meshStatusSyncing;
+
+  /// No description provided for @meshStatusConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get meshStatusConnected;
+
+  /// No description provided for @meshStatusError.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection failed'**
+  String get meshStatusError;
+
+  /// No description provided for @meshDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Device'**
+  String get meshDevice;
+
+  /// No description provided for @meshFirmware.
+  ///
+  /// In en, this message translates to:
+  /// **'Firmware'**
+  String get meshFirmware;
+
+  /// No description provided for @meshRadio.
+  ///
+  /// In en, this message translates to:
+  /// **'Radio'**
+  String get meshRadio;
+
+  /// No description provided for @meshBattery.
+  ///
+  /// In en, this message translates to:
+  /// **'Battery'**
+  String get meshBattery;
+
+  /// No description provided for @meshCopyPublicKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Public Key'**
+  String get meshCopyPublicKey;
+
+  /// No description provided for @meshNotConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'MeshCore is not connected.'**
+  String get meshNotConnected;
+
+  /// No description provided for @meshTypeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a MeshCore message...'**
+  String get meshTypeMessage;
+
+  /// Remaining UTF-8 bytes in a MeshCore message.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} bytes left'**
+  String meshBytesLeft(int count);
+
+  /// No description provided for @meshResend.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend'**
+  String get meshResend;
+
+  /// No description provided for @meshRemoveGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Group from Radio'**
+  String get meshRemoveGroup;
+
+  /// No description provided for @meshDirect.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct'**
+  String get meshDirect;
+
+  /// Number of repeater hops a MeshCore message travelled.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 hop} other{{count} hops}}'**
+  String meshHops(int count);
+
+  /// Error shown when a MeshCore action fails.
+  ///
+  /// In en, this message translates to:
+  /// **'MeshCore: {error}'**
+  String meshActionFailed(String error);
+
+  /// No description provided for @meshAdvertSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Advert sent.'**
+  String get meshAdvertSent;
+
+  /// No description provided for @meshPairingForgotten.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing removed. Enter the PIN on the next connection.'**
+  String get meshPairingForgotten;
+
+  /// No description provided for @meshClearPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all MeshCore messages? This cannot be undone.'**
+  String get meshClearPrompt;
+
+  /// Confirmation before removing a MeshCore group channel from the companion radio.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the group \"{name}\" from the MeshCore radio? Its message history is kept.'**
+  String meshRemoveGroupPrompt(String name);
 }
 
 class _AppLocalizationsDelegate

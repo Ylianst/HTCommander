@@ -63,6 +63,7 @@ import 'allstar/allstar_manager_stub.dart'
     if (dart.library.io) 'allstar/allstar_manager.dart';
 import 'handlers/allstar_node_handler_stub.dart'
     if (dart.library.io) 'handlers/allstar_node_handler.dart';
+import 'meshcore/meshcore_manager.dart';
 import 'radio/radio_transport.dart';
 // The soft-modem relies on an audio channel, which the web build does not have.
 // Use a no-op stub on web so the hamlib DSP code is never compiled for web.
@@ -525,6 +526,16 @@ Future<void> _startApp(List<String> args) async {
   aprsIsManager.init();
   DataBroker.addDataHandler('AprsIsManager', aprsIsManager);
 
+  // Register the MeshCore manager so a MeshCore companion radio (device 204)
+  // can be connected over Bluetooth LE and its direct and group messages shown
+  // in the Messaging tab. Skipped on the hosted web build: the desktop host
+  // owns the companion connection.
+  if (!HostBridge.isHosted) {
+    final meshCoreManager = MeshCoreManager();
+    meshCoreManager.init();
+    DataBroker.addDataHandler('MeshCoreManager', meshCoreManager);
+  }
+
   // Register the APRS cloud push service (Android/iOS) so that, when the user
   // enables push notifications in Settings, the app registers with
   // aprs.meshcentral.com and receives APRS messages addressed to its station as
@@ -804,7 +815,7 @@ class _SubWindowAppState extends State<SubWindowApp> with WindowListener {
         tabTitle = 'Audio';
         tabContent = const AudioTab();
       case 'aprs':
-        tabTitle = 'APRS';
+        tabTitle = 'Messaging';
         tabContent = const AprsTab();
       case 'map':
         tabTitle = 'Map';
@@ -4519,7 +4530,9 @@ class _MainFormState extends State<MainForm>
       case 'Audio':
         return l10n.tabAudio;
       case 'APRS':
-        return l10n.tabAprs;
+        // The internal id stays 'APRS' so saved tab order, hidden tabs and
+        // detached windows keep working; only the visible name changed.
+        return l10n.tabMessaging;
       case 'Map':
         return l10n.tabMap;
       case 'Mail':

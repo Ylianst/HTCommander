@@ -19,7 +19,12 @@ import '../handlers/software_beacon_config.dart';
 import '../dialogs/digipeater_dialog.dart';
 import '../dialogs/add_station_dialog.dart';
 import '../dialogs/callsign_lookup_dialog.dart';
+import '../dialogs/meshcore_dialogs.dart';
 import '../l10n/app_localizations.dart';
+import '../meshcore/meshcore_manager.dart' show meshCoreDeviceId, MeshCoreState;
+import '../meshcore/meshcore_message.dart';
+import '../meshcore/meshcore_protocol.dart'
+    show MeshCoreConst, hopsFromPathLen, maxChannelTextBytes, utf8Length;
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -106,6 +111,40 @@ class _AprsConversation {
   });
 }
 
+/// A MeshCore conversation: a direct-message user (peer = key prefix) or a
+/// group channel (peer = channel key).
+class _MeshConversation {
+  final String kind;
+  final String peer;
+  final String title;
+  final String lastMessage;
+  final DateTime? lastTime;
+  final bool lastFromMe;
+
+  const _MeshConversation({
+    required this.kind,
+    required this.peer,
+    required this.title,
+    required this.lastMessage,
+    required this.lastTime,
+    required this.lastFromMe,
+  });
+
+  String get key => '$kind:$peer';
+}
+
+/// One row of the merged conversation list: either an APRS or a MeshCore
+/// conversation.
+class _ListEntry {
+  final _AprsConversation? aprs;
+  final _MeshConversation? mesh;
+
+  const _ListEntry.aprs(_AprsConversation this.aprs) : mesh = null;
+  const _ListEntry.mesh(_MeshConversation this.mesh) : aprs = null;
+
+  DateTime? get time => aprs?.lastTime ?? mesh?.lastTime;
+}
+
 /// APRS tab - Automatic Packet Reporting System
 class AprsTab extends StatefulWidget {
   const AprsTab({super.key});
@@ -161,6 +200,22 @@ class _AprsTabState extends State<AprsTab>
   // Uppercased ids of all messenger-eligible address-book contacts (APRS + SMS),
   // shown in the conversation list even without message history.
   List<String> _addressBookIds = [];
+
+  // MeshCore (device 204) state. The "All MeshCore Messages" feed is
+  // [_viewAllMesh]; a MeshCore conversation is [_selectedMesh] ("kind:peer").
+  bool _viewAllMesh = false;
+  String? _selectedMesh;
+  final List<MeshCoreMessage> _meshMessages = [];
+  List<Map<dynamic, dynamic>> _meshContacts = const [];
+  List<Map<dynamic, dynamic>> _meshChannels = const [];
+  String _meshState = MeshCoreState.disconnected;
+  String _meshSelfName = '';
+  bool _meshConfigured = false;
+
+  /// Mirrors the 'MeshCoreSupport' feature setting; when false every MeshCore
+  /// entry point in this tab is hidden.
+  bool _meshEnabled = false;
+  final TextEditingController _meshController = TextEditingController();
 
   // Local station identity (from device 0).
   String _callsign = '';
@@ -295,10 +350,12 @@ class _AprsTabState extends State<AprsTab>
       name: 'AprsShowContactList',
       callback: (_, _, _) {
         if (!mounted) return;
-        if (_selectedContact == null && !_viewAllMessages) return;
+        if (!_hasContent) return;
         _closeConversation();
       },
     );
+
+    _initMeshCore();
 
     // Subscribe to settings changes from device 0.
     _broker.subscribeMultiple(
@@ -403,8 +460,485 @@ class _AprsTabState extends State<AprsTab>
     _broker.dispose();
     _messageController.dispose();
     _destinationController.dispose();
+    _meshController.dispose();
     _messageFocusNode.dispose();
     super.dispose();
+  }
+
+  // ---------------------------------------------------------------------------
+  // MeshCore
+  // ---------------------------------------------------------------------------
+
+  void _initMeshCore() {
+    _applyMeshState(_broker.getValueDynamic(meshCoreDeviceId, 'MeshCoreState'));
+    _applyMeshInfo(_broker.getValueDynamic(meshCoreDeviceId, 'MeshCoreInfo'));
+    _meshContacts = _mapList(
+      _broker.getValueDynamic(meshCoreDeviceId, 'MeshCoreContacts'),
+    );
+    _meshChannels = _mapList(
+      _broker.getValueDynamic(meshCoreDeviceId, 'MeshCoreChannels'),
+    );
+    _meshConfigured =
+        _broker.getValueDynamic(0, 'MeshCoreLastDevice', null) is Map;
+    _meshEnabled = _broker.getValue<int>(0, 'MeshCoreSupport', 0) == 1;
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MeshCoreSupport',
+      callback: (_, _, data) {
+        if (!mounted) return;
+        final enabled = data == 1;
+        if (enabled == _meshEnabled) return;
+        setState(() => _meshEnabled = enabled);
+        if (!enabled && _inMeshView) _closeConversation();
+      },
+    );
+    _meshController.addListener(() {
+      if (mounted) setState(() {});
+    });
+
+    _broker.subscribe(
+      deviceId: meshCoreDeviceId,
+      name: 'MeshCoreState',
+      callback: (_, _, data) {
+        if (!mounted) return;
+        setState(() {
+          _applyMeshState(data);
+          if (_meshState == MeshCoreState.connected) _meshConfigured = true;
+        });
+      },
+    );
+    _broker.subscribe(
+      deviceId: meshCoreDeviceId,
+      name: 'MeshCoreInfo',
+      callback: (_, _, data) {
+        if (mounted) setState(() => _applyMeshInfo(data));
+      },
+    );
+    _broker.subscribe(
+      deviceId: meshCoreDeviceId,
+      name: 'MeshCoreContacts',
+      callback: (_, _, data) {
+        if (mounted) setState(() => _meshContacts = _mapList(data));
+      },
+    );
+    _broker.subscribe(
+      deviceId: meshCoreDeviceId,
+      name: 'MeshCoreChannels',
+      callback: (_, _, data) {
+        if (mounted) setState(() => _meshChannels = _mapList(data));
+      },
+    );
+    _broker.subscribe(
+      deviceId: meshCoreDeviceId,
+      name: 'MeshCoreMessageList',
+      callback: (_, _, data) {
+        if (!mounted || data is! List) return;
+        setState(() {
+          _meshMessages
+            ..clear()
+            ..addAll(data.whereType<Map>().map(MeshCoreMessage.fromJson));
+        });
+      },
+    );
+    _broker.subscribe(
+      deviceId: meshCoreDeviceId,
+      name: 'MeshCoreMessage',
+      callback: (_, _, data) {
+        if (!mounted || data is! Map) return;
+        final msg = MeshCoreMessage.fromJson(data);
+        setState(() {
+          final i = _meshMessages.indexWhere((m) => m.id == msg.id);
+          if (i >= 0) {
+            _meshMessages[i] = msg;
+          } else {
+            _meshMessages.add(msg);
+          }
+        });
+      },
+    );
+    _broker.subscribe(
+      deviceId: meshCoreDeviceId,
+      name: 'MeshCoreMessagesCleared',
+      callback: (_, _, data) {
+        if (!mounted || data is! Map) return;
+        final kind = data['kind'];
+        final peer = data['peer'];
+        setState(() {
+          if (kind == null || peer == null) {
+            _meshMessages.clear();
+          } else {
+            _meshMessages.removeWhere((m) => m.kind == kind && m.peer == peer);
+          }
+        });
+      },
+    );
+    _broker.dispatch(
+      deviceId: meshCoreDeviceId,
+      name: 'RequestMeshCoreMessages',
+      data: null,
+      store: false,
+    );
+  }
+
+  static List<Map<dynamic, dynamic>> _mapList(Object? data) =>
+      data is List ? data.whereType<Map>().toList() : const [];
+
+  void _applyMeshState(Object? data) {
+    if (data is Map) {
+      _meshState = data['state']?.toString() ?? MeshCoreState.disconnected;
+    }
+  }
+
+  void _applyMeshInfo(Object? data) {
+    _meshSelfName = data is Map ? (data['name']?.toString() ?? '') : '';
+  }
+
+  bool get _meshConnected => _meshState == MeshCoreState.connected;
+
+  bool get _inMeshView => _viewAllMesh || _selectedMesh != null;
+
+  /// Whether a feed or conversation (rather than the list) is open.
+  bool get _hasContent =>
+      _viewAllMessages || _selectedContact != null || _inMeshView;
+
+  Map<dynamic, dynamic>? _meshContactByPrefix(String prefix) =>
+      _meshContacts.where((c) => c['prefix'] == prefix).firstOrNull;
+
+  Map<dynamic, dynamic>? _meshChannelByKey(String key) =>
+      _meshChannels.where((c) => c['key'] == key).firstOrNull;
+
+  String _meshTitle(String kind, String peer) {
+    if (kind == MeshCoreKind.group) {
+      final name = _meshChannelByKey(peer)?['name']?.toString();
+      return (name == null || name.isEmpty) ? peer : name;
+    }
+    final name = _meshContactByPrefix(peer)?['name']?.toString();
+    if (name != null && name.isNotEmpty) return name;
+    // Fall back to the name stored with an incoming message.
+    final msg = _meshMessages
+        .where((m) => m.peer == peer && !m.outgoing && m.sender.isNotEmpty)
+        .lastOrNull;
+    return msg?.sender ?? peer;
+  }
+
+  /// MeshCore conversations from message history plus the companion's chat
+  /// contacts and group channels.
+  List<_MeshConversation> _buildMeshConversations() {
+    final latest = <String, MeshCoreMessage>{};
+    for (final m in _meshMessages) {
+      final existing = latest[m.conversationKey];
+      if (existing == null || !m.time.isBefore(existing.time)) {
+        latest[m.conversationKey] = m;
+      }
+    }
+    final result = <_MeshConversation>[
+      for (final m in latest.values)
+        _MeshConversation(
+          kind: m.kind,
+          peer: m.peer,
+          title: _meshTitle(m.kind, m.peer),
+          lastMessage: m.kind == MeshCoreKind.group && !m.outgoing
+              ? '${m.sender}: ${m.text}'
+              : m.text,
+          lastTime: m.time,
+          lastFromMe: m.outgoing,
+        ),
+    ];
+    void addIdle(String kind, String peer) {
+      if (peer.isEmpty || latest.containsKey('$kind:$peer')) return;
+      result.add(
+        _MeshConversation(
+          kind: kind,
+          peer: peer,
+          title: _meshTitle(kind, peer),
+          lastMessage: '',
+          lastTime: null,
+          lastFromMe: false,
+        ),
+      );
+    }
+
+    for (final ch in _meshChannels) {
+      addIdle(MeshCoreKind.group, ch['key']?.toString() ?? '');
+    }
+    for (final c in _meshContacts) {
+      // Only chat nodes take direct messages; repeaters and rooms do not.
+      if (c['type'] != 1) continue;
+      addIdle(MeshCoreKind.user, c['prefix']?.toString() ?? '');
+    }
+    return result;
+  }
+
+  void _openAllMesh() {
+    setState(() {
+      _viewAllMessages = false;
+      _selectedContact = null;
+      _selectedMesh = null;
+      _viewAllMesh = true;
+    });
+  }
+
+  void _openMeshConversation(String key) {
+    setState(() {
+      _viewAllMessages = false;
+      _selectedContact = null;
+      _viewAllMesh = false;
+      _selectedMesh = key;
+      _meshController.clear();
+    });
+  }
+
+  ({String kind, String peer})? get _selectedMeshParts {
+    final key = _selectedMesh;
+    if (key == null) return null;
+    final i = key.indexOf(':');
+    return (kind: key.substring(0, i), peer: key.substring(i + 1));
+  }
+
+  /// UTF-8 bytes the composer may still use in the selected conversation.
+  int get _meshBytesLeft {
+    final sel = _selectedMeshParts;
+    if (sel == null) return 0;
+    final max = sel.kind == MeshCoreKind.group
+        ? maxChannelTextBytes(_meshSelfName)
+        : MeshCoreConst.maxTextBytes;
+    return max - utf8Length(_meshController.text.trim());
+  }
+
+  bool get _canSendMesh {
+    final sel = _selectedMeshParts;
+    if (sel == null || !_meshConnected) return false;
+    if (_meshController.text.trim().isEmpty || _meshBytesLeft < 0) {
+      return false;
+    }
+    if (sel.kind == MeshCoreKind.group) {
+      return _meshChannelByKey(sel.peer) != null;
+    }
+    return true;
+  }
+
+  void _sendMesh() {
+    final sel = _selectedMeshParts;
+    if (sel == null || !_canSendMesh) return;
+    _broker.dispatch(
+      deviceId: meshCoreDeviceId,
+      name: sel.kind == MeshCoreKind.group
+          ? 'MeshCoreSendGroup'
+          : 'MeshCoreSendDirect',
+      data: {'peer': sel.peer, 'text': _meshController.text.trim()},
+      store: false,
+    );
+    _meshController.clear();
+  }
+
+  Future<void> _addMeshConversation(bool group) async {
+    if (!_meshConnected) {
+      await showMeshCoreConnectionDialog(context);
+      if (!mounted || !_meshConnected) return;
+    }
+    final peer = group
+        ? await showMeshCoreAddGroupDialog(context)
+        : await showMeshCoreAddUserDialog(context);
+    if (peer == null || !mounted) return;
+    _openMeshConversation(
+      '${group ? MeshCoreKind.group : MeshCoreKind.user}:$peer',
+    );
+  }
+
+  ChatMessage _meshToChat(MeshCoreMessage m, AppLocalizations l10n) {
+    final parts = <String>[];
+    if (_viewAllMesh) parts.add(_meshTitle(m.kind, m.peer));
+    if (m.outgoing) {
+      parts.add(_meshSelfName.isEmpty ? m.sender : _meshSelfName);
+    } else {
+      if (m.kind == MeshCoreKind.group && m.sender.isNotEmpty) {
+        parts.add(m.sender);
+      }
+      final hops = m.pathLen == null ? null : hopsFromPathLen(m.pathLen!);
+      parts.add(hops == null ? l10n.meshDirect : l10n.meshHops(hops));
+      if (m.snr != null) parts.add('SNR ${m.snr!.toStringAsFixed(1)} dB');
+    }
+    final (IconData? icon, Color? color) = switch (m.state) {
+      MeshCoreDelivery.pending => (Icons.schedule, null),
+      MeshCoreDelivery.sent => (Icons.done, null),
+      MeshCoreDelivery.delivered => (Icons.done_all, Colors.green),
+      MeshCoreDelivery.failed => (Icons.error_outline, Colors.red),
+      _ => (null, null),
+    };
+    return ChatMessage(
+      id: 'mc-${m.id}',
+      route: parts.where((p) => p.isNotEmpty).join(' · '),
+      senderCallsign: m.sender,
+      message: m.text.isEmpty ? ' ' : m.text,
+      time: m.time,
+      isSender: m.outgoing,
+      icon: icon,
+      iconColor: color,
+      tag: m,
+    );
+  }
+
+  Future<void> _onMeshContextMenu(ChatMessage message, Offset position) async {
+    final m = message.tag;
+    if (m is! MeshCoreMessage) return;
+    final l10n = AppLocalizations.of(context);
+    final canResend =
+        m.outgoing && m.state == MeshCoreDelivery.failed && _meshConnected;
+    final value = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
+      items: [
+        PopupMenuItem(value: 'copy', child: Text(l10n.aprsCopyMessage)),
+        if (canResend)
+          PopupMenuItem(value: 'resend', child: Text(l10n.meshResend)),
+        if (_viewAllMesh)
+          PopupMenuItem(
+            value: 'open',
+            child: Text(_meshTitle(m.kind, m.peer)),
+          ),
+      ],
+    );
+    if (!mounted) return;
+    switch (value) {
+      case 'copy':
+        await Clipboard.setData(ClipboardData(text: m.text));
+      case 'resend':
+        _broker.dispatch(
+          deviceId: meshCoreDeviceId,
+          name: 'MeshCoreResend',
+          data: {'id': m.id},
+          store: false,
+        );
+      case 'open':
+        _openMeshConversation(m.conversationKey);
+    }
+  }
+
+  Widget _buildMeshContent(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final sel = _selectedMeshParts;
+    final messages = [
+      for (final m in _meshMessages)
+        if (sel == null || (m.kind == sel.kind && m.peer == sel.peer))
+          _meshToChat(m, l10n),
+    ];
+    return Column(
+      children: [
+        if (!_meshConnected)
+          MaterialBanner(
+            content: Text(l10n.meshNotConnected),
+            actions: [
+              TextButton(
+                onPressed: () => showMeshCoreConnectionDialog(context),
+                child: Text(l10n.meshConnectionMenu),
+              ),
+            ],
+          ),
+        Expanded(
+          child: ChatWidget(
+            messages: messages,
+            onMessageContextMenu: _onMeshContextMenu,
+            onMessageDoubleTap: _viewAllMesh
+                ? (msg) {
+                    final m = msg.tag;
+                    if (m is MeshCoreMessage) {
+                      _openMeshConversation(m.conversationKey);
+                    }
+                  }
+                : null,
+          ),
+        ),
+        if (sel != null) _buildMeshInputPanel(l10n),
+      ],
+    );
+  }
+
+  Widget _buildMeshInputPanel(AppLocalizations l10n) {
+    final scheme = Theme.of(context).colorScheme;
+    final left = _meshBytesLeft;
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 34,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLow,
+                border: Border.all(color: scheme.onSurfaceVariant),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: TextField(
+                controller: _meshController,
+                enabled: _meshConnected,
+                style: const TextStyle(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: _meshConnected
+                      ? l10n.meshTypeMessage
+                      : l10n.meshNotConnected,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  border: InputBorder.none,
+                  isCollapsed: true,
+                ),
+                onSubmitted: (_) => _sendMesh(),
+              ),
+            ),
+          ),
+          if (left < 40) ...[
+            const SizedBox(width: 8),
+            Text(
+              l10n.meshBytesLeft(left),
+              style: TextStyle(
+                fontSize: 12,
+                color: left < 0 ? scheme.error : scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 34,
+            child: ElevatedButton(
+              onPressed: _canSendMesh ? _sendMesh : null,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              child: const Icon(Icons.send, size: 18),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMeshStatusIcon() {
+    final l10n = AppLocalizations.of(context);
+    final (Color color, String tip) = switch (_meshState) {
+      MeshCoreState.connected => (Colors.green, l10n.meshStatusConnected),
+      MeshCoreState.error => (Colors.red, l10n.meshStatusError),
+      MeshCoreState.disconnected => (
+        Theme.of(context).colorScheme.outline,
+        l10n.meshStatusDisconnected,
+      ),
+      _ => (Colors.orange, l10n.meshStatusConnecting),
+    };
+    return Tooltip(
+      message: 'MeshCore: $tip',
+      child: InkWell(
+        onTap: () => showMeshCoreConnectionDialog(context),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(Icons.hub, size: 20, color: color),
+        ),
+      ),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -1758,6 +2292,8 @@ class _AprsTabState extends State<AprsTab>
       setState(() {
         _viewAllMessages = true;
         _selectedContact = null;
+        _viewAllMesh = false;
+        _selectedMesh = null;
       });
       _setReceiver(callsign);
       _rebuildMessages();
@@ -1879,6 +2415,8 @@ class _AprsTabState extends State<AprsTab>
     setState(() {
       _viewAllMessages = true;
       _selectedContact = null;
+      _viewAllMesh = false;
+      _selectedMesh = null;
     });
     _rebuildMessages();
   }
@@ -1889,6 +2427,8 @@ class _AprsTabState extends State<AprsTab>
     setState(() {
       _viewAllMessages = false;
       _selectedContact = _peerKey(callsign);
+      _viewAllMesh = false;
+      _selectedMesh = null;
     });
     _rebuildMessages();
   }
@@ -1898,12 +2438,33 @@ class _AprsTabState extends State<AprsTab>
     setState(() {
       _selectedContact = null;
       _viewAllMessages = false;
+      _viewAllMesh = false;
+      _selectedMesh = null;
     });
     _rebuildMessages();
   }
 
   Future<void> _clearMessages() async {
     final l10n = AppLocalizations.of(context);
+    if (_inMeshView) {
+      final sel = _selectedMeshParts;
+      final confirmed = await DialogHelper.showConfirmDialog(
+        context,
+        title: l10n.meshAllMessages,
+        message: sel != null
+            ? l10n.aprsClearContactPrompt
+            : l10n.meshClearPrompt,
+        okText: l10n.tabClear,
+      );
+      if (!confirmed || !mounted) return;
+      _broker.dispatch(
+        deviceId: meshCoreDeviceId,
+        name: 'MeshCoreClearMessages',
+        data: {'kind': sel?.kind, 'peer': sel?.peer},
+        store: false,
+      );
+      return;
+    }
     final inConversation = _selectedContact != null;
     final confirmed = await DialogHelper.showConfirmDialog(
       context,
@@ -2054,13 +2615,40 @@ class _AprsTabState extends State<AprsTab>
             ],
           ),
         ),
+        if (_meshEnabled) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'meshConnection',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                Text(l10n.meshConnectionMenu),
+              ],
+            ),
+          ),
+        ],
+        if (_meshEnabled && _selectedMeshParts?.kind == MeshCoreKind.group)
+          PopupMenuItem<String>(
+            value: 'meshRemoveGroup',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            enabled: _meshConnected,
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                Text(l10n.meshRemoveGroup),
+              ],
+            ),
+          ),
         const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
           value: 'clear',
           height: menuItemHeight,
           padding: menuItemPadding,
           // Nothing to clear while viewing the conversation list.
-          enabled: _viewAllMessages || _selectedContact != null,
+          enabled: _hasContent,
           child: Row(
             children: [const SizedBox(width: 20), Text(l10n.tabClear)],
           ),
@@ -2104,6 +2692,12 @@ class _AprsTabState extends State<AprsTab>
         case 'clear':
           _clearMessages();
           break;
+        case 'meshConnection':
+          if (context.mounted) showMeshCoreConnectionDialog(context);
+          break;
+        case 'meshRemoveGroup':
+          _removeMeshGroup();
+          break;
         case 'detach':
           _detachWindow();
           break;
@@ -2113,6 +2707,26 @@ class _AprsTabState extends State<AprsTab>
 
   Future<void> _detachWindow() async {
     await windowService.createWindow('aprs');
+  }
+
+  Future<void> _removeMeshGroup() async {
+    final sel = _selectedMeshParts;
+    if (sel == null || sel.kind != MeshCoreKind.group) return;
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await DialogHelper.showConfirmDialog(
+      context,
+      title: l10n.meshRemoveGroup,
+      message: l10n.meshRemoveGroupPrompt(_meshTitle(sel.kind, sel.peer)),
+      okText: l10n.commonRemove,
+    );
+    if (!confirmed || !mounted) return;
+    _broker.dispatch(
+      deviceId: meshCoreDeviceId,
+      name: 'MeshCoreRemoveChannel',
+      data: {'peer': sel.peer},
+      store: false,
+    );
+    _closeConversation();
   }
 
   @override
@@ -2132,7 +2746,7 @@ class _AprsTabState extends State<AprsTab>
   /// content (all messages / a conversation) takes over the whole tab.
   Widget _buildNarrowLayout(BuildContext context) {
     // Conversation list view: header + list, no input panel.
-    if (!_viewAllMessages && _selectedContact == null) {
+    if (!_hasContent) {
       return Column(
         children: [
           _buildHeader(),
@@ -2154,7 +2768,7 @@ class _AprsTabState extends State<AprsTab>
   /// content (all messages / a conversation) is shown on the right.
   Widget _buildWideLayout(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final hasContent = _viewAllMessages || _selectedContact != null;
+    final hasContent = _hasContent;
     return Column(
       children: [
         _buildHeader(wide: true),
@@ -2185,6 +2799,7 @@ class _AprsTabState extends State<AprsTab>
   /// The selected content (all messages / a conversation): the chat feed with
   /// its optional missing-route banner, avatar overlay and input panel.
   Widget _buildConversationContent(BuildContext context) {
+    if (_inMeshView) return _buildMeshContent(context);
     return Column(
       children: [
         if (_selectedContactRouteMissing) _buildMissingRouteBanner(),
@@ -2427,20 +3042,49 @@ class _AprsTabState extends State<AprsTab>
   Widget _buildMessengerList() {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final conversations = _buildConversations();
+    final aprs = _buildConversations();
+    final mesh = _meshEnabled
+        ? _buildMeshConversations()
+        : const <_MeshConversation>[];
+    // Conversations with activity from both networks are interleaved by time;
+    // idle address-book entries follow (APRS first, then MeshCore by name).
+    final active = <_ListEntry>[
+      for (final c in aprs)
+        if (c.lastTime != null) _ListEntry.aprs(c),
+      for (final c in mesh)
+        if (c.lastTime != null) _ListEntry.mesh(c),
+    ]..sort((a, b) => b.time!.compareTo(a.time!));
+    final idleMesh = [
+      for (final c in mesh)
+        if (c.lastTime == null) c,
+    ]..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    final conversations = <_ListEntry>[
+      ...active,
+      for (final c in aprs)
+        if (c.lastTime == null) _ListEntry.aprs(c),
+      for (final c in idleMesh) _ListEntry.mesh(c),
+    ];
+    final feeds = <Widget>[
+      _buildAllMessagesTile(),
+      if (_meshEnabled) _buildAllMeshTile(),
+    ];
 
     return Column(
       children: [
         Expanded(
-          // The "All Messages" entry is always shown first, followed by the
-          // per-contact conversations.
+          // The "All ... Messages" feeds are always shown first, followed by
+          // the per-contact conversations.
           child: ListView.separated(
-            itemCount: conversations.length + 1,
+            itemCount: conversations.length + feeds.length,
             separatorBuilder: (_, _) =>
                 Divider(height: 1, color: scheme.outlineVariant),
-            itemBuilder: (context, index) => index == 0
-                ? _buildAllMessagesTile()
-                : _buildConversationTile(conversations[index - 1]),
+            itemBuilder: (context, index) {
+              if (index < feeds.length) return feeds[index];
+              final entry = conversations[index - feeds.length];
+              return entry.aprs != null
+                  ? _buildConversationTile(entry.aprs!)
+                  : _buildMeshConversationTile(entry.mesh!);
+            },
           ),
         ),
         Divider(height: 1, color: scheme.outlineVariant),
@@ -2454,18 +3098,40 @@ class _AprsTabState extends State<AprsTab>
             children: [
               SizedBox(
                 height: 34,
-                child: PopupMenuButton<StationType>(
-                  onSelected: _openAddContact,
+                child: PopupMenuButton<String>(
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'aprs':
+                        _openAddContact(StationType.aprs);
+                      case 'sms':
+                        _openAddContact(StationType.sms);
+                      case 'meshUser':
+                        _addMeshConversation(false);
+                      case 'meshGroup':
+                        _addMeshConversation(true);
+                    }
+                  },
                   tooltip: '',
                   itemBuilder: (context) => [
                     PopupMenuItem(
-                      value: StationType.aprs,
+                      value: 'aprs',
                       child: Text(l10n.stationTitleAprs),
                     ),
                     PopupMenuItem(
-                      value: StationType.sms,
+                      value: 'sms',
                       child: Text(l10n.stationTitleSms),
                     ),
+                    if (_meshEnabled) ...[
+                      const PopupMenuDivider(),
+                      PopupMenuItem(
+                        value: 'meshUser',
+                        child: Text(l10n.meshUser),
+                      ),
+                      PopupMenuItem(
+                        value: 'meshGroup',
+                        child: Text(l10n.meshGroup),
+                      ),
+                    ],
                   ],
                   child: ElevatedButton(
                     onPressed: null,
@@ -2511,6 +3177,79 @@ class _AprsTabState extends State<AprsTab>
     );
   }
 
+  /// The list entry that opens the combined MeshCore feed.
+  Widget _buildAllMeshTile() {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
+    return ListTile(
+      selected: _viewAllMesh,
+      selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.4),
+      leading: CircleAvatar(
+        backgroundColor: scheme.tertiaryContainer,
+        child: Icon(Icons.hub, color: scheme.onTertiaryContainer),
+      ),
+      title: Text(
+        l10n.meshAllMessages,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontWeight: FontWeight.w500),
+      ),
+      subtitle: _meshConnected || !_meshConfigured
+          ? null
+          : Text(
+              l10n.meshStatusDisconnected,
+              maxLines: 1,
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+      onTap: _openAllMesh,
+    );
+  }
+
+  Widget _buildMeshConversationTile(_MeshConversation c) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
+    final group = c.kind == MeshCoreKind.group;
+    final preview = c.lastMessage.isEmpty
+        ? ''
+        : (c.lastFromMe ? '→ ${c.lastMessage}' : c.lastMessage);
+    return ListTile(
+      selected: _selectedMesh == c.key,
+      selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.4),
+      leading: CircleAvatar(
+        backgroundColor: scheme.tertiaryContainer,
+        child: Icon(
+          group ? Icons.groups : Icons.person,
+          color: scheme.onTertiaryContainer,
+        ),
+      ),
+      title: Text(
+        c.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontWeight: FontWeight.w500),
+      ),
+      subtitle: preview.isEmpty
+          ? null
+          : Text(preview, maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (c.lastTime != null)
+            Text(
+              _relativeTimeShort(c.lastTime!),
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+          Text(
+            group ? l10n.meshGroup : l10n.meshUser,
+            style: TextStyle(fontSize: 10, color: scheme.tertiary),
+          ),
+        ],
+      ),
+      onTap: () => _openMeshConversation(c.key),
+    );
+  }
+
   Widget _buildConversationTile(_AprsConversation c) {
     final scheme = Theme.of(context).colorScheme;
     final title = _contactDisplayName(c.callsign);
@@ -2519,7 +3258,7 @@ class _AprsTabState extends State<AprsTab>
         : (c.lastFromMe ? '→ ${c.lastMessage}' : c.lastMessage);
     final avatar = _avatarDataFor(c.callsign);
     return ListTile(
-      selected: !_viewAllMessages && _selectedContact == c.callsign,
+      selected: !_viewAllMessages && !_inMeshView && _selectedContact == c.callsign,
       selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.4),
       leading: ContactAvatar(
         callsign: c.callsign,
@@ -2848,13 +3587,24 @@ class _AprsTabState extends State<AprsTab>
               constraints.maxWidth > 250 &&
               _aprsRoutes.length > 1;
           final inConversation = _selectedContact != null;
-          // A back arrow is shown for both the "All Messages" feed and a
-          // per-contact conversation so the user can return to the list. In the
-          // wide layout the list stays visible, so no back button is needed.
-          final inContent = !wide && (_viewAllMessages || inConversation);
-          final title = inConversation
-              ? '${AppLocalizations.of(context).tabAprs} - ${_contactDisplayName(_selectedContact!)}'
-              : AppLocalizations.of(context).tabAprs;
+          // A back arrow is shown for the feeds and for a conversation so the
+          // user can return to the list. In the wide layout the list stays
+          // visible, so no back button is needed.
+          final inContent = !wide && _hasContent;
+          final l10n = AppLocalizations.of(context);
+          final meshSel = _selectedMeshParts;
+          final String? subtitle = inConversation
+              ? _contactDisplayName(_selectedContact!)
+              : meshSel != null
+              ? _meshTitle(meshSel.kind, meshSel.peer)
+              : _viewAllMesh
+              ? l10n.meshAllMessages
+              : _viewAllMessages
+              ? l10n.aprsAllMessages
+              : null;
+          final title = subtitle == null
+              ? l10n.tabMessaging
+              : '${l10n.tabMessaging} - $subtitle';
           return Row(
             children: [
               // The back arrow and the title share one wide hit box on the left
@@ -2902,6 +3652,10 @@ class _AprsTabState extends State<AprsTab>
                   ),
                 ),
               const SizedBox(width: 8),
+              if (_meshEnabled &&
+                  (_meshConfigured ||
+                      _meshState != MeshCoreState.disconnected))
+                _buildMeshStatusIcon(),
               // Beacon active indicator - opens beacon settings on tap.
               if (_beaconInterval > 0) _buildBeaconIcon(),
               if (_beaconInterval > 0) const SizedBox(width: 4),

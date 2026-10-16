@@ -2559,7 +2559,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aprsMessengerMode => '信使模式';
 
   @override
-  String get aprsAllMessages => '所有消息';
+  String get aprsAllMessages => '所有 APRS 消息';
 
   @override
   String get aprsAddContact => '添加联系人...';
@@ -3913,6 +3913,187 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String radioTransmitStalled(int seconds) {
-    return '???? $seconds ????????????????????????????? 0???????????????????????????';
+    return '数据包在 $seconds 秒后仍未发送。信道可能正忙。静噪设置过低（例如 0）时经常出现这种情况，因为电台始终检测不到空闲信道。请尝试提高静噪级别。';
+  }
+
+  @override
+  String get tabMessaging => '消息';
+
+  @override
+  String get meshAllMessages => '所有 MeshCore 消息';
+
+  @override
+  String get meshConnectionMenu => 'MeshCore 连接...';
+
+  @override
+  String get meshConnectionTitle => 'MeshCore 连接';
+
+  @override
+  String get meshUser => 'MeshCore 用户';
+
+  @override
+  String get meshGroup => 'MeshCore 群组';
+
+  @override
+  String get meshAddUserTitle => '添加 MeshCore 用户';
+
+  @override
+  String get meshAddGroupTitle => '添加 MeshCore 群组';
+
+  @override
+  String get meshName => '名称';
+
+  @override
+  String get meshPublicKey => '公钥';
+
+  @override
+  String get meshPublicKeyHint => '64 位十六进制数字';
+
+  @override
+  String get meshInvalidPublicKey => '请输入 64 位十六进制公钥。';
+
+  @override
+  String get meshInvalidName => '请输入名称。';
+
+  @override
+  String get meshGroupType => '群组类型';
+
+  @override
+  String get meshGroupPublic => '公开';
+
+  @override
+  String get meshGroupHashtag => '话题标签';
+
+  @override
+  String get meshGroupPrivate => '私有';
+
+  @override
+  String get meshGroupPublicHelp => '众所周知的公共频道，任何人都可以读取。';
+
+  @override
+  String get meshGroupHashtagHelp => '空中传输时已加密，但任何知道或猜到名称的人都可以读取。';
+
+  @override
+  String get meshGroupPrivateHelp => '只有拥有密钥的人才能读取。请私下分享密钥。';
+
+  @override
+  String get meshSecret => '密钥';
+
+  @override
+  String get meshSecretHint => '32 位十六进制数字';
+
+  @override
+  String get meshInvalidSecret => '请输入 32 位十六进制密钥。';
+
+  @override
+  String get meshGenerate => '生成';
+
+  @override
+  String get meshScan => '扫描';
+
+  @override
+  String get meshScanning => '正在扫描...';
+
+  @override
+  String get meshNoDevices => '未找到 MeshCore 设备。请确认配套电台已开机，且未连接到其他手机或电脑。';
+
+  @override
+  String get meshPin => 'PIN';
+
+  @override
+  String get meshPinHint => '显示在设备屏幕上；如果设备没有屏幕，则为 123456';
+
+  @override
+  String get meshForgetPairing => '取消配对';
+
+  @override
+  String get meshSendAdvert => '发送广播';
+
+  @override
+  String get meshRefresh => '刷新';
+
+  @override
+  String get meshAutoConnect => '启动时自动重新连接';
+
+  @override
+  String get meshStatusDisconnected => '已断开';
+
+  @override
+  String get meshStatusPairing => '正在配对...';
+
+  @override
+  String get meshStatusConnecting => '正在连接...';
+
+  @override
+  String get meshStatusSyncing => '正在同步...';
+
+  @override
+  String get meshStatusConnected => '已连接';
+
+  @override
+  String get meshStatusError => '连接失败';
+
+  @override
+  String get meshDevice => '设备';
+
+  @override
+  String get meshFirmware => '固件';
+
+  @override
+  String get meshRadio => '电台';
+
+  @override
+  String get meshBattery => '电池';
+
+  @override
+  String get meshCopyPublicKey => '复制公钥';
+
+  @override
+  String get meshNotConnected => 'MeshCore 未连接。';
+
+  @override
+  String get meshTypeMessage => '输入 MeshCore 消息...';
+
+  @override
+  String meshBytesLeft(int count) {
+    return '剩余 $count 字节';
+  }
+
+  @override
+  String get meshResend => '重新发送';
+
+  @override
+  String get meshRemoveGroup => '从电台移除群组';
+
+  @override
+  String get meshDirect => '直连';
+
+  @override
+  String meshHops(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 跳',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String meshActionFailed(String error) {
+    return 'MeshCore：$error';
+  }
+
+  @override
+  String get meshAdvertSent => '广播已发送。';
+
+  @override
+  String get meshPairingForgotten => '已取消配对。下次连接时请输入 PIN。';
+
+  @override
+  String get meshClearPrompt => '清除所有 MeshCore 消息？此操作无法撤消。';
+
+  @override
+  String meshRemoveGroupPrompt(String name) {
+    return '要从 MeshCore 电台移除群组“$name”吗？其消息记录将会保留。';
   }
 }

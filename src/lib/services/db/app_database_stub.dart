@@ -40,6 +40,9 @@ class AppDatabase {
   /// No database on web.
   dynamic get aprsis => null;
 
+  /// No database on web.
+  dynamic get meshcore => null;
+
   /// No-op on web.
   static Future<void> open() async {}
 

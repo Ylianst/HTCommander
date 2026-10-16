@@ -2578,7 +2578,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aprsMessengerMode => 'メッセンジャーモード';
 
   @override
-  String get aprsAllMessages => 'すべてのメッセージ';
+  String get aprsAllMessages => 'すべての APRS メッセージ';
 
   @override
   String get aprsAddContact => '連絡先を追加...';
@@ -3953,6 +3953,189 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String radioTransmitStalled(int seconds) {
-    return '$seconds ???????????????????????????????????????????????????? (?: 0) ????????????????????????????????????????????????';
+    return '$seconds 秒経ってもデータパケットが送信されていません。チャンネルが混雑している可能性があります。スケルチが低すぎる（例: 0）と、無線機が空きチャンネルを検出できないため、この状態がよく発生します。スケルチレベルを上げてみてください。';
+  }
+
+  @override
+  String get tabMessaging => 'メッセージ';
+
+  @override
+  String get meshAllMessages => 'すべての MeshCore メッセージ';
+
+  @override
+  String get meshConnectionMenu => 'MeshCore 接続...';
+
+  @override
+  String get meshConnectionTitle => 'MeshCore 接続';
+
+  @override
+  String get meshUser => 'MeshCore ユーザー';
+
+  @override
+  String get meshGroup => 'MeshCore グループ';
+
+  @override
+  String get meshAddUserTitle => 'MeshCore ユーザーを追加';
+
+  @override
+  String get meshAddGroupTitle => 'MeshCore グループを追加';
+
+  @override
+  String get meshName => '名前';
+
+  @override
+  String get meshPublicKey => '公開鍵';
+
+  @override
+  String get meshPublicKeyHint => '16 進数 64 桁';
+
+  @override
+  String get meshInvalidPublicKey => '16 進数 64 桁の公開鍵を入力してください。';
+
+  @override
+  String get meshInvalidName => '名前を入力してください。';
+
+  @override
+  String get meshGroupType => 'グループの種類';
+
+  @override
+  String get meshGroupPublic => '公開';
+
+  @override
+  String get meshGroupHashtag => 'ハッシュタグ';
+
+  @override
+  String get meshGroupPrivate => '非公開';
+
+  @override
+  String get meshGroupPublicHelp => 'よく知られた公開チャンネルです。誰でも読むことができます。';
+
+  @override
+  String get meshGroupHashtagHelp =>
+      '電波上では暗号化されますが、名前を知っているか推測できる人は誰でも読むことができます。';
+
+  @override
+  String get meshGroupPrivateHelp => '秘密鍵を持つ人だけが読むことができます。鍵は個別に共有してください。';
+
+  @override
+  String get meshSecret => '秘密鍵';
+
+  @override
+  String get meshSecretHint => '16 進数 32 桁';
+
+  @override
+  String get meshInvalidSecret => '16 進数 32 桁の秘密鍵を入力してください。';
+
+  @override
+  String get meshGenerate => '生成';
+
+  @override
+  String get meshScan => 'スキャン';
+
+  @override
+  String get meshScanning => 'スキャン中...';
+
+  @override
+  String get meshNoDevices =>
+      'MeshCore デバイスが見つかりません。コンパニオン無線機の電源が入っていて、他のスマートフォンやコンピューターに接続されていないことを確認してください。';
+
+  @override
+  String get meshPin => 'PIN';
+
+  @override
+  String get meshPinHint => 'デバイスの画面に表示されます（画面がない場合は 123456）';
+
+  @override
+  String get meshForgetPairing => 'ペアリングを解除';
+
+  @override
+  String get meshSendAdvert => 'アドバートを送信';
+
+  @override
+  String get meshRefresh => '更新';
+
+  @override
+  String get meshAutoConnect => '起動時に自動的に再接続';
+
+  @override
+  String get meshStatusDisconnected => '切断';
+
+  @override
+  String get meshStatusPairing => 'ペアリング中...';
+
+  @override
+  String get meshStatusConnecting => '接続中...';
+
+  @override
+  String get meshStatusSyncing => '同期中...';
+
+  @override
+  String get meshStatusConnected => '接続済み';
+
+  @override
+  String get meshStatusError => '接続に失敗しました';
+
+  @override
+  String get meshDevice => 'デバイス';
+
+  @override
+  String get meshFirmware => 'ファームウェア';
+
+  @override
+  String get meshRadio => '無線';
+
+  @override
+  String get meshBattery => 'バッテリー';
+
+  @override
+  String get meshCopyPublicKey => '公開鍵をコピー';
+
+  @override
+  String get meshNotConnected => 'MeshCore は接続されていません。';
+
+  @override
+  String get meshTypeMessage => 'MeshCore メッセージを入力...';
+
+  @override
+  String meshBytesLeft(int count) {
+    return '残り $count バイト';
+  }
+
+  @override
+  String get meshResend => '再送信';
+
+  @override
+  String get meshRemoveGroup => '無線機からグループを削除';
+
+  @override
+  String get meshDirect => '直接';
+
+  @override
+  String meshHops(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ホップ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String meshActionFailed(String error) {
+    return 'MeshCore: $error';
+  }
+
+  @override
+  String get meshAdvertSent => 'アドバートを送信しました。';
+
+  @override
+  String get meshPairingForgotten => 'ペアリングを解除しました。次回の接続時に PIN を入力してください。';
+
+  @override
+  String get meshClearPrompt => 'すべての MeshCore メッセージをクリアしますか？この操作は元に戻せません。';
+
+  @override
+  String meshRemoveGroupPrompt(String name) {
+    return 'グループ「$name」を MeshCore 無線機から削除しますか？メッセージ履歴は保持されます。';
   }
 }

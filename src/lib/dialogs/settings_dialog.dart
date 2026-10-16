@@ -1297,6 +1297,27 @@ class _SettingsDialogState extends State<SettingsDialog>
                 Row(
                   children: [
                     Checkbox(
+                      value: _settings.meshCoreSupport,
+                      onChanged: (value) {
+                        setState(
+                          () => _settings.meshCoreSupport = value ?? false,
+                        );
+                      },
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(
+                          () => _settings.meshCoreSupport =
+                              !_settings.meshCoreSupport,
+                        ),
+                        child: const Text('MeshCore'),
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Checkbox(
                       value: _settings.messageNotifications,
                       onChanged: (value) {
                         setState(

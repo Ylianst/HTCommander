@@ -160,6 +160,18 @@ the no-encryption rules.
 
 ---
 
+## Mesh Networking
+
+Bringing LoRa mesh messaging into the same operating console as APRS.
+
+1. **[Two Networks, One Inbox: Planning MeshCore Support in HTCommander](meshcore-support.md)**
+   A complete implementation plan for connecting to MeshCore companion radios:
+   turning the APRS tab into Messaging, adding public-key MeshCore contacts and
+   group conversations, syncing companion contacts and channel slots, storing
+   message history, and showing MeshCore stations on the map.
+
+---
+
 ## Notifications & Cloud
 
 Reaching a phone that isn't running the app — and keeping the companion server
