@@ -1387,5 +1387,6 @@
   "settingsWinlinkGatewayDbUpToDate": "Już aktualny.",
   "settingsWinlinkGatewayDbFailed": "Pobieranie nie powiodło się: {error}",
   "settingsWinlinkGatewayDbAuto": "Automatycznie aktualizuj",
-  "settingsWinlinkGatewayDbAutoSubtitle": "Odśwież w tle przez Wi-Fi lub połączenie przewodowe."
+  "settingsWinlinkGatewayDbAutoSubtitle": "Odśwież w tle przez Wi-Fi lub połączenie przewodowe.",
+  "radioTransmitStalled": "Pakiet danych nie zosta? wys?any po {seconds} sekundach. Kana? mo?e by? zaj?ty. Dzieje si? tak cz?sto, gdy blokada szum?w (squelch) jest ustawiona zbyt nisko (np. 0), przez co radiotelefon nigdy nie wykrywa wolnego kana?u. Spr?buj zwi?kszy? poziom squelch."
 }

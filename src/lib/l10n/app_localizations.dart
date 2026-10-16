@@ -7323,6 +7323,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Refresh over Wi-Fi or wired connections in the background.'**
   String get settingsWinlinkGatewayDbAutoSubtitle;
+
+  /// Shown when a data frame was sent to the radio but the radio did not start transmitting, usually because the squelch is too low.
+  ///
+  /// In en, this message translates to:
+  /// **'The data packet has not been transmitted after {seconds} seconds. The channel may be busy. This often happens when the squelch is set too low (for example 0), so the radio never sees a clear channel. Try raising the squelch level.'**
+  String radioTransmitStalled(int seconds);
 }
 
 class _AppLocalizationsDelegate

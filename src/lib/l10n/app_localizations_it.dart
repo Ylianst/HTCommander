@@ -4044,4 +4044,9 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get settingsWinlinkGatewayDbAutoSubtitle =>
       'Aggiorna in background tramite Wi-Fi o connessione cablata.';
+
+  @override
+  String radioTransmitStalled(int seconds) {
+    return 'Il pacchetto dati non ? stato trasmesso dopo $seconds secondi. Il canale potrebbe essere occupato. Succede spesso quando lo squelch ? impostato troppo basso (ad esempio 0), per cui la radio non rileva mai un canale libero. Prova ad aumentare il livello di squelch.';
+  }
 }

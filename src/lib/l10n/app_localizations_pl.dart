@@ -4043,4 +4043,9 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get settingsWinlinkGatewayDbAutoSubtitle =>
       'Odśwież w tle przez Wi-Fi lub połączenie przewodowe.';
+
+  @override
+  String radioTransmitStalled(int seconds) {
+    return 'Pakiet danych nie zosta? wys?any po $seconds sekundach. Kana? mo?e by? zaj?ty. Dzieje si? tak cz?sto, gdy blokada szum?w (squelch) jest ustawiona zbyt nisko (np. 0), przez co radiotelefon nigdy nie wykrywa wolnego kana?u. Spr?buj zwi?kszy? poziom squelch.';
+  }
 }

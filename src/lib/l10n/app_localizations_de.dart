@@ -4052,4 +4052,9 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get settingsWinlinkGatewayDbAutoSubtitle =>
       'Im Hintergrund über WLAN oder Kabelverbindung aktualisieren.';
+
+  @override
+  String radioTransmitStalled(int seconds) {
+    return 'Das Datenpaket wurde nach $seconds Sekunden noch nicht gesendet. Der Kanal ist m?glicherweise belegt. Dies passiert h?ufig, wenn die Rauschsperre (Squelch) zu niedrig eingestellt ist (z. B. 0), sodass das Funkger?t nie einen freien Kanal erkennt. Erh?hen Sie die Squelch-Stufe.';
+  }
 }

@@ -2354,5 +2354,15 @@
     }
   },
   "settingsWinlinkGatewayDbAuto": "Automatically keep updated",
-  "settingsWinlinkGatewayDbAutoSubtitle": "Refresh over Wi-Fi or wired connections in the background."
+  "settingsWinlinkGatewayDbAutoSubtitle": "Refresh over Wi-Fi or wired connections in the background.",
+  "radioTransmitStalled": "The data packet has not been transmitted after {seconds} seconds. The channel may be busy. This often happens when the squelch is set too low (for example 0), so the radio never sees a clear channel. Try raising the squelch level.",
+  "@radioTransmitStalled": {
+    "description": "Shown when a data frame was sent to the radio but the radio did not start transmitting, usually because the squelch is too low.",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "example": "10"
+      }
+    }
+  }
 }

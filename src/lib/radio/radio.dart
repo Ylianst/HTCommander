@@ -165,6 +165,14 @@ class Radio implements FirmwareRadio {
   // Clear channel timer
   Timer? _clearChannelTimer;
 
+  // Transmit-stall watchdog. Armed when a data frame is handed to the radio for
+  // transmission and cancelled once the radio keys up. If the radio never goes
+  // into transmit (typically because the squelch is set so low that the
+  // channel never appears clear), a 'TransmitStalled' event is dispatched so
+  // the UI can warn the user.
+  static const Duration _txStallTimeout = Duration(seconds: 10);
+  Timer? _txStallTimer;
+
   // Battery poll timer (every 60 seconds while connected)
   Timer? _batteryPollTimer;
 
@@ -351,6 +359,14 @@ class Radio implements FirmwareRadio {
       deviceId: deviceId,
       name: 'TransmitDataFrame',
       callback: _onTransmitDataFrameEvent,
+    );
+
+    // PCM sent to this radio for transmission (e.g. the software modem after
+    // winning channel access) means the radio is keying up.
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'TransmitVoicePCM',
+      callback: (d, n, data) => _cancelTxStallWatchdog(),
     );
 
     // Track the live general software-modem mode. This fires even for session
@@ -1458,6 +1474,7 @@ class Radio implements FirmwareRadio {
     _receiveBuffer.clear();
     _clearChannelTimer?.cancel();
     _clearChannelTimer = null;
+    _cancelTxStallWatchdog();
     _batteryPollTimer?.cancel();
     _batteryPollTimer = null;
     _trustedDeviceTimer?.cancel();
@@ -2215,6 +2232,7 @@ class Radio implements FirmwareRadio {
       // frame's channel, so encode the frame with the software modem and send
       // it as PCM audio rather than handing it to the radio's hardware TNC.
       _transmitSoftwareModem(fragment, softwareMode);
+      _armTxStallWatchdog();
     } else if (hardwareModemEnabled) {
       // In dual-channel (dual-watch) mode with VFO B selected, send on VFO B via
       // the hardware TNC so the message goes out on the VFO the user has active.
@@ -2459,7 +2477,46 @@ class Radio implements FirmwareRadio {
       fragId++;
     }
 
+    _armTxStallWatchdog();
     _trySendNextFragment();
+  }
+
+  void _armTxStallWatchdog() {
+    if (_txStallTimer != null) return;
+    _txStallTimer = Timer(_txStallTimeout, _onTxStallTimeout);
+  }
+
+  void _cancelTxStallWatchdog() {
+    _txStallTimer?.cancel();
+    _txStallTimer = null;
+  }
+
+  /// Called with the previous and new HtStatus. Any transmit activity (keying
+  /// up, or a transmission that just ended and may have carried the frame)
+  /// means the radio is not stuck waiting for the channel.
+  void _updateTxStallWatchdog(RadioHtStatus? previous, RadioHtStatus current) {
+    if (_txStallTimer == null) return;
+    if (current.isInTx || (previous?.isInTx ?? false)) {
+      _cancelTxStallWatchdog();
+    }
+  }
+
+  void _onTxStallTimeout() {
+    _txStallTimer = null;
+    final status = htStatus;
+    if (status == null || status.isInTx) return;
+    _debug(
+      'Data frame not transmitted after ${_txStallTimeout.inSeconds}s, '
+      'channel may be busy (rssi=${status.rssi}, inRx=${status.isInRx}, '
+      'squelch=${settings?.squelchLevel})',
+    );
+    _dispatch('TransmitStalled', {
+      'timeoutSeconds': _txStallTimeout.inSeconds,
+      'queuedFragments': _tncFragmentQueue.length,
+      'rssi': status.rssi,
+      'isInRx': status.isInRx,
+      'squelchLevel': settings?.squelchLevel,
+    }, store: false);
   }
 
   void _trySendNextFragment() {
@@ -3113,9 +3170,11 @@ class Radio implements FirmwareRadio {
   }
 
   void _handleHtStatus(Uint8List data) {
+    final previous = htStatus;
     htStatus = RadioHtStatus.fromBytes(data);
     if (htStatus != null) {
       _dispatch('HtStatus', htStatus!.toJson());
+      _updateTxStallWatchdog(previous, htStatus!);
     }
   }
 
@@ -3379,10 +3438,12 @@ class Radio implements FirmwareRadio {
   }
 
   void _handleHtStatusChanged(Uint8List data) {
-    final oldRegion = htStatus?.currRegion ?? -1;
+    final previous = htStatus;
+    final oldRegion = previous?.currRegion ?? -1;
     htStatus = RadioHtStatus.fromBytes(data);
     if (htStatus != null) {
       _dispatch('HtStatus', htStatus!.toJson());
+      _updateTxStallWatchdog(previous, htStatus!);
 
       // When the FM broadcast receiver becomes active, request its current
       // frequency once (subsequent changes arrive via radioStatusChanged).

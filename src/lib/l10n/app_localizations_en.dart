@@ -4008,4 +4008,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsWinlinkGatewayDbAutoSubtitle =>
       'Refresh over Wi-Fi or wired connections in the background.';
+
+  @override
+  String radioTransmitStalled(int seconds) {
+    return 'The data packet has not been transmitted after $seconds seconds. The channel may be busy. This often happens when the squelch is set too low (for example 0), so the radio never sees a clear channel. Try raising the squelch level.';
+  }
 }

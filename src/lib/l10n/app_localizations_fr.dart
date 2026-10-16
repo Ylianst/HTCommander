@@ -4050,4 +4050,9 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get settingsWinlinkGatewayDbAutoSubtitle =>
       'Actualiser en arrière-plan via Wi-Fi ou connexion filaire.';
+
+  @override
+  String radioTransmitStalled(int seconds) {
+    return 'Le paquet de donn?es n\'a pas ?t? transmis apr?s $seconds secondes. Le canal est peut-?tre occup?. Cela se produit souvent lorsque le squelch est r?gl? trop bas (par exemple 0) : la radio ne d?tecte alors jamais de canal libre. Essayez d\'augmenter le niveau de squelch.';
+  }
 }

@@ -1098,6 +1098,9 @@ class _MainFormState extends State<MainForm>
   // Whether the currently displayed radio has a built-in FM broadcast receiver.
   bool _supportRadio = false;
   int _currRegion = 0; // Current region index of the currently displayed radio
+  // Last time the "transmit stalled" warning was shown, to avoid repeating it
+  // for every queued frame while the channel stays busy.
+  DateTime? _lastTransmitStalledWarning;
   // Whether the currently displayed radio is locked for a usage (e.g. a torrent
   // transfer or satellite pass). Region programming is blocked while locked.
   bool _radioLocked = false;
@@ -1416,6 +1419,13 @@ class _MainFormState extends State<MainForm>
       deviceId: DataBroker.allDevices,
       name: 'HtStatus',
       callback: _onHtStatusChanged,
+    );
+
+    // Warn the user when a radio was given a data frame but never keyed up.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'TransmitStalled',
+      callback: _onTransmitStalled,
     );
 
     // Subscribe to RegionNames changes from all radio devices (region names)
@@ -2116,6 +2126,33 @@ class _MainFormState extends State<MainForm>
         });
       }
     }
+  }
+
+  /// Handle TransmitStalled from any radio: a data frame was handed to the radio
+  /// but it did not start transmitting, most likely because the channel never
+  /// appears clear (e.g. squelch set to 0).
+  void _onTransmitStalled(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final now = DateTime.now();
+    final last = _lastTransmitStalledWarning;
+    if (last != null && now.difference(last) < const Duration(seconds: 30)) {
+      return;
+    }
+    _lastTransmitStalledWarning = now;
+    final seconds = (data is Map ? data['timeoutSeconds'] as int? : null) ?? 10;
+    _broker.logInfo(
+      'Radio $deviceId has not transmitted a queued data frame after '
+      '${seconds}s, channel may be busy (squelch too low?)',
+    );
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(
+          AppLocalizations.of(context).radioTransmitStalled(seconds),
+        ),
+        duration: const Duration(seconds: 10),
+        showCloseIcon: true,
+      ),
+    );
   }
 
   /// Handle RegionNames changes from any radio device. Rebuilds the menu so the

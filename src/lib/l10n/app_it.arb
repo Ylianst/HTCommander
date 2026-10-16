@@ -1279,5 +1279,6 @@
   "settingsWinlinkGatewayDbUpToDate": "Già aggiornato.",
   "settingsWinlinkGatewayDbFailed": "Download non riuscito: {error}",
   "settingsWinlinkGatewayDbAuto": "Mantieni aggiornato automaticamente",
-  "settingsWinlinkGatewayDbAutoSubtitle": "Aggiorna in background tramite Wi-Fi o connessione cablata."
+  "settingsWinlinkGatewayDbAutoSubtitle": "Aggiorna in background tramite Wi-Fi o connessione cablata.",
+  "radioTransmitStalled": "Il pacchetto dati non ? stato trasmesso dopo {seconds} secondi. Il canale potrebbe essere occupato. Succede spesso quando lo squelch ? impostato troppo basso (ad esempio 0), per cui la radio non rileva mai un canale libero. Prova ad aumentare il livello di squelch."
 }
