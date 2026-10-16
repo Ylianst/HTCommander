@@ -7773,6 +7773,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove the group \"{name}\" from the MeshCore radio? Its message history is kept.'**
   String meshRemoveGroupPrompt(String name);
+
+  /// No description provided for @meshDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'MeshCore Message Details'**
+  String get meshDetailsTitle;
+
+  /// No description provided for @meshDetailType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get meshDetailType;
+
+  /// No description provided for @meshDirectMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct message'**
+  String get meshDirectMessage;
+
+  /// No description provided for @meshGroupMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Group message'**
+  String get meshGroupMessage;
+
+  /// No description provided for @meshDetailConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation'**
+  String get meshDetailConversation;
+
+  /// No description provided for @meshDetailFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get meshDetailFrom;
+
+  /// No description provided for @meshDetailTo.
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get meshDetailTo;
+
+  /// No description provided for @meshDetailKeyPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Key prefix'**
+  String get meshDetailKeyPrefix;
+
+  /// No description provided for @meshDetailTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get meshDetailTime;
+
+  /// No description provided for @meshDetailSenderTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Sender time'**
+  String get meshDetailSenderTime;
+
+  /// No description provided for @meshDetailRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'Route'**
+  String get meshDetailRoute;
+
+  /// No description provided for @meshDetailDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery'**
+  String get meshDetailDelivery;
+
+  /// No description provided for @meshDetailLength.
+  ///
+  /// In en, this message translates to:
+  /// **'Length'**
+  String get meshDetailLength;
+
+  /// Message length in UTF-8 bytes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} bytes'**
+  String meshDetailBytes(int count);
+
+  /// No description provided for @meshDetailMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get meshDetailMessage;
+
+  /// No description provided for @meshUnverified.
+  ///
+  /// In en, this message translates to:
+  /// **'unverified'**
+  String get meshUnverified;
+
+  /// No description provided for @meshDeliveryPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get meshDeliveryPending;
+
+  /// No description provided for @meshDeliverySent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get meshDeliverySent;
+
+  /// No description provided for @meshDeliveryDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get meshDeliveryDelivered;
+
+  /// No description provided for @meshDeliveryFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get meshDeliveryFailed;
+
+  /// No description provided for @meshDeliveryReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Received'**
+  String get meshDeliveryReceived;
 }
 
 class _AppLocalizationsDelegate

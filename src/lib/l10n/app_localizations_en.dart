@@ -4259,4 +4259,69 @@ class AppLocalizationsEn extends AppLocalizations {
   String meshRemoveGroupPrompt(String name) {
     return 'Remove the group \"$name\" from the MeshCore radio? Its message history is kept.';
   }
+
+  @override
+  String get meshDetailsTitle => 'MeshCore Message Details';
+
+  @override
+  String get meshDetailType => 'Type';
+
+  @override
+  String get meshDirectMessage => 'Direct message';
+
+  @override
+  String get meshGroupMessage => 'Group message';
+
+  @override
+  String get meshDetailConversation => 'Conversation';
+
+  @override
+  String get meshDetailFrom => 'From';
+
+  @override
+  String get meshDetailTo => 'To';
+
+  @override
+  String get meshDetailKeyPrefix => 'Key prefix';
+
+  @override
+  String get meshDetailTime => 'Time';
+
+  @override
+  String get meshDetailSenderTime => 'Sender time';
+
+  @override
+  String get meshDetailRoute => 'Route';
+
+  @override
+  String get meshDetailDelivery => 'Delivery';
+
+  @override
+  String get meshDetailLength => 'Length';
+
+  @override
+  String meshDetailBytes(int count) {
+    return '$count bytes';
+  }
+
+  @override
+  String get meshDetailMessage => 'Message';
+
+  @override
+  String get meshUnverified => 'unverified';
+
+  @override
+  String get meshDeliveryPending => 'Pending';
+
+  @override
+  String get meshDeliverySent => 'Sent';
+
+  @override
+  String get meshDeliveryDelivered => 'Delivered';
+
+  @override
+  String get meshDeliveryFailed => 'Failed';
+
+  @override
+  String get meshDeliveryReceived => 'Received';
 }

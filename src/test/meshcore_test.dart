@@ -8,6 +8,7 @@ import 'package:htcommander/meshcore/meshcore_client.dart';
 import 'package:htcommander/meshcore/meshcore_protocol.dart';
 import 'package:htcommander/meshcore/meshcore_stream_transport.dart';
 import 'package:htcommander/models/station_info.dart';
+import 'package:htcommander/widgets/callsign_license_line.dart';
 import 'package:htcommander/widgets/contact_avatar.dart';
 
 Uint8List _u32(int v) =>
@@ -221,6 +222,20 @@ void main() {
       expect(nameInitials('bob'), 'BO');
       expect(nameInitials('  '), '?');
       expect(nameInitials('Ünal Öz'), 'ÜÖ');
+    });
+
+    test('callsigns at the start of node names', () {
+      expect(callsignFromName('KK7VZT'), 'KK7VZT');
+      expect(callsignFromName('KK7VZT-Hello'), 'KK7VZT');
+      expect(callsignFromName('kk7vzt Hello'), 'KK7VZT');
+      expect(callsignFromName('W1AW/Base'), 'W1AW');
+      expect(callsignFromName('VE3ABC_mobile'), 'VE3ABC');
+      expect(callsignFromName('2E0XYZ'), '2E0XYZ');
+      expect(callsignFromName('Alice'), isNull);
+      expect(callsignFromName('Node1'), isNull);
+      expect(callsignFromName('Hello KK7VZT'), isNull);
+      expect(callsignFromName('1234'), isNull);
+      expect(callsignFromName(''), isNull);
     });
   });
 

@@ -6,6 +6,7 @@ import 'tab_visibility.dart';
 import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'chat_widget.dart';
+import 'callsign_license_line.dart';
 import 'contact_avatar.dart';
 import '../dialogs/aprs_configuration_dialog.dart';
 import '../dialogs/aprs_details_dialog.dart';
@@ -890,12 +891,140 @@ class _AprsTabState extends State<AprsTab>
     );
   }
 
+  /// The direct-message peer (key prefix) who sent [m], or null when unknown.
+  /// Group messages carry only the sender's display name, so the sender is
+  /// resolved only when exactly one companion user the radio knows has that
+  /// name.
+  String? _meshSenderPeer(MeshCoreMessage m) {
+    if (m.outgoing) return null;
+    if (m.kind == MeshCoreKind.user) return m.peer;
+    if (m.sender.isEmpty || m.sender == _meshSelfName) return null;
+    final matches = _meshContacts
+        .where((c) => c['type'] == 1 && c['name']?.toString() == m.sender)
+        .toList();
+    return matches.length == 1 ? matches.first['prefix']?.toString() : null;
+  }
+
+  /// Full public key for a direct-message peer, when the address book or the
+  /// radio knows it.
+  String? _meshKeyForPeer(String peer) =>
+      _meshBook[peer]?.callsign ?? _meshContactByPrefix(peer)?['key']?.toString();
+
+  /// The callsign the sender's name starts with (e.g. "KK7VZT-Base"). The
+  /// name the node advertises is tried before the address-book name.
+  String? _meshCallsignFor(MeshCoreMessage m) {
+    if (m.outgoing) return null;
+    final names = <String>[
+      m.sender,
+      if (m.kind == MeshCoreKind.user) ...[
+        _meshContactByPrefix(m.peer)?['name']?.toString() ?? '',
+        _meshBook[m.peer]?.name ?? '',
+      ],
+    ];
+    for (final n in names) {
+      final cs = callsignFromName(n);
+      if (cs != null) return cs;
+    }
+    return null;
+  }
+
+  Future<void> _showMeshDetails(MeshCoreMessage m) async {
+    final callsign = _meshCallsignFor(m);
+    final license = callsign == null
+        ? null
+        : await lookupCallsignRecord(callsign);
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    final group = m.kind == MeshCoreKind.group;
+    final senderPeer = _meshSenderPeer(m);
+    final senderKey = senderPeer == null ? null : _meshKeyForPeer(senderPeer);
+    String fmt(DateTime t) =>
+        '${t.year}-${t.month.toString().padLeft(2, '0')}-'
+        '${t.day.toString().padLeft(2, '0')} '
+        '${t.hour.toString().padLeft(2, '0')}:'
+        '${t.minute.toString().padLeft(2, '0')}:'
+        '${t.second.toString().padLeft(2, '0')}';
+    final hops = m.pathLen == null ? null : hopsFromPathLen(m.pathLen!);
+    final state = switch (m.state) {
+      MeshCoreDelivery.pending => l10n.meshDeliveryPending,
+      MeshCoreDelivery.sent => l10n.meshDeliverySent,
+      MeshCoreDelivery.delivered => l10n.meshDeliveryDelivered,
+      MeshCoreDelivery.failed => l10n.meshDeliveryFailed,
+      _ => l10n.meshDeliveryReceived,
+    };
+    final self = _meshSelfName.isEmpty ? m.sender : _meshSelfName;
+    final from = m.outgoing
+        ? self
+        : group
+        ? '${m.sender.isEmpty ? '?' : m.sender} (${l10n.meshUnverified})'
+        : _meshTitle(MeshCoreKind.user, m.peer);
+    AprsDetailsDialog.show(
+      context,
+      title: l10n.meshDetailsTitle,
+      items: [
+        AprsDetailItem(
+          l10n.meshDetailType,
+          group ? l10n.meshGroupMessage : l10n.meshDirectMessage,
+        ),
+        AprsDetailItem(
+          l10n.meshDetailConversation,
+          _meshTitle(m.kind, m.peer),
+        ),
+        AprsDetailItem(l10n.meshDetailFrom, from),
+        if (callsign != null) ...[
+          AprsDetailItem(l10n.cslFieldCallsign, callsign),
+          if (licenseGradeText(license) != null)
+            AprsDetailItem(l10n.cslFieldClass, licenseGradeText(license)!),
+          if (license != null && license.name.isNotEmpty)
+            AprsDetailItem(l10n.cslFieldName, license.name),
+          if (license != null && license.location.isNotEmpty)
+            AprsDetailItem(l10n.cslFieldLocation, license.location),
+        ],
+        if (m.outgoing && !group)
+          AprsDetailItem(
+            l10n.meshDetailTo,
+            _meshTitle(MeshCoreKind.user, m.peer),
+          ),
+        if (senderKey != null)
+          AprsDetailItem(l10n.meshPublicKey, senderKey)
+        else if (!m.outgoing && !group)
+          AprsDetailItem(l10n.meshDetailKeyPrefix, m.peer),
+        AprsDetailItem(l10n.meshDetailTime, fmt(m.time)),
+        if (m.senderTime > 0)
+          AprsDetailItem(
+            l10n.meshDetailSenderTime,
+            fmt(DateTime.fromMillisecondsSinceEpoch(m.senderTime * 1000)),
+          ),
+        if (!m.outgoing)
+          AprsDetailItem(
+            l10n.meshDetailRoute,
+            hops == null ? l10n.meshDirect : l10n.meshHops(hops),
+          ),
+        if (m.snr != null)
+          AprsDetailItem('SNR', '${m.snr!.toStringAsFixed(2)} dB'),
+        AprsDetailItem(l10n.meshDetailDelivery, state),
+        AprsDetailItem(
+          l10n.meshDetailLength,
+          l10n.meshDetailBytes(utf8Length(m.text)),
+        ),
+        AprsDetailItem(l10n.meshDetailMessage, m.text),
+      ],
+    );
+  }
+
   Future<void> _onMeshContextMenu(ChatMessage message, Offset position) async {
     final m = message.tag;
     if (m is! MeshCoreMessage) return;
     final l10n = AppLocalizations.of(context);
     final canResend =
         m.outgoing && m.state == MeshCoreDelivery.failed && _meshConnected;
+    // Offer to add the sender only when they are not a contact yet and their
+    // key can be found (always for direct messages).
+    final senderPeer = _meshSenderPeer(m);
+    final canAddContact =
+        senderPeer != null &&
+        !_meshBook.containsKey(senderPeer) &&
+        (m.kind == MeshCoreKind.user || _meshKeyForPeer(senderPeer) != null);
     final value = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -905,6 +1034,7 @@ class _AprsTabState extends State<AprsTab>
         position.dy,
       ),
       items: [
+        PopupMenuItem(value: 'details', child: Text(l10n.aprsDetails)),
         PopupMenuItem(value: 'copy', child: Text(l10n.aprsCopyMessage)),
         if (canResend)
           PopupMenuItem(value: 'resend', child: Text(l10n.meshResend)),
@@ -913,12 +1043,21 @@ class _AprsTabState extends State<AprsTab>
             value: 'open',
             child: Text(_meshTitle(m.kind, m.peer)),
           ),
-        if (m.kind == MeshCoreKind.user && !_meshBook.containsKey(m.peer))
+        if (canAddContact)
           PopupMenuItem(value: 'addContact', child: Text(l10n.aprsAddContact)),
+        if (_meshCallsignFor(m) != null)
+          PopupMenuItem(value: 'lookup', child: Text(l10n.callsignLookup)),
       ],
     );
     if (!mounted) return;
     switch (value) {
+      case 'details':
+        _showMeshDetails(m);
+      case 'lookup':
+        CallsignLookupDialog.show(
+          context,
+          initialCallsign: _meshCallsignFor(m),
+        );
       case 'copy':
         await Clipboard.setData(ClipboardData(text: m.text));
       case 'resend':
@@ -931,7 +1070,7 @@ class _AprsTabState extends State<AprsTab>
       case 'open':
         _openMeshConversation(m.conversationKey);
       case 'addContact':
-        await _editMeshContact(m.peer);
+        await _editMeshContact(senderPeer!);
     }
   }
 
@@ -962,14 +1101,17 @@ class _AprsTabState extends State<AprsTab>
                 child: ChatWidget(
                   messages: messages,
                   onMessageContextMenu: _onMeshContextMenu,
-                  onMessageDoubleTap: _viewAllMesh
-                      ? (msg) {
-                          final m = msg.tag;
-                          if (m is MeshCoreMessage) {
-                            _openMeshConversation(m.conversationKey);
-                          }
-                        }
-                      : null,
+                  onMessageDoubleTap: (msg) {
+                    final m = msg.tag;
+                    if (m is! MeshCoreMessage) return;
+                    // In the combined feed, double-click opens the thread;
+                    // inside a thread it shows the message details.
+                    if (_viewAllMesh) {
+                      _openMeshConversation(m.conversationKey);
+                    } else {
+                      _showMeshDetails(m);
+                    }
+                  },
                 ),
               ),
               if (sel != null && sel.kind == MeshCoreKind.user)

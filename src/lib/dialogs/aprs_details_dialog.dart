@@ -38,6 +38,9 @@ class AprsDetailsDialog extends StatelessWidget {
   /// Optional title shown in the location map dialog (e.g. the sender call).
   final String? locationTitle;
 
+  /// Dialog title; defaults to "APRS Packet Details".
+  final String? title;
+
   /// Optional APRS symbol identifier characters. When [symbolTable] and
   /// [symbolCode] are both non-empty, a header showing the symbol icon, its
   /// two-character id and name is displayed at the top of the dialog.
@@ -52,6 +55,7 @@ class AprsDetailsDialog extends StatelessWidget {
     this.locationTitle,
     this.symbolTable,
     this.symbolCode,
+    this.title,
   });
 
   /// Shows the dialog. [items] are the name/value pairs to display.
@@ -63,6 +67,7 @@ class AprsDetailsDialog extends StatelessWidget {
     String? locationTitle,
     String? symbolTable,
     String? symbolCode,
+    String? title,
   }) {
     return showDialog<void>(
       context: context,
@@ -73,6 +78,7 @@ class AprsDetailsDialog extends StatelessWidget {
         locationTitle: locationTitle,
         symbolTable: symbolTable,
         symbolCode: symbolCode,
+        title: title,
       ),
     );
   }
@@ -212,7 +218,7 @@ class AprsDetailsDialog extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      l10n.apdTitle,
+                      title ?? l10n.apdTitle,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

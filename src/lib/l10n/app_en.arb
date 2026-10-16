@@ -2465,5 +2465,32 @@
     "placeholders": {
       "name": { "type": "String" }
     }
+  },
+  "meshDetailsTitle": "MeshCore Message Details",
+  "meshDetailType": "Type",
+  "meshDirectMessage": "Direct message",
+  "meshGroupMessage": "Group message",
+  "meshDetailConversation": "Conversation",
+  "meshDetailFrom": "From",
+  "meshDetailTo": "To",
+  "meshDetailKeyPrefix": "Key prefix",
+  "meshDetailTime": "Time",
+  "meshDetailSenderTime": "Sender time",
+  "meshDetailRoute": "Route",
+  "meshDetailDelivery": "Delivery",
+  "meshDetailLength": "Length",
+  "meshDetailBytes": "{count} bytes",
+  "meshDetailMessage": "Message",
+  "meshUnverified": "unverified",
+  "meshDeliveryPending": "Pending",
+  "meshDeliverySent": "Sent",
+  "meshDeliveryDelivered": "Delivered",
+  "meshDeliveryFailed": "Failed",
+  "meshDeliveryReceived": "Received",
+  "@meshDetailBytes": {
+    "description": "Message length in UTF-8 bytes.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
   }
 }

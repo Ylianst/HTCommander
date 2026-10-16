@@ -9,6 +9,23 @@ import 'package:flutter/material.dart';
 import '../callsign/callsign_record.dart';
 import '../services/callsign_lookup_service.dart';
 
+/// Amateur callsign shape: a 1-3 character prefix, a digit, and a suffix that
+/// ends in a letter (e.g. KK7VZT, W1AW, VE3ABC, 2E0XYZ).
+final RegExp _callsignShape = RegExp(r'^[A-Z0-9]{1,3}[0-9][A-Z0-9]{0,3}[A-Z]$');
+
+/// The callsign a free-form name starts with, upper-cased, or null. Used for
+/// names that are not callsigns themselves, such as MeshCore node names like
+/// "KK7VZT", "KK7VZT-Hello" or "kk7vzt Hello". Only the first word (up to a
+/// space or common separator) is considered, and it must contain a letter.
+String? callsignFromName(String name) {
+  final token = name.trim().split(RegExp(r'[\s\-_/.:,;()\[\]|]')).first;
+  final upper = token.toUpperCase();
+  if (upper.length < 3 || upper.length > 7) return null;
+  if (!_callsignShape.hasMatch(upper)) return null;
+  if (!upper.contains(RegExp(r'[A-Z]'))) return null;
+  return upper;
+}
+
 /// Looks [callsign] up in the offline callsign database. Returns null when the
 /// database isn't installed, the callsign is unknown, or the lookup fails.
 Future<CallsignRecord?> lookupCallsignRecord(String callsign) async {

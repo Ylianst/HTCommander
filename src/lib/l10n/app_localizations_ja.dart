@@ -4195,4 +4195,69 @@ class AppLocalizationsJa extends AppLocalizations {
   String meshRemoveGroupPrompt(String name) {
     return 'グループ「$name」を MeshCore 無線機から削除しますか？メッセージ履歴は保持されます。';
   }
+
+  @override
+  String get meshDetailsTitle => 'MeshCore メッセージの詳細';
+
+  @override
+  String get meshDetailType => '種類';
+
+  @override
+  String get meshDirectMessage => 'ダイレクトメッセージ';
+
+  @override
+  String get meshGroupMessage => 'グループメッセージ';
+
+  @override
+  String get meshDetailConversation => '会話';
+
+  @override
+  String get meshDetailFrom => '送信者';
+
+  @override
+  String get meshDetailTo => '宛先';
+
+  @override
+  String get meshDetailKeyPrefix => '鍵のプレフィックス';
+
+  @override
+  String get meshDetailTime => '時刻';
+
+  @override
+  String get meshDetailSenderTime => '送信者の時刻';
+
+  @override
+  String get meshDetailRoute => '経路';
+
+  @override
+  String get meshDetailDelivery => '配信';
+
+  @override
+  String get meshDetailLength => '長さ';
+
+  @override
+  String meshDetailBytes(int count) {
+    return '$count バイト';
+  }
+
+  @override
+  String get meshDetailMessage => 'メッセージ';
+
+  @override
+  String get meshUnverified => '未確認';
+
+  @override
+  String get meshDeliveryPending => '保留中';
+
+  @override
+  String get meshDeliverySent => '送信済み';
+
+  @override
+  String get meshDeliveryDelivered => '配信済み';
+
+  @override
+  String get meshDeliveryFailed => '失敗';
+
+  @override
+  String get meshDeliveryReceived => '受信';
 }

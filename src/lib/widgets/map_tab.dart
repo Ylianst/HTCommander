@@ -1990,7 +1990,15 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       _selectedWinlinkCallsign = null;
       _selectedMeshKey = s.key;
     });
+    final cs = _meshCallsign(s, _meshContacts());
+    if (cs != null) _lookupLicense(cs);
   }
+
+  /// The callsign a MeshCore node's name starts with (e.g. "KK7VZT Base"),
+  /// preferring the name the node advertises over the address-book name.
+  String? _meshCallsign(_MeshStation s, Map<String, StationInfo> contacts) =>
+      callsignFromName(s.name) ??
+      callsignFromName(contacts[s.key]?.name ?? '');
 
   /// Only other chat nodes take direct messages and can be contacts.
   bool _meshIsUser(_MeshStation s) =>
@@ -2045,6 +2053,12 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             height: 40,
             child: item(Icons.copy, l10n.meshCopyPublicKey),
           ),
+        if (_meshCallsign(s, contacts) != null)
+          PopupMenuItem<String>(
+            value: 'lookup',
+            height: 40,
+            child: item(Icons.badge_outlined, l10n.callsignLookup),
+          ),
       ],
     );
     if (!mounted) return;
@@ -2060,6 +2074,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
         );
       case 'copy':
         await Clipboard.setData(ClipboardData(text: s.key));
+      case 'lookup':
+        CallsignLookupDialog.show(
+          context,
+          initialCallsign: _meshCallsign(s, contacts),
+        );
     }
   }
 
@@ -2104,6 +2123,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       relative = '$compass  •  ${_formatDistanceShort(meters)}';
     }
     final small = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
+    final callsign = _meshCallsign(s, contacts);
+    final grade = callsign == null ? null : _licenseGradeText(callsign);
+    final license = callsign == null ? null : _buildLicenseLine(callsign);
     return Positioned(
       left: 8,
       right: 8,
@@ -2144,9 +2166,16 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(_meshTypeLabel(s.type), style: small),
+                        Flexible(
+                          child: Text(
+                            [_meshTypeLabel(s.type), ?grade].join('  •  '),
+                            style: small,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
+                    ?license,
                     if (relative != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),

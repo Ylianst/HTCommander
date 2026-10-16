@@ -4274,4 +4274,69 @@ class AppLocalizationsHi extends AppLocalizations {
   String meshRemoveGroupPrompt(String name) {
     return 'MeshCore रेडियो से समूह \"$name\" हटाएँ? इसका संदेश इतिहास रखा जाएगा।';
   }
+
+  @override
+  String get meshDetailsTitle => 'MeshCore संदेश विवरण';
+
+  @override
+  String get meshDetailType => 'प्रकार';
+
+  @override
+  String get meshDirectMessage => 'सीधा संदेश';
+
+  @override
+  String get meshGroupMessage => 'समूह संदेश';
+
+  @override
+  String get meshDetailConversation => 'बातचीत';
+
+  @override
+  String get meshDetailFrom => 'प्रेषक';
+
+  @override
+  String get meshDetailTo => 'प्राप्तकर्ता';
+
+  @override
+  String get meshDetailKeyPrefix => 'कुंजी उपसर्ग';
+
+  @override
+  String get meshDetailTime => 'समय';
+
+  @override
+  String get meshDetailSenderTime => 'प्रेषक का समय';
+
+  @override
+  String get meshDetailRoute => 'मार्ग';
+
+  @override
+  String get meshDetailDelivery => 'डिलीवरी';
+
+  @override
+  String get meshDetailLength => 'लंबाई';
+
+  @override
+  String meshDetailBytes(int count) {
+    return '$count बाइट';
+  }
+
+  @override
+  String get meshDetailMessage => 'संदेश';
+
+  @override
+  String get meshUnverified => 'असत्यापित';
+
+  @override
+  String get meshDeliveryPending => 'लंबित';
+
+  @override
+  String get meshDeliverySent => 'भेजा गया';
+
+  @override
+  String get meshDeliveryDelivered => 'डिलीवर हुआ';
+
+  @override
+  String get meshDeliveryFailed => 'विफल';
+
+  @override
+  String get meshDeliveryReceived => 'प्राप्त';
 }

@@ -4307,4 +4307,69 @@ class AppLocalizationsDe extends AppLocalizations {
   String meshRemoveGroupPrompt(String name) {
     return 'Die Gruppe „$name“ vom MeshCore-Funkgerät entfernen? Der Nachrichtenverlauf bleibt erhalten.';
   }
+
+  @override
+  String get meshDetailsTitle => 'MeshCore-Nachrichtendetails';
+
+  @override
+  String get meshDetailType => 'Typ';
+
+  @override
+  String get meshDirectMessage => 'Direktnachricht';
+
+  @override
+  String get meshGroupMessage => 'Gruppennachricht';
+
+  @override
+  String get meshDetailConversation => 'Unterhaltung';
+
+  @override
+  String get meshDetailFrom => 'Von';
+
+  @override
+  String get meshDetailTo => 'An';
+
+  @override
+  String get meshDetailKeyPrefix => 'Schlüsselpräfix';
+
+  @override
+  String get meshDetailTime => 'Zeit';
+
+  @override
+  String get meshDetailSenderTime => 'Zeit des Absenders';
+
+  @override
+  String get meshDetailRoute => 'Route';
+
+  @override
+  String get meshDetailDelivery => 'Zustellung';
+
+  @override
+  String get meshDetailLength => 'Länge';
+
+  @override
+  String meshDetailBytes(int count) {
+    return '$count Bytes';
+  }
+
+  @override
+  String get meshDetailMessage => 'Nachricht';
+
+  @override
+  String get meshUnverified => 'nicht verifiziert';
+
+  @override
+  String get meshDeliveryPending => 'Ausstehend';
+
+  @override
+  String get meshDeliverySent => 'Gesendet';
+
+  @override
+  String get meshDeliveryDelivered => 'Zugestellt';
+
+  @override
+  String get meshDeliveryFailed => 'Fehlgeschlagen';
+
+  @override
+  String get meshDeliveryReceived => 'Empfangen';
 }

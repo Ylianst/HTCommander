@@ -91,6 +91,19 @@ shortened key, distance and last update, with actions to message it or add it
 to Contacts. With **Show Contacts Only**, only MeshCore users in the address
 book are drawn, matched by public key.
 
+Right-clicking a MeshCore message in the Messaging tab offers **Details...**
+(also opened by double-clicking a message in a thread) and, when the sender is
+not yet in the address book, **Add Contact...**.
+
+Many operators start a node name with their callsign, for example `KK7VZT`,
+`KK7VZT-Base` or `KK7VZT Mobile`. When a MeshCore name starts with something
+shaped like an amateur callsign, HTCommander looks it up in the offline
+callsign database, as it does for APRS stations. On the map, the info card
+shows the licence class, name and location, and the context menu adds
+**Lookup...**. In the Messaging tab, a message's **Details** include the
+callsign and licence fields, and its context menu adds **Lookup...**. The name
+the node advertises is checked first, then the address-book name.
+
 ### Firmware findings that differ from the protocol guide
 
 Where the published guide and the v1.16 companion firmware disagree, the code

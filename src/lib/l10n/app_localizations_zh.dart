@@ -4151,4 +4151,69 @@ class AppLocalizationsZh extends AppLocalizations {
   String meshRemoveGroupPrompt(String name) {
     return '要从 MeshCore 电台移除群组“$name”吗？其消息记录将会保留。';
   }
+
+  @override
+  String get meshDetailsTitle => 'MeshCore 消息详情';
+
+  @override
+  String get meshDetailType => '类型';
+
+  @override
+  String get meshDirectMessage => '私信';
+
+  @override
+  String get meshGroupMessage => '群组消息';
+
+  @override
+  String get meshDetailConversation => '会话';
+
+  @override
+  String get meshDetailFrom => '发件人';
+
+  @override
+  String get meshDetailTo => '收件人';
+
+  @override
+  String get meshDetailKeyPrefix => '密钥前缀';
+
+  @override
+  String get meshDetailTime => '时间';
+
+  @override
+  String get meshDetailSenderTime => '发送方时间';
+
+  @override
+  String get meshDetailRoute => '路由';
+
+  @override
+  String get meshDetailDelivery => '投递';
+
+  @override
+  String get meshDetailLength => '长度';
+
+  @override
+  String meshDetailBytes(int count) {
+    return '$count 字节';
+  }
+
+  @override
+  String get meshDetailMessage => '消息';
+
+  @override
+  String get meshUnverified => '未验证';
+
+  @override
+  String get meshDeliveryPending => '待发送';
+
+  @override
+  String get meshDeliverySent => '已发送';
+
+  @override
+  String get meshDeliveryDelivered => '已送达';
+
+  @override
+  String get meshDeliveryFailed => '失败';
+
+  @override
+  String get meshDeliveryReceived => '已接收';
 }
