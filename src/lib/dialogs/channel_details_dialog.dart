@@ -8,7 +8,9 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import 'dialog_utils.dart';
+import '../callsign/callsign_record.dart';
 import '../radio/radio_models.dart';
+import '../widgets/callsign_license_line.dart';
 
 /// Opens a read-only details view for a [channel].
 ///
@@ -18,19 +20,52 @@ Future<void> showChannelDetailsDialog(
   BuildContext context, {
   required RadioChannelInfo channel,
   String? title,
+  String? callsign,
 }) {
   return showDialog<void>(
     context: context,
-    builder: (context) => ChannelDetailsDialog(channel: channel, title: title),
+    builder: (context) => ChannelDetailsDialog(
+      channel: channel,
+      title: title,
+      callsign: callsign,
+    ),
   );
 }
 
-/// Simple, read-only channel information dialog.
-class ChannelDetailsDialog extends StatelessWidget {
+/// Simple, read-only channel information dialog. When [callsign] is given and
+/// the offline callsign database knows it, the license holder's details are
+/// shown at the top.
+class ChannelDetailsDialog extends StatefulWidget {
   final RadioChannelInfo channel;
   final String? title;
+  final String? callsign;
 
-  const ChannelDetailsDialog({super.key, required this.channel, this.title});
+  const ChannelDetailsDialog({
+    super.key,
+    required this.channel,
+    this.title,
+    this.callsign,
+  });
+
+  @override
+  State<ChannelDetailsDialog> createState() => _ChannelDetailsDialogState();
+}
+
+class _ChannelDetailsDialogState extends State<ChannelDetailsDialog> {
+  CallsignRecord? _license;
+
+  RadioChannelInfo get channel => widget.channel;
+
+  @override
+  void initState() {
+    super.initState();
+    final callsign = widget.callsign;
+    if (callsign != null && callsign.isNotEmpty) {
+      lookupCallsignRecord(callsign).then((rec) {
+        if (mounted && rec != null) setState(() => _license = rec);
+      });
+    }
+  }
 
   static String _freq(int hz) =>
       hz == 0 ? '--' : '${(hz / 1000000).toStringAsFixed(4)} MHz';
@@ -69,13 +104,23 @@ class ChannelDetailsDialog extends StatelessWidget {
         ? channel.name
         : l10n.chChShort(channel.channelId + 1);
 
+    final license = _license;
     return AlertDialog(
-      title: Text(title ?? displayName),
+      title: Text(widget.title ?? displayName),
       content: SizedBox(
         width: 320,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (license != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: buildCallsignLicenseBlock(
+                      context, widget.callsign!, license),
+                ),
+              ),
             _row(l10n.contactsColName,
                 channel.name.isNotEmpty ? channel.name : l10n.cdEmpty),
             _row(l10n.cdRxFrequency, _freq(channel.rxFreq)),

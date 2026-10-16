@@ -10,11 +10,13 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../aprs/weather_data.dart';
+import '../callsign/callsign_record.dart';
 import '../radio/radio_models.dart';
 import '../radio/repeaterbook_client.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../utils/channel_colors.dart';
+import '../widgets/callsign_license_line.dart';
 import 'channel_context_menu.dart';
 import 'channel_details_dialog.dart';
 import 'dialog_utils.dart';
@@ -120,6 +122,27 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
   final MapController _mapController = MapController();
 
   RepeaterBookClient? _client;
+
+  /// Offline callsign-database records by repeater callsign (null = unknown),
+  /// filled lazily when a station is selected on the map.
+  final Map<String, CallsignRecord?> _licenseCache = {};
+  final Set<String> _licensePending = {};
+
+  /// Returns the cached license record for [callsign], starting a lookup (and
+  /// rebuilding when it completes) the first time it is requested.
+  CallsignRecord? _licenseFor(String callsign) {
+    final key = callsign.trim().toUpperCase();
+    if (key.isEmpty) return null;
+    if (_licenseCache.containsKey(key)) return _licenseCache[key];
+    if (_licensePending.add(key)) {
+      lookupCallsignRecord(key).then((rec) {
+        _licensePending.remove(key);
+        if (!mounted) return;
+        setState(() => _licenseCache[key] = rec);
+      });
+    }
+    return null;
+  }
 
   // Tunable bands reported by the radio (READ_FREQ_RANGE), each in MHz with a
   // modulation flag (0=FM, 1=AM, 2=DMR). Empty until the radio reports them, in
@@ -863,6 +886,9 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
         ? '${(channel.rxFreq / 1000000).toStringAsFixed(3)} MHz'
         : null;
     final subtitle = _resultSubtitle(rc);
+    final license = _licenseFor(rc.source.callsign);
+    final gradeText = licenseGradeText(license);
+    final licenseLine = buildLicenseLine(context, license);
     return Positioned(
       left: 8,
       right: 8,
@@ -881,10 +907,27 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      name.isEmpty ? 'Repeater' : name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Text(
+                          name.isEmpty ? 'Repeater' : name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (gradeText != null) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              gradeText,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     if (freq != null || subtitle != null)
                       Text(
@@ -895,14 +938,18 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
+                    ?licenseLine,
                   ],
                 ),
               ),
               IconButton(
                 tooltip: 'Details',
                 icon: const Icon(Icons.info_outline, size: 20),
-                onPressed: () =>
-                    showChannelDetailsDialog(context, channel: rc.channel),
+                onPressed: () => showChannelDetailsDialog(
+                  context,
+                  channel: rc.channel,
+                  callsign: rc.source.callsign,
+                ),
               ),
               // On a narrow screen, tapping the map closes the bar, so the
               // explicit close button is redundant.
@@ -1086,8 +1133,8 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
             context: context,
             globalPosition: pos,
             channel: channel,
-            onDetails: () =>
-                showChannelDetailsDialog(context, channel: channel),
+            onDetails: () => showChannelDetailsDialog(context,
+                channel: channel, callsign: rc.source.callsign),
           ),
         );
 
@@ -1097,7 +1144,8 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
             if (showInfo)
               _infoButton(
                 palette,
-                () => showChannelDetailsDialog(context, channel: channel),
+                () => showChannelDetailsDialog(context,
+                    channel: channel, callsign: rc.source.callsign),
               ),
           ],
         );

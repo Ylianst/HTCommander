@@ -33,6 +33,7 @@ import '../satellite/satellite_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/callsign_lookup_service.dart';
+import 'callsign_license_line.dart';
 import '../services/window_service.dart';
 import '../services/winlink_gateway_service.dart';
 import '../winlink/winlink_gateway.dart';
@@ -1670,6 +1671,21 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     );
   }
 
+  /// Orders [markers] by latitude, northernmost first, so that markers further
+  /// south are drawn on top of those to their north. Ties keep their original
+  /// order.
+  List<Marker> _sortNorthToSouth(List<Marker> markers) {
+    final indexed = markers.indexed.toList()
+      ..sort((a, b) {
+        final c = b.$2.point.latitude.compareTo(a.$2.point.latitude);
+        return c != 0 ? c : a.$1.compareTo(b.$1);
+      });
+    return [for (final e in indexed) e.$2];
+  }
+
+  /// Height of the small position spike drawn under Winlink gateway icons.
+  static const double _winlinkSpikeHeight = 8;
+
   /// Builds a marker for each offline Winlink gateway visible in the current
   /// viewport. Gated on zoom and capped so a dense region can't flood the map
   /// with thousands of pins.
@@ -1695,20 +1711,31 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     for (final gw in gateways.take(400)) {
       if (!_isValidLatLng(gw.latitude, gw.longitude)) continue;
       // Grey the pin when the radio cannot tune any of the gateway's channels.
+      // A small spike under the icon marks the exact position (its tip sits on
+      // the gateway's coordinates).
       final supported = _isGatewaySupported(gw);
+      final color = supported ? const Color(0xFF6A1B9A) : Colors.grey;
       markers.add(
         Marker(
           point: LatLng(gw.latitude, gw.longitude),
           width: 30,
-          height: 30,
+          height: 22 + _winlinkSpikeHeight,
+          alignment: Alignment.topCenter,
           child: _wrapWinlinkMenu(
             gw,
             Tooltip(
               message: '${gw.callsign}\n'
                   '${gw.frequenciesMHz.join(', ')} MHz',
-              child: Icon(Icons.cell_tower,
-                  color: supported ? const Color(0xFF6A1B9A) : Colors.grey,
-                  size: 22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.cell_tower, color: color, size: 22),
+                  CustomPaint(
+                    size: const Size(8, _winlinkSpikeHeight),
+                    painter: _MarkerSpikePainter(color),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1767,42 +1794,15 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// offline callsign database for [callsign], or null when unknown. Shown
   /// inline next to the callsign in the info bar.
   String? _licenseGradeText(String callsign) {
-    final rec = _license;
-    if (rec == null || _licenseCallsign != callsign) return null;
-    final grade = rec.operatorClassName.isNotEmpty
-        ? rec.operatorClassName
-        : rec.qualificationsName;
-    return grade.isEmpty ? null : grade;
+    if (_licenseCallsign != callsign) return null;
+    return licenseGradeText(_license);
   }
 
   /// The "name • location" summary as its own info-bar row (icon + text). The
   /// license class/grade is shown inline next to the callsign instead.
   Widget? _buildLicenseLine(String callsign) {
-    final rec = _license;
-    if (rec == null || _licenseCallsign != callsign) return null;
-    final parts = <String>[];
-    if (rec.name.isNotEmpty) parts.add(rec.name);
-    if (rec.location.isNotEmpty) parts.add(rec.location);
-    if (parts.isEmpty) return null;
-    final text = parts.join('  •  ');
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(top: 2),
-      child: Row(
-        children: [
-          Icon(Icons.badge_outlined, size: 13, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
+    if (_licenseCallsign != callsign) return null;
+    return buildLicenseLine(context, _license);
   }
 
   /// Opens the Winlink gateway context menu, showing the overlap picker first
@@ -3286,13 +3286,17 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                       return tiles;
                     },
                   ),
-                  // Winlink gateways sit at the bottom of the overlay stack so
-                  // they render behind tracks and every other marker.
-                  if (_showWinlinkGateways)
-                    MarkerLayer(markers: _buildWinlinkGatewayMarkers()),
                   if (tracks.isNotEmpty) PolylineLayer(polylines: tracks),
-                  if (stationMarkers.isNotEmpty)
-                    MarkerLayer(markers: stationMarkers),
+                  // Winlink gateways and station markers share one layer,
+                  // ordered north to south so southern markers draw on top.
+                  if (_showWinlinkGateways || stationMarkers.isNotEmpty)
+                    MarkerLayer(
+                      markers: _sortNorthToSouth([
+                        if (_showWinlinkGateways)
+                          ..._buildWinlinkGatewayMarkers(),
+                        ...stationMarkers,
+                      ]),
+                    ),
                   if (_showAirplanes && _airplanes.isNotEmpty)
                     MarkerLayer(markers: _buildAirplaneMarkers()),
                   if (_showSatellites && _satelliteSupport) ...[
