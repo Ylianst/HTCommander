@@ -39,6 +39,8 @@ class SerialPort {
 
   bool openReadWrite() => false;
 
+  int write(Uint8List data) => -1;
+
   void close() {}
 
   void dispose() {}
@@ -64,7 +66,11 @@ class SerialPortConfig {
 
 /// Stub serial port reader producing no data.
 class SerialPortReader {
-  SerialPortReader(SerialPort port, {int? timeout});
+  SerialPortReader(
+    SerialPort port, {
+    int? timeout,
+    Duration pollInterval = const Duration(milliseconds: 100),
+  });
 
   Stream<Uint8List> get stream => const Stream<Uint8List>.empty();
 

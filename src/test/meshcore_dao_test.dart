@@ -72,4 +72,20 @@ void main() {
     final back = MeshCoreMessage.fromJson(m.toJson());
     expect(back.toJson(), m.toJson());
   });
+
+  test('only incoming direct messages notify', () {
+    expect(isDirectMessageToUs(_msg(1, 'aa')), isTrue);
+    expect(isDirectMessageToUs(_msg(1, 'aa', out: true)), isFalse);
+    final group = MeshCoreMessage(
+      time: DateTime.now(),
+      senderTime: 1,
+      kind: MeshCoreKind.group,
+      peer: 'chan',
+      outgoing: false,
+      sender: 'Bob',
+      text: 'hi all',
+      state: MeshCoreDelivery.received,
+    );
+    expect(isDirectMessageToUs(group), isFalse);
+  });
 }

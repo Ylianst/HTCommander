@@ -87,6 +87,7 @@ import 'services/data_broker_serializers.dart';
 import 'services/history_limiter.dart';
 import 'services/locale_controller.dart';
 import 'services/notification_service.dart';
+import 'services/notification_router.dart';
 import 'services/car_bridge.dart';
 import 'services/theme_controller.dart';
 import 'services/window_service.dart';
@@ -1389,6 +1390,13 @@ class _MainFormState extends State<MainForm>
       name: 'RequestSelectTab',
       callback: _onRequestSelectTab,
     );
+
+    // Tapping a message notification opens its conversation in Messaging.
+    // Registered after RequestSelectTab so a tap that launched the app (held
+    // by the service until now) is handled by this window.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) NotificationService.instance.onTap = _onNotificationTap;
+    });
 
     // Subscribe to BatteryAsPercentage from all radio devices
     _broker.subscribe(
@@ -3058,6 +3066,20 @@ class _MainFormState extends State<MainForm>
     if (_tabController.index != idx) _tabController.animateTo(idx);
   }
 
+  /// Brings the main window to the front (desktop) and opens the conversation
+  /// the tapped notification belongs to.
+  Future<void> _onNotificationTap(String? payload) async {
+    if (isDesktop && !_isClosing) {
+      try {
+        if (await windowManager.isMinimized()) await windowManager.restore();
+        await windowManager.show();
+        await windowManager.focus();
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    routeNotificationTap(payload);
+  }
+
   /// Called when tab selection changes.
   void _onTabChanged() {
     // Keep the visibility signal in sync so hidden tabs can pause work. Updated
@@ -3215,6 +3237,7 @@ class _MainFormState extends State<MainForm>
   void dispose() {
     _tabController.removeListener(_onTabChanged);
     _broker.dispose();
+    NotificationService.instance.onTap = null;
     if (isDesktop) {
       windowManager.removeListener(this);
     }

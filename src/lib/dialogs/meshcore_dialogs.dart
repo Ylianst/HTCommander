@@ -6,9 +6,9 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 //
 // meshcore_dialogs.dart - Connect a MeshCore companion radio over Bluetooth,
-// and add MeshCore users and groups. Every action is a Data Broker request to
-// the host-side MeshCoreManager (device 204), so these dialogs also work from
-// detached windows.
+// USB serial or Wi-Fi, and add MeshCore groups. Every action is a Data Broker
+// request to the host-side MeshCoreManager (device 204), so these dialogs
+// also work from detached windows.
 //
 
 import 'dart:async';
@@ -17,14 +17,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
+import '../meshcore/meshcore_ble_transport.dart';
 import '../meshcore/meshcore_manager.dart';
 import '../meshcore/meshcore_protocol.dart';
+import '../meshcore/meshcore_stream_transport.dart';
 import '../services/data_broker_client.dart';
-
-/// Short, readable form of a public key: first and last eight hex digits.
-String meshCoreFingerprint(String keyHex) => keyHex.length <= 16
-    ? keyHex
-    : '${keyHex.substring(0, 8)}…${keyHex.substring(keyHex.length - 8)}';
 
 /// Sends a request to the MeshCore manager and waits for its `MeshCoreResult`
 /// with the matching [op].
@@ -79,16 +76,52 @@ class _MeshCoreConnectionDialog extends StatefulWidget {
 class _MeshCoreConnectionDialogState extends State<_MeshCoreConnectionDialog> {
   final DataBrokerClient _broker = DataBrokerClient();
   final TextEditingController _pinController = TextEditingController();
+  final TextEditingController _hostController = TextEditingController();
+  final TextEditingController _portController = TextEditingController(
+    text: '$meshCoreDefaultTcpPort',
+  );
 
   Map<dynamic, dynamic> _state = const {};
   Map<dynamic, dynamic>? _info;
   Map<dynamic, dynamic> _scan = const {};
+  String _transport = MeshCoreTransportKind.ble;
+
+  /// Selected Bluetooth device.
   String? _selectedId;
   String? _selectedName;
+
+  List<String> _serialPorts = const [];
+  String? _serialPort;
   bool _autoConnect = true;
   String? _notice;
 
-  String get _status => _state['state']?.toString() ?? MeshCoreState.disconnected;
+  /// Transports this platform can use, in display order.
+  List<String> get _transports => [
+    if (MeshCoreBleTransport.isSupported) MeshCoreTransportKind.ble,
+    if (meshCoreSerialSupported) MeshCoreTransportKind.serial,
+    if (meshCoreTcpSupported) MeshCoreTransportKind.tcp,
+  ];
+
+  ({String host, int port})? get _tcpTarget {
+    final host = _hostController.text.trim();
+    final port = int.tryParse(_portController.text.trim());
+    if (port == null) return null;
+    final target = parseMeshCoreTcpTarget(
+      host.contains(':') && !host.startsWith('[')
+          ? '[$host]:$port'
+          : '$host:$port',
+    );
+    return target;
+  }
+
+  bool get _canConnect => switch (_transport) {
+    MeshCoreTransportKind.serial => _serialPort != null,
+    MeshCoreTransportKind.tcp => _tcpTarget != null,
+    _ => _selectedId != null,
+  };
+
+  String get _status =>
+      _state['state']?.toString() ?? MeshCoreState.disconnected;
 
   bool get _isBusy =>
       _status == MeshCoreState.pairing ||
@@ -107,9 +140,30 @@ class _MeshCoreConnectionDialogState extends State<_MeshCoreConnectionDialog> {
         (_broker.getValue<int>(0, 'MeshCoreAutoConnect', 1) ?? 1) != 0;
     final last = _broker.getValueDynamic(0, 'MeshCoreLastDevice', null);
     if (last is Map) {
-      _selectedId = last['id']?.toString();
-      _selectedName = last['name']?.toString();
+      final transport =
+          last['transport']?.toString() ?? MeshCoreTransportKind.ble;
+      final id = last['id']?.toString();
+      switch (transport) {
+        case MeshCoreTransportKind.serial:
+          _serialPort = id;
+        case MeshCoreTransportKind.tcp:
+          final target = id == null ? null : parseMeshCoreTcpTarget(id);
+          if (target != null) {
+            _hostController.text = target.host;
+            _portController.text = '${target.port}';
+          }
+        default:
+          _selectedId = id;
+          _selectedName = last['name']?.toString();
+      }
+      if (_transports.contains(transport)) _transport = transport;
     }
+    if (!_transports.contains(_transport) && _transports.isNotEmpty) {
+      _transport = _transports.first;
+    }
+    _refreshSerialPorts();
+    _hostController.addListener(_onFieldChanged);
+    _portController.addListener(_onFieldChanged);
 
     _broker.subscribe(
       deviceId: meshCoreDeviceId,
@@ -138,7 +192,24 @@ class _MeshCoreConnectionDialogState extends State<_MeshCoreConnectionDialog> {
       callback: _onResult,
     );
 
-    if (!_isConnected && !_isBusy) _startScan();
+    // Web Bluetooth only opens its device chooser from a user gesture, so the
+    // browser build scans when the Scan button is pressed.
+    if (!_isConnected &&
+        !_isBusy &&
+        _transport == MeshCoreTransportKind.ble &&
+        MeshCoreBleTransport.supportsAutoConnect) {
+      _startScan();
+    }
+  }
+
+  void _onFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _refreshSerialPorts() {
+    final ports = meshCoreSerialPorts();
+    _serialPorts = ports;
+    if (_serialPort == null && ports.length == 1) _serialPort = ports.first;
   }
 
   Map<dynamic, dynamic>? _mapValue(String name) {
@@ -150,6 +221,8 @@ class _MeshCoreConnectionDialogState extends State<_MeshCoreConnectionDialog> {
   void dispose() {
     _broker.dispose();
     _pinController.dispose();
+    _hostController.dispose();
+    _portController.dispose();
     super.dispose();
   }
 
@@ -186,19 +259,39 @@ class _MeshCoreConnectionDialogState extends State<_MeshCoreConnectionDialog> {
   }
 
   void _connect() {
-    final id = _selectedId;
-    if (id == null) return;
+    if (!_canConnect) return;
     setState(() => _notice = null);
     _broker.dispatch(
       deviceId: 0,
       name: 'MeshCoreAutoConnect',
       data: _autoConnect ? 1 : 0,
     );
-    _send('MeshCoreConnect', {
-      'id': id,
-      'name': _selectedName ?? id,
-      'pin': _pinController.text.trim(),
-    });
+    switch (_transport) {
+      case MeshCoreTransportKind.serial:
+        _send('MeshCoreConnect', {
+          'transport': MeshCoreTransportKind.serial,
+          'id': _serialPort,
+          'name': _serialPort,
+        });
+      case MeshCoreTransportKind.tcp:
+        final t = _tcpTarget!;
+        final id = t.host.contains(':')
+            ? '[${t.host}]:${t.port}'
+            : '${t.host}:${t.port}';
+        _send('MeshCoreConnect', {
+          'transport': MeshCoreTransportKind.tcp,
+          'id': id,
+          'name': id,
+        });
+      default:
+        final id = _selectedId!;
+        _send('MeshCoreConnect', {
+          'transport': MeshCoreTransportKind.ble,
+          'id': id,
+          'name': _selectedName ?? id,
+          'pin': _pinController.text.trim(),
+        });
+    }
   }
 
   String _statusText(AppLocalizations l10n) => switch (_status) {
@@ -285,7 +378,7 @@ class _MeshCoreConnectionDialogState extends State<_MeshCoreConnectionDialog> {
           )
         else
           FilledButton(
-            onPressed: _selectedId == null ? null : _connect,
+            onPressed: _canConnect ? _connect : null,
             child: Text(l10n.commonConnect),
           ),
         TextButton(
@@ -363,6 +456,196 @@ class _MeshCoreConnectionDialogState extends State<_MeshCoreConnectionDialog> {
   }
 
   Widget _buildPicker(AppLocalizations l10n) {
+    final transports = _transports;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (transports.length > 1) ...[
+          SegmentedButton<String>(
+            segments: [
+              for (final t in transports)
+                ButtonSegment(
+                  value: t,
+                  icon: Icon(switch (t) {
+                    MeshCoreTransportKind.serial => Icons.usb,
+                    MeshCoreTransportKind.tcp => Icons.wifi,
+                    _ => Icons.bluetooth,
+                  }, size: 18),
+                  label: Text(switch (t) {
+                    MeshCoreTransportKind.serial => l10n.meshUsb,
+                    MeshCoreTransportKind.tcp => l10n.meshWifi,
+                    _ => l10n.meshBluetooth,
+                  }),
+                ),
+            ],
+            selected: {_transport},
+            onSelectionChanged: _isBusy
+                ? null
+                : (s) {
+                    setState(() {
+                      _transport = s.first;
+                      _notice = null;
+                      if (_transport == MeshCoreTransportKind.serial) {
+                        _refreshSerialPorts();
+                      }
+                    });
+                    if (_transport == MeshCoreTransportKind.ble &&
+                        _scan['scanning'] != true &&
+                        MeshCoreBleTransport.supportsAutoConnect) {
+                      _startScan();
+                    }
+                  },
+          ),
+          const SizedBox(height: 12),
+        ],
+        switch (_transport) {
+          MeshCoreTransportKind.serial => _buildSerialPicker(l10n),
+          MeshCoreTransportKind.tcp => _buildTcpPicker(l10n),
+          _ => _buildBlePicker(l10n),
+        },
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          controlAffinity: ListTileControlAffinity.leading,
+          value: _autoConnect,
+          onChanged: (v) => setState(() => _autoConnect = v ?? true),
+          title: Text(l10n.meshAutoConnect),
+        ),
+        if (_transport == MeshCoreTransportKind.ble &&
+            _selectedId != null &&
+            MeshCoreBleTransport.supportsForgetPairing)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: _isBusy
+                  ? null
+                  : () => _send('MeshCoreForgetPairing', {'id': _selectedId}),
+              child: Text(l10n.meshForgetPairing),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSerialPicker(AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.meshSerialPort,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _isBusy ? null : () => setState(_refreshSerialPorts),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: Text(l10n.meshRefresh),
+            ),
+          ],
+        ),
+        if (_serialPorts.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(l10n.meshNoSerialPorts),
+          ),
+        for (final port in {..._serialPorts, ?_serialPort})
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            selected: port == _serialPort,
+            enabled: !_isBusy,
+            leading: Icon(
+              port == _serialPort
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+            ),
+            title: Text(port),
+            subtitle: _serialPorts.contains(port)
+                ? null
+                : Text(l10n.meshStatusDisconnected),
+            onTap: () => setState(() => _serialPort = port),
+          ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            l10n.meshUsbHelp,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTcpPicker(AppLocalizations l10n) {
+    final port = int.tryParse(_portController.text.trim());
+    final portError =
+        _portController.text.isNotEmpty &&
+            (port == null || port < 1 || port > 65535)
+        ? l10n.meshInvalidPort
+        : null;
+    final hostError =
+        _hostController.text.trim().isNotEmpty &&
+            portError == null &&
+            _tcpTarget == null
+        ? l10n.meshInvalidHost
+        : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _hostController,
+                enabled: !_isBusy,
+                autofocus: _hostController.text.isEmpty,
+                decoration: InputDecoration(
+                  labelText: l10n.meshHost,
+                  errorText: hostError,
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+                onSubmitted: (_) => _connect(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 100,
+              child: TextField(
+                controller: _portController,
+                enabled: !_isBusy,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(5),
+                ],
+                decoration: InputDecoration(
+                  labelText: l10n.meshTcpPort,
+                  errorText: portError,
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+                onSubmitted: (_) => _connect(),
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            l10n.meshWifiHelp,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBlePicker(AppLocalizations l10n) {
     final scheme = Theme.of(context).colorScheme;
     final scanning = _scan['scanning'] == true;
     final scanError = _scan['error']?.toString();
@@ -372,7 +655,11 @@ class _MeshCoreConnectionDialogState extends State<_MeshCoreConnectionDialog> {
     ];
     // Offer the last used device even when it is not advertising right now.
     if (_selectedId != null && !devices.any((d) => d['id'] == _selectedId)) {
-      devices.insert(0, {'id': _selectedId, 'name': _selectedName, 'rssi': null});
+      devices.insert(0, {
+        'id': _selectedId,
+        'name': _selectedName,
+        'rssi': null,
+      });
     }
 
     return Column(
@@ -419,7 +706,9 @@ class _MeshCoreConnectionDialogState extends State<_MeshCoreConnectionDialog> {
             ),
             title: Text(d['name']?.toString() ?? d['id'].toString()),
             subtitle: Text(
-              d['rssi'] == null ? '${d['id']}' : '${d['id']} · ${d['rssi']} dBm',
+              d['rssi'] == null
+                  ? '${d['id']}'
+                  : '${d['id']} · ${d['rssi']} dBm',
             ),
             onTap: _isBusy
                 ? null
@@ -429,158 +718,27 @@ class _MeshCoreConnectionDialogState extends State<_MeshCoreConnectionDialog> {
                   }),
           ),
         const SizedBox(height: 8),
-        TextField(
-          controller: _pinController,
-          enabled: !_isBusy,
-          keyboardType: TextInputType.number,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(6),
-          ],
-          decoration: InputDecoration(
-            labelText: l10n.meshPin,
-            helperText: l10n.meshPinHint,
-            border: const OutlineInputBorder(),
-            isDense: true,
-          ),
-        ),
-        CheckboxListTile(
-          contentPadding: EdgeInsets.zero,
-          dense: true,
-          controlAffinity: ListTileControlAffinity.leading,
-          value: _autoConnect,
-          onChanged: (v) => setState(() => _autoConnect = v ?? true),
-          title: Text(l10n.meshAutoConnect),
-        ),
-        if (_selectedId != null)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              onPressed: _isBusy
-                  ? null
-                  : () => _send('MeshCoreForgetPairing', {'id': _selectedId}),
-              child: Text(l10n.meshForgetPairing),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Add user
-// ---------------------------------------------------------------------------
-
-/// Adds a MeshCore user to the companion radio. Returns the conversation peer
-/// (12-hex-digit key prefix) on success.
-Future<String?> showMeshCoreAddUserDialog(BuildContext context) =>
-    showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const _AddUserDialog(),
-    );
-
-class _AddUserDialog extends StatefulWidget {
-  const _AddUserDialog();
-
-  @override
-  State<_AddUserDialog> createState() => _AddUserDialogState();
-}
-
-class _AddUserDialogState extends State<_AddUserDialog> {
-  final _name = TextEditingController();
-  final _key = TextEditingController();
-  String? _nameError;
-  String? _keyError;
-  String? _error;
-  bool _busy = false;
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _key.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    final l10n = AppLocalizations.of(context);
-    final key = normalizePublicKeyHex(_key.text);
-    setState(() {
-      _nameError = _name.text.trim().isEmpty ? l10n.meshInvalidName : null;
-      _keyError = key == null ? l10n.meshInvalidPublicKey : null;
-      _error = null;
-    });
-    if (_nameError != null || key == null) return;
-    setState(() => _busy = true);
-    final result = await _request('addContact', 'MeshCoreAddContact', {
-      'key': key,
-      'name': _name.text.trim(),
-    });
-    if (!mounted) return;
-    if (result['ok'] == true) {
-      Navigator.of(context).pop(result['peer']?.toString());
-    } else {
-      setState(() {
-        _busy = false;
-        _error = l10n.meshActionFailed('${result['error']}');
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return AlertDialog(
-      title: Text(l10n.meshAddUserTitle),
-      content: SizedBox(
-        width: 460,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _name,
-              autofocus: true,
-              enabled: !_busy,
-              inputFormatters: [LengthLimitingTextInputFormatter(31)],
-              decoration: InputDecoration(
-                labelText: l10n.meshName,
-                errorText: _nameError,
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _key,
-              enabled: !_busy,
-              style: const TextStyle(fontFamily: 'monospace'),
-              decoration: InputDecoration(
-                labelText: l10n.meshPublicKey,
-                hintText: l10n.meshPublicKeyHint,
-                errorText: _keyError,
-                border: const OutlineInputBorder(),
-              ),
-              onSubmitted: (_) => _submit(),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+        if (!MeshCoreBleTransport.supportsPinEntry)
+          Text(
+            l10n.meshPinSystemPrompt,
+            style: Theme.of(context).textTheme.bodySmall,
+          )
+        else
+          TextField(
+            controller: _pinController,
+            enabled: !_isBusy,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(6),
             ],
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _busy ? null : () => Navigator.of(context).pop(),
-          child: Text(l10n.commonCancel),
-        ),
-        FilledButton(
-          onPressed: _busy ? null : _submit,
-          child: Text(l10n.commonAdd),
-        ),
+            decoration: InputDecoration(
+              labelText: l10n.meshPin,
+              helperText: l10n.meshPinHint,
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
       ],
     );
   }
@@ -647,7 +805,9 @@ class _AddGroupDialogState extends State<_AddGroupDialog> {
       case MeshCoreChannelKind.public:
         secret = MeshCoreConst.publicChannelSecretHex;
       case MeshCoreChannelKind.hashtag:
-        secret = name.length > 1 ? bytesToHex(hashtagChannelSecret(name)) : null;
+        secret = name.length > 1
+            ? bytesToHex(hashtagChannelSecret(name))
+            : null;
       case MeshCoreChannelKind.private:
         secret = normalizeChannelSecretHex(_secret.text);
     }

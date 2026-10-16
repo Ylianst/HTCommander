@@ -198,6 +198,18 @@ String? _normalizeKeyHex(String input, int size) {
 /// Number of UTF-8 bytes needed to encode [text].
 int utf8Length(String text) => utf8.encode(text).length;
 
+/// Short, readable form of a public key: first and last eight hex digits.
+String meshCoreFingerprint(String keyHex) => keyHex.length <= 16
+    ? keyHex
+    : '${keyHex.substring(0, 8)}…${keyHex.substring(keyHex.length - 8)}';
+
+/// Conversation peer for a direct-message contact: the 6-byte key prefix the
+/// companion uses to identify senders.
+String meshCorePeerForKey(String keyHex) =>
+    keyHex.length >= 2 * MeshCoreConst.publicKeyPrefixSize
+    ? keyHex.substring(0, 2 * MeshCoreConst.publicKeyPrefixSize).toLowerCase()
+    : keyHex.toLowerCase();
+
 /// Encodes [text] as UTF-8, truncated to at most [maxBytes] without splitting
 /// a multi-byte character.
 Uint8List utf8Truncate(String text, int maxBytes) {
@@ -803,4 +815,69 @@ int maxChannelTextBytes(String nodeName) =>
     return (sender: null, text: raw);
   }
   return (sender: raw.substring(0, idx), text: raw.substring(idx + 2));
+}
+
+// ---------------------------------------------------------------------------
+// USB serial / TCP stream framing
+// ---------------------------------------------------------------------------
+//
+// Over USB serial and TCP the companion frames each message with a 3-byte
+// header: a direction byte ('<' app to radio, '>' radio to app) and a 16-bit
+// little-endian payload length.
+
+const int _toRadio = 0x3C; // '<'
+const int _fromRadio = 0x3E; // '>'
+
+/// Longest payload accepted from the radio; anything larger is treated as
+/// line noise (the firmware never sends more than its 176-byte frame size).
+const int _maxStreamFrame = 512;
+
+/// Wraps [payload] for sending to the radio over a serial or TCP stream.
+Uint8List encodeStreamFrame(List<int> payload) {
+  final out = Uint8List(3 + payload.length);
+  out[0] = _toRadio;
+  out[1] = payload.length & 0xFF;
+  out[2] = (payload.length >> 8) & 0xFF;
+  out.setRange(3, out.length, payload);
+  return out;
+}
+
+/// Reassembles radio-to-app frames from an arbitrarily chunked byte stream.
+/// Bytes outside a frame (e.g. boot messages) are skipped.
+class MeshCoreStreamDecoder {
+  final List<int> _buf = [];
+
+  /// Adds received bytes and returns every frame payload now complete.
+  List<Uint8List> add(List<int> bytes) {
+    _buf.addAll(bytes);
+    final frames = <Uint8List>[];
+    var i = 0;
+    while (true) {
+      final start = _buf.indexOf(_fromRadio, i);
+      if (start < 0) {
+        i = _buf.length;
+        break;
+      }
+      if (start + 3 > _buf.length) {
+        i = start;
+        break;
+      }
+      final len = _buf[start + 1] | (_buf[start + 2] << 8);
+      if (len == 0 || len > _maxStreamFrame) {
+        // Not a real header: resume the search after this byte.
+        i = start + 1;
+        continue;
+      }
+      if (start + 3 + len > _buf.length) {
+        i = start;
+        break;
+      }
+      frames.add(Uint8List.fromList(_buf.sublist(start + 3, start + 3 + len)));
+      i = start + 3 + len;
+    }
+    _buf.removeRange(0, i);
+    return frames;
+  }
+
+  void reset() => _buf.clear();
 }

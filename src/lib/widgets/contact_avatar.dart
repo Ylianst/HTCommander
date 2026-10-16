@@ -77,6 +77,20 @@ String contactInitials(String callsign) {
       : letters.substring(letters.length - 3);
 }
 
+/// Up to two characters for an avatar derived from a display name: the first
+/// letters of the first two words ("Alice Smith" -> "AS"), or the first two
+/// characters of a single word ("Bob" -> "BO"). Used for contacts whose ID is
+/// not a callsign (e.g. MeshCore public keys).
+String nameInitials(String name) {
+  final words = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
+  if (words.isEmpty) return '?';
+  if (words.length >= 2) {
+    return (words.first.characters.first + words.elementAt(1).characters.first)
+        .toUpperCase();
+  }
+  return words.first.characters.take(2).toString().toUpperCase();
+}
+
 /// Deterministic avatar colour derived from the callsign.
 Color contactColorForCallsign(String callsign) {
   var hash = 0;
@@ -102,12 +116,15 @@ IconData? contactLogoIcon(String callsign, String? avatarIcon) {
 }
 
 /// A round contact avatar. Renders [avatarImage] (base64 PNG) if present, else a
-/// chosen/automatic logo icon, else the callsign initials.
+/// chosen/automatic logo icon, else [initials] or the callsign initials.
 class ContactAvatar extends StatelessWidget {
   final String callsign;
   final String? avatarIcon;
   final String? avatarImage;
   final double radius;
+
+  /// Overrides the placeholder text derived from [callsign].
+  final String? initials;
 
   const ContactAvatar({
     super.key,
@@ -115,6 +132,7 @@ class ContactAvatar extends StatelessWidget {
     this.avatarIcon,
     this.avatarImage,
     this.radius = 22,
+    this.initials,
   });
 
   @override
@@ -138,7 +156,7 @@ class ContactAvatar extends StatelessWidget {
       child: icon != null
           ? Icon(icon, color: Colors.white, size: radius)
           : Text(
-              contactInitials(callsign),
+              initials ?? contactInitials(callsign),
               style: TextStyle(
                 color: Colors.white,
                 fontSize: radius * 0.6,

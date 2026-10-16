@@ -34,9 +34,62 @@ MeshCore entry point. The slice includes:
   `APRS`). The tab has **All APRS Messages** and **All MeshCore Messages**
   feeds, MeshCore user and group conversations, a byte-limited composer,
   delivery icons, and dialogs to connect, add users and add groups.
+- **Contacts**: a **MeshCore User** contact type stores the public key in the
+  ID field and supports the same logo or custom-image avatar as other contacts.
+  When adding one, a **Users known to the MeshCore radio** list fills in the
+  key and name from the companion's contact table. Only address-book users get
+  a conversation thread in the Messaging tab (the radio can remember many
+  nodes); direct messages from anyone else still appear in **All MeshCore
+  Messages**, where they can be added as contacts. The manager adds any
+  address-book user missing from the companion's contact table so direct
+  messages can be sent. Removing a contact from the address book does not
+  remove it from the radio.
 
-Not yet implemented: MeshCore contacts in the Contacts tab, map markers,
-notifications, and USB/TCP transports.
+Not yet implemented: USB support on Android (OTG).
+
+### USB and Wi-Fi
+
+The connection dialog offers **Bluetooth**, **USB** and **Wi-Fi**, depending
+on the platform: USB serial on Windows, macOS and Linux; Wi-Fi (TCP) everywhere
+except the browser build. Both wired links use the same framing: a direction
+byte (`<` to the radio, `>` from it) and a 16-bit little-endian length. USB
+runs at 115200 baud; the Wi-Fi firmware listens on TCP port 5000 by default.
+
+MeshCore ships separate companion firmware for each interface, so a board
+flashed with the Bluetooth companion firmware does not answer over USB or
+Wi-Fi. Opening a USB port can reset an ESP32 board; HTCommander retries the
+initial device query to give it time to boot, and detects unplugging by
+watching for the port to disappear.
+
+### Bluetooth on each platform
+
+The companion only exposes its data over an authenticated bond, so every
+platform needs the PIN shown on the device (123456 on boards without a screen):
+
+| Platform | How pairing works |
+|---|---|
+| Windows | HTCommander pairs through the native Bluetooth plugin with the PIN entered in the dialog. |
+| Android | HTCommander requests the Bluetooth runtime permissions, then bonds with `createBond`, passing the PIN; Android shows its own dialog if needed. |
+| Linux | HTCommander registers a temporary BlueZ agent that answers with the PIN, then pairs. Without a PIN, the desktop's Bluetooth agent prompts. |
+| macOS, iOS | The system asks for the PIN the first time an encrypted characteristic is used. Re-pairing after a re-flash is done in the system Bluetooth settings. |
+| Web (Chrome/Edge) | The browser's device chooser opens from the **Scan** button, and the browser asks for the PIN. Automatic reconnection at startup is not available. |
+
+**Forget Pairing** is offered on Windows, Android and Linux.
+
+Incoming **direct** MeshCore messages raise the same system notification as
+APRS messages addressed to our station: only while HTCommander is not in the
+foreground, and only when **Message Notifications** is enabled. Group and
+channel messages never notify. Clicking an APRS or MeshCore notification
+brings HTCommander to the front, switches to **Messaging** and opens that
+conversation.
+
+The **Map** tab has a **Show MeshCore Stations** option (hidden while the
+feature is disabled). Nodes with an advertised position are drawn with a
+type-specific icon (companion, repeater, room server, sensor), and the
+companion itself in a darker colour. Selecting one shows its name, type,
+shortened key, distance and last update, with actions to message it or add it
+to Contacts. With **Show Contacts Only**, only MeshCore users in the address
+book are drawn, matched by public key.
 
 ### Firmware findings that differ from the protocol guide
 

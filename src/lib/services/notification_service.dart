@@ -12,6 +12,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'data_broker.dart';
 
+/// Receives the payload of a tapped notification.
+typedef NotificationTapHandler = void Function(String? payload);
+
 /// Cross-platform system pop-up notifications for incoming messages that are
 /// addressed to our station.
 ///
@@ -78,8 +81,22 @@ class NotificationService with WidgetsBindingObserver {
         windows: windowsInit,
       );
       await _plugin
-          .initialize(settings: settings)
+          .initialize(
+            settings: settings,
+            onDidReceiveNotificationResponse: (response) =>
+                _deliverTap(response.payload),
+          )
           .timeout(const Duration(seconds: 8));
+
+      // If the app was launched by tapping one of our notifications, keep the
+      // payload until the main window registers [onTap].
+      try {
+        final launch = await _plugin.getNotificationAppLaunchDetails();
+        if (launch?.didNotificationLaunchApp ?? false) {
+          _pendingTap = launch!.notificationResponse?.payload;
+          _hasPendingTap = true;
+        }
+      } catch (_) {}
 
       // Android 13+ requires a runtime permission to post notifications.
       if (!kIsWeb && Platform.isAndroid) {
@@ -99,6 +116,33 @@ class NotificationService with WidgetsBindingObserver {
   /// Updates the desktop main-window focus state. Called from the main window's
   /// window listener (focus/blur/minimize/restore).
   void setWindowFocused(bool focused) => _windowFocused = focused;
+
+  NotificationTapHandler? _onTap;
+  String? _pendingTap;
+  bool _hasPendingTap = false;
+
+  /// Called with the payload when the user taps one of our notifications. A
+  /// tap received before a handler is set (e.g. the tap that launched the app)
+  /// is delivered as soon as one is registered.
+  set onTap(NotificationTapHandler? handler) {
+    _onTap = handler;
+    if (handler != null && _hasPendingTap) {
+      final payload = _pendingTap;
+      _hasPendingTap = false;
+      _pendingTap = null;
+      handler(payload);
+    }
+  }
+
+  void _deliverTap(String? payload) {
+    final handler = _onTap;
+    if (handler == null) {
+      _pendingTap = payload;
+      _hasPendingTap = true;
+    } else {
+      handler(payload);
+    }
+  }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {

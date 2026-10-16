@@ -22,6 +22,12 @@ abstract final class MeshCoreDelivery {
   static const String failed = 'failed';
 }
 
+/// Whether [msg] should raise a notification: an incoming direct message,
+/// i.e. one addressed to this companion. Group/channel messages and our own
+/// outgoing messages never notify.
+bool isDirectMessageToUs(MeshCoreMessage msg) =>
+    !msg.outgoing && msg.kind == MeshCoreKind.user;
+
 /// One MeshCore message as stored and passed over the Data Broker.
 class MeshCoreMessage {
   int id;
@@ -79,7 +85,9 @@ class MeshCoreMessage {
 
   static MeshCoreMessage fromJson(Map<dynamic, dynamic> j) => MeshCoreMessage(
     id: (j['id'] as num?)?.toInt() ?? 0,
-    time: DateTime.fromMillisecondsSinceEpoch((j['time'] as num?)?.toInt() ?? 0),
+    time: DateTime.fromMillisecondsSinceEpoch(
+      (j['time'] as num?)?.toInt() ?? 0,
+    ),
     senderTime: (j['senderTime'] as num?)?.toInt() ?? 0,
     kind: j['kind']?.toString() ?? MeshCoreKind.user,
     peer: j['peer']?.toString() ?? '',

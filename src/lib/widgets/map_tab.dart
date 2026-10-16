@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'tab_visibility.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
@@ -25,6 +26,9 @@ import '../dialogs/channel_context_menu.dart';
 import '../dialogs/channel_details_dialog.dart';
 import '../gps/gps_data.dart';
 import '../l10n/app_localizations.dart';
+import '../meshcore/meshcore_manager.dart' show meshCoreDeviceId;
+import '../meshcore/meshcore_protocol.dart'
+    show MeshCoreAdvType, meshCoreFingerprint, meshCorePeerForKey;
 import '../models/aircraft.dart';
 import '../models/radio_models.dart';
 import '../radio/radio_models.dart' as radio;
@@ -34,6 +38,7 @@ import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/callsign_lookup_service.dart';
 import 'callsign_license_line.dart';
+import 'contact_avatar.dart';
 import '../services/window_service.dart';
 import '../services/winlink_gateway_service.dart';
 import '../winlink/winlink_gateway.dart';
@@ -44,18 +49,49 @@ import '../utils/num_parsing.dart';
 import 'radiosonde_marker.dart';
 import 'sarsat_marker.dart';
 
-/// A pickable map entity: either an APRS/voice [_StationMarkerData] or a
-/// [WinlinkGateway]. Lets the overlap picker and context-menu flow handle both
-/// kinds uniformly.
+/// A pickable map entity: an APRS/voice [_StationMarkerData], a
+/// [WinlinkGateway] or a [_MeshStation]. Lets the overlap picker and
+/// context-menu flow handle every kind uniformly.
 class _MapEntity {
   final _StationMarkerData? station;
   final WinlinkGateway? gateway;
+  final _MeshStation? mesh;
 
-  const _MapEntity.station(_StationMarkerData this.station) : gateway = null;
-  const _MapEntity.gateway(WinlinkGateway this.gateway) : station = null;
+  const _MapEntity.station(_StationMarkerData this.station)
+    : gateway = null,
+      mesh = null;
+  const _MapEntity.gateway(WinlinkGateway this.gateway)
+    : station = null,
+      mesh = null;
+  const _MapEntity.mesh(_MeshStation this.mesh)
+    : station = null,
+      gateway = null;
 
   bool get isGateway => gateway != null;
-  String get label => station?.callsign ?? gateway!.callsign;
+  bool get isMesh => mesh != null;
+  String get label => station?.callsign ?? gateway?.callsign ?? mesh!.name;
+}
+
+/// A MeshCore node with an advertised position (from the companion radio's
+/// contact list, or the companion itself when [isSelf]).
+class _MeshStation {
+  final String key;
+  final String name;
+  final int type;
+  final LatLng position;
+
+  /// When the companion last updated this contact (null for the companion).
+  final DateTime? lastHeard;
+  final bool isSelf;
+
+  const _MeshStation({
+    required this.key,
+    required this.name,
+    required this.type,
+    required this.position,
+    required this.lastHeard,
+    this.isSelf = false,
+  });
 }
 
 /// Holds the latest known position, time and track points for a single
@@ -218,6 +254,19 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 
   /// When false, APRS-IS (internet) stations are hidden from the map.
   bool _showAprsIs = true;
+
+  /// Mirrors the 'MeshCoreSupport' feature setting; the MeshCore layer and its
+  /// menu item only exist while it is enabled.
+  bool _meshCoreEnabled = false;
+
+  /// When true (and MeshCore is enabled), MeshCore nodes are drawn.
+  bool _showMeshCore = true;
+
+  /// MeshCore nodes with a known position, rebuilt from device 204.
+  List<_MeshStation> _meshStations = const [];
+
+  /// Public key of the MeshCore node shown in the info bar, or null.
+  String? _selectedMeshKey;
 
   /// When true, offline Winlink 1200-baud packet gateways are drawn on the map
   /// (only once zoomed in enough to keep the marker count reasonable).
@@ -400,6 +449,33 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       name: 'SatelliteSupport',
       callback: _onSatelliteSupportChanged,
     );
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'MeshCoreSupport',
+      callback: (_, _, data) {
+        if (!mounted) return;
+        setState(() {
+          _meshCoreEnabled = data == 1;
+          if (!_meshCoreEnabled) _selectedMeshKey = null;
+        });
+      },
+    );
+    _broker.subscribeMultiple(
+      deviceId: meshCoreDeviceId,
+      names: const ['MeshCoreContacts', 'MeshCoreInfo'],
+      callback: (_, _, _) {
+        if (mounted) setState(_loadMeshStations);
+      },
+    );
+    // Contact names and the "contacts only" filter follow the address book.
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'Stations',
+      callback: (_, _, _) {
+        if (mounted) setState(() {});
+      },
+    );
+    _loadMeshStations();
     // Ask the handler to re-emit its current snapshot (broadcast-only events).
     _broker.dispatch(
       deviceId: 0,
@@ -1114,6 +1190,10 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
         (DataBroker.getValue<int>(0, 'ShowSatellitesOnMap', 0) ?? 0) == 1;
     _satelliteSupport =
         (DataBroker.getValue<int>(0, 'SatelliteSupport', 0) ?? 0) == 1;
+    _meshCoreEnabled =
+        (DataBroker.getValue<int>(0, 'MeshCoreSupport', 0) ?? 0) == 1;
+    _showMeshCore =
+        (DataBroker.getValue<int>(0, 'MapShowMeshCore', 1) ?? 1) == 1;
     _selectedSatId = DataBroker.getValue<int>(0, 'SelectedSatelliteId', null);
   }
 
@@ -1409,6 +1489,23 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             ],
           ),
         ),
+        if (_meshCoreEnabled)
+          PopupMenuItem<String>(
+            value: 'meshCore',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _showMeshCore
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                Text(AppLocalizations.of(context).mapShowMeshCore),
+              ],
+            ),
+          ),
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
@@ -1512,6 +1609,18 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             name: 'MapShowWinlinkGateways',
             data: _showWinlinkGateways ? 1 : 0,
             store: true,
+          );
+          break;
+        case 'meshCore':
+          if (!_meshCoreEnabled) break;
+          setState(() {
+            _showMeshCore = !_showMeshCore;
+            if (!_showMeshCore) _selectedMeshKey = null;
+          });
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'MapShowMeshCore',
+            data: _showMeshCore ? 1 : 0,
           );
           break;
         case 'centerGps':
@@ -1686,6 +1795,426 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// Height of the small position spike drawn under Winlink gateway icons.
   static const double _winlinkSpikeHeight = 8;
 
+  // ---------------------------------------------------------------------------
+  // MeshCore nodes
+  // ---------------------------------------------------------------------------
+
+  static const Color _meshColor = Color(0xFF00897B);
+  static const Color _meshSelfColor = Color(0xFF004D40);
+
+  /// Rebuilds [_meshStations] from the companion's contacts and its own
+  /// advertised position (device 204).
+  void _loadMeshStations() {
+    final stations = <_MeshStation>[];
+    final info = _broker.getValueDynamic(meshCoreDeviceId, 'MeshCoreInfo');
+    if (info is Map) {
+      final lat = (info['lat'] as num?)?.toDouble();
+      final lon = (info['lon'] as num?)?.toDouble();
+      final key = info['publicKey']?.toString() ?? '';
+      if (lat != null && lon != null && _isValidLatLng(lat, lon)) {
+        stations.add(
+          _MeshStation(
+            key: key,
+            name: info['name']?.toString() ?? '',
+            type: MeshCoreAdvType.chat,
+            position: LatLng(lat, lon),
+            lastHeard: null,
+            isSelf: true,
+          ),
+        );
+      }
+    }
+    final contacts = _broker.getValueDynamic(
+      meshCoreDeviceId,
+      'MeshCoreContacts',
+    );
+    if (contacts is List) {
+      for (final c in contacts.whereType<Map>()) {
+        final lat = (c['lat'] as num?)?.toDouble();
+        final lon = (c['lon'] as num?)?.toDouble();
+        if (lat == null || lon == null || !_isValidLatLng(lat, lon)) continue;
+        // lastmod is stamped by the companion's clock (synced to this
+        // computer); the advert time is the remote node's clock.
+        final secs =
+            (c['lastMod'] as num?)?.toInt() ??
+            (c['lastAdvert'] as num?)?.toInt() ??
+            0;
+        stations.add(
+          _MeshStation(
+            key: c['key']?.toString() ?? '',
+            name: c['name']?.toString() ?? '',
+            type: (c['type'] as num?)?.toInt() ?? MeshCoreAdvType.none,
+            position: LatLng(lat, lon),
+            lastHeard: secs > 0
+                ? DateTime.fromMillisecondsSinceEpoch(secs * 1000)
+                : null,
+          ),
+        );
+      }
+    }
+    _meshStations = stations;
+  }
+
+  /// Address-book MeshCore users: public-key hex -> station.
+  Map<String, StationInfo> _meshContacts() {
+    final result = <String, StationInfo>{};
+    final raw = _broker.getValueDynamic(0, 'Stations', null);
+    if (raw is! List) return result;
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final s = StationInfo.fromJson(Map<String, dynamic>.from(item));
+      if (s.stationType == StationType.meshCore) {
+        result[s.callsign.toLowerCase()] = s;
+      }
+    }
+    return result;
+  }
+
+  /// MeshCore nodes currently drawn: the feature and layer are enabled, the
+  /// node passes the marker age filter and, with "Show Contacts Only", is a
+  /// MeshCore user in the address book (the companion itself always shows).
+  List<_MeshStation> _visibleMeshStations() {
+    if (!_meshCoreEnabled || !_showMeshCore) return const [];
+    final contacts = _showContactsOnly ? _meshContacts() : null;
+    return [
+      for (final s in _meshStations)
+        if (s.isSelf ||
+            ((s.lastHeard == null || _passesTimeFilter(s.lastHeard!)) &&
+                (contacts == null || contacts.containsKey(s.key))))
+          s,
+    ];
+  }
+
+  _MeshStation? get _selectedMeshStation {
+    final key = _selectedMeshKey;
+    if (key == null) return null;
+    return _visibleMeshStations().where((s) => s.key == key).firstOrNull;
+  }
+
+  IconData _meshTypeIcon(int type) => switch (type) {
+    MeshCoreAdvType.repeater => Icons.settings_input_antenna,
+    MeshCoreAdvType.room => Icons.forum,
+    MeshCoreAdvType.sensor => Icons.sensors,
+    _ => Icons.person,
+  };
+
+  String _meshTypeLabel(int type) {
+    final l10n = AppLocalizations.of(context);
+    return switch (type) {
+      MeshCoreAdvType.repeater => l10n.meshTypeRepeater,
+      MeshCoreAdvType.room => l10n.meshTypeRoom,
+      MeshCoreAdvType.sensor => l10n.meshTypeSensor,
+      _ => l10n.meshTypeCompanion,
+    };
+  }
+
+  /// Display name: the address-book name when the node is a contact.
+  String _meshDisplayName(_MeshStation s, Map<String, StationInfo> contacts) {
+    final name = contacts[s.key]?.name ?? '';
+    if (name.isNotEmpty) return name;
+    return s.name.isNotEmpty ? s.name : meshCoreFingerprint(s.key);
+  }
+
+  List<Marker> _buildMeshCoreMarkers() {
+    final contacts = _meshContacts();
+    final double size = _largeMarkers ? 24 : 18;
+    return [
+      for (final s in _visibleMeshStations())
+        Marker(
+          point: s.position,
+          width: size + 6,
+          height: size + 6 + _winlinkSpikeHeight,
+          alignment: Alignment.topCenter,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapUp: (d) => _onMeshTap(d.globalPosition, s),
+            onSecondaryTapUp: (d) => _onMeshContextMenu(d.globalPosition, s),
+            onLongPressStart: (d) => _onMeshContextMenu(d.globalPosition, s),
+            child: Tooltip(
+              message:
+                  '${_meshDisplayName(s, contacts)}\n'
+                  '${_meshTypeLabel(s.type)}'
+                  '${s.lastHeard == null ? '' : '\n${_formatTime(s.lastHeard!)}'}',
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: size + 6,
+                    height: size + 6,
+                    decoration: BoxDecoration(
+                      color: s.isSelf ? _meshSelfColor : _meshColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                    child: Icon(
+                      _meshTypeIcon(s.type),
+                      color: Colors.white,
+                      size: size * 0.7,
+                    ),
+                  ),
+                  CustomPaint(
+                    size: const Size(8, _winlinkSpikeHeight),
+                    painter: _MarkerSpikePainter(
+                      s.isSelf ? _meshSelfColor : _meshColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+    ];
+  }
+
+  void _onMeshTap(Offset globalPosition, _MeshStation s) {
+    final near = _entitiesNear(s.position);
+    if (near.length > 1) {
+      _showEntityPicker(globalPosition, near, forContextMenu: false);
+    } else {
+      _selectMesh(s);
+    }
+  }
+
+  void _onMeshContextMenu(Offset globalPosition, _MeshStation s) {
+    final near = _entitiesNear(s.position);
+    if (near.length > 1) {
+      _showEntityPicker(globalPosition, near, forContextMenu: true);
+    } else {
+      _showMeshActionMenu(globalPosition, s);
+    }
+  }
+
+  void _selectMesh(_MeshStation s) {
+    setState(() {
+      _selectedStationCallsign = null;
+      _selectedWinlinkCallsign = null;
+      _selectedMeshKey = s.key;
+    });
+  }
+
+  /// Only other chat nodes take direct messages and can be contacts.
+  bool _meshIsUser(_MeshStation s) =>
+      !s.isSelf && s.type == MeshCoreAdvType.chat && s.key.isNotEmpty;
+
+  Future<void> _showMeshActionMenu(Offset globalPosition, _MeshStation s) async {
+    final l10n = AppLocalizations.of(context);
+    final contacts = _meshContacts();
+    final isContact = contacts.containsKey(s.key);
+    Widget item(IconData icon, String text) => Row(
+      children: [
+        Icon(icon, size: 18),
+        const SizedBox(width: 8),
+        Text(text),
+      ],
+    );
+    final action = await showMenu<String>(
+      context: context,
+      position: _menuPositionAt(globalPosition),
+      items: [
+        PopupMenuItem<String>(
+          enabled: false,
+          height: 28,
+          child: Text(
+            _meshDisplayName(s, contacts),
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ),
+        const PopupMenuDivider(height: 8),
+        if (_meshIsUser(s)) ...[
+          PopupMenuItem<String>(
+            value: 'message',
+            height: 40,
+            child: item(Icons.chat_bubble_outline, l10n.mapStationMessage),
+          ),
+          PopupMenuItem<String>(
+            value: 'contact',
+            height: 40,
+            child: isContact
+                ? item(Icons.edit_outlined, l10n.commonEditEllipsis)
+                : item(Icons.person_add_alt, l10n.mapStationAddContact),
+          ),
+        ],
+        PopupMenuItem<String>(
+          value: 'center',
+          height: 40,
+          child: item(Icons.my_location, l10n.mapStationCenter),
+        ),
+        if (s.key.isNotEmpty)
+          PopupMenuItem<String>(
+            value: 'copy',
+            height: 40,
+            child: item(Icons.copy, l10n.meshCopyPublicKey),
+          ),
+      ],
+    );
+    if (!mounted) return;
+    switch (action) {
+      case 'message':
+        _messageMesh(s);
+      case 'contact':
+        _editMeshContact(s, contacts[s.key]);
+      case 'center':
+        _mapController.move(
+          s.position,
+          math.max(_mapController.camera.zoom, 16.0),
+        );
+      case 'copy':
+        await Clipboard.setData(ClipboardData(text: s.key));
+    }
+  }
+
+  /// Switches to the Messaging tab and opens the conversation with [s].
+  void _messageMesh(_MeshStation s) {
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'RequestSelectTab',
+      data: 'APRS',
+      store: false,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _broker.dispatch(
+        deviceId: meshCoreDeviceId,
+        name: 'MeshCoreOpenConversation',
+        data: 'user:${meshCorePeerForKey(s.key)}',
+        store: true,
+      );
+    });
+  }
+
+  Future<void> _editMeshContact(_MeshStation s, StationInfo? existing) =>
+      _addContactFrom(
+        existing ??
+            StationInfo(
+              callsign: s.key,
+              name: s.name,
+              stationType: StationType.meshCore,
+            ),
+      );
+
+  Widget _buildMeshInfoCard(_MeshStation s) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
+    final contacts = _meshContacts();
+    final contact = contacts[s.key];
+    final own = _ownPosition;
+    String? relative;
+    if (own != null && !s.isSelf) {
+      final meters = const Distance().as(LengthUnit.Meter, own, s.position);
+      final compass = _compass8(_bearingBetween(own, s.position));
+      relative = '$compass  •  ${_formatDistanceShort(meters)}';
+    }
+    final small = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
+    return Positioned(
+      left: 8,
+      right: 8,
+      bottom: 8,
+      child: Card(
+        margin: EdgeInsets.zero,
+        color: scheme.surface.withValues(alpha: 0.95),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
+          child: Row(
+            children: [
+              ContactAvatar(
+                callsign: s.key,
+                avatarIcon: contact?.avatarIcon,
+                avatarImage: contact?.avatarImage,
+                initials: nameInitials(_meshDisplayName(s, contacts)),
+                radius: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          _meshTypeIcon(s.type),
+                          size: 14,
+                          color: _meshColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            _meshDisplayName(s, contacts),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(_meshTypeLabel(s.type), style: small),
+                      ],
+                    ),
+                    if (relative != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.near_me,
+                              size: 13,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                relative,
+                                style: small,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        [
+                          meshCoreFingerprint(s.key),
+                          if (s.lastHeard != null) _formatTime(s.lastHeard!),
+                        ].join('  •  '),
+                        style: small,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_meshIsUser(s)) ...[
+                IconButton(
+                  tooltip: l10n.mapStationMessage,
+                  icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                  onPressed: () => _messageMesh(s),
+                ),
+                if (contact == null)
+                  IconButton(
+                    tooltip: l10n.mapStationAddContact,
+                    icon: const Icon(Icons.person_add_alt, size: 20),
+                    onPressed: () => _editMeshContact(s, null),
+                  ),
+              ],
+              IconButton(
+                tooltip: l10n.mapStationCenter,
+                icon: const Icon(Icons.center_focus_strong, size: 20),
+                onPressed: () => _mapController.move(
+                  s.position,
+                  math.max(_mapController.camera.zoom, 16.0),
+                ),
+              ),
+              IconButton(
+                tooltip: l10n.commonClose,
+                icon: const Icon(Icons.close, size: 20),
+                onPressed: () => setState(() => _selectedMeshKey = null),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Builds a marker for each offline Winlink gateway visible in the current
   /// viewport. Gated on zoom and capped so a dense region can't flood the map
   /// with thousands of pins.
@@ -1768,6 +2297,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   void _selectWinlink(WinlinkGateway gw) {
     setState(() {
       _selectedStationCallsign = null;
+      _selectedMeshKey = null;
       _selectedWinlinkCallsign = gw.callsign;
     });
     _lookupLicense(gw.callsign);
@@ -2474,6 +3004,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   void _selectStation(_StationMarkerData station) {
     setState(() {
       _selectedWinlinkCallsign = null;
+      _selectedMeshKey = null;
       _selectedStationCallsign = station.callsign;
     });
     _lookupLicense(station.callsign);
@@ -2509,6 +3040,13 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     }
     for (final s in _voiceStations.values) {
       considerStation(s);
+    }
+
+    for (final m in _visibleMeshStations()) {
+      final Offset o = camera.latLngToScreenOffset(m.position);
+      if ((o - anchorPx).distance <= thresholdPx) {
+        result.add(_MapEntity.mesh(m));
+      }
     }
 
     // Winlink gateways are only drawn (and so only pickable) at zoom >= 6.
@@ -2584,7 +3122,16 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                       size: 14, color: Color(0xFF6A1B9A)),
                   const SizedBox(width: 6),
                 ],
-                Text(e.label),
+                if (e.isMesh) ...[
+                  Icon(_meshTypeIcon(e.mesh!.type),
+                      size: 14, color: _meshColor),
+                  const SizedBox(width: 6),
+                ],
+                Text(
+                  e.isMesh
+                      ? _meshDisplayName(e.mesh!, _meshContacts())
+                      : e.label,
+                ),
               ],
             ),
           ),
@@ -2592,13 +3139,17 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     );
     if (selected == null || !mounted) return;
     if (forContextMenu) {
-      if (selected.isGateway) {
+      if (selected.isMesh) {
+        _showMeshActionMenu(globalPosition, selected.mesh!);
+      } else if (selected.isGateway) {
         _showWinlinkActionMenu(globalPosition, selected.gateway!);
       } else {
         _showStationActionMenu(globalPosition, selected.station!);
       }
     } else {
-      if (selected.isGateway) {
+      if (selected.isMesh) {
+        _selectMesh(selected.mesh!);
+      } else if (selected.isGateway) {
         _selectWinlink(selected.gateway!);
       } else {
         _selectStation(selected.station!);
@@ -2734,7 +3285,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     // Pre-fill the name and location from the offline callsign database when it
     // is installed and the seed doesn't already carry them.
     final service = CallsignLookupService.instance;
-    if (service.isAvailable && (seed.name.isEmpty || seed.description.isEmpty)) {
+    if (seed.stationType != StationType.meshCore &&
+        service.isAvailable &&
+        (seed.name.isEmpty || seed.description.isEmpty)) {
       try {
         final rec = (await service.lookup(seed.callsign))?.record;
         if (rec != null) {
@@ -3224,6 +3777,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     final scheme = Theme.of(context).colorScheme;
     final tracks = _showTracks ? _buildTracks() : const <Polyline>[];
     final stationMarkers = _buildStationMarkers();
+    final meshMarkers = _buildMeshCoreMarkers();
+    final selectedMesh = _selectedMeshStation;
     return Column(
       children: [
         // Header bar matching C# UI
@@ -3253,10 +3808,12 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                   onPositionChanged: _onMapPositionChanged,
                   onTap: (_, _) {
                     if (_selectedStationCallsign != null ||
-                        _selectedWinlinkCallsign != null) {
+                        _selectedWinlinkCallsign != null ||
+                        _selectedMeshKey != null) {
                       setState(() {
                         _selectedStationCallsign = null;
                         _selectedWinlinkCallsign = null;
+                        _selectedMeshKey = null;
                       });
                     }
                   },
@@ -3289,12 +3846,15 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                   if (tracks.isNotEmpty) PolylineLayer(polylines: tracks),
                   // Winlink gateways and station markers share one layer,
                   // ordered north to south so southern markers draw on top.
-                  if (_showWinlinkGateways || stationMarkers.isNotEmpty)
+                  if (_showWinlinkGateways ||
+                      stationMarkers.isNotEmpty ||
+                      meshMarkers.isNotEmpty)
                     MarkerLayer(
                       markers: _sortNorthToSouth([
                         if (_showWinlinkGateways)
                           ..._buildWinlinkGatewayMarkers(),
                         ...stationMarkers,
+                        ...meshMarkers,
                       ]),
                     ),
                   if (_showAirplanes && _airplanes.isNotEmpty)
@@ -3527,7 +4087,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
               if (_selectedStation != null)
                 _buildStationInfoCard(_selectedStation!)
               else if (_selectedWinlinkGateway != null)
-                _buildWinlinkInfoCard(_selectedWinlinkGateway!),
+                _buildWinlinkInfoCard(_selectedWinlinkGateway!)
+              else if (selectedMesh != null)
+                _buildMeshInfoCard(selectedMesh),
             ],
           ),
         ),

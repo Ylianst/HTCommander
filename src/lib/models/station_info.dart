@@ -18,6 +18,7 @@ enum StationType {
   agwpe, // 6
   sms, // 7 - SMS / phone number contact
   email, // 8 - email contact
+  meshCore, // 9 - MeshCore user; [StationInfo.callsign] holds the 64-hex public key
 }
 
 /// Terminal protocol. The integer index matches the C#

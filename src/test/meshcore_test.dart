@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/meshcore/meshcore_client.dart';
 import 'package:htcommander/meshcore/meshcore_protocol.dart';
+import 'package:htcommander/meshcore/meshcore_stream_transport.dart';
+import 'package:htcommander/models/station_info.dart';
+import 'package:htcommander/widgets/contact_avatar.dart';
 
 Uint8List _u32(int v) =>
     Uint8List(4)..buffer.asByteData().setUint32(0, v, Endian.little);
@@ -81,6 +85,145 @@ class _FakeTransport implements MeshCoreTransport {
 }
 
 void main() {
+  group('MeshCore stream framing', () {
+    Uint8List fromRadio(List<int> payload) => Uint8List.fromList([
+      0x3E,
+      payload.length & 0xFF,
+      payload.length >> 8,
+      ...payload,
+    ]);
+
+    test('encodes app-to-radio frames', () {
+      expect(encodeStreamFrame([1, 2, 3]), [0x3C, 3, 0, 1, 2, 3]);
+      final big = encodeStreamFrame(List.filled(300, 7));
+      expect(big.sublist(0, 3), [0x3C, 300 & 0xFF, 1]);
+    });
+
+    test('reassembles frames split across chunks', () {
+      final d = MeshCoreStreamDecoder();
+      final bytes = [...fromRadio([5, 6, 7]), ...fromRadio([9])];
+      final out = <Uint8List>[];
+      for (final b in bytes) {
+        out.addAll(d.add([b]));
+      }
+      expect(out, [
+        [5, 6, 7],
+        [9],
+      ]);
+    });
+
+    test('skips noise and implausible lengths', () {
+      final d = MeshCoreStreamDecoder();
+      final noise = 'boot> ok\r\n'.codeUnits;
+      final frames = d.add([
+        ...noise,
+        0x3E, 0xFF, 0xFF, // bogus 65535-byte header
+        ...fromRadio([1, 2]),
+      ]);
+      expect(frames, [
+        [1, 2],
+      ]);
+    });
+
+    test('parses TCP targets', () {
+      expect(parseMeshCoreTcpTarget('192.168.1.20'), (
+        host: '192.168.1.20',
+        port: meshCoreDefaultTcpPort,
+      ));
+      expect(parseMeshCoreTcpTarget('meshcore.local:5001'), (
+        host: 'meshcore.local',
+        port: 5001,
+      ));
+      expect(parseMeshCoreTcpTarget('[fe80::1]:4000'), (
+        host: 'fe80::1',
+        port: 4000,
+      ));
+      expect(parseMeshCoreTcpTarget('host:0'), isNull);
+      expect(parseMeshCoreTcpTarget('bad host'), isNull);
+      expect(parseMeshCoreTcpTarget(''), isNull);
+    });
+
+    test('TCP transport talks to a companion end to end', () async {
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final received = <Uint8List>[];
+      server.listen((socket) {
+        final decoder = <int>[];
+        socket.listen((data) {
+          decoder.addAll(data);
+          // App-to-radio frames: '<' + len16 + payload.
+          while (decoder.length >= 3 && decoder[0] == 0x3C) {
+            final len = decoder[1] | (decoder[2] << 8);
+            if (decoder.length < 3 + len) break;
+            final payload = Uint8List.fromList(decoder.sublist(3, 3 + len));
+            decoder.removeRange(0, 3 + len);
+            received.add(payload);
+            if (payload[0] == MeshCoreCmd.deviceQuery) {
+              final reply = _deviceInfoFrame();
+              // Split the reply to exercise reassembly.
+              final framed = fromRadio(reply);
+              socket.add(framed.sublist(0, 10));
+              socket.add(framed.sublist(10));
+            }
+          }
+        });
+      });
+      final transport = await MeshCoreTcpTransport.connect(
+        '127.0.0.1',
+        server.port,
+      );
+      final client = MeshCoreClient(transport);
+      final info = await client.queryDevice();
+      expect(info.model, 'Heltec V3');
+      expect(received.single, MeshCoreCommands.deviceQuery());
+      await client.close();
+      await server.close();
+    });
+  });
+
+  group('MeshCore contacts', () {
+    final key = bytesToHex(_key(0x40));
+
+    test('a MeshCore user survives JSON and text export round-trips', () {
+      final station = StationInfo(
+        callsign: key,
+        name: 'Alice',
+        description: 'Base camp',
+        stationType: StationType.meshCore,
+        avatarIcon: 'star',
+      );
+      final fromJson = StationInfo.fromJson(station.toJson());
+      expect(fromJson.stationType, StationType.meshCore);
+      expect(fromJson.callsign, key);
+      expect(fromJson.avatarIcon, 'star');
+      final fromText = StationInfo.deserializeList(
+        StationInfo.serializeList([station]),
+      ).single;
+      expect(fromText.stationType, StationType.meshCore);
+      expect(fromText.callsign, key);
+      expect(fromText.name, 'Alice');
+    });
+
+    test('existing station type indexes are unchanged', () {
+      expect(StationType.email.index, 8);
+      expect(StationType.meshCore.index, 9);
+    });
+
+    test('peer and fingerprint helpers', () {
+      expect(meshCorePeerForKey(key.toUpperCase()), key.substring(0, 12));
+      expect(
+        meshCoreFingerprint(key),
+        '${key.substring(0, 8)}…${key.substring(56)}',
+      );
+    });
+
+    test('initials from display names', () {
+      expect(nameInitials('Alice Smith'), 'AS');
+      expect(nameInitials('bob'), 'BO');
+      expect(nameInitials('  '), '?');
+      expect(nameInitials('Ünal Öz'), 'ÜÖ');
+    });
+  });
+
   group('MeshCore command builders', () {
     test('appStart reserves seven bytes before the app name', () {
       final f = MeshCoreCommands.appStart('HTC');

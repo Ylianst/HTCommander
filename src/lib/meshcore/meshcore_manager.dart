@@ -18,7 +18,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 //   MeshCoreMessage, MeshCoreMessageList, MeshCoreMessagesCleared, MeshCoreResult
 // Requests (UI -> manager): MeshCoreConnect, MeshCoreDisconnect, MeshCoreScan,
 //   MeshCoreForgetPairing, MeshCoreSendDirect, MeshCoreSendGroup, MeshCoreResend,
-//   MeshCoreAddContact, MeshCoreAddChannel, MeshCoreRemoveChannel,
+//   MeshCoreAddChannel, MeshCoreRemoveChannel,
 //   MeshCoreSendAdvert, MeshCoreRefresh, RequestMeshCoreMessages,
 //   MeshCoreClearMessages
 //
@@ -28,15 +28,26 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../models/station_info.dart' show StationType;
 import '../services/data_broker_client.dart';
 import '../services/db/app_database.dart';
+import '../services/notification_service.dart';
+import '../services/notification_router.dart';
 import 'meshcore_ble_transport.dart';
 import 'meshcore_client.dart';
 import 'meshcore_message.dart';
 import 'meshcore_protocol.dart';
+import 'meshcore_stream_transport.dart';
 
 /// Data Broker device id for the MeshCore companion.
 const int meshCoreDeviceId = 204;
+
+/// How HTCommander reaches the companion radio.
+abstract final class MeshCoreTransportKind {
+  static const String ble = 'ble';
+  static const String serial = 'serial';
+  static const String tcp = 'tcp';
+}
 
 /// Connection states published in `MeshCoreState`.
 abstract final class MeshCoreState {
@@ -71,6 +82,7 @@ class MeshCoreManager {
   String? _error;
   String? _deviceId;
   String _deviceName = '';
+  String _transport = MeshCoreTransportKind.ble;
   bool _initialized = false;
 
   /// Mirrors the 'MeshCoreSupport' feature setting.
@@ -106,6 +118,10 @@ class MeshCoreManager {
 
   bool _scanning = false;
 
+  /// MeshCore users from the address book: public-key hex -> name.
+  Map<String, String> _book = const {};
+  bool _syncingBook = false;
+
   void init() {
     if (_initialized) return;
     _initialized = true;
@@ -120,7 +136,6 @@ class MeshCoreManager {
         'MeshCoreSendDirect',
         'MeshCoreSendGroup',
         'MeshCoreResend',
-        'MeshCoreAddContact',
         'MeshCoreAddChannel',
         'MeshCoreRemoveChannel',
         'MeshCoreSendAdvert',
@@ -135,6 +150,16 @@ class MeshCoreManager {
     _publishScan(const []);
     unawaited(_loadHistory());
 
+    _loadAddressBook(_broker.getValueDynamic(0, 'Stations', null));
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'Stations',
+      callback: (_, _, data) {
+        _loadAddressBook(data);
+        unawaited(_syncAddressBook());
+      },
+    );
+
     // MeshCore is opt-in (Settings > Application > Features).
     _enabled = (_broker.getValue<int>(0, 'MeshCoreSupport', 0) ?? 0) == 1;
     _broker.subscribe(
@@ -148,12 +173,20 @@ class MeshCoreManager {
   void _autoConnect() {
     final last = _lastDevice();
     final auto = (_broker.getValue<int>(0, 'MeshCoreAutoConnect', 1) ?? 1) != 0;
-    if (auto && last != null && MeshCoreBleTransport.isSupported) {
+    if (auto && last != null && _transportSupported(last.transport)) {
       _userDisconnected = false;
       _retryDelay = _minRetry;
-      unawaited(_connect(last.id, last.name, ''));
+      unawaited(_connect(last.transport, last.id, last.name, ''));
     }
   }
+
+  static bool _transportSupported(String transport) => switch (transport) {
+    MeshCoreTransportKind.serial => meshCoreSerialSupported,
+    MeshCoreTransportKind.tcp => meshCoreTcpSupported,
+    _ =>
+      MeshCoreBleTransport.isSupported &&
+          MeshCoreBleTransport.supportsAutoConnect,
+  };
 
   void _setEnabled(bool enabled) {
     if (enabled == _enabled) return;
@@ -183,6 +216,7 @@ class MeshCoreManager {
         _retryDelay = _minRetry;
         unawaited(
           _connect(
+            map['transport']?.toString() ?? MeshCoreTransportKind.ble,
             id,
             map['name']?.toString() ?? id,
             map['pin']?.toString() ?? '',
@@ -192,7 +226,9 @@ class MeshCoreManager {
         _userDisconnected = true;
         _retryTimer?.cancel();
         _generation++;
-        unawaited(_teardown().then((_) => _setState(MeshCoreState.disconnected)));
+        unawaited(
+          _teardown().then((_) => _setState(MeshCoreState.disconnected)),
+        );
       case 'MeshCoreScan':
         unawaited(_scan());
       case 'MeshCoreForgetPairing':
@@ -220,13 +256,6 @@ class MeshCoreManager {
         );
       case 'MeshCoreResend':
         unawaited(_resend((map['id'] as num?)?.toInt() ?? 0));
-      case 'MeshCoreAddContact':
-        unawaited(
-          _addContact(
-            map['key']?.toString() ?? '',
-            map['name']?.toString() ?? '',
-          ),
-        );
       case 'MeshCoreAddChannel':
         unawaited(
           _addChannel(
@@ -253,46 +282,97 @@ class MeshCoreManager {
   // Connection
   // ---------------------------------------------------------------------------
 
-  ({String id, String name})? _lastDevice() {
+  ({String transport, String id, String name})? _lastDevice() {
     final raw = _broker.getValueDynamic(0, 'MeshCoreLastDevice', null);
     if (raw is! Map) return null;
     final id = raw['id']?.toString() ?? '';
     if (id.isEmpty) return null;
-    return (id: id, name: raw['name']?.toString() ?? id);
+    return (
+      // Saved before USB/Wi-Fi support existed means Bluetooth.
+      transport: raw['transport']?.toString() ?? MeshCoreTransportKind.ble,
+      id: id,
+      name: raw['name']?.toString() ?? id,
+    );
   }
 
-  Future<void> _connect(String id, String name, String pin) async {
+  /// Opens the link. [id] is the Bluetooth device id, the serial port name, or
+  /// "host:port" for TCP.
+  Future<MeshCoreTransport> _openTransport(
+    String transport,
+    String id,
+    String pin,
+    int gen,
+  ) async {
+    switch (transport) {
+      case MeshCoreTransportKind.serial:
+        return MeshCoreSerialTransport.open(id);
+      case MeshCoreTransportKind.tcp:
+        final target = parseMeshCoreTcpTarget(id);
+        if (target == null) {
+          throw MeshCoreException('Invalid address "$id"');
+        }
+        return MeshCoreTcpTransport.connect(target.host, target.port);
+      default:
+        return MeshCoreBleTransport.connect(
+          id,
+          pin: pin,
+          onStatus: (s) {
+            if (gen == _generation) {
+              _setState(
+                s == 'pairing'
+                    ? MeshCoreState.pairing
+                    : MeshCoreState.connecting,
+              );
+            }
+          },
+        );
+    }
+  }
+
+  /// Device query with retries for wired links: opening a USB port can reset
+  /// an ESP32 board, which then needs a few seconds to boot.
+  Future<MeshCoreDeviceInfo> _queryDevice(
+    MeshCoreClient client,
+    String transport,
+  ) async {
+    final attempts = transport == MeshCoreTransportKind.ble ? 1 : 3;
+    for (var i = 1; ; i++) {
+      try {
+        return await client.queryDevice();
+      } on MeshCoreException {
+        if (i >= attempts || client.isClosed) rethrow;
+      }
+    }
+  }
+
+  Future<void> _connect(
+    String transport,
+    String id,
+    String name,
+    String pin,
+  ) async {
     _retryTimer?.cancel();
     await _teardown();
     final gen = ++_generation;
+    _transport = transport;
     _deviceId = id;
     _deviceName = name;
     _setState(MeshCoreState.connecting);
-    _log('Connecting to $name ($id)');
+    _log('Connecting to $name ($transport $id)');
 
     MeshCoreClient? client;
     try {
-      final transport = await MeshCoreBleTransport.connect(
-        id,
-        pin: pin,
-        onStatus: (s) {
-          if (gen == _generation) {
-            _setState(
-              s == 'pairing' ? MeshCoreState.pairing : MeshCoreState.connecting,
-            );
-          }
-        },
-      );
+      final link = await _openTransport(transport, id, pin, gen);
       if (gen != _generation) {
-        await transport.close();
+        await link.close();
         return;
       }
-      client = MeshCoreClient(transport);
+      client = MeshCoreClient(link);
       _client = client;
       _eventSub = client.events.listen(_onEvent);
       _setState(MeshCoreState.syncing);
 
-      _device = await client.queryDevice();
+      _device = await _queryDevice(client, transport);
       _self = await client.appStart();
       try {
         await client.syncTime();
@@ -307,13 +387,14 @@ class MeshCoreManager {
       _broker.dispatch(
         deviceId: 0,
         name: 'MeshCoreLastDevice',
-        data: {'id': id, 'name': name},
+        data: {'transport': transport, 'id': id, 'name': name},
       );
       _retryDelay = _minRetry;
       _setState(MeshCoreState.connected);
       _publishInfo();
       _publishContacts();
       _publishChannels();
+      await _syncAddressBook();
       _log(
         'Connected to ${_self!.name} (${_device!.model} ${_device!.version}), '
         '${_contacts.length} contact(s), '
@@ -355,7 +436,7 @@ class MeshCoreManager {
     );
     _retryTimer = Timer(delay, () {
       if (_userDisconnected || _deviceId == null) return;
-      unawaited(_connect(_deviceId!, _deviceName, ''));
+      unawaited(_connect(_transport, _deviceId!, _deviceName, ''));
     });
   }
 
@@ -431,6 +512,7 @@ class MeshCoreManager {
       _publishInfo();
       _publishContacts();
       _publishChannels();
+      await _syncAddressBook();
       await client.drainMessages();
     } catch (e) {
       _logError('Refresh failed: $e');
@@ -487,7 +569,9 @@ class MeshCoreManager {
           m.state = MeshCoreDelivery.failed;
           unawaited(_safeUpdate(dao, m));
         }
-        if (!m.outgoing) _seen.add(_dedupeKey(m.kind, m.peer, m.senderTime, m.text));
+        if (!m.outgoing) {
+          _seen.add(_dedupeKey(m.kind, m.peer, m.senderTime, m.text));
+        }
       }
       _messages.insertAll(0, history);
       _publishMessageList();
@@ -534,6 +618,36 @@ class MeshCoreManager {
     );
     await _store(msg);
     _publishMessage(msg);
+    _notifyIfDirect(msg);
+  }
+
+  /// Raises a system notification for an incoming direct message (one
+  /// addressed to this companion). Group/channel traffic never notifies.
+  /// [NotificationService] suppresses it while the app is in the foreground
+  /// and honours the "Message Notifications" setting.
+  void _notifyIfDirect(MeshCoreMessage msg) {
+    if (!isDirectMessageToUs(msg) || msg.text.trim().isEmpty) return;
+    final bookName = _bookNameForPeer(msg.peer);
+    final from = (bookName != null && bookName.isNotEmpty)
+        ? bookName
+        : msg.sender;
+    unawaited(
+      NotificationService.instance.showMessage(
+        title: from.isNotEmpty
+            ? 'MeshCore message from $from'
+            : 'MeshCore message',
+        body: msg.text,
+        payload: meshCoreNotificationPayload(msg.conversationKey),
+      ),
+    );
+  }
+
+  /// Address-book name for a direct-message peer (key prefix), if unique.
+  String? _bookNameForPeer(String peer) {
+    final matches = _book.entries.where(
+      (e) => meshCorePeerForKey(e.key) == peer,
+    );
+    return matches.length == 1 ? matches.first.value : null;
   }
 
   Future<void> _sendDirect(String peer, String text) async {
@@ -556,7 +670,8 @@ class MeshCoreManager {
 
   Future<void> _attemptDirect(MeshCoreMessage msg, int attempt) async {
     final client = _client;
-    final contact = _contactByPrefix(msg.peer);
+    final contact =
+        _contactByPrefix(msg.peer) ?? _bookContactByPrefix(msg.peer);
     if (client == null) {
       _markFailed(msg);
       return;
@@ -662,9 +777,7 @@ class MeshCoreManager {
 
   Future<void> _resend(int id) async {
     final msg = _messages.where((m) => m.id == id).firstOrNull;
-    if (msg == null ||
-        !msg.outgoing ||
-        msg.state != MeshCoreDelivery.failed) {
+    if (msg == null || !msg.outgoing || msg.state != MeshCoreDelivery.failed) {
       return;
     }
     _updateState(msg, MeshCoreDelivery.pending);
@@ -756,41 +869,77 @@ class MeshCoreManager {
   MeshCoreChannel? _channelByIndex(int? index) =>
       _channels.where((c) => c.index == index && !c.isEmpty).firstOrNull;
 
+  /// An address-book user matching [prefix] that is not yet on the radio,
+  /// as a contact record that can be added before sending.
+  MeshCoreContact? _bookContactByPrefix(String prefix) {
+    final matches = _book.keys.where((k) => meshCorePeerForKey(k) == prefix);
+    if (matches.length != 1) return null;
+    return MeshCoreContact(
+      publicKey: hexToBytes(matches.first),
+      type: MeshCoreAdvType.chat,
+      name: _book[matches.first]!,
+    );
+  }
+
   MeshCoreChannel? _channelByKey(String key) =>
       _channels.where((c) => !c.isEmpty && c.key == key).firstOrNull;
 
-  Future<void> _addContact(String keyHex, String name) async {
+  /// Adds address-book MeshCore users that are missing from the companion's
+  /// contact table, so direct messages to them can be sent. Contacts already
+  /// on the radio are left alone: their names come from the node's own adverts.
+  Future<void> _syncAddressBook() async {
     final client = _client;
-    final key = normalizePublicKeyHex(keyHex);
-    if (client == null || key == null || name.trim().isEmpty) {
-      _result('addContact', false, 'Not connected or invalid key');
+    if (client == null || _state != MeshCoreState.connected || _syncingBook) {
       return;
     }
-    if (key == _self?.publicKeyHex) {
-      _result('addContact', false, 'This is the companion radio\'s own key');
-      return;
-    }
+    _syncingBook = true;
+    var changed = false;
     try {
-      final existing = _contacts[key];
-      final contact = MeshCoreContact(
-        publicKey: hexToBytes(key),
-        type: existing?.type ?? MeshCoreAdvType.chat,
-        flags: existing?.flags ?? 0,
-        outPathLen: existing?.outPathLen ?? MeshCoreConst.pathUnknown,
-        outPath: existing?.outPath,
-        name: name.trim(),
-        lastAdvert: existing?.lastAdvert ?? 0,
-        latitude: existing?.latitude,
-        longitude: existing?.longitude,
-      );
-      await client.addOrUpdateContact(contact);
-      _contacts[key] = await client.getContact(contact.publicKey) ?? contact;
-      _onDevice.add(key);
-      _publishContacts();
-      _result('addContact', true, null, peer: contact.prefixHex);
-    } catch (e) {
-      _result('addContact', false, e.toString());
+      for (final entry in _book.entries) {
+        if (_client != client) return;
+        final key = entry.key;
+        if (_onDevice.contains(key) || key == _self?.publicKeyHex) continue;
+        try {
+          final contact = MeshCoreContact(
+            publicKey: hexToBytes(key),
+            type: MeshCoreAdvType.chat,
+            name: entry.value,
+          );
+          await client.addOrUpdateContact(contact);
+          _contacts[key] =
+              await client.getContact(contact.publicKey) ?? contact;
+          _onDevice.add(key);
+          changed = true;
+        } on MeshCoreException catch (e) {
+          _logError('Unable to add ${entry.value} to the radio: $e');
+          if (e.errorCode == MeshCoreErr.tableFull) break;
+        }
+      }
+    } finally {
+      _syncingBook = false;
+      if (changed) _publishContacts();
     }
+  }
+
+  /// Reads MeshCore users (public key -> name) from the address book.
+  void _loadAddressBook(Object? raw) {
+    final book = <String, String>{};
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is! Map) continue;
+        final type = item['StationType'] ?? item['stationType'];
+        if (type != StationType.meshCore.index &&
+            '$type'.toLowerCase() != StationType.meshCore.name.toLowerCase()) {
+          continue;
+        }
+        final key = normalizePublicKeyHex(
+          (item['Callsign'] ?? item['callsign'] ?? '').toString(),
+        );
+        if (key == null) continue;
+        book[key] = (item['Name'] ?? item['name'] ?? '').toString().trim();
+      }
+    }
+    _book = book;
   }
 
   Future<void> _addChannel(String name, String secretHex) async {
@@ -861,6 +1010,7 @@ class MeshCoreManager {
         'error': _error,
         'deviceId': _deviceId,
         'deviceName': _deviceName,
+        'transport': _transport,
       },
     );
   }
@@ -904,6 +1054,7 @@ class MeshCoreManager {
           'lat': c.latitude,
           'lon': c.longitude,
           'lastAdvert': c.lastAdvert,
+          'lastMod': c.lastModified,
           'onDevice': _onDevice.contains(c.publicKeyHex),
         },
     ];
@@ -919,12 +1070,7 @@ class MeshCoreManager {
     final list = [
       for (final c in _channels)
         if (!c.isEmpty)
-          {
-            'index': c.index,
-            'name': c.name,
-            'key': c.key,
-            'kind': c.kind.name,
-          },
+          {'index': c.index, 'name': c.name, 'key': c.key, 'kind': c.kind.name},
     ];
     _broker.dispatch(
       deviceId: meshCoreDeviceId,

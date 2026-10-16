@@ -2029,6 +2029,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get contactsTypeEmail => 'Contatti email';
 
   @override
+  String get contactsTypeMeshCore => 'Utenti MeshCore';
+
+  @override
   String get contactsExists =>
       'Esiste già una stazione con questo nominativo e tipo';
 
@@ -2532,6 +2535,21 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get mapShowWinlinkGateways => 'Mostra gateway Winlink';
+
+  @override
+  String get mapShowMeshCore => 'Mostra stazioni MeshCore';
+
+  @override
+  String get meshTypeCompanion => 'Companion';
+
+  @override
+  String get meshTypeRepeater => 'Ripetitore';
+
+  @override
+  String get meshTypeRoom => 'Server stanza';
+
+  @override
+  String get meshTypeSensor => 'Sensore';
 
   @override
   String get winlinkGatewayFrequencies => 'Frequenze';
@@ -4069,9 +4087,6 @@ class AppLocalizationsIt extends AppLocalizations {
   String get meshGroup => 'Gruppo MeshCore';
 
   @override
-  String get meshAddUserTitle => 'Aggiungi utente MeshCore';
-
-  @override
   String get meshAddGroupTitle => 'Aggiungi gruppo MeshCore';
 
   @override
@@ -4082,6 +4097,9 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get meshPublicKeyHint => '64 cifre esadecimali';
+
+  @override
+  String get meshKnownUsers => 'Utenti noti alla radio MeshCore';
 
   @override
   String get meshInvalidPublicKey =>
@@ -4143,6 +4161,46 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get meshPinHint =>
       'Mostrato sullo schermo del dispositivo, oppure 123456 se non ha uno schermo';
+
+  @override
+  String get meshPinSystemPrompt =>
+      'Alla prima connessione il sistema chiede il PIN mostrato sul dispositivo MeshCore (123456 se non ha uno schermo).';
+
+  @override
+  String get meshBluetooth => 'Bluetooth';
+
+  @override
+  String get meshUsb => 'USB';
+
+  @override
+  String get meshWifi => 'Wi-Fi';
+
+  @override
+  String get meshSerialPort => 'Porta seriale';
+
+  @override
+  String get meshNoSerialPorts =>
+      'Nessuna porta seriale trovata. Collega il dispositivo MeshCore con un cavo USB.';
+
+  @override
+  String get meshUsbHelp => 'Richiede il firmware companion MeshCore per USB.';
+
+  @override
+  String get meshHost => 'Nome host o indirizzo IP';
+
+  @override
+  String get meshTcpPort => 'Porta';
+
+  @override
+  String get meshInvalidHost =>
+      'Inserisci un nome host o un indirizzo IP valido.';
+
+  @override
+  String get meshInvalidPort => 'Inserisci una porta tra 1 e 65535.';
+
+  @override
+  String get meshWifiHelp =>
+      'Richiede il firmware companion MeshCore per Wi-Fi. La porta predefinita è 5000.';
 
   @override
   String get meshForgetPairing => 'Dimentica associazione';

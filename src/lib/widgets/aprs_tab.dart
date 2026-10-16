@@ -24,7 +24,12 @@ import '../l10n/app_localizations.dart';
 import '../meshcore/meshcore_manager.dart' show meshCoreDeviceId, MeshCoreState;
 import '../meshcore/meshcore_message.dart';
 import '../meshcore/meshcore_protocol.dart'
-    show MeshCoreConst, hopsFromPathLen, maxChannelTextBytes, utf8Length;
+    show
+        MeshCoreConst,
+        hopsFromPathLen,
+        maxChannelTextBytes,
+        meshCorePeerForKey,
+        utf8Length;
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -215,6 +220,9 @@ class _AprsTabState extends State<AprsTab>
   /// Mirrors the 'MeshCoreSupport' feature setting; when false every MeshCore
   /// entry point in this tab is hidden.
   bool _meshEnabled = false;
+
+  /// Address-book MeshCore users keyed by conversation peer (key prefix).
+  Map<String, StationInfo> _meshBook = {};
   final TextEditingController _meshController = TextEditingController();
 
   // Local station identity (from device 0).
@@ -572,6 +580,24 @@ class _AprsTabState extends State<AprsTab>
         });
       },
     );
+    // "Message" from a MeshCore node on the Map tab ("kind:peer").
+    _broker.subscribe(
+      deviceId: meshCoreDeviceId,
+      name: 'MeshCoreOpenConversation',
+      callback: (_, _, data) => _onMeshOpenRequested(data),
+    );
+    // A request made before this tab existed (notification tap or Map "Message"
+    // that also switched to this tab) is retained on the broker.
+    final pendingMesh = _broker.getValue<String>(
+      meshCoreDeviceId,
+      'MeshCoreOpenConversation',
+      '',
+    );
+    if (pendingMesh != null && pendingMesh.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _onMeshOpenRequested(pendingMesh),
+      );
+    }
     _broker.dispatch(
       deviceId: meshCoreDeviceId,
       name: 'RequestMeshCoreMessages',
@@ -582,6 +608,21 @@ class _AprsTabState extends State<AprsTab>
 
   static List<Map<dynamic, dynamic>> _mapList(Object? data) =>
       data is List ? data.whereType<Map>().toList() : const [];
+
+  /// Opens the MeshCore conversation ("kind:peer") requested by a notification
+  /// tap or the Map tab, then clears the retained request.
+  void _onMeshOpenRequested(Object? data) {
+    if (!mounted || data is! String || data.isEmpty) return;
+    _broker.dispatch(
+      deviceId: meshCoreDeviceId,
+      name: 'MeshCoreOpenConversation',
+      data: '',
+      store: true,
+    );
+    final sep = data.indexOf(':');
+    if (!_meshEnabled || sep <= 0 || sep == data.length - 1) return;
+    _openMeshConversation(data);
+  }
 
   void _applyMeshState(Object? data) {
     if (data is Map) {
@@ -612,6 +653,9 @@ class _AprsTabState extends State<AprsTab>
       final name = _meshChannelByKey(peer)?['name']?.toString();
       return (name == null || name.isEmpty) ? peer : name;
     }
+    // The address-book name wins over the name the node advertises.
+    final bookName = _meshBook[peer]?.name;
+    if (bookName != null && bookName.isNotEmpty) return bookName;
     final name = _meshContactByPrefix(peer)?['name']?.toString();
     if (name != null && name.isNotEmpty) return name;
     // Fall back to the name stored with an incoming message.
@@ -621,11 +665,72 @@ class _AprsTabState extends State<AprsTab>
     return msg?.sender ?? peer;
   }
 
-  /// MeshCore conversations from message history plus the companion's chat
-  /// contacts and group channels.
+  /// Avatar for a MeshCore direct-message peer, using the address-book logo or
+  /// image when the user is a contact.
+  Widget _meshUserAvatar(String peer, {double radius = 20}) {
+    final book = _meshBook[peer];
+    final key =
+        book?.callsign ?? _meshContactByPrefix(peer)?['key']?.toString() ?? peer;
+    return ContactAvatar(
+      callsign: key,
+      avatarIcon: book?.avatarIcon,
+      avatarImage: book?.avatarImage,
+      initials: nameInitials(_meshTitle(MeshCoreKind.user, peer)),
+      radius: radius,
+    );
+  }
+
+  /// Opens the contact dialog for a MeshCore user: edits the address-book
+  /// entry, or creates one prefilled from the radio's contact for [peer].
+  Future<void> _editMeshContact(String peer) async {
+    final existing = _meshBook[peer];
+    final radio = _meshContactByPrefix(peer);
+    final result = await showStationDialog(
+      context,
+      existing: existing,
+      fixedType: StationType.meshCore,
+      initialCallsign: radio?['key']?.toString(),
+      initialName: existing == null
+          ? _meshTitle(MeshCoreKind.user, peer)
+          : null,
+    );
+    if (result == null || !mounted) return;
+    _saveStation(result);
+    final newPeer = meshCorePeerForKey(result.callsign);
+    if (newPeer != peer) _openMeshConversation('${MeshCoreKind.user}:$newPeer');
+  }
+
+  /// Adds or replaces [station] (matched by ID and type) in the address book.
+  void _saveStation(StationInfo station) {
+    final raw = _broker.getValueDynamic(0, 'Stations', null);
+    final stations = <StationInfo>[
+      if (raw is List)
+        for (final item in raw)
+          if (item is Map) StationInfo.fromJson(Map<String, dynamic>.from(item)),
+    ];
+    stations.removeWhere(
+      (s) =>
+          s.callsign == station.callsign &&
+          s.stationType == station.stationType,
+    );
+    stations.add(station);
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'Stations',
+      data: stations.map((s) => s.toJson()).toList(),
+    );
+  }
+
+  /// MeshCore conversations: group channels on the radio, plus users who are
+  /// HTCommander contacts. Other users the radio knows (it can remember many)
+  /// get no thread; their direct messages stay in "All MeshCore Messages",
+  /// where they can be added as contacts.
   List<_MeshConversation> _buildMeshConversations() {
     final latest = <String, MeshCoreMessage>{};
     for (final m in _meshMessages) {
+      if (m.kind == MeshCoreKind.user && !_meshBook.containsKey(m.peer)) {
+        continue;
+      }
       final existing = latest[m.conversationKey];
       if (existing == null || !m.time.isBefore(existing.time)) {
         latest[m.conversationKey] = m;
@@ -661,10 +766,8 @@ class _AprsTabState extends State<AprsTab>
     for (final ch in _meshChannels) {
       addIdle(MeshCoreKind.group, ch['key']?.toString() ?? '');
     }
-    for (final c in _meshContacts) {
-      // Only chat nodes take direct messages; repeaters and rooms do not.
-      if (c['type'] != 1) continue;
-      addIdle(MeshCoreKind.user, c['prefix']?.toString() ?? '');
+    for (final peer in _meshBook.keys) {
+      addIdle(MeshCoreKind.user, peer);
     }
     return result;
   }
@@ -732,17 +835,26 @@ class _AprsTabState extends State<AprsTab>
   }
 
   Future<void> _addMeshConversation(bool group) async {
+    if (!group) {
+      // Users are address-book contacts; the manager adds them to the radio.
+      final station = await showStationDialog(
+        context,
+        fixedType: StationType.meshCore,
+      );
+      if (station == null || !mounted) return;
+      _saveStation(station);
+      _openMeshConversation(
+        '${MeshCoreKind.user}:${meshCorePeerForKey(station.callsign)}',
+      );
+      return;
+    }
     if (!_meshConnected) {
       await showMeshCoreConnectionDialog(context);
       if (!mounted || !_meshConnected) return;
     }
-    final peer = group
-        ? await showMeshCoreAddGroupDialog(context)
-        : await showMeshCoreAddUserDialog(context);
+    final peer = await showMeshCoreAddGroupDialog(context);
     if (peer == null || !mounted) return;
-    _openMeshConversation(
-      '${group ? MeshCoreKind.group : MeshCoreKind.user}:$peer',
-    );
+    _openMeshConversation('${MeshCoreKind.group}:$peer');
   }
 
   ChatMessage _meshToChat(MeshCoreMessage m, AppLocalizations l10n) {
@@ -801,6 +913,8 @@ class _AprsTabState extends State<AprsTab>
             value: 'open',
             child: Text(_meshTitle(m.kind, m.peer)),
           ),
+        if (m.kind == MeshCoreKind.user && !_meshBook.containsKey(m.peer))
+          PopupMenuItem(value: 'addContact', child: Text(l10n.aprsAddContact)),
       ],
     );
     if (!mounted) return;
@@ -816,6 +930,8 @@ class _AprsTabState extends State<AprsTab>
         );
       case 'open':
         _openMeshConversation(m.conversationKey);
+      case 'addContact':
+        await _editMeshContact(m.peer);
     }
   }
 
@@ -840,21 +956,67 @@ class _AprsTabState extends State<AprsTab>
             ],
           ),
         Expanded(
-          child: ChatWidget(
-            messages: messages,
-            onMessageContextMenu: _onMeshContextMenu,
-            onMessageDoubleTap: _viewAllMesh
-                ? (msg) {
-                    final m = msg.tag;
-                    if (m is MeshCoreMessage) {
-                      _openMeshConversation(m.conversationKey);
-                    }
-                  }
-                : null,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: ChatWidget(
+                  messages: messages,
+                  onMessageContextMenu: _onMeshContextMenu,
+                  onMessageDoubleTap: _viewAllMesh
+                      ? (msg) {
+                          final m = msg.tag;
+                          if (m is MeshCoreMessage) {
+                            _openMeshConversation(m.conversationKey);
+                          }
+                        }
+                      : null,
+                ),
+              ),
+              if (sel != null && sel.kind == MeshCoreKind.user)
+                _buildMeshAvatarOverlay(sel.peer),
+            ],
           ),
         ),
         if (sel != null) _buildMeshInputPanel(l10n),
       ],
+    );
+  }
+
+  /// Corner avatar for a MeshCore user conversation (same look as the APRS
+  /// one). Tapping it edits the contact, or adds it to the address book.
+  Widget _buildMeshAvatarOverlay(String peer) {
+    final scheme = Theme.of(context).colorScheme;
+    const double corner = 104;
+    return Positioned(
+      top: 0,
+      right: 0,
+      child: SizedBox(
+        width: corner,
+        height: corner,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _CornerTrianglePainter(scheme.surfaceContainerHigh),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Tooltip(
+                message: _meshTitle(MeshCoreKind.user, peer),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => _editMeshContact(peer),
+                  child: _meshUserAvatar(peer, radius: 32),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -967,6 +1129,7 @@ class _AprsTabState extends State<AprsTab>
     final routes = <String, String>{};
     final smsContacts = <String>{};
     final addressBookIds = <String>[];
+    final meshBook = <String, StationInfo>{};
     final raw = _broker.getValueDynamic(0, 'Stations', null);
     if (raw is List) {
       for (final item in raw) {
@@ -980,6 +1143,15 @@ class _AprsTabState extends State<AprsTab>
         final typeIndex = typeRaw is int ? typeRaw : int.tryParse(typeStr);
         final isAprs = typeIndex == 1 || typeStr == 'aprs';
         final isSms = typeIndex == 7 || typeStr == 'sms';
+
+        // MeshCore users are keyed by their 6-byte key prefix, which is how
+        // the companion identifies direct-message senders.
+        if (typeIndex == StationType.meshCore.index ||
+            typeStr == StationType.meshCore.name.toLowerCase()) {
+          final station = StationInfo.fromJson(item);
+          meshBook[meshCorePeerForKey(station.callsign)] = station;
+          continue;
+        }
 
         if (isAprs && !dests.contains(id)) dests.add(id);
         // Only APRS and SMS contacts take part in Messenger conversations.
@@ -1016,6 +1188,7 @@ class _AprsTabState extends State<AprsTab>
     _contactRoutes = routes;
     _smsContacts = smsContacts;
     _addressBookIds = addressBookIds;
+    _meshBook = meshBook;
     _mergeCloudAvatars();
   }
 
@@ -3215,13 +3388,12 @@ class _AprsTabState extends State<AprsTab>
     return ListTile(
       selected: _selectedMesh == c.key,
       selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.4),
-      leading: CircleAvatar(
-        backgroundColor: scheme.tertiaryContainer,
-        child: Icon(
-          group ? Icons.groups : Icons.person,
-          color: scheme.onTertiaryContainer,
-        ),
-      ),
+      leading: group
+          ? CircleAvatar(
+              backgroundColor: scheme.tertiaryContainer,
+              child: Icon(Icons.groups, color: scheme.onTertiaryContainer),
+            )
+          : _meshUserAvatar(c.peer),
       title: Text(
         c.title,
         maxLines: 1,
@@ -3597,14 +3769,18 @@ class _AprsTabState extends State<AprsTab>
               ? _contactDisplayName(_selectedContact!)
               : meshSel != null
               ? _meshTitle(meshSel.kind, meshSel.peer)
-              : _viewAllMesh
-              ? l10n.meshAllMessages
-              : _viewAllMessages
-              ? l10n.aprsAllMessages
               : null;
-          final title = subtitle == null
+          // Feeds and conversations are labelled with their network name.
+          final network = (_viewAllMesh || meshSel != null)
+              ? 'MeshCore'
+              : (_viewAllMessages || inConversation)
+              ? l10n.tabAprs
+              : null;
+          final title = network == null
               ? l10n.tabMessaging
-              : '${l10n.tabMessaging} - $subtitle';
+              : subtitle == null
+              ? network
+              : '$network - $subtitle';
           return Row(
             children: [
               // The back arrow and the title share one wide hit box on the left

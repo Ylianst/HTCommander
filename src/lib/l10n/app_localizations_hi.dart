@@ -2014,6 +2014,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get contactsTypeEmail => 'ईमेल संपर्क';
 
   @override
+  String get contactsTypeMeshCore => 'MeshCore उपयोगकर्ता';
+
+  @override
   String get contactsExists =>
       'इस कॉल साइन और प्रकार वाला स्टेशन पहले से मौजूद है';
 
@@ -2513,6 +2516,21 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get mapShowWinlinkGateways => 'Winlink गेटवे दिखाएँ';
+
+  @override
+  String get mapShowMeshCore => 'MeshCore स्टेशन दिखाएँ';
+
+  @override
+  String get meshTypeCompanion => 'साथी रेडियो';
+
+  @override
+  String get meshTypeRepeater => 'रिपीटर';
+
+  @override
+  String get meshTypeRoom => 'रूम सर्वर';
+
+  @override
+  String get meshTypeSensor => 'सेंसर';
 
   @override
   String get winlinkGatewayFrequencies => 'आवृत्तियाँ';
@@ -4046,9 +4064,6 @@ class AppLocalizationsHi extends AppLocalizations {
   String get meshGroup => 'MeshCore समूह';
 
   @override
-  String get meshAddUserTitle => 'MeshCore उपयोगकर्ता जोड़ें';
-
-  @override
   String get meshAddGroupTitle => 'MeshCore समूह जोड़ें';
 
   @override
@@ -4059,6 +4074,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get meshPublicKeyHint => '64 हेक्साडेसिमल अंक';
+
+  @override
+  String get meshKnownUsers => 'MeshCore रेडियो को ज्ञात उपयोगकर्ता';
 
   @override
   String get meshInvalidPublicKey =>
@@ -4120,6 +4138,45 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get meshPinHint =>
       'डिवाइस की स्क्रीन पर दिखाया जाता है, या स्क्रीन न होने पर 123456';
+
+  @override
+  String get meshPinSystemPrompt =>
+      'पहली बार कनेक्ट करने पर आपका सिस्टम MeshCore डिवाइस पर दिखाया गया PIN माँगेगा (स्क्रीन न होने पर 123456)।';
+
+  @override
+  String get meshBluetooth => 'ब्लूटूथ';
+
+  @override
+  String get meshUsb => 'USB';
+
+  @override
+  String get meshWifi => 'वाई-फ़ाई';
+
+  @override
+  String get meshSerialPort => 'सीरियल पोर्ट';
+
+  @override
+  String get meshNoSerialPorts =>
+      'कोई सीरियल पोर्ट नहीं मिला। MeshCore डिवाइस को USB केबल से कनेक्ट करें।';
+
+  @override
+  String get meshUsbHelp => 'MeshCore USB साथी फ़र्मवेयर आवश्यक है।';
+
+  @override
+  String get meshHost => 'होस्ट नाम या IP पता';
+
+  @override
+  String get meshTcpPort => 'पोर्ट';
+
+  @override
+  String get meshInvalidHost => 'एक मान्य होस्ट नाम या IP पता दर्ज करें।';
+
+  @override
+  String get meshInvalidPort => '1 से 65535 के बीच का पोर्ट दर्ज करें।';
+
+  @override
+  String get meshWifiHelp =>
+      'MeshCore वाई-फ़ाई साथी फ़र्मवेयर आवश्यक है। डिफ़ॉल्ट पोर्ट 5000 है।';
 
   @override
   String get meshForgetPairing => 'पेयरिंग हटाएँ';

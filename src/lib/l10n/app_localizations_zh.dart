@@ -1961,6 +1961,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get contactsTypeEmail => '电子邮件联系人';
 
   @override
+  String get contactsTypeMeshCore => 'MeshCore 用户';
+
+  @override
   String get contactsExists => '已存在具有此呼号和类型的台站';
 
   @override
@@ -2451,6 +2454,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mapShowWinlinkGateways => '显示 Winlink 网关';
+
+  @override
+  String get mapShowMeshCore => '显示 MeshCore 站点';
+
+  @override
+  String get meshTypeCompanion => '配套设备';
+
+  @override
+  String get meshTypeRepeater => '中继器';
+
+  @override
+  String get meshTypeRoom => '房间服务器';
+
+  @override
+  String get meshTypeSensor => '传感器';
 
   @override
   String get winlinkGatewayFrequencies => '频率';
@@ -3935,9 +3953,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get meshGroup => 'MeshCore 群组';
 
   @override
-  String get meshAddUserTitle => '添加 MeshCore 用户';
-
-  @override
   String get meshAddGroupTitle => '添加 MeshCore 群组';
 
   @override
@@ -3948,6 +3963,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get meshPublicKeyHint => '64 位十六进制数字';
+
+  @override
+  String get meshKnownUsers => 'MeshCore 电台已知的用户';
 
   @override
   String get meshInvalidPublicKey => '请输入 64 位十六进制公钥。';
@@ -4002,6 +4020,43 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get meshPinHint => '显示在设备屏幕上；如果设备没有屏幕，则为 123456';
+
+  @override
+  String get meshPinSystemPrompt =>
+      '首次连接时，系统会要求输入 MeshCore 设备上显示的 PIN（如果设备没有屏幕，则为 123456）。';
+
+  @override
+  String get meshBluetooth => '蓝牙';
+
+  @override
+  String get meshUsb => 'USB';
+
+  @override
+  String get meshWifi => 'Wi-Fi';
+
+  @override
+  String get meshSerialPort => '串口';
+
+  @override
+  String get meshNoSerialPorts => '未找到串口。请使用 USB 数据线连接 MeshCore 设备。';
+
+  @override
+  String get meshUsbHelp => '需要 MeshCore USB 配套固件。';
+
+  @override
+  String get meshHost => '主机名或 IP 地址';
+
+  @override
+  String get meshTcpPort => '端口';
+
+  @override
+  String get meshInvalidHost => '请输入有效的主机名或 IP 地址。';
+
+  @override
+  String get meshInvalidPort => '请输入 1 到 65535 之间的端口。';
+
+  @override
+  String get meshWifiHelp => '需要 MeshCore Wi-Fi 配套固件。默认端口为 5000。';
 
   @override
   String get meshForgetPairing => '取消配对';

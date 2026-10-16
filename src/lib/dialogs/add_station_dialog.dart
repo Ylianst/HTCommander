@@ -7,6 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:pasteboard/pasteboard.dart';
 
 import '../l10n/app_localizations.dart';
+import '../meshcore/meshcore_manager.dart' show meshCoreDeviceId;
+import '../meshcore/meshcore_protocol.dart'
+    show MeshCoreAdvType, meshCoreFingerprint, normalizePublicKeyHex;
 import 'dialog_utils.dart';
 import 'contact_logo_picker_dialog.dart';
 import 'image_crop_dialog.dart';
@@ -31,6 +34,7 @@ Future<StationInfo?> showStationDialog(
   StationInfo? existing,
   StationType? fixedType,
   String? initialCallsign,
+  String? initialName,
 }) {
   return showDialog<StationInfo>(
     context: context,
@@ -39,6 +43,7 @@ Future<StationInfo?> showStationDialog(
       existing: existing,
       fixedType: fixedType,
       initialCallsign: initialCallsign,
+      initialName: initialName,
     ),
   );
 }
@@ -122,6 +127,7 @@ const List<_TypeOption> _typeOptions = [
   _TypeOption(StationType.winlink, 'Winlink Gateway'),
   _TypeOption(StationType.sms, 'SMS / Phone'),
   _TypeOption(StationType.email, 'Email'),
+  _TypeOption(StationType.meshCore, 'MeshCore User'),
 ];
 
 class _ProtocolOption {
@@ -155,7 +161,13 @@ class _StationDialog extends StatefulWidget {
   final StationInfo? existing;
   final StationType? fixedType;
   final String? initialCallsign;
-  const _StationDialog({this.existing, this.fixedType, this.initialCallsign});
+  final String? initialName;
+  const _StationDialog({
+    this.existing,
+    this.fixedType,
+    this.initialCallsign,
+    this.initialName,
+  });
 
   @override
   State<_StationDialog> createState() => _StationDialogState();
@@ -213,7 +225,9 @@ class _StationDialogState extends State<_StationDialog> {
     _callsignController = TextEditingController(
       text: s?.callsign ?? widget.initialCallsign ?? '',
     );
-    _nameController = TextEditingController(text: s?.name ?? '');
+    _nameController = TextEditingController(
+      text: s?.name ?? widget.initialName ?? '',
+    );
     _descriptionController = TextEditingController(text: s?.description ?? '');
     _ax25DestController = TextEditingController(text: s?.ax25Destination ?? '');
     _ax25PathController = TextEditingController(text: s?.ax25Path ?? '');
@@ -241,6 +255,7 @@ class _StationDialogState extends State<_StationDialog> {
     _loadAprsRoutes();
 
     _callsignController.addListener(_onTextChanged);
+    _nameController.addListener(_onTextChanged);
     _ax25DestController.addListener(_onTextChanged);
     _ax25PathController.addListener(_onTextChanged);
     _authPasswordController.addListener(_onTextChanged);
@@ -281,9 +296,9 @@ class _StationDialogState extends State<_StationDialog> {
   }
 
   Future<void> _autoFillFromCallsign() async {
-    // Only radio callsign contacts are looked up (not SMS/email), and only for
-    // new contacts (editing locks the callsign).
-    if (_isEditing || _isSimpleContact) return;
+    // Only radio callsign contacts are looked up (not SMS/email/MeshCore), and
+    // only for new contacts (editing locks the callsign).
+    if (_isEditing || _isSimpleContact || _isMeshCore) return;
     final callsign = _callsignController.text.trim().toUpperCase();
     if (callsign.isEmpty || !_callsignValid) return;
     // Skip if we already auto-filled for this exact callsign.
@@ -320,7 +335,7 @@ class _StationDialogState extends State<_StationDialog> {
     required bool isName,
   }) {
     final buttonItems = editableTextState.contextMenuButtonItems;
-    if (!_isSimpleContact && _callsignValid) {
+    if (!_isSimpleContact && !_isMeshCore && _callsignValid) {
       buttonItems.add(
         ContextMenuButtonItem(
           label: AppLocalizations.of(context).cslButtonLookup,
@@ -429,6 +444,15 @@ class _StationDialogState extends State<_StationDialog> {
   bool get _isSimpleContact =>
       _stationType == StationType.sms || _stationType == StationType.email;
 
+  /// MeshCore users are identified by a 32-byte public key instead of a
+  /// callsign, and need a name (sent to the companion radio).
+  bool get _isMeshCore => _stationType == StationType.meshCore;
+
+  /// Whether the MeshCore type is offered: only while the feature is enabled,
+  /// or when the dialog was opened for a MeshCore contact.
+  bool get _meshCoreAvailable =>
+      _isMeshCore || _broker.getValue<int>(0, 'MeshCoreSupport', 0) == 1;
+
   bool get _callsignValid {
     final text = _callsignController.text.trim();
     if (text.isEmpty) return false;
@@ -448,6 +472,8 @@ class _StationDialogState extends State<_StationDialog> {
         return _callsignController.text.trim().isNotEmpty;
       case StationType.email:
         return _emailValid;
+      case StationType.meshCore:
+        return normalizePublicKeyHex(_callsignController.text) != null;
       default:
         return _callsignValid;
     }
@@ -468,6 +494,7 @@ class _StationDialogState extends State<_StationDialog> {
   bool get _isValid {
     if (!_idValid) return false;
     if (_isSimpleContact) return true;
+    if (_isMeshCore) return _nameController.text.trim().isNotEmpty;
     if (!_ax25DestValid) return false;
     if (!_ax25PathValid) return false;
     if (_stationType == StationType.aprs &&
@@ -492,6 +519,7 @@ class _StationDialogState extends State<_StationDialog> {
       StationType.winlink => l10n.stationTitleWinlink,
       StationType.sms => l10n.stationTitleSms,
       StationType.email => l10n.stationTitleEmail,
+      StationType.meshCore => l10n.meshUser,
       _ => l10n.stationTitleGeneric,
     };
     return base;
@@ -512,6 +540,8 @@ class _StationDialogState extends State<_StationDialog> {
         return l10n.stationTitleSms;
       case StationType.email:
         return l10n.stationTitleEmail;
+      case StationType.meshCore:
+        return l10n.meshUser;
       default:
         return l10n.stationTitleGeneric;
     }
@@ -530,6 +560,7 @@ class _StationDialogState extends State<_StationDialog> {
           avatarIcon: _avatarIcon,
           avatarImage: _avatarImage,
           radius: 22,
+          initials: _isMeshCore ? nameInitials(_nameController.text) : null,
         ),
       ),
     );
@@ -639,7 +670,88 @@ class _StationDialogState extends State<_StationDialog> {
     });
   }
 
+  /// Companion (chat) users the connected MeshCore radio knows about that are
+  /// not yet MeshCore contacts, sorted by name: public-key hex -> name.
+  Map<String, String> _knownMeshUsers() {
+    final existing = <String>{};
+    final stations = _broker.getValueDynamic(0, 'Stations', null);
+    if (stations is List) {
+      for (final s in stations.whereType<Map>()) {
+        final info = StationInfo.fromJson(Map<String, dynamic>.from(s));
+        if (info.stationType == StationType.meshCore) {
+          existing.add(info.callsign.toLowerCase());
+        }
+      }
+    }
+    final users = <String, String>{};
+    final radio = _broker.getValueDynamic(meshCoreDeviceId, 'MeshCoreContacts');
+    if (radio is List) {
+      for (final c in radio.whereType<Map>()) {
+        final key = c['key']?.toString() ?? '';
+        if (c['type'] != MeshCoreAdvType.chat || key.isEmpty) continue;
+        if (existing.contains(key)) continue;
+        final name = c['name']?.toString() ?? '';
+        users[key] = name.isEmpty ? meshCoreFingerprint(key) : name;
+      }
+    }
+    final sorted = users.entries.toList()
+      ..sort((a, b) => a.value.toLowerCase().compareTo(b.value.toLowerCase()));
+    return Map.fromEntries(sorted);
+  }
+
+  /// Name last filled in from the known-users list, so picking another user
+  /// replaces it but never overwrites a name the user typed.
+  String? _pickedMeshName;
+
+  List<Widget> _buildKnownMeshUsers(AppLocalizations l10n) {
+    final users = _knownMeshUsers();
+    if (users.isEmpty) return const [];
+    final current = normalizePublicKeyHex(_callsignController.text);
+    final selected = users.containsKey(current) ? current : null;
+    return [
+      DropdownButtonFormField<String>(
+        key: ValueKey(selected),
+        initialValue: selected,
+        isExpanded: true,
+        decoration: _inputDecoration(labelText: l10n.meshKnownUsers),
+        items: [
+          for (final e in users.entries)
+            DropdownMenuItem(
+              value: e.key,
+              child: Text(
+                '${e.value}  ·  ${meshCoreFingerprint(e.key)}',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+        ],
+        onChanged: (key) {
+          if (key == null) return;
+          setState(() {
+            _callsignController.text = key;
+            final name = _nameController.text.trim();
+            if (name.isEmpty || name == _pickedMeshName) {
+              _nameController.text = users[key]!;
+              _pickedMeshName = users[key];
+            }
+          });
+        },
+      ),
+      const SizedBox(height: 12),
+    ];
+  }
+
   StationInfo _buildResult() {
+    if (_isMeshCore) {
+      // The normalized lowercase public key is stored in the callsign field.
+      return StationInfo(
+        callsign: normalizePublicKeyHex(_callsignController.text)!,
+        name: _nameController.text.trim(),
+        description: _descriptionController.text.trim(),
+        stationType: StationType.meshCore,
+        avatarIcon: _avatarIcon,
+        avatarImage: _avatarImage,
+      );
+    }
     if (_isSimpleContact) {
       // The identifier (phone number or email) is stored in the callsign field,
       // which the contacts list surfaces as the generic "ID" column.
@@ -710,6 +822,7 @@ class _StationDialogState extends State<_StationDialog> {
               if (!_isTypeLocked) ...[
                 _buildTypeDropdown(),
               ],
+              if (_isMeshCore && !_isEditing) ..._buildKnownMeshUsers(l10n),
               _buildCallsignField(),
               const SizedBox(height: 12),
               TextField(
@@ -792,6 +905,12 @@ class _StationDialogState extends State<_StationDialog> {
             ? l10n.stationInvalidEmail
             : null;
         break;
+      case StationType.meshCore:
+        label = l10n.meshPublicKey;
+        errorText = _callsignController.text.isNotEmpty && !_idValid
+            ? l10n.meshInvalidPublicKey
+            : null;
+        break;
       default:
         label = l10n.contactsColCallsign;
         errorText = _callsignController.text.isNotEmpty && !_callsignValid
@@ -807,13 +926,18 @@ class _StationDialogState extends State<_StationDialog> {
           : (_stationType == StationType.email
               ? TextInputType.emailAddress
               : TextInputType.text),
-      textCapitalization: _isSimpleContact
+      textCapitalization: _isSimpleContact || _isMeshCore
           ? TextCapitalization.none
           : TextCapitalization.characters,
-      decoration: _inputDecoration(labelText: label, errorText: errorText),
+      style: _isMeshCore ? const TextStyle(fontFamily: 'monospace') : null,
+      decoration: _inputDecoration(
+        labelText: label,
+        errorText: errorText,
+        hintText: _isMeshCore ? l10n.meshPublicKeyHint : null,
+      ),
       onChanged: (value) {
-        // Only callsigns are force-uppercased; phone/email keep their casing.
-        if (!_isSimpleContact) {
+        // Only callsigns are force-uppercased; phone/email/keys keep casing.
+        if (!_isSimpleContact && !_isMeshCore) {
           final upper = value.toUpperCase();
           if (upper != value) {
             _callsignController.value = _callsignController.value.copyWith(
@@ -837,9 +961,10 @@ class _StationDialogState extends State<_StationDialog> {
         decoration: _inputDecoration(labelText: l10n.stationTypeLabel),
         items: [
           for (final option in _typeOptions)
-            DropdownMenuItem(
-                value: option.type,
-                child: Text(_typeLabel(option.type, l10n))),
+            if (option.type != StationType.meshCore || _meshCoreAvailable)
+              DropdownMenuItem(
+                  value: option.type,
+                  child: Text(_typeLabel(option.type, l10n))),
         ],
         onChanged: (value) {
           if (value != null) setState(() => _stationType = value);

@@ -3700,6 +3700,12 @@ abstract class AppLocalizations {
   /// **'Email Contacts'**
   String get contactsTypeEmail;
 
+  /// No description provided for @contactsTypeMeshCore.
+  ///
+  /// In en, this message translates to:
+  /// **'MeshCore Users'**
+  String get contactsTypeMeshCore;
+
   /// No description provided for @contactsExists.
   ///
   /// In en, this message translates to:
@@ -4611,6 +4617,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show Winlink Gateways'**
   String get mapShowWinlinkGateways;
+
+  /// No description provided for @mapShowMeshCore.
+  ///
+  /// In en, this message translates to:
+  /// **'Show MeshCore Stations'**
+  String get mapShowMeshCore;
+
+  /// No description provided for @meshTypeCompanion.
+  ///
+  /// In en, this message translates to:
+  /// **'Companion'**
+  String get meshTypeCompanion;
+
+  /// No description provided for @meshTypeRepeater.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeater'**
+  String get meshTypeRepeater;
+
+  /// No description provided for @meshTypeRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Room Server'**
+  String get meshTypeRoom;
+
+  /// No description provided for @meshTypeSensor.
+  ///
+  /// In en, this message translates to:
+  /// **'Sensor'**
+  String get meshTypeSensor;
 
   /// No description provided for @winlinkGatewayFrequencies.
   ///
@@ -7366,12 +7402,6 @@ abstract class AppLocalizations {
   /// **'MeshCore Group'**
   String get meshGroup;
 
-  /// No description provided for @meshAddUserTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Add MeshCore User'**
-  String get meshAddUserTitle;
-
   /// No description provided for @meshAddGroupTitle.
   ///
   /// In en, this message translates to:
@@ -7395,6 +7425,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'64 hexadecimal digits'**
   String get meshPublicKeyHint;
+
+  /// No description provided for @meshKnownUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'Users known to the MeshCore radio'**
+  String get meshKnownUsers;
 
   /// No description provided for @meshInvalidPublicKey.
   ///
@@ -7503,6 +7539,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Shown on the device screen, or 123456 if it has no screen'**
   String get meshPinHint;
+
+  /// No description provided for @meshPinSystemPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'When you connect for the first time, your system asks for the PIN shown on the MeshCore device (123456 if it has no screen).'**
+  String get meshPinSystemPrompt;
+
+  /// No description provided for @meshBluetooth.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth'**
+  String get meshBluetooth;
+
+  /// No description provided for @meshUsb.
+  ///
+  /// In en, this message translates to:
+  /// **'USB'**
+  String get meshUsb;
+
+  /// No description provided for @meshWifi.
+  ///
+  /// In en, this message translates to:
+  /// **'Wi-Fi'**
+  String get meshWifi;
+
+  /// No description provided for @meshSerialPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial port'**
+  String get meshSerialPort;
+
+  /// No description provided for @meshNoSerialPorts.
+  ///
+  /// In en, this message translates to:
+  /// **'No serial ports found. Connect the MeshCore device with a USB cable.'**
+  String get meshNoSerialPorts;
+
+  /// No description provided for @meshUsbHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Requires the MeshCore USB companion firmware.'**
+  String get meshUsbHelp;
+
+  /// No description provided for @meshHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Host name or IP address'**
+  String get meshHost;
+
+  /// No description provided for @meshTcpPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Port'**
+  String get meshTcpPort;
+
+  /// No description provided for @meshInvalidHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid host name or IP address.'**
+  String get meshInvalidHost;
+
+  /// No description provided for @meshInvalidPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a port from 1 to 65535.'**
+  String get meshInvalidPort;
+
+  /// No description provided for @meshWifiHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Requires the MeshCore Wi-Fi companion firmware. The default port is 5000.'**
+  String get meshWifiHelp;
 
   /// No description provided for @meshForgetPairing.
   ///

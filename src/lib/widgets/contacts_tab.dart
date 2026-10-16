@@ -12,6 +12,7 @@ import '../services/window_service.dart';
 import '../services/data_broker_client.dart';
 import '../models/station_info.dart';
 import '../dialogs/add_station_dialog.dart';
+import '../meshcore/meshcore_protocol.dart' show meshCoreFingerprint;
 
 /// Contacts tab - contact management
 class ContactsTab extends StatefulWidget {
@@ -39,6 +40,9 @@ class _ContactsTabState extends State<ContactsTab>
   /// The current station list, loaded from and saved to the DataBroker.
   List<StationInfo> _contacts = [];
 
+  /// Mirrors the 'MeshCoreSupport' feature setting.
+  bool _meshCoreEnabled = false;
+
   // Keyboard navigation for the contact list.
   final FocusNode _listFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
@@ -58,6 +62,19 @@ class _ContactsTabState extends State<ContactsTab>
       deviceId: _settingsDeviceId,
       name: 'Stations',
       callback: _onStationsChanged,
+    );
+    _meshCoreEnabled =
+        _broker.getValue<int>(_settingsDeviceId, 'MeshCoreSupport', 0) == 1;
+    _broker.subscribe(
+      deviceId: _settingsDeviceId,
+      name: 'MeshCoreSupport',
+      callback: (_, _, data) {
+        if (!mounted) return;
+        setState(() {
+          _meshCoreEnabled = data == 1;
+          _selectedIndices.clear();
+        });
+      },
     );
   }
 
@@ -132,6 +149,8 @@ class _ContactsTabState extends State<ContactsTab>
         return l10n.contactsTypeSms;
       case StationType.email:
         return l10n.contactsTypeEmail;
+      case StationType.meshCore:
+        return l10n.contactsTypeMeshCore;
     }
   }
 
@@ -155,8 +174,21 @@ class _ContactsTabState extends State<ContactsTab>
         return Icons.sms;
       case StationType.email:
         return Icons.alternate_email;
+      case StationType.meshCore:
+        return Icons.hub;
     }
   }
+
+  /// Whether [contact] is listed. MeshCore users are hidden (but kept) while
+  /// the MeshCore feature is disabled.
+  bool _isShown(StationInfo contact) =>
+      contact.stationType != StationType.meshCore || _meshCoreEnabled;
+
+  /// Text for the ID column: MeshCore public keys are shortened.
+  String _displayId(StationInfo contact) =>
+      contact.stationType == StationType.meshCore
+      ? meshCoreFingerprint(contact.callsign)
+      : contact.callsignNoZero;
 
   Future<void> _onAdd() async {
     final station = await showStationDialog(context);
@@ -624,6 +656,7 @@ class _ContactsTabState extends State<ContactsTab>
     final groupedContacts = <StationType, List<MapEntry<int, StationInfo>>>{};
     for (var i = 0; i < _contacts.length; i++) {
       final contact = _contacts[i];
+      if (!_isShown(contact)) continue;
       groupedContacts
           .putIfAbsent(contact.stationType, () => [])
           .add(MapEntry(i, contact));
@@ -665,7 +698,9 @@ class _ContactsTabState extends State<ContactsTab>
     final ordered = <int>[];
     for (final type in StationType.values) {
       for (var i = 0; i < _contacts.length; i++) {
-        if (_contacts[i].stationType == type) ordered.add(i);
+        if (_contacts[i].stationType == type && _isShown(_contacts[i])) {
+          ordered.add(i);
+        }
       }
     }
     return ordered;
@@ -875,7 +910,7 @@ class _ContactsTabState extends State<ContactsTab>
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        contact.callsignNoZero,
+                        _displayId(contact),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),

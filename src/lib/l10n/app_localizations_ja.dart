@@ -1979,6 +1979,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get contactsTypeEmail => 'メールの連絡先';
 
   @override
+  String get contactsTypeMeshCore => 'MeshCore ユーザー';
+
+  @override
   String get contactsExists => 'このコールサインとタイプの局は既に存在します';
 
   @override
@@ -2469,6 +2472,21 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get mapShowWinlinkGateways => 'Winlink ゲートウェイを表示';
+
+  @override
+  String get mapShowMeshCore => 'MeshCore 局を表示';
+
+  @override
+  String get meshTypeCompanion => 'コンパニオン';
+
+  @override
+  String get meshTypeRepeater => 'リピーター';
+
+  @override
+  String get meshTypeRoom => 'ルームサーバー';
+
+  @override
+  String get meshTypeSensor => 'センサー';
 
   @override
   String get winlinkGatewayFrequencies => '周波数';
@@ -3975,9 +3993,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get meshGroup => 'MeshCore グループ';
 
   @override
-  String get meshAddUserTitle => 'MeshCore ユーザーを追加';
-
-  @override
   String get meshAddGroupTitle => 'MeshCore グループを追加';
 
   @override
@@ -3988,6 +4003,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get meshPublicKeyHint => '16 進数 64 桁';
+
+  @override
+  String get meshKnownUsers => 'MeshCore 無線機が認識しているユーザー';
 
   @override
   String get meshInvalidPublicKey => '16 進数 64 桁の公開鍵を入力してください。';
@@ -4044,6 +4062,45 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get meshPinHint => 'デバイスの画面に表示されます（画面がない場合は 123456）';
+
+  @override
+  String get meshPinSystemPrompt =>
+      '初回接続時に、MeshCore デバイスに表示される PIN の入力をシステムが求めます（画面がない場合は 123456）。';
+
+  @override
+  String get meshBluetooth => 'Bluetooth';
+
+  @override
+  String get meshUsb => 'USB';
+
+  @override
+  String get meshWifi => 'Wi-Fi';
+
+  @override
+  String get meshSerialPort => 'シリアルポート';
+
+  @override
+  String get meshNoSerialPorts =>
+      'シリアルポートが見つかりません。MeshCore デバイスを USB ケーブルで接続してください。';
+
+  @override
+  String get meshUsbHelp => 'MeshCore の USB コンパニオンファームウェアが必要です。';
+
+  @override
+  String get meshHost => 'ホスト名または IP アドレス';
+
+  @override
+  String get meshTcpPort => 'ポート';
+
+  @override
+  String get meshInvalidHost => '有効なホスト名または IP アドレスを入力してください。';
+
+  @override
+  String get meshInvalidPort => '1～65535 のポートを入力してください。';
+
+  @override
+  String get meshWifiHelp =>
+      'MeshCore の Wi-Fi コンパニオンファームウェアが必要です。既定のポートは 5000 です。';
 
   @override
   String get meshForgetPairing => 'ペアリングを解除';

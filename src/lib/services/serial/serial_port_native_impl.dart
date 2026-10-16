@@ -10,7 +10,7 @@ Platform-aware serial port implementation for desktop.
 
 import 'dart:async';
 import 'dart:ffi';
-import 'dart:io' show Directory, Platform;
+import 'dart:io' show Directory, Platform, sleep;
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
@@ -114,6 +114,18 @@ class SerialPort {
     }
   }
 
+  /// Writes [data] to the port. Returns the number of bytes written, or -1 on
+  /// failure (e.g. the device was unplugged).
+  int write(Uint8List data) {
+    if (!isOpen) return -1;
+    if (data.isEmpty) return 0;
+    if (Platform.isWindows) {
+      return _Win32.write(this, data);
+    } else {
+      return _Posix.write(this, data);
+    }
+  }
+
   void close() {
     if (!isOpen) return;
     if (Platform.isWindows) {
@@ -133,9 +145,14 @@ class SerialPort {
 // ---------------------------------------------------------------------------
 
 class SerialPortReader {
-  SerialPortReader(this._port, {int? timeout})
-      : _controller = StreamController<Uint8List>.broadcast() {
-    _startPolling();
+  /// [pollInterval] sets how often the port is checked for new data; the
+  /// default suits slow streams such as GPS NMEA sentences.
+  SerialPortReader(
+    this._port, {
+    int? timeout,
+    Duration pollInterval = const Duration(milliseconds: 100),
+  }) : _controller = StreamController<Uint8List>.broadcast() {
+    _startPolling(pollInterval);
   }
 
   final SerialPort _port;
@@ -144,10 +161,9 @@ class SerialPortReader {
 
   Stream<Uint8List> get stream => _controller.stream;
 
-  void _startPolling() {
-    // ReadFile is non-blocking (returns immediately), so polling at 100ms
-    // is responsive enough for GPS NMEA data (1–10 Hz) without wasting CPU.
-    _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+  void _startPolling(Duration pollInterval) {
+    // ReadFile is non-blocking (returns immediately), so polling is cheap.
+    _timer = Timer.periodic(pollInterval, (_) {
       if (_controller.isClosed || !_port.isOpen) {
         close();
         return;
@@ -252,6 +268,12 @@ class _Win32 {
           Pointer<Void>),
       int Function(int, Pointer<Uint8>, int, Pointer<Uint32>,
           Pointer<Void>)>('ReadFile');
+
+  static final _writeFile = _kernel32.lookupFunction<
+      Int32 Function(IntPtr, Pointer<Uint8>, Uint32, Pointer<Uint32>,
+          Pointer<Void>),
+      int Function(int, Pointer<Uint8>, int, Pointer<Uint32>,
+          Pointer<Void>)>('WriteFile');
 
   static final _purgeComm = _kernel32.lookupFunction<
       Int32 Function(IntPtr, Uint32),
@@ -514,6 +536,22 @@ class _Win32 {
   }
 
   // -------------------------------------------------------------------------
+  // Write (synchronous; bounded by WriteTotalTimeoutConstant set in open)
+  // -------------------------------------------------------------------------
+  static int write(SerialPort port, Uint8List data) {
+    final buffer = calloc<Uint8>(data.length);
+    final written = calloc<Uint32>();
+    try {
+      buffer.asTypedList(data.length).setAll(0, data);
+      final ok = _writeFile(port._handle, buffer, data.length, written, nullptr);
+      return ok == 0 ? -1 : written.value;
+    } finally {
+      calloc.free(buffer);
+      calloc.free(written);
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Close
   // -------------------------------------------------------------------------
   static void close(SerialPort port) {
@@ -568,6 +606,11 @@ class _Posix {
   static final _read = _libc.lookupFunction<
       IntPtr Function(Int32, Pointer<Uint8>, IntPtr),
       int Function(int, Pointer<Uint8>, int)>('read');
+
+  // ssize_t write(int fd, const void *buf, size_t count)
+  static final _write = _libc.lookupFunction<
+      IntPtr Function(Int32, Pointer<Uint8>, IntPtr),
+      int Function(int, Pointer<Uint8>, int)>('write');
 
   // int tcgetattr(int fd, struct termios *)
   static final _tcgetattr = _libc.lookupFunction<
@@ -799,6 +842,43 @@ class _Posix {
       return data;
     } catch (_) {
       return null;
+    } finally {
+      calloc.free(buf);
+    }
+  }
+
+  /// Writes all of [data]. The descriptor is non-blocking, so a full output
+  /// buffer (EAGAIN) is retried briefly; other errors return -1.
+  static int write(SerialPort port, Uint8List data) {
+    final fd = port._handle;
+    if (fd < 0) return -1;
+    final buf = calloc<Uint8>(data.length);
+    try {
+      buf.asTypedList(data.length).setAll(0, data);
+      var offset = 0;
+      var retries = 0;
+      while (offset < data.length) {
+        final n = _write(
+          fd,
+          Pointer<Uint8>.fromAddress(buf.address + offset),
+          data.length - offset,
+        );
+        if (n > 0) {
+          offset += n;
+          retries = 0;
+          continue;
+        }
+        final err = _errno;
+        // EAGAIN is 11 on Linux and 35 on macOS.
+        if ((err == 11 || err == 35) && retries++ < 50) {
+          sleep(const Duration(milliseconds: 2));
+          continue;
+        }
+        return offset > 0 ? offset : -1;
+      }
+      return offset;
+    } catch (_) {
+      return -1;
     } finally {
       calloc.free(buf);
     }

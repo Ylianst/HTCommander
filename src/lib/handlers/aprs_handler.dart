@@ -20,6 +20,7 @@ import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/host_bridge.dart';
 import '../services/notification_service.dart';
+import '../services/notification_router.dart';
 
 /// A data handler that processes APRS packets from the "APRS" channel.
 ///
@@ -545,8 +546,25 @@ class AprsHandler {
     NotificationService.instance.showMessage(
       title: from.isNotEmpty ? 'APRS message from $from' : 'APRS message',
       body: messageData.msgText,
-      payload: 'aprs',
+      payload: aprsNotificationPayload(
+        _conversationPeer(from, messageData.msgText),
+      ),
     );
+  }
+
+  /// The Messaging-tab conversation for a message from [from]: replies relayed
+  /// by the SMS gateway (`@phone text`) thread under the phone's digits,
+  /// everything else under the sender callsign.
+  static String _conversationPeer(String from, String text) {
+    final base = from.split('-').first.toUpperCase();
+    if ((base == 'SMS' || base == 'SMSGTE') && text.startsWith('@')) {
+      final sp = text.indexOf(' ');
+      if (sp > 1) {
+        final phone = text.substring(1, sp).replaceAll(RegExp(r'[^0-9]'), '');
+        if (phone.isNotEmpty) return phone;
+      }
+    }
+    return from;
   }
 
   void _sendAckIfNeeded(

@@ -193,10 +193,8 @@ class MeshCoreClient {
     }
   }
 
-  Future<void> addOrUpdateContact(MeshCoreContact contact) => _single(
-    MeshCoreCommands.addUpdateContact(contact),
-    {MeshCoreResp.ok},
-  );
+  Future<void> addOrUpdateContact(MeshCoreContact contact) =>
+      _single(MeshCoreCommands.addUpdateContact(contact), {MeshCoreResp.ok});
 
   Future<void> removeContact(List<int> publicKey) =>
       _single(MeshCoreCommands.removeContact(publicKey), {MeshCoreResp.ok});
@@ -230,10 +228,10 @@ class MeshCoreClient {
     }
   }
 
-  Future<void> setChannel(int index, String name, List<int> secret) =>
-      _single(MeshCoreCommands.setChannel(index, name, secret), {
-        MeshCoreResp.ok,
-      });
+  Future<void> setChannel(int index, String name, List<int> secret) => _single(
+    MeshCoreCommands.setChannel(index, name, secret),
+    {MeshCoreResp.ok},
+  );
 
   Future<MeshCoreSentInfo> sendText(
     List<int> publicKey,
@@ -272,10 +270,8 @@ class MeshCoreClient {
     return MeshCoreBattery.parse(f);
   }
 
-  Future<void> sendAdvert({bool flood = true}) => _single(
-    MeshCoreCommands.sendSelfAdvert(flood: flood),
-    {MeshCoreResp.ok},
-  );
+  Future<void> sendAdvert({bool flood = true}) =>
+      _single(MeshCoreCommands.sendSelfAdvert(flood: flood), {MeshCoreResp.ok});
 
   /// Pulls every queued message from the companion. Concurrent calls coalesce
   /// into one more pass so a message-waiting push is never missed.

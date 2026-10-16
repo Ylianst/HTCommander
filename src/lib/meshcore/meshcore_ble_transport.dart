@@ -9,19 +9,28 @@ http://www.apache.org/licenses/LICENSE-2.0
 // service). Each GATT write and each notification carries exactly one frame.
 //
 // The companion only exposes its characteristics over an authenticated bond
-// (passkey shown on the device, or 123456 on devices without a screen). On
-// Windows HTCommander performs that PIN pairing itself through the native
-// Bluetooth plugin; other platforms show their own system pairing prompt.
+// (passkey shown on the device, or 123456 on devices without a screen). How
+// the PIN reaches the OS differs per platform:
+//   Windows  - HTCommander pairs through the native Bluetooth plugin.
+//   Android  - flutter_blue_plus createBond() with the PIN (the system pairing
+//              dialog appears when no PIN is given).
+//   Linux    - HTCommander registers a temporary BlueZ agent with the PIN.
+//   macOS/iOS/web - the operating system or browser shows its own PIN prompt
+//              the first time an encrypted characteristic is used.
 //
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'meshcore_client.dart';
+import 'meshcore_linux_pairing_stub.dart'
+    if (dart.library.io) 'meshcore_linux_pairing.dart';
 import 'meshcore_protocol.dart';
 
 /// A MeshCore companion found while scanning.
@@ -71,12 +80,39 @@ class MeshCoreBleTransport implements MeshCoreTransport {
       Platform.isMacOS ||
       Platform.isLinux;
 
+  static bool get _isAndroid => !kIsWeb && Platform.isAndroid;
+  static bool get _isLinux => !kIsWeb && Platform.isLinux;
+  static bool get _isWindows => !kIsWeb && Platform.isWindows;
+
+  /// Whether HTCommander can hand the PIN to the OS itself. Elsewhere the
+  /// system or browser asks for it.
+  static bool get supportsPinEntry => _isWindows || _isAndroid || _isLinux;
+
+  /// Whether [forgetPairing] can remove a bond on this platform.
+  static bool get supportsForgetPairing => _isWindows || _isAndroid || _isLinux;
+
+  /// Whether a remembered device can be reconnected without user action.
+  /// Web Bluetooth needs a fresh device-chooser gesture.
+  static bool get supportsAutoConnect => !kIsWeb;
+
+  /// Android 12+ needs the runtime Bluetooth permissions before scanning or
+  /// connecting.
+  static Future<void> _ensureAndroidPermissions() async {
+    if (!_isAndroid) return;
+    try {
+      await [Permission.bluetoothScan, Permission.bluetoothConnect].request();
+    } catch (_) {
+      // flutter_blue_plus requests them as a fallback.
+    }
+  }
+
   /// Scans for companions advertising the MeshCore name prefix or the Nordic
   /// UART service, reporting the accumulated list on each update.
   static Future<void> scan({
     required void Function(List<MeshCoreBleDevice> devices) onUpdate,
     Duration timeout = const Duration(seconds: 8),
   }) async {
+    await _ensureAndroidPermissions();
     final found = <String, MeshCoreBleDevice>{};
     final sub = FlutterBluePlus.onScanResults.listen((results) {
       var changed = false;
@@ -114,23 +150,40 @@ class MeshCoreBleTransport implements MeshCoreTransport {
 
   static Future<void> stopScan() => FlutterBluePlus.stopScan();
 
-  /// Removes the Windows bond so the next connection pairs again (needed after
-  /// the companion is re-flashed or its PIN changes). No-op elsewhere.
+  /// Removes the bond so the next connection pairs again (needed after the
+  /// companion is re-flashed or its PIN changes).
   static Future<bool> forgetPairing(String remoteId) async {
-    if (kIsWeb || !Platform.isWindows) return false;
-    return await _nativeChannel.invokeMethod<bool>('bleUnpair', {
-          'address': remoteId,
-        }) ??
-        false;
+    if (_isWindows) {
+      return await _nativeChannel.invokeMethod<bool>('bleUnpair', {
+            'address': remoteId,
+          }) ??
+          false;
+    }
+    if (_isAndroid) {
+      try {
+        await BluetoothDevice.fromId(remoteId).removeBond();
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+    if (_isLinux) return meshCoreLinuxForget(remoteId);
+    return false;
   }
 
-  /// Pairs (Windows only), connects, and enables notifications.
+  static const _pinRejected = MeshCorePairingException(
+    'Pairing failed. Check the PIN shown on the MeshCore device.',
+  );
+
+  /// Pairs where the platform allows HTCommander to supply the PIN, connects,
+  /// and enables notifications.
   static Future<MeshCoreBleTransport> connect(
     String remoteId, {
     String pin = '',
     void Function(String message)? onStatus,
   }) async {
-    if (!kIsWeb && Platform.isWindows) {
+    await _ensureAndroidPermissions();
+    if (_isWindows) {
       onStatus?.call('pairing');
       final status =
           await _nativeChannel.invokeMethod<String>('blePair', {
@@ -144,14 +197,15 @@ class MeshCoreBleTransport implements MeshCoreTransport {
         case 'cannotPair':
           break;
         case 'authFailed':
-          throw const MeshCorePairingException(
-            'Pairing failed. Check the PIN shown on the MeshCore device.',
-          );
+          throw _pinRejected;
         case 'notFound':
           throw const MeshCoreException('MeshCore device not found.');
         default:
           throw MeshCoreException('Pairing failed ($status).');
       }
+    } else if (_isLinux) {
+      onStatus?.call('pairing');
+      await meshCoreLinuxPair(remoteId, pin);
     }
 
     onStatus?.call('connecting');
@@ -163,7 +217,20 @@ class MeshCoreBleTransport implements MeshCoreTransport {
     );
     MeshCoreBleTransport? transport;
     try {
-      if (!kIsWeb && Platform.isAndroid) {
+      if (_isAndroid) {
+        // Bond before touching the encrypted characteristics. Already bonded
+        // devices return immediately; otherwise Android uses the PIN or shows
+        // its pairing dialog.
+        onStatus?.call('pairing');
+        try {
+          await device.createBond(
+            timeout: 60,
+            pin: pin.isEmpty ? null : Uint8List.fromList(utf8.encode(pin)),
+          );
+        } on FlutterBluePlusException {
+          throw _pinRejected;
+        }
+        onStatus?.call('connecting');
         try {
           await device.requestMtu(185);
         } catch (_) {
@@ -206,7 +273,9 @@ class MeshCoreBleTransport implements MeshCoreTransport {
       if (value.isNotEmpty) _frames.add(Uint8List.fromList(value));
     });
     try {
-      await _tx.setNotifyValue(true, timeout: 15);
+      // Where the OS or browser asks for the PIN itself, this first access to
+      // an encrypted characteristic waits while the user types it.
+      await _tx.setNotifyValue(true, timeout: supportsPinEntry ? 15 : 90);
     } catch (e) {
       throw MeshCoreException(
         'Unable to subscribe to the MeshCore device ($e). If it was '

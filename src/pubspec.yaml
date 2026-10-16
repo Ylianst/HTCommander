@@ -95,6 +95,9 @@ dependencies:
   sqlite3_flutter_libs: ^0.6.0+eol
   # Opt-in phone GPS (License tab) on Android/iOS; see lib/handlers/location_handler.dart.
   geolocator: ^14.0.2
+  # BlueZ D-Bus client (already used by flutter_blue_plus on Linux) for MeshCore
+  # PIN pairing on Linux; see lib/meshcore/meshcore_linux_pairing.dart.
+  bluez: ^0.8.3
 
 dev_dependencies:
   flutter_test:
