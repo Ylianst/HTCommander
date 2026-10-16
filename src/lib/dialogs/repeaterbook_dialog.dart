@@ -9,6 +9,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../aprs/weather_data.dart';
 import '../radio/radio_models.dart';
 import '../radio/repeaterbook_client.dart';
 import '../services/data_broker.dart';
@@ -88,6 +89,10 @@ class RepeaterBookDialog extends StatefulWidget {
 class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
   static const double _tileWidth = 156;
   static const double _tileHeight = 52;
+  static const double _dragHandleWidth = 40;
+  static const double _infoButtonWidth = 44;
+  static const double _minWidthForInfoButton = 210;
+  static const double _slotMinTextWidth = 110;
 
   final DataBrokerClient _broker = DataBrokerClient();
 
@@ -353,9 +358,16 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
     return 'Ch ${slot.channelId + 1}';
   }
 
+  /// Formats a distance in kilometres using miles or km, following the OS
+  /// regional setting (same detection as the APRS weather feature).
+  String _formatDistance(double km) => WeatherData.systemUsesMetric
+      ? '${km.toStringAsFixed(0)} km'
+      : '${(km / 1.609344).toStringAsFixed(0)} mi';
+
+  /// Secondary text for the map info card (the frequency is shown separately).
   String? _resultSubtitle(_ResultChannel rc) {
     final parts = <String>[];
-    if (rc.distanceKm != null) parts.add('${rc.distanceKm!.toStringAsFixed(0)} km');
+    if (rc.distanceKm != null) parts.add(_formatDistance(rc.distanceKm!));
     if (rc.source.pl.isNotEmpty) parts.add('PL ${rc.source.pl}');
     if (rc.source.nearestCity.isNotEmpty && parts.length < 2) {
       parts.add(rc.source.nearestCity);
@@ -1047,69 +1059,91 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
     final selected = _selectedResultIndex == index;
     final palette = ChannelPalette.of(context);
     final label = channel.name.isNotEmpty ? channel.name : 'RPT';
-    final subtitle = _resultSubtitle(rc);
+    final distance =
+        rc.distanceKm != null ? _formatDistance(rc.distanceKm!) : null;
     final supported = _isChannelSupported(channel);
 
-    final tile = _channelTile(
-      label: label,
-      freqHz: channel.rxFreq,
-      showFreq: false,
-      subtitle: subtitle,
-      background: selected ? palette.selected : palette.base,
-      highlight: selected,
-      onTap: supported
-          ? () => setState(() => _selectedResultIndex = index)
-          : null,
-      onInfo: () => showChannelDetailsDialog(context, channel: channel),
-      onContextMenu: (pos) => showChannelContextMenu(
-        context: context,
-        globalPosition: pos,
-        channel: channel,
-        onDetails: () => showChannelDetailsDialog(context, channel: channel),
-      ),
-    );
+    // The info button only appears when the tile is wide enough to leave the
+    // text readable; the long-press / right-click menu always offers Details.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showInfo = constraints.maxWidth >= _minWidthForInfoButton;
+        final leftInset = supported ? _dragHandleWidth : 0.0;
+        final rightInset = showInfo ? _infoButtonWidth : 6.0;
 
-    // Repeaters outside the radio's tunable ranges are greyed out and cannot be
-    // selected or dragged onto a slot.
-    if (!supported) {
-      return Opacity(
-        opacity: 0.4,
-        child: Tooltip(
-          message: "Outside the radio's supported frequency ranges",
-          child: tile,
-        ),
-      );
-    }
-
-    final feedback = Material(
-      color: Colors.transparent,
-      child: Opacity(
-        opacity: 0.9,
-        child: _channelTile(
+        final tile = _channelTile(
           label: label,
           freqHz: channel.rxFreq,
-          showFreq: false,
-          subtitle: subtitle,
-          background: palette.selected,
-          highlight: true,
-          width: _tileWidth,
-        ),
-      ),
-    );
+          freqSuffix: distance,
+          background: selected ? palette.selected : palette.base,
+          highlight: selected,
+          leftInset: leftInset,
+          textRightInset: rightInset,
+          onTap: supported
+              ? () => setState(() => _selectedResultIndex = index)
+              : null,
+          onContextMenu: (pos) => showChannelContextMenu(
+            context: context,
+            globalPosition: pos,
+            channel: channel,
+            onDetails: () =>
+                showChannelDetailsDialog(context, channel: channel),
+          ),
+        );
 
-    return _wrapDraggableTile(
-      channel: channel,
-      tile: tile,
-      feedback: feedback,
-      palette: palette,
+        final withInfo = Stack(
+          children: [
+            tile,
+            if (showInfo)
+              _infoButton(
+                palette,
+                () => showChannelDetailsDialog(context, channel: channel),
+              ),
+          ],
+        );
+
+        // Repeaters outside the radio's tunable ranges are greyed out and
+        // cannot be selected or dragged onto a slot.
+        if (!supported) {
+          return Opacity(
+            opacity: 0.4,
+            child: Tooltip(
+              message: "Outside the radio's supported frequency ranges",
+              child: withInfo,
+            ),
+          );
+        }
+
+        final feedback = Material(
+          color: Colors.transparent,
+          child: Opacity(
+            opacity: 0.9,
+            child: _channelTile(
+              label: label,
+              freqHz: channel.rxFreq,
+              freqSuffix: distance,
+              background: palette.selected,
+              highlight: true,
+              width: _tileWidth,
+            ),
+          ),
+        );
+
+        return _wrapDraggableTile(
+          channel: channel,
+          tile: withInfo,
+          feedback: feedback,
+          palette: palette,
+        );
+      },
     );
   }
 
   /// A plain [Draggable] tile swallows vertical swipes, so the results list
   /// can't be scrolled by dragging over the repeaters (a problem on any touch
   /// screen, including touch-enabled desktops). We keep the tile body
-  /// scrollable/tappable and expose a dedicated drag handle as the only drag
-  /// source.
+  /// scrollable/tappable and expose a dedicated drag handle, filling the left
+  /// edge of the tile, as the only drag source.
   Widget _wrapDraggableTile({
     required RadioChannelInfo channel,
     required Widget tile,
@@ -1120,22 +1154,31 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
       children: [
         tile,
         Positioned(
-          top: 14,
-          right: 0,
+          top: 0,
+          left: 0,
           bottom: 0,
+          width: _dragHandleWidth,
           child: Draggable<RadioChannelInfo>(
             data: channel,
             dragAnchorStrategy: pointerDragAnchorStrategy,
             feedback: feedback,
             child: MouseRegion(
               cursor: SystemMouseCursors.grab,
-              child: Container(
-                width: 32,
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.drag_indicator,
-                  size: 20,
-                  color: palette.onChannelSecondary,
+              child: Tooltip(
+                message: 'Drag to a radio channel',
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: palette.onChannel.withValues(alpha: 0.14),
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(3),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.drag_indicator,
+                    size: 28,
+                    color: palette.onChannel,
+                  ),
                 ),
               ),
             ),
@@ -1145,11 +1188,33 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
     );
   }
 
+  /// Full-height, touch-sized Details button pinned to the right edge of a tile
+  /// ([offset] shifts it left to make room for another button).
+  Widget _infoButton(ChannelPalette palette, VoidCallback onPressed,
+      {double offset = 0}) {
+    return Positioned(
+      top: 0,
+      right: offset,
+      bottom: 0,
+      width: _infoButtonWidth,
+      child: IconButton(
+        tooltip: 'Details',
+        padding: EdgeInsets.zero,
+        iconSize: 24,
+        icon: Icon(Icons.info_outline, color: palette.onChannel),
+        onPressed: onPressed,
+      ),
+    );
+  }
+
   Widget _buildSlotTile(RadioChannelInfo slot) {
     final staged = _staged[slot.channelId];
     final isStaged = staged != null;
     final selected = _selectedSlotId == slot.channelId;
     final channel = staged ?? slot;
+    final detailsChannel =
+        isStaged ? channel.copyWith(channelId: slot.channelId) : slot;
+    final detailsTitle = isStaged ? 'Pending: ${_slotLabel(slot)}' : null;
 
     return DragTarget<RadioChannelInfo>(
       onWillAcceptWithDetails: (_) => true,
@@ -1157,35 +1222,65 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
       builder: (context, candidate, rejected) {
         final hovering = candidate.isNotEmpty;
         final palette = ChannelPalette.of(context);
-        return _channelTile(
-          label: _slotLabel(slot),
-          freqHz: channel.rxFreq,
-          background: isStaged
-              ? palette.pending
-              : (selected || hovering ? palette.selected : palette.base),
-          highlight: selected || hovering || isStaged,
-          onTap: () => setState(() => _selectedSlotId = slot.channelId),
-          onInfo: () => showChannelDetailsDialog(
-            context,
-            channel:
-                isStaged ? channel.copyWith(channelId: slot.channelId) : slot,
-            title: isStaged ? 'Pending: ${_slotLabel(slot)}' : null,
-          ),
-          onClear: isStaged ? () => _clearStaged(slot.channelId) : null,
-          onContextMenu: (pos) => showChannelContextMenu(
-            context: context,
-            globalPosition: pos,
-            channel:
-                isStaged ? channel.copyWith(channelId: slot.channelId) : slot,
-            onDetails: () => showChannelDetailsDialog(
-              context,
-              channel:
-                  isStaged ? channel.copyWith(channelId: slot.channelId) : slot,
-              title: isStaged ? 'Pending: ${_slotLabel(slot)}' : null,
-            ),
-            onPaste: (pasted) => _assign(pasted, slot.channelId),
-            onClear: isStaged ? () => _clearStaged(slot.channelId) : null,
-          ),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final buttons = isStaged ? 2 : 1;
+            final showButtons = constraints.maxWidth >=
+                _slotMinTextWidth + buttons * _infoButtonWidth;
+            void showDetails() => showChannelDetailsDialog(
+                  context,
+                  channel: detailsChannel,
+                  title: detailsTitle,
+                );
+            final tile = _channelTile(
+              label: _slotLabel(slot),
+              freqHz: channel.rxFreq,
+              background: isStaged
+                  ? palette.pending
+                  : (selected || hovering
+                      ? palette.selected
+                      : palette.base),
+              highlight: selected || hovering || isStaged,
+              textRightInset: showButtons ? buttons * _infoButtonWidth : 30,
+              onTap: () => setState(() => _selectedSlotId = slot.channelId),
+              // Without room for the big buttons, fall back to the small
+              // clear icon so a staged channel can still be cleared.
+              onClear: isStaged && !showButtons
+                  ? () => _clearStaged(slot.channelId)
+                  : null,
+              onContextMenu: (pos) => showChannelContextMenu(
+                context: context,
+                globalPosition: pos,
+                channel: detailsChannel,
+                onDetails: showDetails,
+                onPaste: (pasted) => _assign(pasted, slot.channelId),
+                onClear: isStaged ? () => _clearStaged(slot.channelId) : null,
+              ),
+            );
+            if (!showButtons) return tile;
+            return Stack(
+              children: [
+                tile,
+                if (isStaged)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    width: _infoButtonWidth,
+                    child: IconButton(
+                      tooltip: 'Clear',
+                      padding: EdgeInsets.zero,
+                      iconSize: 24,
+                      icon: Icon(Icons.cancel_outlined,
+                          color: palette.onChannel),
+                      onPressed: () => _clearStaged(slot.channelId),
+                    ),
+                  ),
+                _infoButton(palette, showDetails,
+                    offset: isStaged ? _infoButtonWidth : 0),
+              ],
+            );
+          },
         );
       },
     );
@@ -1197,15 +1292,19 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
     required Color background,
     bool highlight = false,
     bool showFreq = true,
-    String? subtitle,
+    String? freqSuffix,
     double? width,
+    double leftInset = 0,
+    double textRightInset = 30,
     VoidCallback? onTap,
-    VoidCallback? onInfo,
     VoidCallback? onClear,
     void Function(Offset globalPosition)? onContextMenu,
   }) {
     final freq = showFreq && freqHz > 0
-        ? '${(freqHz / 1000000).toStringAsFixed(3)} MHz'
+        ? [
+            '${(freqHz / 1000000).toStringAsFixed(3)} MHz',
+            ?freqSuffix,
+          ].join('  •  ')
         : null;
     final palette = ChannelPalette.of(context);
     return GestureDetector(
@@ -1219,7 +1318,7 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
       child: Container(
         width: width,
         height: _tileHeight,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: EdgeInsets.fromLTRB(6 + leftInset, 2, 6, 2),
         decoration: BoxDecoration(
           color: background,
           borderRadius: BorderRadius.circular(3),
@@ -1237,7 +1336,7 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(right: 30),
+                    padding: EdgeInsets.only(right: textRightInset),
                     child: Text(
                       label,
                       style: TextStyle(
@@ -1249,20 +1348,12 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
                     ),
                   ),
                   if (freq != null)
-                    Text(
-                      freq,
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: palette.onChannelSecondary,
-                      ),
-                    ),
-                  if (subtitle != null)
                     Padding(
-                      padding: const EdgeInsets.only(right: 30),
+                      padding: EdgeInsets.only(right: textRightInset),
                       child: Text(
-                        subtitle,
+                        freq,
                         style: TextStyle(
-                          fontSize: 8,
+                          fontSize: 12,
                           color: palette.onChannelSecondary,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -1282,19 +1373,6 @@ class _RepeaterBookDialogState extends State<RepeaterBookDialog> {
                   tooltip: 'Clear',
                   icon: Icon(Icons.cancel, color: palette.onChannel),
                   onPressed: onClear,
-                ),
-              )
-            else if (onInfo != null)
-              Positioned(
-                top: -6,
-                right: -6,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  iconSize: 16,
-                  tooltip: 'Details',
-                  icon: Icon(Icons.info_outline, color: palette.onChannel),
-                  onPressed: onInfo,
                 ),
               ),
           ],
