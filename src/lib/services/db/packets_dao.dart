@@ -60,6 +60,61 @@ class PacketsDao {
     await _db.delete(_table);
   }
 
+  /// Adds the `aprs_hidden` column to a database created before schema v3.
+  static Future<void> addAprsHiddenColumn(DatabaseExecutor db) async {
+    await db.execute(
+      'ALTER TABLE $_table ADD COLUMN aprs_hidden INTEGER NOT NULL DEFAULT 0',
+    );
+  }
+
+  /// Hides every APRS-channel packet from the APRS tab (the user cleared all
+  /// APRS messages). The raw packets stay in the packet capture.
+  Future<void> hideAllAprs() async {
+    await _db.update(
+      _table,
+      <String, Object?>{'aprs_hidden': 1},
+      where: "channel_name = 'APRS' AND aprs_hidden = 0",
+    );
+  }
+
+  /// Hides the visible APRS-channel packets for which [match] returns true, and
+  /// returns how many were hidden. Rows are scanned in pages so a large history
+  /// is never loaded into memory at once.
+  Future<int> hideAprsWhere(bool Function(TncDataFragment frame) match) async {
+    const pageSize = 500;
+    final ids = <int>[];
+    var lastId = 0;
+    while (true) {
+      final rows = await _db.query(
+        _table,
+        where: "channel_name = 'APRS' AND aprs_hidden = 0 AND id > ?",
+        whereArgs: [lastId],
+        orderBy: 'id',
+        limit: pageSize,
+      );
+      if (rows.isEmpty) break;
+      for (final row in rows) {
+        final id = row['id'] as int;
+        lastId = id;
+        if (match(_fromRow(row))) ids.add(id);
+      }
+      if (rows.length < pageSize) break;
+    }
+    if (ids.isEmpty) return 0;
+    final batch = _db.batch();
+    for (var i = 0; i < ids.length; i += pageSize) {
+      final chunk = ids.sublist(i, (i + pageSize).clamp(0, ids.length));
+      batch.update(
+        _table,
+        <String, Object?>{'aprs_hidden': 1},
+        where: 'id IN (${List.filled(chunk.length, '?').join(',')})',
+        whereArgs: chunk,
+      );
+    }
+    await batch.commit(noResult: true);
+    return ids.length;
+  }
+
   /// Counts packets on the APRS channel ([aprs] true) or all other channels
   /// ([aprs] false).
   Future<int> count({required bool aprs}) async {
@@ -106,6 +161,7 @@ class PacketsDao {
     'frame_type': f.frameType.index,
     'corrections': f.corrections,
     'radio_mac': f.radioMac,
+    'aprs_hidden': f.aprsHidden ? 1 : 0,
   };
 
   static TncDataFragment _fromRow(Map<String, Object?> row) {
@@ -132,6 +188,6 @@ class PacketsDao {
           : FragmentFrameType.unknown,
       corrections: row['corrections'] as int? ?? -1,
       radioMac: row['radio_mac'] as String?,
-    );
+    )..aprsHidden = (row['aprs_hidden'] as int? ?? 0) != 0;
   }
 }

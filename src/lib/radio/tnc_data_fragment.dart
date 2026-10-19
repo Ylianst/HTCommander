@@ -41,6 +41,10 @@ class TncDataFragment {
   /// fragment was not carried by the DART modem.
   int dartMode;
 
+  /// Whether the user cleared this APRS frame from the APRS tab. The raw frame
+  /// is kept for the packet capture but is no longer loaded as an APRS message.
+  bool aprsHidden = false;
+
   TncDataFragment({
     required this.finalFragment,
     required this.fragmentId,

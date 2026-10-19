@@ -8,6 +8,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../aprs/aprs_conversation.dart';
 import '../radio/tnc_data_fragment.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
@@ -72,6 +73,19 @@ class PacketStore {
       deviceId: _storeDeviceId,
       name: 'ClearPackets',
       callback: _onClearPackets,
+    );
+
+    // Clearing APRS messages hides the APRS frames from the APRS tab (so they
+    // do not reload on the next launch) while keeping the raw packet capture.
+    _broker.subscribe(
+      deviceId: _storeDeviceId,
+      name: 'ClearAprsPackets',
+      callback: _onClearAprsPackets,
+    );
+    _broker.subscribe(
+      deviceId: _storeDeviceId,
+      name: clearAprsConversationEvent,
+      callback: _onClearAprsConversation,
     );
 
     // Notify subscribers that PacketStore is ready (stored so late subscribers
@@ -165,6 +179,48 @@ class PacketStore {
       name: 'PacketList',
       data: getPackets(),
       store: false,
+    );
+  }
+
+  /// Hides every APRS-channel packet from the APRS tab, in memory and in the
+  /// database.
+  void _onClearAprsPackets(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    for (final p in _packets) {
+      if (p.channelName == 'APRS') p.aprsHidden = true;
+    }
+    final dao = AppDatabase.instance?.packets;
+    if (dao == null) return;
+    unawaited(
+      dao.hideAllAprs().catchError(
+        (Object e) => debugPrint('PacketStore: failed to hide APRS: $e'),
+      ),
+    );
+  }
+
+  /// Hides the APRS messages of one Messenger conversation (`data['peer']`)
+  /// from the APRS tab, in memory and in the database.
+  void _onClearAprsConversation(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    final peer = data is Map ? data['peer']?.toString() : null;
+    if (peer == null || peer.isEmpty) return;
+    final local = AprsLocalStation.fromSettings(
+      _broker.getValue<String>(0, 'CallSign', '') ?? '',
+      _broker.getValue<int>(0, 'StationId', 0) ?? 0,
+    );
+    bool match(TncDataFragment f) =>
+        f.channelName == 'APRS' &&
+        aprsFrameConversationPeer(f, local: local) == peer;
+    for (final p in _packets) {
+      if (!p.aprsHidden && match(p)) p.aprsHidden = true;
+    }
+    final dao = AppDatabase.instance?.packets;
+    if (dao == null) return;
+    unawaited(
+      dao.hideAprsWhere(match).catchError((Object e) {
+        debugPrint('PacketStore: failed to hide APRS conversation: $e');
+        return 0;
+      }),
     );
   }
 

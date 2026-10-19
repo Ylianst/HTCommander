@@ -59,6 +59,50 @@ class CommsDao {
     await _db.delete(_table);
   }
 
+  /// SQL filter for APRS messages heard on the APRS channel or APRS-IS (the
+  /// ones mirrored from the APRS tab).
+  static const String _aprsMessageFilter =
+      "encoding = 'APRS' AND channel IN ('APRS', 'APRS-IS')";
+
+  /// Deletes the APRS messages for which [where] returns true, or all of them
+  /// when [where] is null. Returns how many rows were deleted.
+  Future<int> deleteAprsMessages({
+    bool Function(DecodedTextEntry entry)? where,
+  }) async {
+    if (where == null) return _db.delete(_table, where: _aprsMessageFilter);
+    const pageSize = 500;
+    final ids = <int>[];
+    var lastId = 0;
+    while (true) {
+      final rows = await _db.query(
+        _table,
+        where: '$_aprsMessageFilter AND id > ?',
+        whereArgs: [lastId],
+        orderBy: 'id',
+        limit: pageSize,
+      );
+      if (rows.isEmpty) break;
+      for (final row in rows) {
+        final id = row['id'] as int;
+        lastId = id;
+        if (where(_fromRow(row))) ids.add(id);
+      }
+      if (rows.length < pageSize) break;
+    }
+    if (ids.isEmpty) return 0;
+    final batch = _db.batch();
+    for (var i = 0; i < ids.length; i += pageSize) {
+      final chunk = ids.sublist(i, (i + pageSize).clamp(0, ids.length));
+      batch.delete(
+        _table,
+        where: 'id IN (${List.filled(chunk.length, '?').join(',')})',
+        whereArgs: chunk,
+      );
+    }
+    await batch.commit(noResult: true);
+    return ids.length;
+  }
+
   /// Returns the total number of stored entries.
   Future<int> count() async {
     final rows = await _db.rawQuery('SELECT COUNT(*) AS n FROM $_table');

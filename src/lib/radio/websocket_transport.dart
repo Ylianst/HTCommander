@@ -93,6 +93,10 @@ class WebSocketRadioTransport implements RadioTransport {
   /// Prefix the client uses to ask the host to disconnect an active sync.
   static const String _kWinlinkDisconnectPrefix = 'winlinkdisconnect:';
 
+  /// Prefix the client uses to ask the host to clear Comms / APRS history in
+  /// its database (JSON `{"event": ..., "peer": ...}`).
+  static const String _kClearPrefix = 'clear:';
+
   /// Invoked with the raw JSON payload when the host sends a `history:` message.
   /// Wired up by [BluetoothService] to seed the comms/APRS tabs.
   void Function(String json)? onHistory;
@@ -418,6 +422,11 @@ class WebSocketRadioTransport implements RadioTransport {
   /// behalf. Returns false if the socket is not available.
   bool sendWinlinkSync(Map<String, Object?> data) =>
       _sendText(_kWinlinkSyncPrefix, data);
+
+  /// Asks the host to clear history the user cleared in the browser, so it is
+  /// also removed from the host's database and does not come back on reload.
+  /// Returns false if the socket is not available.
+  bool sendClear(Map<String, Object?> data) => _sendText(_kClearPrefix, data);
 
   /// Asks the host to disconnect / cancel an active Winlink sync.
   bool sendWinlinkDisconnect() {

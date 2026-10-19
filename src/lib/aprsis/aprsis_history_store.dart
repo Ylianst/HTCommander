@@ -80,4 +80,17 @@ class AprsIsHistoryStore {
       ),
     );
   }
+
+  /// Deletes the persisted records for which [match] returns true (e.g. the
+  /// messages of a cleared conversation). Safe when persistence is unavailable.
+  void deleteWhere(bool Function(AprsIsHistoryRecord record) match) {
+    final dao = AppDatabase.instance?.aprsis;
+    if (dao == null) return;
+    unawaited(
+      dao.deleteWhere(match).catchError((Object e) {
+        debugPrint('AprsIsHistoryStore: delete failed: $e');
+        return 0;
+      }),
+    );
+  }
 }

@@ -16,6 +16,8 @@ hosted mode for testing against a running host from an ordinary dev build.
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+import '../aprs/aprs_conversation.dart' show clearAprsConversationEvent;
+
 /// Helpers for detecting the HTCommander-hosted web deployment.
 class HostBridge {
   HostBridge._();
@@ -62,6 +64,16 @@ class HostBridge {
   /// are excluded so they do not bleed across the bridge.
   static bool isSyncedSetting(String name) =>
       !name.startsWith('Selected') && !isLocalOnlySetting(name);
+
+  /// Device-1 clear requests the hosted web page forwards to the host, so
+  /// history the user clears in the browser is also removed from the host's
+  /// database and does not come back when the page is reloaded. The host only
+  /// re-dispatches events in this set.
+  static const Set<String> forwardedClearEvents = <String>{
+    'ClearVoiceText',
+    'ClearAprsPackets',
+    clearAprsConversationEvent,
+  };
 
   /// First byte of a host->browser audio frame over the bridge, distinguishing
   /// it from radio command frames (which always start with 0x00). The frame is

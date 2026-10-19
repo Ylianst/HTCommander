@@ -62,7 +62,7 @@ class AppDatabase {
 
   /// Current schema version. Bump and add an [onUpgrade] branch when the schema
   /// changes.
-  static const int _schemaVersion = 2;
+  static const int _schemaVersion = 3;
 
   static const String _dbFileName = 'htcommander.db';
 
@@ -121,6 +121,7 @@ class AppDatabase {
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) await MeshCoreDao.createSchema(db);
+          if (oldVersion < 3) await PacketsDao.addAprsHiddenColumn(db);
         },
       ),
     );
@@ -164,7 +165,8 @@ class AppDatabase {
         encoding INTEGER NOT NULL,
         frame_type INTEGER NOT NULL,
         corrections INTEGER NOT NULL,
-        radio_mac TEXT
+        radio_mac TEXT,
+        aprs_hidden INTEGER NOT NULL DEFAULT 0
       )
     ''');
     await db.execute('CREATE INDEX idx_pkt_time ON packets(time_us)');

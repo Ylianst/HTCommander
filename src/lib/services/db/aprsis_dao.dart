@@ -82,6 +82,46 @@ class AprsisDao {
     await _db.delete(_table);
   }
 
+  /// Deletes the records for which [match] returns true and returns how many
+  /// were deleted. Rows are scanned in pages to bound memory use.
+  Future<int> deleteWhere(bool Function(AprsIsHistoryRecord record) match) async {
+    const pageSize = 500;
+    final ids = <int>[];
+    var lastId = 0;
+    while (true) {
+      final rows = await _db.query(
+        _table,
+        where: 'id > ?',
+        whereArgs: [lastId],
+        orderBy: 'id',
+        limit: pageSize,
+      );
+      if (rows.isEmpty) break;
+      for (final row in rows) {
+        final id = row['id'] as int;
+        lastId = id;
+        final record = AprsIsHistoryRecord(
+          DateTime.fromMicrosecondsSinceEpoch(row['time_us'] as int? ?? 0),
+          row['tnc2'] as String? ?? '',
+        );
+        if (match(record)) ids.add(id);
+      }
+      if (rows.length < pageSize) break;
+    }
+    if (ids.isEmpty) return 0;
+    final batch = _db.batch();
+    for (var i = 0; i < ids.length; i += pageSize) {
+      final chunk = ids.sublist(i, (i + pageSize).clamp(0, ids.length));
+      batch.delete(
+        _table,
+        where: 'id IN (${List.filled(chunk.length, '?').join(',')})',
+        whereArgs: chunk,
+      );
+    }
+    await batch.commit(noResult: true);
+    return ids.length;
+  }
+
   /// Keeps only the newest [maxEntries] records. A value <= 0 means unlimited.
   Future<void> enforceLimit(int maxEntries) async {
     if (maxEntries <= 0) return;

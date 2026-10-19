@@ -486,6 +486,13 @@ class BluetoothService {
       name: 'WinlinkDisconnect',
       callback: _onLocalWinlinkDisconnect,
     );
+    // History clears must also reach the host's database; otherwise the host's
+    // history snapshot brings the cleared messages back on the next reload.
+    _broker.subscribeMultiple(
+      deviceId: 1,
+      names: HostBridge.forwardedClearEvents.toList(),
+      callback: _onLocalClear,
+    );
   }
 
   /// Applies the host's authoritative mail snapshot by replacing the local
@@ -615,6 +622,18 @@ class BluetoothService {
   /// Forwards a Winlink disconnect / cancel request to the host.
   void _onLocalWinlinkDisconnect(int deviceId, String name, Object? data) {
     _hostTransport?.sendWinlinkDisconnect();
+  }
+
+  /// Forwards a Comms / APRS history clear to the host (hosted web build) so it
+  /// is also deleted from the host's database.
+  void _onLocalClear(int deviceId, String name, Object? data) {
+    final transport = _hostTransport;
+    if (transport == null) return;
+    final peer = data is Map ? data['peer'] : null;
+    transport.sendClear(<String, Object?>{
+      'event': name,
+      if (peer is String) 'peer': peer,
+    });
   }
 
   /// Restores `List<String>` typing lost when a setting round-trips through

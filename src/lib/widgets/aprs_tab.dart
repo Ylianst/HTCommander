@@ -34,6 +34,7 @@ import '../meshcore/meshcore_protocol.dart'
 import '../services/window_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../aprs/aprs_conversation.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../aprs/aprs_symbols.dart';
@@ -296,6 +297,19 @@ class _AprsTabState extends State<AprsTab>
       deviceId: _aprsDeviceId,
       name: 'AprsStoreReady',
       callback: _onAprsStoreReady,
+    );
+
+    // Clears made here or in another window (detached window, or the hosted
+    // web page forwarding its clears to this desktop host).
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: 'ClearAprsPackets',
+      callback: _onClearAprsPackets,
+    );
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: clearAprsConversationEvent,
+      callback: _onClearAprsConversation,
     );
 
     // Persisted internet (APRS-IS) history, served by the APRS-IS manager.
@@ -1893,17 +1907,21 @@ class _AprsTabState extends State<AprsTab>
 
       if (sender) {
         routingString = '→ $addressee';
-        peerCallsign = _peerKey(addressee);
+      } else if (senderAddr.address == addressee ||
+          senderAddr.callSignWithId == addressee) {
+        routingString = addressee;
       } else {
-        if (senderAddr.address == addressee ||
-            senderAddr.callSignWithId == addressee) {
-          routingString = addressee;
-        } else {
-          routingString = '$senderCallsign → $addressee';
-        }
-        // Only messages addressed to us belong to one of our conversations.
-        if (forSelf) peerCallsign = _peerKey(senderCallsign);
+        routingString = '$senderCallsign → $addressee';
       }
+      // Shared threading rules, so clearing a conversation deletes exactly
+      // these messages from the stores.
+      peerCallsign = aprsConversationPeer(
+        sender: senderCallsign,
+        addressee: addressee,
+        text: aprsPacket.messageData.msgText,
+        outgoing: sender,
+        local: AprsLocalStation(_callsign, localCallsignWithId),
+      );
       if (packet.authState == AuthState.success) routingString += ' ✓';
       if (packet.authState == AuthState.failed) routingString += ' ❌';
 
@@ -1922,7 +1940,6 @@ class _AprsTabState extends State<AprsTab>
         if (sp > 1) {
           final phone = _digitsOnly(msgText.substring(1, sp));
           if (phone.isNotEmpty) {
-            peerCallsign = phone;
             messageText = msgText.substring(sp + 1);
             routingString = sender ? '→ SMS: $phone' : 'SMS: $phone';
           }
@@ -2792,28 +2809,48 @@ class _AprsTabState extends State<AprsTab>
     if (!confirmed || !mounted) return;
 
     // In a conversation, clear only that contact's messages; leave the rest.
+    // The tab (and every other window, including the desktop host when this is
+    // the hosted web page) updates in the event handlers below, while the
+    // stores delete the messages so they do not reload on the next launch.
     if (inConversation) {
-      final peer = _selectedContact;
-      setState(() {
-        _entries.removeWhere(
-          (e) =>
-              e.peerCallsign != null && e.peerCallsign!.toUpperCase() == peer,
-        );
-      });
-      _rebuildMessages();
+      _broker.dispatch(
+        deviceId: _aprsDeviceId,
+        name: clearAprsConversationEvent,
+        data: <String, Object?>{'peer': _selectedContact!},
+        store: false,
+      );
       return;
     }
 
-    setState(() {
-      _entries.clear();
-      _messages = [];
-    });
     _broker.dispatch(
       deviceId: _aprsDeviceId,
       name: 'ClearAprsPackets',
       data: null,
       store: false,
     );
+  }
+
+  /// Removes every APRS message from the list (all APRS messages were cleared,
+  /// here or in another window).
+  void _onClearAprsPackets(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(() {
+      _entries.clear();
+      _messages = [];
+    });
+  }
+
+  /// Removes the messages of the cleared conversation `data['peer']`.
+  void _onClearAprsConversation(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    final peer = data is Map ? data['peer']?.toString() : null;
+    if (peer == null || peer.isEmpty) return;
+    setState(() {
+      _entries.removeWhere(
+        (e) => e.peerCallsign != null && e.peerCallsign!.toUpperCase() == peer,
+      );
+    });
+    _rebuildMessages();
   }
 
   void _showMenu(BuildContext context) {
@@ -3263,14 +3300,11 @@ class _AprsTabState extends State<AprsTab>
   }
 
   /// Digits-only form of a phone number, used as the SMS conversation key.
-  String _digitsOnly(String s) => s.replaceAll(RegExp(r'[^0-9]'), '');
+  String _digitsOnly(String s) => aprsDigitsOnly(s);
 
   /// Conversation key for a callsign: uppercased, with a "-0" SSID dropped so
   /// "SMS" and "SMS-0" share one thread.
-  static String _peerKey(String callsign) {
-    final upper = callsign.trim().toUpperCase();
-    return upper.endsWith('-0') ? upper.substring(0, upper.length - 2) : upper;
-  }
+  static String _peerKey(String callsign) => aprsPeerKey(callsign);
 
   /// Whether [peer] looks like an SMS phone-number conversation key. SMS peers
   /// are threaded under the phone number's digits, whereas APRS callsigns
@@ -3279,10 +3313,7 @@ class _AprsTabState extends State<AprsTab>
       peer.isNotEmpty && RegExp(r'^\d+$').hasMatch(peer);
 
   /// Whether [callsign] is the APRS SMS gateway (SMS / SMSGTE, any SSID).
-  bool _senderIsSmsGateway(String callsign) {
-    final base = callsign.split('-').first.toUpperCase();
-    return base == 'SMS' || base == 'SMSGTE';
-  }
+  bool _senderIsSmsGateway(String callsign) => isAprsSmsGateway(callsign);
 
   /// Short relative time such as "5m", "3h" or "5d".
   String _relativeTimeShort(DateTime time) {

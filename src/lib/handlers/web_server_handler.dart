@@ -551,6 +551,32 @@ class WebServerHandler {
   /// Applies a Winlink sync request pushed by a browser. Internet syncs are
   /// forwarded verbatim; radio syncs are re-targeted at the host's own bridged
   /// radio (the browser's radio id is meaningless here).
+  /// Applies a history clear the user made in the browser (`clear:` JSON
+  /// `{"event": ..., "peer": ...}`) by re-dispatching it on the host, so the
+  /// host's handlers also delete it from the database. Only the events in
+  /// [HostBridge.forwardedClearEvents] are accepted.
+  void _applyClientClear(String json) {
+    try {
+      final data = jsonDecode(json);
+      if (data is! Map) return;
+      final event = data['event'];
+      if (event is! String || !HostBridge.forwardedClearEvents.contains(event)) {
+        return;
+      }
+      final peer = data['peer'];
+      _broker.dispatch(
+        deviceId: 1,
+        name: event,
+        data: peer is String && peer.isNotEmpty
+            ? <String, Object?>{'peer': peer}
+            : null,
+        store: false,
+      );
+    } catch (ex) {
+      _broker.logError('[WebServer] Failed to apply client clear: $ex');
+    }
+  }
+
   void _applyClientWinlinkSync(String json) {
     try {
       final data = jsonDecode(json);
@@ -667,6 +693,10 @@ class WebServerHandler {
     }
     if (message.startsWith('winlinksync:')) {
       _applyClientWinlinkSync(message.substring('winlinksync:'.length));
+      return;
+    }
+    if (message.startsWith('clear:')) {
+      _applyClientClear(message.substring('clear:'.length));
       return;
     }
     if (message.startsWith('winlinkdisconnect:')) {

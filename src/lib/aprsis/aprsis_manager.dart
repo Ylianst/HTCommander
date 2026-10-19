@@ -31,9 +31,11 @@ limitations under the License.
 //
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:math' as math;
 
+import '../aprs/aprs_conversation.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../aprs/aprs_util.dart';
@@ -76,6 +78,13 @@ class AprsIsManager {
   /// Maximum number of internet packets kept in memory for late-loading tabs,
   /// mirroring the on-disk history cap.
   static const int _maxHistoryInMemory = 1000;
+
+  /// Device-0 setting holding when the user last cleared APRS messages, as a
+  /// JSON map of conversation key (or [_allConversations]) to epoch ms. Used to
+  /// stop the aprs.fi backfill from re-adding messages the user cleared.
+  static const String _clearedSetting = 'AprsClearedConversations';
+  static const String _allConversations = '*';
+
   final DataBrokerClient _broker = DataBrokerClient();
 
   AprsIsClient? _client;
@@ -175,6 +184,11 @@ class AprsIsManager {
       name: 'ClearAprsPackets',
       callback: _onClearAprsPackets,
     );
+    _broker.subscribe(
+      deviceId: 1,
+      name: clearAprsConversationEvent,
+      callback: _onClearAprsConversation,
+    );
 
     // Messages delivered by the cloud push service (HTCloudServer) are handed
     // here so they are persisted and surfaced exactly like live APRS-IS
@@ -262,6 +276,83 @@ class AprsIsManager {
   void _onClearAprsPackets(int deviceId, String name, Object? data) {
     _historyPackets.clear();
     _history.clear();
+    _writeClearedTimes({
+      _allConversations: DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  /// Deletes the internet messages of one Messenger conversation
+  /// (`data['peer']`) from memory and disk, and remembers the clear so the
+  /// aprs.fi backfill does not bring them back.
+  void _onClearAprsConversation(int deviceId, String name, Object? data) {
+    final peer = data is Map ? data['peer']?.toString() : null;
+    if (peer == null || peer.isEmpty) return;
+    final local = _readLocalStation();
+    bool inConversation(AprsPacket aprs) {
+      final packet = aprs.packet;
+      if (packet == null) return false;
+      return aprsPacketConversationPeer(
+            aprs,
+            outgoing: !packet.incoming,
+            local: local,
+          ) ==
+          peer;
+    }
+
+    _historyPackets.removeWhere(inConversation);
+    _history.deleteWhere((rec) {
+      final aprs = _decodeHistoryRecord(rec);
+      return aprs != null && inConversation(aprs);
+    });
+    final cleared = _readClearedTimes();
+    cleared[peer] = DateTime.now().millisecondsSinceEpoch;
+    _writeClearedTimes(cleared);
+  }
+
+  AprsLocalStation _readLocalStation() => AprsLocalStation.fromSettings(
+    _broker.getValue<String>(0, 'CallSign', '') ?? '',
+    _broker.getValue<int>(0, 'StationId', 0) ?? 0,
+  );
+
+  Map<String, int> _readClearedTimes() {
+    final raw = _broker.getValue<String>(0, _clearedSetting, '') ?? '';
+    if (raw.isEmpty) return <String, int>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return <String, int>{};
+      return <String, int>{
+        for (final e in decoded.entries)
+          if (e.value is int) e.key.toString(): e.value as int,
+      };
+    } catch (_) {
+      return <String, int>{};
+    }
+  }
+
+  void _writeClearedTimes(Map<String, int> cleared) {
+    _broker.dispatch(
+      deviceId: 0,
+      name: _clearedSetting,
+      data: jsonEncode(cleared),
+      store: true,
+    );
+  }
+
+  /// Whether the user cleared [aprs] (all APRS messages, or its conversation)
+  /// after it was sent, in which case the aprs.fi backfill must skip it.
+  bool _isClearedByUser(AprsPacket aprs, {required bool outgoing}) {
+    final cleared = _readClearedTimes();
+    if (cleared.isEmpty) return false;
+    final time = aprs.packet?.time.millisecondsSinceEpoch ?? 0;
+    final all = cleared[_allConversations];
+    if (all != null && time <= all) return true;
+    final peer = aprsPacketConversationPeer(
+      aprs,
+      outgoing: outgoing,
+      local: _readLocalStation(),
+    );
+    final forPeer = peer == null ? null : cleared[peer];
+    return forPeer != null && time <= forPeer;
   }
 
   // ---------------------------------------------------------------------------
@@ -386,6 +477,7 @@ class AprsIsManager {
     final aprs = AprsPacket.parse(ax25);
     if (aprs == null || aprs.dataType != PacketDataType.message) return false;
     aprs.fromAprsIs = true;
+    if (_isClearedByUser(aprs, outgoing: sent)) return false;
 
     // Persist received messages so they survive a restart. Sent messages are
     // re-fetched from aprs.fi each run instead (the history store cannot record

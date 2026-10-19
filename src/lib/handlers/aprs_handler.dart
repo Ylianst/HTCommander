@@ -7,6 +7,7 @@ Ported from the C# `HTCommander.AprsHandler` class.
 */
 
 import '../aprs/aprs_auth.dart';
+import '../aprs/aprs_conversation.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../aprs/message_data.dart';
@@ -96,6 +97,11 @@ class AprsHandler {
       deviceId: _aprsDeviceId,
       name: 'ClearAprsPackets',
       callback: _onClearAprsPackets,
+    );
+    _broker.subscribe(
+      deviceId: _aprsDeviceId,
+      name: clearAprsConversationEvent,
+      callback: _onClearAprsConversation,
     );
 
     // One-shot history snapshot from the desktop host (web build served by the
@@ -359,6 +365,7 @@ class AprsHandler {
     for (final frame in data) {
       if (frame is! TncDataFragment) continue;
       if (frame.channelName != 'APRS') continue;
+      if (frame.aprsHidden) continue;
 
       final ax25Packet = AX25Packet.decode(frame);
       if (ax25Packet == null) continue;
@@ -683,6 +690,29 @@ class AprsHandler {
       data: null,
       store: false,
     );
+  }
+
+  /// Handles a [clearAprsConversationEvent] from the UI: drops the messages of
+  /// that conversation (`data['peer']`) from the in-memory history so a tab
+  /// rebuild does not bring them back. The PacketStore persists the change.
+  void _onClearAprsConversation(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    final peer = data is Map ? data['peer']?.toString() : null;
+    if (peer == null || peer.isEmpty) return;
+    final local = AprsLocalStation.fromSettings(
+      _broker.getValue<String>(0, 'CallSign', '') ?? '',
+      _broker.getValue<int>(0, 'StationId', 0) ?? 0,
+    );
+    _aprsFrames.removeWhere((p) {
+      final packet = p.packet;
+      if (packet == null) return false;
+      return aprsPacketConversationPeer(
+            p,
+            outgoing: !packet.incoming,
+            local: local,
+          ) ==
+          peer;
+    });
   }
 
   /// Disposes the handler, unsubscribing from the broker.

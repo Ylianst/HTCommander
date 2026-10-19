@@ -44,6 +44,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 
+import '../aprs/aprs_conversation.dart';
 import '../aprs/aprs_packet.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../allstar/allstar_client.dart' show allStarDeviceId;
@@ -434,6 +435,19 @@ class CommsHandler {
       deviceId: 1,
       name: 'ClearVoiceText',
       callback: _onClearVoiceText,
+    );
+
+    // Clearing APRS messages (all, or one conversation) also drops their copy
+    // in this history (kept for Android Auto) so they do not resurface.
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'ClearAprsPackets',
+      callback: _onClearAprsMessages,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: clearAprsConversationEvent,
+      callback: _onClearAprsMessages,
     );
 
     // One-shot history snapshot from the desktop host (web build served by the
@@ -2497,6 +2511,48 @@ class CommsHandler {
       store: false,
     );
     _broker.logInfo('[CommsHandler] Decoded text history cleared');
+  }
+
+  /// Removes APRS-channel messages from the history, in memory and in the
+  /// database: every one for `ClearAprsPackets`, or only those of the
+  /// conversation `data['peer']` for [clearAprsConversationEvent].
+  void _onClearAprsMessages(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    bool Function(DecodedTextEntry entry)? inConversation;
+    if (name == clearAprsConversationEvent) {
+      final peer = data is Map ? data['peer']?.toString() : null;
+      if (peer == null || peer.isEmpty) return;
+      final local = AprsLocalStation.fromSettings(
+        _broker.getValue<String>(0, 'CallSign', '') ?? '',
+        _broker.getValue<int>(0, 'StationId', 0) ?? 0,
+      );
+      inConversation = (e) =>
+          aprsConversationPeer(
+            sender: e.source ?? '',
+            addressee: e.destination ?? '',
+            text: e.text ?? '',
+            outgoing: !e.isReceived,
+            local: local,
+          ) ==
+          peer;
+    }
+    final before = _decodedTextHistory.length;
+    _decodedTextHistory.removeWhere(
+      (e) =>
+          e.encoding == VoiceTextEncodingType.aprs &&
+          (e.channel == 'APRS' || e.channel == 'APRS-IS') &&
+          (inConversation == null || inConversation(e)),
+    );
+    final dao = AppDatabase.instance?.comms;
+    if (dao != null) {
+      unawaited(
+        dao.deleteAprsMessages(where: inConversation).catchError((Object e) {
+          _broker.logError('[CommsHandler] Failed to delete APRS history: $e');
+          return 0;
+        }),
+      );
+    }
+    if (_decodedTextHistory.length != before) _dispatchDecodedTextHistory();
   }
 
   // ---------------------------------------------------------------------------
