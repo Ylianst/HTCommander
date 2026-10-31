@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:htcommander/dialogs/satellite_edit_dialog.dart';
 import 'package:htcommander/satellite/satellite_models.dart';
 import 'package:htcommander/satellite/user_satellite_store.dart';
 import 'package:satellite_observer/satellite_observer.dart';
@@ -42,6 +44,102 @@ TEVEL2-3
 ''';
 
 void main() {
+  testWidgets('creates a static satellite without TLE data', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    SatelliteEditResult? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () async {
+                result = await showSatelliteEditDialog(context);
+              },
+              child: const Text('Open editor'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open editor'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Name'),
+      'Reception test',
+    );
+    await tester.tap(find.text('Static test satellite'));
+    await tester.pumpAndSettle();
+    expect(find.text('TLE line 1'), findsNothing);
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Downlink / RX (MHz)'),
+      '145.825',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Uplink / TX (MHz)'),
+      '145.825',
+    );
+    await tester.tap(find.text('Save').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(result, isNotNull);
+    expect(result!.info.isStatic, isTrue);
+    expect(result!.info.noradId, lessThan(0));
+    expect(result!.info.tle.line1, isEmpty);
+    expect(result!.info.transponder.noradId, result!.info.noradId);
+    expect(result!.info.correctedDownlinkHz(7), 145825000);
+    expect(result!.info.correctedUplinkHz(-7), 145825000);
+    final store = UserSatelliteStore();
+    await store.upsert(result!.info, pinOrbit: result!.pinOrbit);
+    final imported = UserSatelliteStore();
+    await imported.importJson(store.toJson());
+    expect(imported.overrides[result!.info.noradId]!.isStatic, isTrue);
+  });
+
+  test(
+    'static satellite persists and keeps position and frequencies fixed',
+    () {
+      final info = SatelliteInfo(
+        isStatic: true,
+        tle: const SatelliteTle(
+          name: 'Reception test',
+          noradId: -1,
+          line1: '',
+          line2: '',
+        ),
+        transponder: const SatelliteTransponder(
+          noradId: -1,
+          name: 'Test',
+          uplinkHz: 145990000,
+          downlinkHz: 437800000,
+          mode: 'FM',
+          ctcssHz: null,
+          inverting: false,
+          status: 'active',
+        ),
+      );
+      final restored = SatelliteInfo.fromJson(info.toJson());
+      expect(restored.isStatic, isTrue);
+      for (final rate in [-7.0, 0.0, 7.0]) {
+        expect(restored.correctedDownlinkHz(rate), 437800000);
+        expect(restored.correctedUplinkHz(rate), 145990000);
+      }
+      final first = restored.staticPosition(DateTime.utc(2026));
+      final later = restored.staticPosition(DateTime.utc(2027));
+      expect(later.azimuthDeg, first.azimuthDeg);
+      expect(later.elevationDeg, first.elevationDeg);
+      expect(later.latitudeDeg, first.latitudeDeg);
+      expect(later.longitudeDeg, first.longitudeDeg);
+      expect(later.rangeRateKmS, 0);
+      expect(later.isVisible, isTrue);
+      final legacy = info.toJson()..remove('isStatic');
+      expect(SatelliteInfo.fromJson(legacy).isStatic, isFalse);
+    },
+  );
+
   group('SatelliteTle.parseThreeLine', () {
     test('parses every seed satellite with the right NORAD ids', () {
       final tles = SatelliteTle.parseThreeLine(_seedTle);
@@ -237,9 +335,9 @@ void main() {
         tle: SatelliteTle(
           name: name,
           noradId: norad,
-          line1: '1 ${norad}U 98067A   26209.15252568  .00010831  '
+            line1: '1 ${norad}U 98067A   26209.15252568  .00010831  '
               '00000+0  20282-3 0  9992',
-          line2: '2 $norad  51.6320  97.3682 0007093 345.6120  '
+            line2: '2 $norad  51.6320  97.3682 0007093 345.6120  '
               '14.4666 15.49220842578109',
         ),
         transponders: [
@@ -331,4 +429,3 @@ void main() {
     });
   });
 }
-

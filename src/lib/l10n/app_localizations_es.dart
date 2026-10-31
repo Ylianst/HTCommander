@@ -2894,13 +2894,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get commsSaveAsTitle => 'Guardar como';
 
   @override
-  String get commsExportCsv => 'Save as CSV...';
+  String get commsExportCsv => 'Guardar como CSV...';
 
   @override
-  String get commsExportTxt => 'Save as TXT...';
+  String get commsExportTxt => 'Guardar como TXT...';
 
   @override
-  String get commsNoMessagesToSave => 'There are no messages to save';
+  String get commsNoMessagesToSave => 'No hay mensajes para guardar';
 
   @override
   String get commsTransmitDisabledAprs =>
@@ -3553,7 +3553,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get chScan => 'Escaneo';
 
   @override
-  String get chTalkAround => 'Talk around';
+  String get chTalkAround => 'Modo directo';
 
   @override
   String get chDeemphasis => 'Desénfasis';
@@ -3618,7 +3618,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get cdTxDisabled => 'Transmisión desactivada';
 
   @override
-  String get cdTalkAround => 'Talk around';
+  String get cdTalkAround => 'Modo directo';
 
   @override
   String get cdEmpty => '(vacío)';

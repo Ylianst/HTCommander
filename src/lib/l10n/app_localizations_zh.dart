@@ -2798,13 +2798,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commsSaveAsTitle => '另存为';
 
   @override
-  String get commsExportCsv => 'Save as CSV...';
+  String get commsExportCsv => '另存为CSV...';
 
   @override
-  String get commsExportTxt => 'Save as TXT...';
+  String get commsExportTxt => '另存为TXT...';
 
   @override
-  String get commsNoMessagesToSave => 'There are no messages to save';
+  String get commsNoMessagesToSave => '没有可保存的消息';
 
   @override
   String get commsTransmitDisabledAprs => '当 VFO A 设置为 APRS 信道时，发射被禁用。';

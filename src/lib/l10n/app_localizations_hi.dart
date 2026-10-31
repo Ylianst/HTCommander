@@ -2874,13 +2874,13 @@ class AppLocalizationsHi extends AppLocalizations {
   String get commsSaveAsTitle => 'इस रूप में सहेजें';
 
   @override
-  String get commsExportCsv => 'Save as CSV...';
+  String get commsExportCsv => 'CSV के रूप में सहेजें...';
 
   @override
-  String get commsExportTxt => 'Save as TXT...';
+  String get commsExportTxt => 'TXT के रूप में सहेजें...';
 
   @override
-  String get commsNoMessagesToSave => 'There are no messages to save';
+  String get commsNoMessagesToSave => 'सहेजने के लिए कोई संदेश नहीं है';
 
   @override
   String get commsTransmitDisabledAprs =>

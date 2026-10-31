@@ -30,7 +30,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get menuRadios => 'Radio';
 
   @override
-  String get menuDualWatch => 'Dual-Watch';
+  String get menuDualWatch => 'Doppio ascolto';
 
   @override
   String get menuScan => 'Scansione';
@@ -283,7 +283,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get menuAbout => 'Informazioni su...';
 
   @override
-  String get tabComms => 'Comms';
+  String get tabComms => 'Comunicazioni';
 
   @override
   String get tabAudio => 'Audio';
@@ -395,7 +395,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get settingsTabAprs => 'APRS';
 
   @override
-  String get settingsTabComms => 'Comms';
+  String get settingsTabComms => 'Comunicazioni';
 
   @override
   String get settingsTabWinlink => 'Winlink';
@@ -663,7 +663,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get settingsAprsIsEnable => 'Abilita APRS-IS';
 
   @override
-  String get settingsAprsIsPasscode => 'Passcode';
+  String get settingsAprsIsPasscode => 'Codice di accesso';
 
   @override
   String settingsAprsIsPasscodeFor(String callSign) {
@@ -2540,7 +2540,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get mapShowMeshCore => 'Mostra stazioni MeshCore';
 
   @override
-  String get meshTypeCompanion => 'Companion';
+  String get meshTypeCompanion => 'Radio associata';
 
   @override
   String get meshTypeRepeater => 'Ripetitore';
@@ -2895,13 +2895,13 @@ class AppLocalizationsIt extends AppLocalizations {
   String get commsSaveAsTitle => 'Salva con nome';
 
   @override
-  String get commsExportCsv => 'Save as CSV...';
+  String get commsExportCsv => 'Salva come CSV...';
 
   @override
-  String get commsExportTxt => 'Save as TXT...';
+  String get commsExportTxt => 'Salva come TXT...';
 
   @override
-  String get commsNoMessagesToSave => 'There are no messages to save';
+  String get commsNoMessagesToSave => 'Non ci sono messaggi da salvare';
 
   @override
   String get commsTransmitDisabledAprs =>
@@ -3554,7 +3554,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get chScan => 'Scansione';
 
   @override
-  String get chTalkAround => 'Talk around';
+  String get chTalkAround => 'Modalità diretta';
 
   @override
   String get chDeemphasis => 'De-enfasi';
@@ -3618,7 +3618,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get cdTxDisabled => 'TX disabilitata';
 
   @override
-  String get cdTalkAround => 'Talk Around';
+  String get cdTalkAround => 'Modalità diretta';
 
   @override
   String get cdEmpty => '(vuoto)';

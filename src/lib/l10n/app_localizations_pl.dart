@@ -2888,13 +2888,13 @@ class AppLocalizationsPl extends AppLocalizations {
   String get commsSaveAsTitle => 'Zapisz jako';
 
   @override
-  String get commsExportCsv => 'Save as CSV...';
+  String get commsExportCsv => 'Zapisz jako CSV...';
 
   @override
-  String get commsExportTxt => 'Save as TXT...';
+  String get commsExportTxt => 'Zapisz jako TXT...';
 
   @override
-  String get commsNoMessagesToSave => 'There are no messages to save';
+  String get commsNoMessagesToSave => 'Brak wiadomości do zapisania';
 
   @override
   String get commsTransmitDisabledAprs =>
@@ -3548,7 +3548,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get chScan => 'Skanowanie';
 
   @override
-  String get chTalkAround => 'Talk around';
+  String get chTalkAround => 'Tryb bezpośredni';
 
   @override
   String get chDeemphasis => 'Deemphasis';
@@ -3614,7 +3614,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get cdTxDisabled => 'Nadawanie wyłączone';
 
   @override
-  String get cdTalkAround => 'Talk around';
+  String get cdTalkAround => 'Tryb bezpośredni';
 
   @override
   String get cdEmpty => '(puste)';

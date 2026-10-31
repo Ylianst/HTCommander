@@ -1028,6 +1028,7 @@ class _SatelliteTabState extends State<SatelliteTab> {
   }
 
   String _listSubtitle(SatelliteInfo sat) {
+    if (sat.isStatic) return 'Static test satellite';
     final pos = _positions[sat.noradId];
     if (pos != null && pos.isVisible) {
       return 'Overhead \u2022 az ${pos.azimuthDeg.round()}\u00b0';
@@ -1074,7 +1075,9 @@ class _SatelliteTabState extends State<SatelliteTab> {
         _section(
           context,
           icon: Icons.settings_input_antenna,
-          title: 'Usages & frequencies (Doppler-corrected)',
+          title: sat.isStatic
+              ? 'Usages & frequencies'
+              : 'Usages & frequencies (Doppler-corrected)',
           child: _buildFrequencySection(context, sat, pos),
         ),
         _section(
@@ -1137,11 +1140,12 @@ class _SatelliteTabState extends State<SatelliteTab> {
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    _pill(
-                      context,
-                      'NORAD ${sat.noradId}',
-                      onTap: () => _openN2yo(sat.noradId),
-                    ),
+                    if (!sat.isStatic)
+                      _pill(
+                        context,
+                        'NORAD ${sat.noradId}',
+                        onTap: () => _openN2yo(sat.noradId),
+                      ),
                     _pill(
                       context,
                       visible ? 'Above horizon' : 'Below horizon',
@@ -1446,7 +1450,7 @@ class _SatelliteTabState extends State<SatelliteTab> {
         _preferredRadioId >= 0 &&
         !_radioBusyOther &&
         downBase != null &&
-        _observerKnown;
+        (_observerKnown || _catalog[t.noradId]?.isStatic == true);
 
     final block = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1587,6 +1591,9 @@ class _SatelliteTabState extends State<SatelliteTab> {
   }
 
   List<Widget> _buildPassRows(BuildContext context) {
+    if (_catalog[_selectedId]?.isStatic == true) {
+      return [const Text('Static test satellite')];
+    }
     if (_selectedPasses.isEmpty) {
       return [
         Text(

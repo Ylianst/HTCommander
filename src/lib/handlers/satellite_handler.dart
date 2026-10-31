@@ -434,11 +434,18 @@ class SatelliteHandler {
         // usages replace the online/seed data. The orbit comes from the stored
         // TLE when pinned or when the bird isn't in the online catalog;
         // otherwise the live TLE keeps its elements up to date.
-        final tle = (_userStore.isOrbitPinned(noradId) || liveTle == null)
+        final tle =
+            (override.isStatic ||
+                _userStore.isOrbitPinned(noradId) ||
+                liveTle == null)
             ? override.tle
             : liveTle;
         final usages = _orderUsages(override.transponders);
-        _catalog[noradId] = SatelliteInfo(tle: tle, transponders: usages);
+        _catalog[noradId] = SatelliteInfo(
+          tle: tle,
+          transponders: usages,
+          isStatic: override.isStatic,
+        );
         continue;
       }
 
@@ -464,6 +471,7 @@ class SatelliteHandler {
     final observer = _observer;
     if (observer == null) return;
     for (final info in _catalog.values) {
+      if (info.isStatic) continue;
       try {
         final elements = so.GpElements.fromTle(
           info.tle.line1,
@@ -509,7 +517,7 @@ class SatelliteHandler {
     if (mLat != null && mLon != null && (mLat != 0 || mLon != 0)) {
       lat = mLat.toDouble();
       lon = mLon.toDouble();
-      altM = (_broker.getValue<num>(_settingsDeviceId, 'SatObserverAltM', 0) ?? 0)
+        altM = (_broker.getValue<num>(_settingsDeviceId, 'SatObserverAltM', 0) ?? 0)
           .toDouble();
     } else {
       final gps = _broker.getValue<GpsData>(_gpsDeviceId, 'GpsData', null);
@@ -580,9 +588,12 @@ class SatelliteHandler {
   }
 
   void _computeAndPublishPositions() {
-    if (_disposed || _observers.isEmpty) return;
+    if (_disposed) return;
     final now = DateTime.now().toUtc();
-    final positions = <SatellitePosition>[];
+    final positions = <SatellitePosition>[
+      for (final info in _catalog.values)
+        if (info.isStatic) info.staticPosition(now),
+    ];
     for (final entry in _observers.entries) {
       final info = _catalog[entry.key];
       if (info == null) continue;
@@ -630,13 +641,36 @@ class SatelliteHandler {
     if (radioId == null || norad == null) return;
     final observer = _observers[norad];
     final info = _catalog[norad];
-    if (observer == null || info == null) return;
+    if (info == null || (!info.isStatic && observer == null)) return;
     if (_trackUsageIndex < 0 || _trackUsageIndex >= info.transponders.length) {
       return;
     }
     final usage = info.transponders[_trackUsageIndex];
 
     final now = DateTime.now().toUtc();
+    if (info.isStatic) {
+      final rx = usage.downlinkHz;
+      if (rx == null) return;
+      final position = info.staticPosition(now);
+      _broker.dispatch(
+        deviceId: radioId,
+        name: 'SatelliteTrackUpdate',
+        data: SatelliteTrackParams(
+          name: info.name,
+          rxFreqHz: rx,
+          txFreqHz: usage.uplinkHz ?? 0,
+          txCtcssHz: usage.ctcssHz,
+          azimuthDeg: position.azimuthDeg,
+          elevationDeg: position.elevationDeg,
+          rangeKm: position.rangeKm,
+          altitudeKm: position.altitudeKm,
+          secondsToNextPass: 0,
+        ),
+        store: false,
+      );
+      return;
+    }
+    if (observer == null) return;
     final so.LookAngle look;
     double altitudeKm;
     try {
@@ -673,7 +707,7 @@ class SatelliteHandler {
         }
       }
       final aos = _trackNextAosUtc;
-      secondsToNextPass =
+        secondsToNextPass =
           aos == null ? 0 : aos.difference(now).inSeconds.clamp(0, 0xFFFF);
     }
 

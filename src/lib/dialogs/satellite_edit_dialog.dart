@@ -46,12 +46,16 @@ class _SatelliteEditDialogState extends State<_SatelliteEditDialog> {
   late final TextEditingController _line1;
   late final TextEditingController _line2;
   late final List<SatelliteTransponder> _usages;
+  late bool _isStatic;
+  late final int _staticId;
   String? _usageError;
 
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
+    _isStatic = e?.isStatic ?? false;
+    _staticId = e?.noradId ?? -DateTime.now().microsecondsSinceEpoch;
     _name = TextEditingController(text: e?.tle.name ?? '');
     _line1 = TextEditingController(text: e?.tle.line1 ?? '');
     _line2 = TextEditingController(text: e?.tle.line2 ?? '');
@@ -69,6 +73,14 @@ class _SatelliteEditDialogState extends State<_SatelliteEditDialog> {
   /// Parses the current name + TLE lines into a [SatelliteTle], or null when the
   /// lines don't form a valid three-line element.
   SatelliteTle? _parseTle() {
+    if (_isStatic) {
+      return SatelliteTle(
+        name: _name.text.trim(),
+        noradId: _staticId,
+        line1: _line1.text.trim(),
+        line2: _line2.text.trim(),
+      );
+    }
     final tles = SatelliteTle.parseThreeLine(
       '${_name.text.trim()}\n${_line1.text.trim()}\n${_line2.text.trim()}',
     );
@@ -134,15 +146,16 @@ class _SatelliteEditDialogState extends State<_SatelliteEditDialog> {
     ];
 
     final original = widget.existing?.tle;
-    final orbitChanged = original == null ||
+    final orbitChanged =
+        original == null ||
         original.line1.trim() != tle.line1 ||
         original.line2.trim() != tle.line2 ||
         original.name.trim() != tle.name;
 
     Navigator.of(context).pop(
       SatelliteEditResult(
-        SatelliteInfo(tle: tle, transponders: usages),
-        orbitChanged,
+        SatelliteInfo(tle: tle, transponders: usages, isStatic: _isStatic),
+        orbitChanged || _isStatic,
       ),
     );
   }
@@ -186,46 +199,55 @@ class _SatelliteEditDialogState extends State<_SatelliteEditDialog> {
                             (v ?? '').trim().isEmpty ? 'Required' : null,
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        'Orbital elements (TLE)',
-                        style: Theme.of(context).textTheme.labelLarge,
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Static test satellite'),
+                        value: _isStatic,
+                        onChanged: (value) =>
+                            setState(() => _isStatic = value ?? false),
                       ),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        controller: _line1,
-                        decoration: const InputDecoration(
-                          labelText: 'TLE line 1',
-                          isDense: true,
+                      if (!_isStatic) ...[
+                        Text(
+                          'Orbital elements (TLE)',
+                          style: Theme.of(context).textTheme.labelLarge,
                         ),
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 12,
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _line1,
+                          decoration: const InputDecoration(
+                            labelText: 'TLE line 1',
+                            isDense: true,
+                          ),
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                          ),
+                          validator: (v) => _validateLine(v, '1 '),
                         ),
-                        validator: (v) => _validateLine(v, '1 '),
-                      ),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _line2,
-                        decoration: const InputDecoration(
-                          labelText: 'TLE line 2',
-                          isDense: true,
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _line2,
+                          decoration: const InputDecoration(
+                            labelText: 'TLE line 2',
+                            isDense: true,
+                          ),
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                          ),
+                          validator: (v) => _validateLine(v, '2 '),
+                          onChanged: (_) => setState(() {}),
                         ),
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 12,
+                        const SizedBox(height: 4),
+                        Text(
+                          'NORAD ${_currentNorad() == 0 ? '—' : _currentNorad()}. '
+                          'Paste a two-line element from Celestrak or AMSAT.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: scheme.onSurfaceVariant,
+                          ),
                         ),
-                        validator: (v) => _validateLine(v, '2 '),
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'NORAD ${_currentNorad() == 0 ? '—' : _currentNorad()}. '
-                        'Paste a two-line element from Celestrak or AMSAT.',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
+                      ],
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -279,8 +301,10 @@ class _SatelliteEditDialogState extends State<_SatelliteEditDialog> {
                                     onPressed: () => _editUsage(i),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete_outline,
-                                        size: 20),
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      size: 20,
+                                    ),
                                     tooltip: 'Delete usage',
                                     onPressed: () => _deleteUsage(i),
                                   ),

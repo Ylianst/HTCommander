@@ -2823,13 +2823,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get commsSaveAsTitle => '名前を付けて保存';
 
   @override
-  String get commsExportCsv => 'Save as CSV...';
+  String get commsExportCsv => 'CSV形式で保存...';
 
   @override
-  String get commsExportTxt => 'Save as TXT...';
+  String get commsExportTxt => 'TXT形式で保存...';
 
   @override
-  String get commsNoMessagesToSave => 'There are no messages to save';
+  String get commsNoMessagesToSave => '保存するメッセージがありません';
 
   @override
   String get commsTransmitDisabledAprs =>
