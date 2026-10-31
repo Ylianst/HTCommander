@@ -5248,6 +5248,24 @@ abstract class AppLocalizations {
   /// **'Save As'**
   String get commsSaveAsTitle;
 
+  /// No description provided for @commsExportCsv.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as CSV...'**
+  String get commsExportCsv;
+
+  /// No description provided for @commsExportTxt.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as TXT...'**
+  String get commsExportTxt;
+
+  /// No description provided for @commsNoMessagesToSave.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no messages to save'**
+  String get commsNoMessagesToSave;
+
   /// No description provided for @commsTransmitDisabledAprs.
   ///
   /// In en, this message translates to:

@@ -53,12 +53,15 @@ import '../radio/bss_packet.dart';
 import '../radio/cw_monitor.dart';
 import '../radio/morse_code_engine.dart';
 import '../radio/radio.dart';
+import '../radio/radio_models.dart'
+    show kAprsSatLockUsage, kSatelliteLockUsages;
 import '../radio/tnc_data_fragment.dart';
 import '../radiosonde/radiosonde_fix.dart';
 import '../radiosonde/radiosonde_monitor.dart';
 import '../sarsat/sarsat_1g_decoder.dart';
 import '../sarsat/sarsat_country_codes.dart';
 import '../sarsat/sarsat_monitor.dart';
+import '../satellite/satellite_models.dart' show SatelliteTrackParams;
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/db/app_database.dart';
@@ -310,6 +313,9 @@ class CommsHandler {
   // ignore: unused_field
   bool _currentAudioIsTransmit = false;
 
+  // Tracked satellite name per radio; labels traffic received in satellite mode.
+  final Map<int, String> _satelliteNames = {};
+
   // Speech-to-text state. STT is always-on (gated by the persisted
   // `SpeechToTextEnabled` setting), independent of the voice-handler enable
   // state, mirroring the recording and SSTV features. It tracks whichever radio
@@ -485,6 +491,12 @@ class CommsHandler {
       deviceId: DataBroker.allDevices,
       name: 'AudioDataAvailable',
       callback: _onAudioDataAvailable,
+    );
+
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'SatelliteTrackUpdate',
+      callback: _onSatelliteTrackUpdate,
     );
 
     // Outgoing voice PCM (PTT / spoken text / Morse / DTMF) so the recorder can
@@ -1037,6 +1049,40 @@ class CommsHandler {
   // Audio-run lifecycle and frames
   // ---------------------------------------------------------------------------
 
+  void _onSatelliteTrackUpdate(int deviceId, String name, Object? data) {
+    if (data is SatelliteTrackParams) _satelliteNames[deviceId] = data.name;
+  }
+
+  static bool _isSatelliteUsage(Object? usage) =>
+      kSatelliteLockUsages.contains(usage);
+
+  /// Received traffic belongs in Comms when the radio is unlocked or tracking a
+  /// satellite.
+  static bool _isCommsUsage(Object? usage) =>
+      usage == null || _isSatelliteUsage(usage);
+
+  /// Lock usage of [deviceId] when it is in a satellite mode, else null.
+  String? _satelliteLockUsage(int deviceId) {
+    final ls = DataBroker.getValueDynamic(deviceId, 'LockState');
+    if (ls is! Map || ls['isLocked'] != true) return null;
+    final usage = ls['usage'];
+    return _isSatelliteUsage(usage) ? usage as String : null;
+  }
+
+  /// Channel label for received traffic. In satellite mode the radio is steered
+  /// via the VFO, so the stored channel name is stale; use the satellite name.
+  String _rxChannelName(int deviceId, Object? usage, String channelName) {
+    if (!_isSatelliteUsage(usage)) return channelName;
+    final sat = _satelliteNames[deviceId];
+    return (sat != null && sat.isNotEmpty) ? sat : 'Satellite';
+  }
+
+  /// Channel mute flag, ignored in satellite mode (it belongs to the stale
+  /// stored channel).
+  static bool _rxMuted(Map data) =>
+      !_isSatelliteUsage(data['usage'] ?? data['Usage']) &&
+      ((data['muted'] ?? data['Muted']) as bool? ?? false);
+
   void _onAudioDataStart(int deviceId, String name, Object? data) {
     // Recording is independent of the voice-handler enable state: it captures
     // whichever radio is streaming audio while recording is turned on.
@@ -1047,8 +1093,11 @@ class CommsHandler {
     // Speech-to-text segment start (deferred) for the enabled target radio.
     if (deviceId == _targetDeviceId && _enabled) {
       if (data is Map) {
-        final cn =
-            (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+        final cn = _rxChannelName(
+          deviceId,
+          data['usage'] ?? data['Usage'],
+          (data['channelName'] ?? data['ChannelName']) as String? ?? '',
+        );
         if (cn.isNotEmpty) _currentChannelName = cn;
         _currentAudioIsTransmit =
             (data['transmit'] ?? data['Transmit']) as bool? ?? false;
@@ -1075,15 +1124,19 @@ class CommsHandler {
     bool transmit = false;
     Object? usage;
     if (data is Map) {
-      final cn = (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+      usage = data['usage'] ?? data['Usage'];
+      final cn = _rxChannelName(
+        deviceId,
+        usage,
+        (data['channelName'] ?? data['ChannelName']) as String? ?? '',
+      );
       if (cn.isNotEmpty) channel = cn;
       transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
-      usage = data['usage'] ?? data['Usage'];
     }
 
     // Only transcribe received audio on a normal channel (not APRS, not when
-    // the radio is locked to a usage).
-    if (transmit || usage != null || channel == 'APRS') return;
+    // the radio is locked to a non-satellite usage).
+    if (transmit || !_isCommsUsage(usage) || channel == 'APRS') return;
 
     // If a segment is already active on another device, leave it alone.
     if (_sttSegmentActive && deviceId != _sttDeviceId) return;
@@ -1196,10 +1249,15 @@ class CommsHandler {
 
     final usage = data['usage'] ?? data['Usage'];
     final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
-    final muted = (data['muted'] ?? data['Muted']) as bool? ?? false;
-    final channelName =
-        (data['channelName'] ?? data['ChannelName']) as String? ?? '';
-    if (usage != null || transmit || muted || channelName == 'APRS') return;
+    final muted = _rxMuted(data);
+    final channelName = _rxChannelName(
+      deviceId,
+      usage,
+      (data['channelName'] ?? data['ChannelName']) as String? ?? '',
+    );
+    if (!_isCommsUsage(usage) || transmit || muted || channelName == 'APRS') {
+      return;
+    }
 
     // If a segment is active on a different device, leave it alone.
     if (_sttSegmentActive && deviceId != _sttDeviceId) return;
@@ -1248,16 +1306,19 @@ class CommsHandler {
         deviceId == _recordingDeviceId &&
         !_recordingIsTransmit) {
       final usage = data['usage'] ?? data['Usage'];
-      final muted = (data['muted'] ?? data['Muted']) as bool? ?? false;
+      final muted = _rxMuted(data);
       final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
       // Received-audio recording only. Transmitted audio is captured from the
       // TransmitVoicePCM stream (see _onTransmitVoicePcmRecord), so a radio's
       // transmit "echo" frames are ignored here to avoid double-recording.
-      if (usage == null && !muted && !transmit) {
+      if (_isCommsUsage(usage) && !muted && !transmit) {
         // Capture the channel name from the audio frames; this resolves the
         // recording's channel even when it wasn't known at the audio-run start.
-        final frameChannel =
-            (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+        final frameChannel = _rxChannelName(
+          deviceId,
+          usage,
+          (data['channelName'] ?? data['ChannelName']) as String? ?? '',
+        );
         if (frameChannel.isNotEmpty && frameChannel != 'APRS') {
           _currentChannelName = frameChannel;
           if (_recordingChannel.isEmpty) _recordingChannel = frameChannel;
@@ -1288,12 +1349,15 @@ class CommsHandler {
     if (monitor != null && deviceId > 0) {
       final usage = data['usage'] ?? data['Usage'];
       final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
-      final muted = (data['muted'] ?? data['Muted']) as bool? ?? false;
-      final channelName =
-          (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+      final muted = _rxMuted(data);
+      final channelName = _rxChannelName(
+        deviceId,
+        usage,
+        (data['channelName'] ?? data['ChannelName']) as String? ?? '',
+      );
       // Decode SSTV even on muted channels: muting silences playback but we
       // still want to detect and decode incoming SSTV images.
-      if (usage == null && !transmit && channelName != 'APRS') {
+      if (_isCommsUsage(usage) && !transmit && channelName != 'APRS') {
         // Lock onto a single device for the duration of a decode.
         if (!_sstvDecoding) _sstvDeviceId = deviceId;
         if (deviceId == _sstvDeviceId) {
@@ -1320,9 +1384,12 @@ class CommsHandler {
     if (cw != null && deviceId > 0) {
       final usage = data['usage'] ?? data['Usage'];
       final transmit = (data['transmit'] ?? data['Transmit']) as bool? ?? false;
-      final channelName =
-          (data['channelName'] ?? data['ChannelName']) as String? ?? '';
-      if (usage == null && !transmit && channelName != 'APRS') {
+      final channelName = _rxChannelName(
+        deviceId,
+        usage,
+        (data['channelName'] ?? data['ChannelName']) as String? ?? '',
+      );
+      if (_isCommsUsage(usage) && !transmit && channelName != 'APRS') {
         if (_cwDeviceId <= 0) _cwDeviceId = deviceId;
         if (deviceId == _cwDeviceId) {
           _cwEmitDeviceId = deviceId;
@@ -1422,16 +1489,19 @@ class CommsHandler {
 
   void _handleRecordingStart(int deviceId, Object? data) {
     if (data is! Map) return;
-    // Skip if the radio is locked to a usage.
+    // Skip if the radio is locked to a non-satellite usage.
     final usage = data['usage'] ?? data['Usage'];
-    if (usage != null) return;
+    if (!_isCommsUsage(usage)) return;
     // Transmitted audio is captured from the TransmitVoicePCM stream instead of
     // the radio's transmit "echo", so ignore transmit audio runs here.
     if ((data['transmit'] ?? data['Transmit']) as bool? ?? false) return;
     // Don't record audio coming in on a muted channel.
-    final muted = (data['muted'] ?? data['Muted']) as bool? ?? false;
-    if (muted) return;
-    var channel = (data['channelName'] ?? data['ChannelName']) as String? ?? '';
+    if (_rxMuted(data)) return;
+    var channel = _rxChannelName(
+      deviceId,
+      usage,
+      (data['channelName'] ?? data['ChannelName']) as String? ?? '',
+    );
     // Fall back to the last known channel name if this event didn't carry one
     // (e.g. channel info had not finished loading when the audio run started).
     if (channel.isEmpty) channel = _currentChannelName;
@@ -2561,6 +2631,9 @@ class CommsHandler {
 
   void _onAprsMessageReceived(int deviceId, String name, Object? data) {
     if (_disposed || data is! Map) return;
+    // APRSSat frames are already added (with the satellite label) by
+    // _onUniqueDataFrame.
+    if (_satelliteLockUsage(deviceId) == kAprsSatLockUsage) return;
     final text = data['text'] as String? ?? '';
     if (text.isEmpty) return;
     final rawTime = data['time'];
@@ -2589,12 +2662,17 @@ class CommsHandler {
     if (data is! TncDataFragment) return;
     final frame = data;
 
-    // Only process frames with no usage (unassigned packets).
-    final usage = frame.usage;
-    if (usage != null && usage.isNotEmpty) return;
+    // Only process unassigned frames, or any frame while tracking a satellite.
+    // 'Satellite' mode does not tag frames, so also consult the lock state.
+    final usage = (frame.usage != null && frame.usage!.isNotEmpty)
+        ? frame.usage
+        : _satelliteLockUsage(deviceId);
+    final satellite = _isSatelliteUsage(usage);
+    if (usage != null && !satellite) return;
 
     // Skip frames from the APRS channel (handled by the APRS handler).
-    if (frame.channelName == 'APRS') return;
+    if (!satellite && frame.channelName == 'APRS') return;
+    final channel = _rxChannelName(deviceId, usage, frame.channelName);
 
     // Try to decode the frame as a BSS packet first.
     final bssPacket = BSSPacket.decode(frame.data);
@@ -2627,7 +2705,7 @@ class CommsHandler {
         _addDataPacketEntry(
           deviceId: deviceId,
           text: message,
-          channel: frame.channelName,
+          channel: channel,
           time: frame.time,
           encoding: encoding,
           source: bssPacket.callsign,
@@ -2662,7 +2740,7 @@ class CommsHandler {
         _addDataPacketEntry(
           deviceId: deviceId,
           text: aprsPacket.comment,
-          channel: frame.channelName,
+          channel: channel,
           time: frame.time,
           encoding: VoiceTextEncodingType.aprs,
           source: source,
@@ -2677,7 +2755,7 @@ class CommsHandler {
         _addDataPacketEntry(
           deviceId: deviceId,
           text: aprsPacket.messageData.msgText,
-          channel: frame.channelName,
+          channel: channel,
           time: frame.time,
           encoding: VoiceTextEncodingType.aprs,
           source: source,
@@ -2703,7 +2781,7 @@ class CommsHandler {
     _addDataPacketEntry(
       deviceId: deviceId,
       text: messageText,
-      channel: frame.channelName,
+      channel: channel,
       time: frame.time,
       encoding: VoiceTextEncodingType.ax25,
       source: source,

@@ -45,6 +45,8 @@ import '../models/station_info.dart';
 import '../radio/radio_models.dart' as radio;
 import '../radio/ax25_packet.dart';
 import '../utils/channel_share.dart';
+import '../utils/comms_export.dart';
+import '../dialogs/message_details_dialog.dart' show CommsMessageDetails;
 
 /// A configured APRS route (a display name plus a comma-separated path).
 class _AprsRouteDef {
@@ -2996,6 +2998,24 @@ class _AprsTabState extends State<AprsTab>
           ),
         const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
+          value: 'exportCsv',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          enabled: _hasContent,
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.commsExportCsv)],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'exportTxt',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          enabled: _hasContent,
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.commsExportTxt)],
+          ),
+        ),
+        PopupMenuItem<String>(
           value: 'clear',
           height: menuItemHeight,
           padding: menuItemPadding,
@@ -3041,6 +3061,12 @@ class _AprsTabState extends State<AprsTab>
         case 'digipeater':
           if (context.mounted) showDigipeaterDialog(context);
           break;
+        case 'exportCsv':
+          _exportVisibleMessages(CommsExportFormat.csv);
+          break;
+        case 'exportTxt':
+          _exportVisibleMessages(CommsExportFormat.txt);
+          break;
         case 'clear':
           _clearMessages();
           break;
@@ -3060,6 +3086,82 @@ class _AprsTabState extends State<AprsTab>
   Future<void> _detachWindow() async {
     await windowService.createWindow('aprs');
   }
+
+  /// Saves the messages currently shown in the open APRS or MeshCore view.
+  Future<void> _exportVisibleMessages(CommsExportFormat format) async {
+    if (!_hasContent) return;
+    final List<ChatMessage> messages;
+    if (_inMeshView) {
+      final sel = _selectedMeshParts;
+      messages = [
+        for (final m in _meshMessages)
+          if (sel == null || (m.kind == sel.kind && m.peer == sel.peer))
+            _meshExportMessage(m),
+      ];
+    } else {
+      messages = [for (final m in _messages) _aprsExportMessage(m)];
+    }
+    if (messages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).commsNoMessagesToSave)),
+      );
+      return;
+    }
+    await saveMessagesToFile(context, messages, format, 'aprs');
+  }
+
+  ChatMessage _aprsExportMessage(ChatMessage m) {
+    final e = m.tag;
+    if (e is! _AprsEntry) return m;
+    final addressee = e.aprsPacket.messageData.addressee.trim();
+    final fromAprsIs = e.aprsPacket.fromAprsIs;
+    return _withDetails(
+      m,
+      CommsMessageDetails(
+        encoding: fromAprsIs ? 'APRS-IS' : 'APRS',
+        time: e.time,
+        channel: fromAprsIs ? 'APRS-IS' : e.packet.channelName,
+        isReceived: !e.sender,
+        source: e.senderCallsign,
+        destination: addressee.isNotEmpty ? addressee : e.peerCallsign,
+        latitude: e.latitude,
+        longitude: e.longitude,
+        text: e.messageText.trim(),
+      ),
+    );
+  }
+
+  ChatMessage _meshExportMessage(MeshCoreMessage m) {
+    final title = _meshTitle(m.kind, m.peer);
+    final group = m.kind == MeshCoreKind.group;
+    final self = _meshSelfName.isEmpty ? null : _meshSelfName;
+    return _withDetails(
+      _meshToChat(m, AppLocalizations.of(context)),
+      CommsMessageDetails(
+        encoding: 'MeshCore',
+        time: m.time,
+        channel: group ? title : 'Direct',
+        isReceived: !m.outgoing,
+        source: m.outgoing ? (self ?? m.sender) : (group ? m.sender : title),
+        destination: m.outgoing ? title : (group ? title : self),
+        text: m.text,
+      ),
+    );
+  }
+
+  ChatMessage _withDetails(ChatMessage m, CommsMessageDetails details) =>
+      ChatMessage(
+        id: m.id,
+        route: m.route,
+        senderCallsign: m.senderCallsign,
+        message: m.message,
+        time: m.time,
+        isSender: m.isSender,
+        authState: m.authState,
+        latitude: m.latitude,
+        longitude: m.longitude,
+        tag: details,
+      );
 
   Future<void> _removeMeshGroup() async {
     final sel = _selectedMeshParts;

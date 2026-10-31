@@ -10,6 +10,10 @@ In the "File" -> "Settings" -> "APRS" dialog box, you can add more APRS routes. 
 
 APRS telemetry messages will show up on the [map tab](https://github.com/Ylianst/HTCommander/blob/main/docs/Map.md), and you can right click on any APRS message to get extra details or to show a mini-map of the location of the station.
 
+## Saving Messages
+
+While a conversation or the "All Messages" view is open, use **Save as CSV...** or **Save as TXT...** from the APRS tab menu to save the messages currently shown (respecting the telemetry and internet-traffic filters). The options are grayed out on the conversation list. The file format is the same as the [Comms tab export](https://github.com/Ylianst/HTCommander/blob/main/docs/Voice.md#exporting-comms-conversations); the type column is `APRS`, `APRS-IS` or `MeshCore`.
+
 Extra APRS Features:
 - [APRS SMS](https://github.com/Ylianst/HTCommander/blob/main/docs/APRS-SMS.md)
 - [APRS Weather](https://github.com/Ylianst/HTCommander/blob/main/docs/APRS-Weather.md)

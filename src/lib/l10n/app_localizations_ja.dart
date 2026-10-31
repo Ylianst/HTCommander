@@ -2823,6 +2823,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get commsSaveAsTitle => '名前を付けて保存';
 
   @override
+  String get commsExportCsv => 'Save as CSV...';
+
+  @override
+  String get commsExportTxt => 'Save as TXT...';
+
+  @override
+  String get commsNoMessagesToSave => 'There are no messages to save';
+
+  @override
   String get commsTransmitDisabledAprs =>
       'VFO A が APRS チャンネルに設定されている場合、送信は無効になります。';
 

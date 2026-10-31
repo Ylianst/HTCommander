@@ -39,6 +39,7 @@ import '../handlers/android_speech_to_text_engine.dart';
 import '../models/radio_models.dart';
 import '../radio/radio_models.dart' as radio;
 import '../utils/channel_share.dart';
+import '../utils/comms_export.dart';
 import '../utils/format_utils.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../allstar/allstar_client.dart' show allStarDeviceId;
@@ -2161,6 +2162,9 @@ class _CommsTabState extends State<CommsTab>
     );
   }
 
+  Future<void> _exportConversation(CommsExportFormat format) =>
+      saveMessagesToFile(context, List.of(_messages), format, 'comms');
+
   Future<void> _confirmClearHistory() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -2823,6 +2827,24 @@ class _CommsTabState extends State<CommsTab>
           ),
         ),
         PopupMenuItem<String>(
+          value: 'exportCsv',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          enabled: _messages.isNotEmpty,
+          child: Row(
+            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).commsExportCsv)],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'exportTxt',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          enabled: _messages.isNotEmpty,
+          child: Row(
+            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).commsExportTxt)],
+          ),
+        ),
+        PopupMenuItem<String>(
           value: 'clear',
           height: menuItemHeight,
           padding: menuItemPadding,
@@ -2903,6 +2925,12 @@ class _CommsTabState extends State<CommsTab>
               initialDeviceId: _currentRadioDeviceId,
             );
           }
+          break;
+        case 'exportCsv':
+          _exportConversation(CommsExportFormat.csv);
+          break;
+        case 'exportTxt':
+          _exportConversation(CommsExportFormat.txt);
           break;
         case 'clear':
           _confirmClearHistory();

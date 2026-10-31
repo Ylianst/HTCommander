@@ -2895,6 +2895,15 @@ class AppLocalizationsIt extends AppLocalizations {
   String get commsSaveAsTitle => 'Salva con nome';
 
   @override
+  String get commsExportCsv => 'Save as CSV...';
+
+  @override
+  String get commsExportTxt => 'Save as TXT...';
+
+  @override
+  String get commsNoMessagesToSave => 'There are no messages to save';
+
+  @override
   String get commsTransmitDisabledAprs =>
       'La trasmissione è disabilitata mentre il VFO A è impostato sul canale APRS.';
 
