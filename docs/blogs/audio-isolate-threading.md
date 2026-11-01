@@ -26,6 +26,20 @@ and audio are processed. After local transmission finishes, a received-audio fra
 also closes a lingering transmit-echo run if its end marker was missing or arrived
 before a late echo. This recovery is logged; it prevents that stale run from
 suppressing every subsequent received burst.
+Starting local TX also closes a receive run whose end marker never arrived, so
+TX has its own start/end events and its duration cannot inflate later RX timing
+statistics.
+
+**Receive diagnostics:** packet-arrival duration minus decoded SBC duration is an
+observed audio shortfall, not proof of Bluetooth packet loss. Windows queues
+RFCOMM reads before delivering them on the Flutter platform thread; platform
+delivery and isolate scheduling can delay or batch arrivals. Missing run
+delimiters and rejected SBC frames can also distort the comparison. Shortfall
+reports include received packet/payload counts, decoded frame/sample counts, SBC
+formats, and decode-error/discarded-byte counts. SBC rejections are logged with
+their reason; valid decoded prefixes retain their existing delivery behavior.
+Decoded duration uses each frame's advertised sample rate. These diagnostics do
+not establish whether a transport gap originated at the radio, Bluetooth, or host.
 
 ---
 

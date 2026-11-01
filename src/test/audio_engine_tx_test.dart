@@ -17,7 +17,9 @@ import 'package:htcommander/hamlib/xara/receiver_common.dart';
 import 'package:htcommander/hamlib/xara/resample.dart';
 import 'package:htcommander/radio/audio_engine.dart';
 import 'package:htcommander/sbc/sbc_decoder.dart';
+import 'package:htcommander/sbc/sbc_encoder.dart';
 import 'package:htcommander/sbc/sbc_enums.dart';
+import 'package:htcommander/sbc/sbc_frame.dart';
 
 Uint8List _payload(Uint8List packet) {
   expect(packet.first, 0x7e);
@@ -248,7 +250,12 @@ void main() {
       }).toList();
     }
 
-    Future<List<String>> run(List<Uint8List> packets, Set<int> dropped) async {
+    Future<List<String>> run(
+      List<Uint8List> packets,
+      Set<int> dropped, {
+      int packetMs = 24,
+      int deliveryDelayMs = 0,
+    }) async {
       int now = 0;
       final List<String> logs = <String>[];
       final AudioEngine engine = AudioEngine((Map<String, Object?> e) {
@@ -259,7 +266,7 @@ void main() {
         'value': true,
       });
       for (int i = 0; i < packets.length; i++) {
-        now = i * 24;
+        now = i * packetMs + (i >= 30 ? deliveryDelayMs : 0);
         if (dropped.contains(i)) continue;
         await engine.handleCommand(<String, Object?>{
           'cmd': 'rx',
@@ -275,7 +282,105 @@ void main() {
 
     test('a continuous run is not reported', () async {
       final List<String> logs = await run(await rxPackets(60), <int>{});
-      expect(logs.where((String m) => m.startsWith('RX audio loss')), isEmpty);
+      expect(
+        logs.where((String m) => m.startsWith('RX audio shortfall')),
+        isEmpty,
+      );
+    });
+
+    test(
+      'complete but delayed delivery is not attributed to Bluetooth',
+      () async {
+        final logs = await run(
+          await rxPackets(60),
+          <int>{},
+          deliveryDelayMs: 500,
+        );
+        expect(logs, contains(contains('RX audio shortfall: 476ms')));
+        expect(logs, contains(contains('Packets=60')));
+        expect(logs, contains(contains('SBC frames=360, samples=46080')));
+        expect(logs, contains(contains('decodeErrors=0, rejectedBytes=0')));
+        expect(
+          logs,
+          contains(contains('Arrival timing alone does not establish')),
+        );
+      },
+    );
+
+    test('decoder loss is distinguished from omitted packets', () async {
+      final packets = await rxPackets(60);
+      for (int i = 30; i < 50; i++) {
+        packets[i][2] = 0; // Replace the first SBC sync byte.
+      }
+      final logs = await run(packets, <int>{});
+      expect(logs, contains(contains('RX audio shortfall: 456ms')));
+      expect(logs, contains(contains('Packets=60')));
+      expect(logs, contains(contains('decodeErrors=20, rejectedBytes=5280')));
+      expect(
+        logs.where((m) => m.startsWith('SBC decode rejected')),
+        hasLength(20),
+      );
+    });
+
+    test('duration statistics use the SBC header sample rate', () async {
+      final frame = SbcFrame()
+        ..frequency = SbcFrequency.freq16K
+        ..blocks = 16
+        ..subbands = 8
+        ..mode = SbcMode.mono
+        ..bitpool = 18;
+      final sbc = SbcEncoder().encode(Int16List(128), null, frame);
+      expect(sbc, isNotNull);
+      final packet = <int>[0x7e, 0x03];
+      for (final byte in sbc!) {
+        if (byte == 0x7e || byte == 0x7d) {
+          packet.addAll(<int>[0x7d, byte ^ 0x20]);
+        } else {
+          packet.add(byte);
+        }
+      }
+      packet.add(0x7e);
+      final logs = await run(
+        List<Uint8List>.filled(70, Uint8List.fromList(packet)),
+        <int>{},
+        packetMs: 8,
+      );
+      expect(logs, isEmpty);
+    });
+
+    test('starting TX ends a receive run without an end marker', () async {
+      final packet = (await rxPackets(1)).single;
+      final tx = _Tx();
+      await tx.engine.handleCommand(<String, Object?>{
+        'cmd': 'rx',
+        'bytes': packet,
+      });
+      tx.events.clear();
+      await tx.send(Uint8List(6 * 256));
+      expect(
+        tx.events
+            .where((e) => e['evt'] == 'audioStart')
+            .map((e) => e['transmit']),
+        <bool>[true],
+      );
+      expect(
+        tx.events
+            .where((e) => e['evt'] == 'audioEnd')
+            .map((e) => e['transmit']),
+        <bool>[false, true],
+      );
+    });
+
+    test('invalid received SBC payload is reported explicitly', () async {
+      final logs = <String>[];
+      final engine = AudioEngine((event) {
+        if (event['evt'] == 'log') logs.add(event['msg']! as String);
+      });
+      await engine.handleCommand(<String, Object?>{
+        'cmd': 'rx',
+        'bytes': Uint8List.fromList(<int>[0x7e, 0x03, 0x00, 0x7e]),
+      });
+      expect(logs, contains(contains('SBC decode rejected')));
     });
 
     test(
@@ -392,9 +497,11 @@ void main() {
       expect(
         logs,
         contains(
-          'RX audio loss: 456ms of 1416ms missing (received 960ms); longest '
-          'gap 504ms at 696ms into the run. Audio was dropped before reaching '
-          'the app (radio-to-host Bluetooth link).',
+          'RX audio shortfall: 456ms over 1416ms of packet arrivals '
+          '(decoded 960ms); longest gap 504ms at 696ms into the run. '
+          'Packets=40, payloadBytes=10560, SBC frames=240, samples=30720, '
+          'decodeErrors=0, rejectedBytes=0, formats=32000Hz/mono/bitpool=18. '
+          'Arrival timing alone does not establish radio/Bluetooth packet loss.',
         ),
       );
     });

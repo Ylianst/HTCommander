@@ -53,8 +53,7 @@ class AudioEngine {
   /// Monotonic millisecond clock (injectable for tests).
   final int Function() _clockMs;
 
-  /// A received run whose wall-clock duration exceeds the decoded audio by at
-  /// least this much lost audio before it reached the host, so it is logged.
+  /// Report receive runs with at least this much observed audio shortfall.
   static const int _rxLossReportMs = 250;
 
   /// Audio format: 32 kHz, 16-bit, mono (matches the radio's SBC stream).
@@ -168,13 +167,18 @@ class AudioEngine {
   int _rxPrerollSampleCount = 0;
   bool _rxPrerollFlushed = false;
 
-  // Receive-run continuity statistics. The radio streams received audio in
-  // real time, so a run's decoded audio should match its wall-clock duration;
-  // a shortfall means packets were dropped upstream of the host (e.g. the
-  // radio discarding audio during a Bluetooth link stall).
+  // Receive-run continuity statistics describe delivery to this isolate, not
+  // where any missing audio was lost.
   int _rxRunFirstMs = 0;
   int _rxRunLastMs = 0;
   int _rxRunSamples = 0;
+  int _rxRunAudioUs = 0;
+  int _rxRunPackets = 0;
+  int _rxRunPayloadBytes = 0;
+  int _rxRunDecodedFrames = 0;
+  int _rxRunDecodeErrors = 0;
+  int _rxRunRejectedBytes = 0;
+  final Set<String> _rxRunFormats = <String>{};
   int _rxRunMaxGapMs = 0;
   int _rxRunMaxGapAtMs = 0;
 
@@ -465,6 +469,13 @@ class AudioEngine {
             _rxRunFirstMs = nowMs;
             _rxRunLastMs = nowMs;
             _rxRunSamples = 0;
+            _rxRunAudioUs = 0;
+            _rxRunPackets = 0;
+            _rxRunPayloadBytes = 0;
+            _rxRunDecodedFrames = 0;
+            _rxRunDecodeErrors = 0;
+            _rxRunRejectedBytes = 0;
+            _rxRunFormats.clear();
             _rxRunMaxGapMs = 0;
             _rxRunMaxGapAtMs = 0;
             _dispatchAudioDataStart(false);
@@ -475,6 +486,8 @@ class AudioEngine {
             _rxRunMaxGapAtMs = _rxRunLastMs - _rxRunFirstMs;
           }
           _rxRunLastMs = nowMs;
+          _rxRunPackets++;
+          _rxRunPayloadBytes += uframe.length - 1;
           _decodeSbcFrame(uframe, 1, uframe.length - 1, false);
           break;
         case 0x01: // Audio end
@@ -592,26 +605,40 @@ class AudioEngine {
   ) {
     if (sbcFrame.isEmpty) return;
 
+    int remaining = length;
     try {
       int offset = start;
-      int remaining = length;
       final List<int> samples = <int>[];
+      String? rejection;
 
       while (remaining > 0) {
         // SBC frames start with 0x9C, mSBC with 0xAD.
         final int syncByte = sbcFrame[offset];
-        if (syncByte != 0x9C && syncByte != 0xAD) break;
+        if (syncByte != 0x9C && syncByte != 0xAD) {
+          rejection = 'invalid sync byte 0x${syncByte.toRadixString(16)}';
+          break;
+        }
 
-        if (remaining < SbcFrame.headerSize) break;
+        if (remaining < SbcFrame.headerSize) {
+          rejection = 'truncated header';
+          break;
+        }
         final Uint8List header = Uint8List.sublistView(
           sbcFrame,
           offset,
           offset + SbcFrame.headerSize,
         );
         final SbcFrame? probed = _sbcDecoder.probe(header);
-        if (probed == null) break;
+        if (probed == null) {
+          rejection = 'invalid header';
+          break;
+        }
         final int frameSize = probed.getFrameSize();
-        if (frameSize <= 0 || frameSize > remaining) break;
+        if (frameSize <= 0 || frameSize > remaining) {
+          rejection =
+              'invalid/truncated frame: size=$frameSize, available=$remaining';
+          break;
+        }
 
         final Uint8List sbcData = Uint8List.sublistView(
           sbcFrame,
@@ -619,17 +646,35 @@ class AudioEngine {
           offset + frameSize,
         );
         final result = _sbcDecoder.decode(sbcData);
-        if (!result.success) break;
-        if (result.frame.getFrameSize() != frameSize) break;
+        if (!result.success) {
+          rejection = 'CRC or frame decode failure';
+          break;
+        }
+        if (result.frame.getFrameSize() != frameSize) {
+          rejection = 'decoded frame size mismatch';
+          break;
+        }
 
         samples.addAll(result.pcmLeft);
+        if (!isTransmit) {
+          _rxRunSamples += result.pcmLeft.length;
+          _rxRunAudioUs +=
+              result.pcmLeft.length * 1000000 ~/ result.frame.getFrequencyHz();
+          _rxRunDecodedFrames++;
+          _rxRunFormats.add(
+            '${result.frame.getFrequencyHz()}Hz/${result.frame.mode.name}'
+            '/bitpool=${result.frame.bitpool}',
+          );
+        }
 
         offset += frameSize;
         remaining -= frameSize;
       }
 
+      if (rejection != null) {
+        _reportSbcDecodeFailure(rejection, remaining, isTransmit);
+      }
       if (samples.isEmpty) return;
-      if (!isTransmit) _rxRunSamples += samples.length;
 
       // Audio on a muted channel is neither played on the speaker nor recorded,
       // but it is still reported to the host so subscribers can tell which
@@ -661,23 +706,41 @@ class AudioEngine {
       final double amplitude = _calculatePcmAmplitude(samples) * _outputVolume;
       _emit(<String, Object?>{'evt': 'amplitude', 'value': amplitude});
     } catch (e) {
-      _log('SBC decode error: $e');
+      _reportSbcDecodeFailure('exception: $e', remaining, isTransmit);
     }
   }
 
-  /// Logs a received run whose decoded audio fell short of its wall-clock
-  /// duration. The host reads the radio's audio channel continuously, so the
-  /// shortfall was lost before reaching the app (the radio dropped packets).
+  void _reportSbcDecodeFailure(
+    String reason,
+    int rejectedBytes,
+    bool isTransmit,
+  ) {
+    if (!isTransmit) {
+      _rxRunDecodeErrors++;
+      _rxRunRejectedBytes += rejectedBytes;
+    }
+    _log(
+      'SBC decode rejected ${isTransmit ? 'TX echo' : 'RX'} payload: $reason; '
+      '$rejectedBytes bytes discarded.',
+    );
+  }
+
+  /// Compare decoded duration with packet arrival times, without attributing
+  /// gaps to the radio, Bluetooth, platform delivery, or decoder.
   void _reportRxRunLoss() {
     final int wallMs = _rxRunLastMs - _rxRunFirstMs;
-    final int audioMs = _rxRunSamples * 1000 ~/ _sampleRate;
+    final int audioMs = _rxRunAudioUs ~/ 1000;
     final int missingMs = wallMs - audioMs;
     if (missingMs < _rxLossReportMs) return;
     _log(
-      'RX audio loss: ${missingMs}ms of ${wallMs}ms missing '
-      '(received ${audioMs}ms); longest gap ${_rxRunMaxGapMs}ms at '
-      '${_rxRunMaxGapAtMs}ms into the run. Audio was dropped before reaching '
-      'the app (radio-to-host Bluetooth link).',
+      'RX audio shortfall: ${missingMs}ms over ${wallMs}ms of packet arrivals '
+      '(decoded ${audioMs}ms); longest gap ${_rxRunMaxGapMs}ms at '
+      '${_rxRunMaxGapAtMs}ms into the run. '
+      'Packets=$_rxRunPackets, payloadBytes=$_rxRunPayloadBytes, '
+      'SBC frames=$_rxRunDecodedFrames, samples=$_rxRunSamples, '
+      'decodeErrors=$_rxRunDecodeErrors, rejectedBytes=$_rxRunRejectedBytes, '
+      'formats=${_rxRunFormats.join(',')}. '
+      'Arrival timing alone does not establish radio/Bluetooth packet loss.',
     );
   }
 
@@ -783,6 +846,13 @@ class AudioEngine {
   }
 
   Future<void> _processPcmData(Uint8List incoming) async {
+    if (_inAudioRun && !_inAudioRunIsTransmit) {
+      _log('TX started before received audio end marker; closing receive run.');
+      _flushRxPreroll();
+      _reportRxRunLoss();
+      _dispatchAudioDataEnd();
+      _inAudioRun = false;
+    }
     if (!_inAudioRun) {
       _inAudioRun = true;
       _inAudioRunIsTransmit = true;
