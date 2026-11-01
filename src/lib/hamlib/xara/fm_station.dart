@@ -23,7 +23,7 @@ import 'fm_digi.dart';
 import 'fm_frame.dart';
 import 'fm_level.dart';
 import 'fm_rx.dart';
-import 'fm_rx_frontend.dart' show to48;
+import 'fm_rx_frontend.dart' show fs6, to48;
 import 'fm_session.dart';
 import 'fm_tx.dart';
 import 'kiss.dart' as kc;
@@ -89,7 +89,17 @@ class StationFrame {
   final bool ok;
   final Uint8List bytes;
 
-  const StationFrame({required this.tx, this.record = -1, this.code = -1, this.ok = true, required this.bytes});
+  /// Debug details: bandwidth, frame i/n, lead-in, RX quality, session state.
+  final Map<String, Object?> meta;
+
+  const StationFrame({
+    required this.tx,
+    this.record = -1,
+    this.code = -1,
+    this.ok = true,
+    required this.bytes,
+    this.meta = const <String, Object?>{},
+  });
 }
 
 class FmStation {
@@ -108,6 +118,41 @@ class FmStation {
 
   void _logFrame(StationFrame f) {
     if (logFrames) _frameLog.add(f);
+  }
+
+  /// Records a session transmission rendered as [samples] station samples.
+  void _logTx(FmTx t, int samples) {
+    if (!logFrames) return;
+    final double burstMs = secsOf(samples) * 1000.0;
+    final String state = _session.state.debug;
+    switch (t) {
+      case FmTxCtrl(:final int code, :final int lead):
+        _logFrame(StationFrame(
+          tx: true,
+          code: code,
+          bytes: Uint8List(0),
+          meta: <String, Object?>{'lead': lead, 'burstMs': burstMs, 'state': state},
+        ));
+      case FmTxData(:final FmRecord record, :final List<Uint8List> frames, :final int lead):
+        final FmBandwidth bw = record == FmRecord.connect ? _cfg.bw : _session.bandwidth;
+        for (int i = 0; i < frames.length; i++) {
+          _logFrame(StationFrame(
+            tx: true,
+            record: record.index,
+            bytes: frames[i],
+            meta: <String, Object?>{
+              'bw': bw.name,
+              'i': i + 1,
+              'n': frames.length,
+              'lead': lead,
+              'burstMs': burstMs,
+              'vias': _session.hasVias,
+              'drive': _opts.driveDb,
+              'state': state,
+            },
+          ));
+        }
+    }
   }
 
   FmSession _session;
@@ -298,16 +343,48 @@ class FmStation {
     }
     _tx.hold(tEnd + minGap);
     if (ev case TxEv<FmCtrlEvent, FmRecord, FmFrameRx>(:final FmTransmission tx) when tx.record != FmRecord.broadcast) {
-      for (final FmFrameRx f in tx.frames) {
+      final int n = tx.frames.length;
+      for (int i = 0; i < n; i++) {
+        final FmFrameRx f = tx.frames[i];
         final bool ok = f.ok && !f.missing;
-        _logFrame(StationFrame(tx: false, record: tx.record.index, ok: ok, bytes: ok ? f.bytes : Uint8List(0)));
+        _logFrame(StationFrame(
+          tx: false,
+          record: tx.record.index,
+          ok: ok,
+          bytes: ok ? f.bytes : Uint8List(0),
+          meta: <String, Object?>{
+            'bw': _rx.bw.name,
+            'i': i + 1,
+            'n': n,
+            if (!f.missing) ...<String, Object?>{
+              'snr': f.snrDb + adapt.snrOffsetDb,
+              'esn0': f.esn0Db,
+              'iter': f.iterations,
+              'coh': f.coherence,
+            },
+            if (f.missing) 'missing': true,
+            'ms': (f.tEnd - f.t) * 1000.0 / fs6,
+            'vias': _session.hasVias,
+            'state': _digi.active ? 'Digipeating' : _session.state.debug,
+          },
+        ));
       }
     }
     switch (ev) {
       case CtrlEv<FmCtrlEvent, FmRecord, FmFrameRx>(:final FmCtrlEvent ctrl):
         final d = ctrl.det;
         final bool digi = _digi.active;
-        _logFrame(StationFrame(tx: false, code: d.code, bytes: Uint8List(0)));
+        _logFrame(StationFrame(
+          tx: false,
+          code: d.code,
+          bytes: Uint8List(0),
+          meta: <String, Object?>{
+            'hits': d.hits,
+            'row': d.leadRow,
+            'side': ctrl.side.name,
+            'state': digi ? 'Digipeating' : _session.state.debug,
+          },
+        ));
         _reports.add(ReportTrace('rx c${d.code} hits ${d.hits} lead ${d.leadRow} end ${secsOf(tEnd).toStringAsFixed(3)} '
             '${digi ? 'Digi side ${ctrl.side.idx}' : _session.state.debug}'));
         if (digi) {
@@ -517,14 +594,6 @@ class FmStation {
       }
     }
     for (final FmTx t in txs) {
-      switch (t) {
-        case FmTxCtrl(:final int code):
-          _logFrame(StationFrame(tx: true, code: code, bytes: Uint8List(0)));
-        case FmTxData(:final FmRecord record, :final List<Uint8List> frames):
-          for (final Uint8List f in frames) {
-            _logFrame(StationFrame(tx: true, record: record.index, bytes: f));
-          }
-      }
       final String what = switch (t) {
         FmTxCtrl(:final int code, :final int lead) => 'tx c$code lead $lead',
         FmTxData(:final FmRecord record, :final List<Uint8List> frames, :final int lead) =>
@@ -535,6 +604,7 @@ class FmStation {
       _tx.stopTune();
       final int earliest = _tx.nextStart(now);
       final (List<double> samples, int tail, List<Report> keyed) = _render(t);
+      _logTx(t, samples.length);
       _tx.push(samples, tail, earliest, keyed, BurstKind.session);
     }
     while (true) {

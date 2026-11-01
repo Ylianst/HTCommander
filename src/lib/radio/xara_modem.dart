@@ -310,6 +310,7 @@ Future<void> _xaraIsolateEntry(List<Object?> args) async {
         'code': f.code,
         'ok': f.ok,
         'data': f.bytes,
+        'meta': f.meta,
       });
     }
     for (final FmFrameRx f in station.takeCaptured()) {

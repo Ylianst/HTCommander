@@ -396,6 +396,33 @@ Future<void> runOverTheAir({
       frames.any((f) => f.$1.incoming && !f.$2.isControl && f.$2.record > 0),
       isTrue,
     );
+
+    // Every session frame carries debugging metadata from the live link.
+    final rxData = frames.where(
+      (f) => f.$1.incoming && !f.$2.isControl && f.$2.ok,
+    );
+    final txData = frames.where((f) => !f.$1.incoming && !f.$2.isControl);
+    expect(rxData.every((f) => f.$2.meta['bw'] == 'narrow'), isTrue);
+    expect(rxData.every((f) => f.$2.meta['snr'] is num), isTrue);
+    expect(rxData.every((f) => f.$2.meta['iter'] is num), isTrue);
+    expect(txData.every((f) => f.$2.meta['lead'] is num), isTrue);
+    expect(txData.every((f) => f.$2.meta['burstMs'] is num), isTrue);
+    expect(
+      txData.every(
+        (f) => PacketDecoder.encodingLabel(
+          f.$1,
+        ).startsWith('Software XARA FM Narrow '),
+      ),
+      isTrue,
+    );
+    expect(
+      frames.any(
+        (f) =>
+            f.$1.incoming &&
+            PacketDecoder.fragmentToShortString(f.$1).contains('S'),
+      ),
+      isTrue,
+    );
   } finally {
     clock.cancel();
     bbs.dispose();

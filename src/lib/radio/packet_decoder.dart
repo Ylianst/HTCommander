@@ -81,6 +81,16 @@ class PacketDecoder {
     return sb.toString().replaceAll('\r', '').replaceAll('\n', '');
   }
 
+  /// The bytes that actually went over the air for [fragment]. For XARA
+  /// session captures this strips the capture header and debug metadata,
+  /// leaving the raw frame (control codes have none).
+  static Uint8List frameBytes(TncDataFragment fragment) {
+    if (fragment.frameType != FragmentFrameType.xara) return fragment.data;
+    final capture = XaraCapture.parse(fragment.data);
+    if (capture == null) return fragment.data;
+    return capture.isControl ? Uint8List(0) : capture.payload;
+  }
+
   /// Builds the full set of decode detail sections for a fragment.
   static List<PacketDecodeSection> decode(TncDataFragment fragment) {
     final frame = PacketDecodeSection('Frame');
@@ -99,12 +109,21 @@ class PacketDecoder {
       );
     }
     packetSection.lines.add(MapEntry('Time', fragment.time.toString()));
-    final len = fragment.data.length;
-    packetSection.lines.add(MapEntry('Size', '$len byte${len > 1 ? 's' : ''}'));
-    packetSection.lines.add(MapEntry('Data', _toAscii(fragment.data)));
-    packetSection.lines.add(
-      MapEntry('Data HEX', RadioUtils.bytesToHex(fragment.data)),
-    );
+    // Control codes are tone patterns with no frame bytes to show.
+    final bool xaraControl =
+        fragment.frameType == FragmentFrameType.xara &&
+        (XaraCapture.parse(fragment.data)?.isControl ?? false);
+    if (!xaraControl) {
+      final bytes = frameBytes(fragment);
+      final len = bytes.length;
+      packetSection.lines.add(
+        MapEntry('Size', '$len byte${len == 1 ? '' : 's'}'),
+      );
+      packetSection.lines.add(MapEntry('Data', _toAscii(bytes)));
+      packetSection.lines.add(
+        MapEntry('Data HEX', RadioUtils.bytesToHex(bytes)),
+      );
+    }
 
     // Frame group (encoding).
     final encoding = _encodingString(fragment);
@@ -284,13 +303,13 @@ class PacketDecoder {
     if (fragment.frameType == FragmentFrameType.ax25) encoding += ', AX.25';
     if (fragment.frameType == FragmentFrameType.fx25) encoding += ', FX.25';
     if (fragment.frameType == FragmentFrameType.xara) {
-      return '$encoding, Session';
+      return XaraCapture.parse(fragment.data)?.encodingLabel ??
+          '$encoding, Session';
     }
 
     // DART reports LDPC bit-error corrections; the AFSK/PSK modems report
     // FX.25 Reed-Solomon symbol / HDLC bit corrections.
-    final bool isDart =
-        fragment.encoding == FragmentEncodingType.softwareDart;
+    final bool isDart = fragment.encoding == FragmentEncodingType.softwareDart;
     final String unit = isDart ? 'LDPC bit' : '';
     final String noun = unit.isEmpty ? 'Correction' : '$unit Correction';
     if (fragment.corrections == 0) {

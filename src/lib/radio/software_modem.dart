@@ -1567,6 +1567,9 @@ class SoftwareModem {
             code: (e['code'] as int?) ?? -1,
             ok: ok,
             data: raw is Uint8List ? raw : Uint8List(0),
+            meta: e['meta'] is Map
+                ? (e['meta']! as Map).cast<String, Object?>()
+                : const <String, Object?>{},
           ),
           channelId: state.currentChannelId,
           regionId: state.currentRegionId,

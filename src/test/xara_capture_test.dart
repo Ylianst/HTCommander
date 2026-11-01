@@ -8,10 +8,13 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/hamlib/xara/fm_ctrl.dart' show FmCode;
-import 'package:htcommander/hamlib/xara/fm_frame.dart' show Record0;
+import 'package:htcommander/hamlib/xara/fm_frame.dart'
+    show Record0, Trailer, buildData;
+import 'package:htcommander/hamlib/xara/fm_level.dart';
 import 'package:htcommander/radio/ax25_packet.dart';
 import 'package:htcommander/radio/packet_decoder.dart';
 import 'package:htcommander/radio/tnc_data_fragment.dart';
+import 'package:htcommander/radio/utils.dart';
 import 'package:htcommander/radio/xara_capture.dart';
 
 TncDataFragment fragment(Uint8List data, {bool incoming = true}) =>
@@ -51,9 +54,184 @@ void main() {
     expect(details['Via 1'], 'N9DIG');
     expect(
       sections.firstWhere((s) => s.title == 'Frame').lines.single.value,
-      'Software XARA FM, Session',
+      'Software XARA FM Connect, Session',
     );
     expect(sections.any((s) => s.title == 'AX.25'), isFalse);
+  });
+
+  test('received data frames show mode, burst position and quality', () {
+    final frame = buildData(
+      FmRecord.start,
+      FmBandwidth.narrow.level(FmRecord.start).frameBytes,
+      'Hello BBS\r'.codeUnits,
+      false,
+      2,
+      true,
+      const Trailer(leadReport: 3, level: 5),
+    );
+    final f = fragment(
+      XaraCapture.encode(
+        record: 15,
+        code: -1,
+        ok: true,
+        data: frame,
+        meta: {
+          'bw': 'narrow',
+          'i': 1,
+          'n': 2,
+          'snr': 18.437,
+          'esn0': 12.1,
+          'iter': 3,
+          'coh': 0.913,
+          'ms': 1234.5,
+          'vias': false,
+          'state': 'AwaitData',
+        },
+      ),
+    );
+    expect(
+      PacketDecoder.encodingLabel(f),
+      'Software XARA FM Narrow Start (4-DPSK, 14 carriers, LDPC 1/2, 566 bps), '
+      'Session, SNR 18.4 dB, 3 LDPC iterations',
+    );
+    expect(
+      PacketDecoder.fragmentToShortString(f),
+      'XARA Start [1/2]: 10 bytes (last): Hello BBS.',
+    );
+    final details = {
+      for (final e in PacketDecoder.decode(
+        f,
+      ).firstWhere((s) => s.title == 'XARA').lines)
+        e.key: e.value,
+    };
+    expect(details['Bandwidth'], 'Narrow');
+    expect(details['Modulation'], '4-DPSK');
+    expect(details['Frame'], '1 of 2');
+    expect(details['SNR'], '18.4 dB');
+    expect(details['LDPC iterations'], '3');
+    expect(details['Coherence'], '0.91');
+    expect(details['Frame airtime'], '1235 ms');
+    expect(details['Session state'], 'AwaitData');
+    expect(details['Level offer'], '5');
+    expect(details['Lead report'], '3');
+    expect(details['Queue hint'], '2');
+    expect(details['Payload text'], 'Hello BBS.');
+  });
+
+  test('sent high-level wide frames show modulation, rate and airtime', () {
+    final f = fragment(
+      XaraCapture.encode(
+        record: 9,
+        code: -1,
+        ok: true,
+        data: Uint8List(4),
+        meta: {
+          'bw': 'wide',
+          'i': 2,
+          'n': 2,
+          'lead': 23,
+          'burstMs': 2100.4,
+          'drive': -1.5,
+        },
+      ),
+      incoming: false,
+    );
+    expect(
+      PacketDecoder.encodingLabel(f),
+      'Software XARA FM Wide Level 9 (32QAM, 116 carriers, LDPC 2/3, '
+      '14144 bps), Session',
+    );
+    final details = {
+      for (final e in PacketDecoder.decode(
+        f,
+      ).firstWhere((s) => s.title == 'XARA').lines)
+        e.key: e.value,
+    };
+    expect(details['Lead-in'], '23');
+    expect(details['Burst airtime'], '2100 ms');
+    expect(details['Drive'], '-1.5 dB');
+    expect(details['Net rate'], '14144 bps');
+  });
+
+  test('control codes carry detection details', () {
+    final f = fragment(
+      XaraCapture.encode(
+        record: -1,
+        code: FmCode.ackUp1,
+        ok: true,
+        data: Uint8List(0),
+        meta: {'hits': 9, 'row': 2, 'side': 'source', 'state': 'Sending'},
+      ),
+    );
+    expect(
+      PacketDecoder.fragmentToShortString(f),
+      'XARA control: ACK, speed up 1 (9 hits)',
+    );
+    expect(PacketDecoder.encodingLabel(f), 'Software XARA FM, Session control');
+  });
+
+  test(
+    'the Packet section shows the over-the-air frame, not capture metadata',
+    () {
+      final frame = buildData(
+        FmRecord.start,
+        FmBandwidth.narrow.level(FmRecord.start).frameBytes,
+        'BBS>\r'.codeUnits,
+        false,
+        0,
+        true,
+        const Trailer(),
+      );
+      final f = fragment(
+        XaraCapture.encode(
+          record: 15,
+          code: -1,
+          ok: true,
+          data: frame,
+          meta: {
+            'bw': 'narrow',
+            'i': 1,
+            'n': 1,
+            'lead': 25,
+            'state': 'Sending',
+          },
+        ),
+        incoming: false,
+      );
+      expect(PacketDecoder.frameBytes(f), frame);
+      final packet = {
+        for (final e in PacketDecoder.decode(
+          f,
+        ).firstWhere((s) => s.title == 'Packet').lines)
+          e.key: e.value,
+      };
+      expect(packet['Size'], '${frame.length} bytes');
+      expect(packet['Data HEX'], RadioUtils.bytesToHex(frame));
+      expect(packet['Data'], startsWith('BBS>.'));
+      expect(packet['Data'], isNot(contains('"bw"')));
+
+      final control = fragment(
+        XaraCapture.encode(
+          record: -1,
+          code: FmCode.ackStay,
+          ok: true,
+          data: Uint8List(0),
+          meta: {'hits': 9},
+        ),
+      );
+      expect(PacketDecoder.frameBytes(control), isEmpty);
+      final controlPacket = PacketDecoder.decode(
+        control,
+      ).firstWhere((s) => s.title == 'Packet');
+      expect(controlPacket.lines.map((e) => e.key), isNot(contains('Data')));
+    },
+  );
+  test('captures without metadata still parse', () {
+    final legacy = Uint8List.fromList([15, 1, 0x41, 0x42]);
+    final c = XaraCapture.parse(legacy)!;
+    expect(c.record, 15);
+    expect(c.payload, [0x41, 0x42]);
+    expect(c.meta, isEmpty);
   });
 
   test('control codes, data records and CRC failures are labelled', () {
@@ -95,7 +273,7 @@ void main() {
           ),
         ),
       ),
-      'XARA Data level 5: CRC failed',
+      'XARA Level 5: CRC failed',
     );
   });
 
