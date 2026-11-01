@@ -276,8 +276,7 @@ class _Ax25BbsLink extends BbsLink {
   String get protocol => 'Stream';
 
   @override
-  bool get isConnected =>
-      session.currentState == AX25ConnectionState.connected;
+  bool get isConnected => session.currentState == AX25ConnectionState.connected;
 
   @override
   void send(Uint8List data) => session.send(data);
@@ -473,12 +472,18 @@ class Bbs {
     switch (data['evt']) {
       case 'connected':
         final caller = (data['caller'] as String?)?.trim().toUpperCase() ?? '';
-        final myCall =
-            (_broker.getValue<String>(0, 'CallSign', '') ?? '')
-                .trim()
-                .toUpperCase();
-        // Only answer incoming links; ignore our own outgoing connects.
-        if (caller.isEmpty || caller == myCall) return;
+        if (caller.isEmpty) return;
+        // Only answer incoming links; ignore connects we dialed ourselves. The
+        // caller may share our callsign (two stations of one licensee), so rely
+        // on the modem's flag rather than comparing callsigns.
+        final incoming = data['incoming'];
+        if (incoming == false) return;
+        if (incoming == null) {
+          final myCall = (_broker.getValue<String>(0, 'CallSign', '') ?? '')
+              .trim()
+              .toUpperCase();
+          if (caller == myCall) return;
+        }
         _xaraLink?.connected = false;
         final link = _XaraBbsLink(_deviceId, _broker, caller);
         _xaraLink = link;
@@ -573,7 +578,14 @@ class Bbs {
       if (dataStrs[i].trim().isEmpty && i == dataStrs.length - 1) continue;
       _dispatchTraffic(session.remoteCallsign, true, dataStrs[i].trim());
     }
-    _updateStats(session.remoteCallsign, session.protocol, 0, 1, 0, output.length);
+    _updateStats(
+      session.remoteCallsign,
+      session.protocol,
+      0,
+      1,
+      0,
+      output.length,
+    );
     session.send(Uint8List.fromList(utf8.encode(output)));
   }
 
@@ -625,7 +637,9 @@ class Bbs {
       );
 
       // The client may have left while the gateway was being reached.
-      if (_disposed || !identical(_activeLink, session) || !session.isConnected) {
+      if (_disposed ||
+          !identical(_activeLink, session) ||
+          !session.isConnected) {
         relay.dispose();
         return;
       }
@@ -721,7 +735,14 @@ class Bbs {
 
     _broker.logInfo('[BBS/$_deviceId] CMS->Radio: ${data.length} binary bytes');
     _dispatchControl('Gateway->Radio: ${data.length} bytes (binary)');
-    _updateStats(session.remoteCallsign, session.protocol, 0, 1, 0, data.length);
+    _updateStats(
+      session.remoteCallsign,
+      session.protocol,
+      0,
+      1,
+      0,
+      data.length,
+    );
     session.send(data);
   }
 
@@ -752,7 +773,14 @@ class Bbs {
   void _processStream(BbsLink session, Uint8List data) {
     if (!enabled) return;
     if (data.isEmpty) return;
-    _updateStats(session.remoteCallsign, session.protocol, 1, 0, data.length, 0);
+    _updateStats(
+      session.remoteCallsign,
+      session.protocol,
+      1,
+      0,
+      data.length,
+      0,
+    );
 
     final mode = session.sessionState['mode'] as String?;
     if (mode == 'mail') {
@@ -1024,7 +1052,14 @@ class Bbs {
       );
       _dispatchControl('Radio->Gateway: ${data.length} bytes (binary)');
       relay.sendBinary(data);
-      _updateStats(session.remoteCallsign, session.protocol, 1, 0, data.length, 0);
+      _updateStats(
+        session.remoteCallsign,
+        session.protocol,
+        1,
+        0,
+        data.length,
+        0,
+      );
       return;
     }
 

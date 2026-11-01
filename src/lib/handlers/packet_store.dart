@@ -61,6 +61,14 @@ class PacketStore {
       callback: _onUniqueDataFrame,
     );
 
+    // Capture-only frames (e.g. XARA session traffic) that protocol handlers
+    // must not see as AX.25 packets.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'CaptureFrame',
+      callback: _onUniqueDataFrame,
+    );
+
     // Subscribe to requests for the packet list.
     _broker.subscribe(
       deviceId: _storeDeviceId,

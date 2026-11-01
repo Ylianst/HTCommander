@@ -137,6 +137,7 @@ class AX25Packet {
 
   /// Decode an AX.25 packet from a TNC data fragment
   static AX25Packet? decode(TncDataFragment frame) {
+    if (frame.frameType == FragmentFrameType.xara) return null;
     final data = frame.data;
     if (data.length < 6) return null;
 

@@ -75,8 +75,40 @@ DataIn _dataIn(FmTransmission t, int tEnd) => DataIn(
   return ((lo - 0.5) * df, (hi + 0.5) * df);
 }
 
+/// A session frame or control code sent or received, recorded for packet capture.
+class StationFrame {
+  final bool tx;
+
+  /// FM record index, or -1 for a control code.
+  final int record;
+
+  /// Control code, or -1 for a data/connect record.
+  final int code;
+
+  /// False when the frame failed its CRC or was missing.
+  final bool ok;
+  final Uint8List bytes;
+
+  const StationFrame({required this.tx, this.record = -1, this.code = -1, this.ok = true, required this.bytes});
+}
+
 class FmStation {
   static const String version = 'VERSION VARA FM v4.4.0';
+
+  /// When true, session frames are recorded for [takeFrames].
+  bool logFrames = false;
+  final List<StationFrame> _frameLog = <StationFrame>[];
+
+  /// Returns and clears the session frames recorded since the last call.
+  List<StationFrame> takeFrames() {
+    final List<StationFrame> out = List<StationFrame>.of(_frameLog);
+    _frameLog.clear();
+    return out;
+  }
+
+  void _logFrame(StationFrame f) {
+    if (logFrames) _frameLog.add(f);
+  }
 
   FmSession _session;
   FmConfig _cfg;
@@ -265,10 +297,17 @@ class FmStation {
         return;
     }
     _tx.hold(tEnd + minGap);
+    if (ev case TxEv<FmCtrlEvent, FmRecord, FmFrameRx>(:final FmTransmission tx) when tx.record != FmRecord.broadcast) {
+      for (final FmFrameRx f in tx.frames) {
+        final bool ok = f.ok && !f.missing;
+        _logFrame(StationFrame(tx: false, record: tx.record.index, ok: ok, bytes: ok ? f.bytes : Uint8List(0)));
+      }
+    }
     switch (ev) {
       case CtrlEv<FmCtrlEvent, FmRecord, FmFrameRx>(:final FmCtrlEvent ctrl):
         final d = ctrl.det;
         final bool digi = _digi.active;
+        _logFrame(StationFrame(tx: false, code: d.code, bytes: Uint8List(0)));
         _reports.add(ReportTrace('rx c${d.code} hits ${d.hits} lead ${d.leadRow} end ${secsOf(tEnd).toStringAsFixed(3)} '
             '${digi ? 'Digi side ${ctrl.side.idx}' : _session.state.debug}'));
         if (digi) {
@@ -478,6 +517,14 @@ class FmStation {
       }
     }
     for (final FmTx t in txs) {
+      switch (t) {
+        case FmTxCtrl(:final int code):
+          _logFrame(StationFrame(tx: true, code: code, bytes: Uint8List(0)));
+        case FmTxData(:final FmRecord record, :final List<Uint8List> frames):
+          for (final Uint8List f in frames) {
+            _logFrame(StationFrame(tx: true, record: record.index, bytes: f));
+          }
+      }
       final String what = switch (t) {
         FmTxCtrl(:final int code, :final int lead) => 'tx c$code lead $lead',
         FmTxData(:final FmRecord record, :final List<Uint8List> frames, :final int lead) =>

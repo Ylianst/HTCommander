@@ -40,6 +40,7 @@ import '../utils/num_parsing.dart';
 import 'modem_tx_encoder.dart';
 import 'radio_models.dart' as radio;
 import 'tnc_data_fragment.dart';
+import 'xara_capture.dart';
 import 'xara_modem.dart';
 
 /// Software modem mode types.
@@ -1267,11 +1268,16 @@ class SoftwareModem {
     }
 
     if (mode == SoftwareModemMode.xara) {
+      final String myCall = (_broker.getValue<String>(0, 'CallSign', '') ?? '')
+          .trim()
+          .toUpperCase();
+      final int stationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
       instance.xara = XaraModem(
         config: XaraModemConfig(
-          callsign: (_broker.getValue<String>(0, 'CallSign', '') ?? '')
-              .trim()
-              .toUpperCase(),
+          callsign: myCall,
+          // Also answer connects addressed to our station SSID (e.g. a BBS
+          // contact saved as CALL-SSID), not just the bare callsign.
+          aliases: [if (stationId > 0 && myCall.isNotEmpty) '$myCall-$stationId'],
           wide: _effectiveXaraWide(state),
           registered:
               _broker.getValue<bool>(0, 'XaraRegistered', false) ?? false,
@@ -1545,6 +1551,35 @@ class SoftwareModem {
         _dispatchDecodedFrame(dev, fragment);
       case 'data':
         _broker.dispatch(deviceId: dev, name: 'XaraDataReceived', data: e['data'], store: false);
+      case 'frame':
+        // XARA session traffic goes to the packet capture only; it is not AX.25
+        // so it must not reach UniqueDataFrame consumers.
+        final Object? raw = e['data'];
+        final bool tx = e['tx'] == true;
+        final bool ok = e['ok'] != false;
+        final int record = (e['record'] as int?) ?? -1;
+        _refreshFollowedChannel(state);
+        final capture = TncDataFragment(
+          finalFragment: true,
+          fragmentId: 0,
+          data: XaraCapture.encode(
+            record: record,
+            code: (e['code'] as int?) ?? -1,
+            ok: ok,
+            data: raw is Uint8List ? raw : Uint8List(0),
+          ),
+          channelId: state.currentChannelId,
+          regionId: state.currentRegionId,
+          channelName: state.currentChannelName,
+          incoming: !tx,
+          encoding: instance.encoding,
+          frameType: FragmentFrameType.xara,
+          time: DateTime.now(),
+          radioMac: state.macAddress,
+          radioDeviceId: dev,
+        );
+        if (!tx && !ok) _debug('RX XARA: record $record failed CRC');
+        _broker.dispatch(deviceId: dev, name: 'CaptureFrame', data: capture, store: false);
       case 'log':
         _debug('XARA: ${e['text']}');
       case 'state':

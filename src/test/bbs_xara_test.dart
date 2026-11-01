@@ -16,7 +16,11 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/handlers/bbs_handler.dart';
+import 'package:htcommander/hamlib/xara/fm_ctrl.dart' show FmCode;
+import 'package:htcommander/radio/packet_decoder.dart';
 import 'package:htcommander/radio/software_modem.dart';
+import 'package:htcommander/radio/tnc_data_fragment.dart';
+import 'package:htcommander/radio/xara_capture.dart';
 import 'package:htcommander/radio/xara_modem.dart';
 import 'package:htcommander/services/data_broker_client.dart';
 import 'package:htcommander/winlink/winlink_gateway_relay.dart';
@@ -185,10 +189,17 @@ void main() {
     final bbs = Bbs(403)..enabled = true;
     try {
       xara.connectFrom('N0CALL');
+      xara.event({'evt': 'connected', 'caller': 'N1ABC', 'incoming': false});
       other.connectFrom('N1ABC');
       await Future<void>.delayed(const Duration(milliseconds: 100));
       expect(bbs.activeLink, isNull);
       expect(xara.sent, isEmpty);
+
+      // A station sharing our callsign is still answered when the modem says
+      // the link is incoming.
+      xara.event({'evt': 'connected', 'caller': 'N0CALL', 'incoming': true});
+      expect(await waitFor(() => xara.text.contains('[M] for menu')), isTrue);
+      expect(bbs.activeLink?.remoteCallsign, 'N0CALL');
     } finally {
       bbs.dispose();
       xara.dispose();
@@ -232,105 +243,165 @@ void main() {
 
   test(
     'a real XARA station connects to the BBS through SoftwareModem',
-    () async {
-      const radio = 407;
-      final client = DataBrokerClient();
-      client.dispatch(
-        deviceId: 0,
-        name: 'XaraTxLatencyMs',
-        data: 400,
-        store: true,
-      );
-      client.dispatch(deviceId: 0, name: 'XaraWide', data: false, store: true);
-      final modem = SoftwareModem()..init();
-      client.dispatch(
-        deviceId: 0,
-        name: 'SetSoftwareModemMode',
-        data: 'XARA',
-        store: false,
-      );
-      final bbs = Bbs(radio)..enabled = true;
-
-      final peerEvents = <String>[];
-      final peerData = <int>[];
-      late final Playout toPeer, toRadio;
-      final peer = XaraModem(
-        config: const XaraModemConfig(callsign: 'N1ABC', txLatencyMs: 400),
-        onTransmit: (pcm) => toRadio.add(pcm),
-        onEvent: (e) {
-          if (e['evt'] == 'data') {
-            peerData.addAll(e['data']! as Uint8List);
-          } else {
-            peerEvents.add(e['evt']! as String);
-          }
-        },
-      );
-      toPeer = Playout(250, (c) => peer.pushRx(c, 0, c.length));
-      toRadio = Playout(
-        250,
-        (c) => client.dispatch(
-          deviceId: radio,
-          name: 'AudioDataAvailable',
-          data: {
-            'data': c,
-            'offset': 0,
-            'length': c.length,
-            'channelName': 'Data',
-            'transmit': false,
-          },
-          store: false,
-        ),
-      );
-      client.subscribe(
-        deviceId: radio,
-        name: 'TransmitVoicePCM',
-        callback: (_, _, d) => toPeer.add((d! as Map)['Data'] as Uint8List),
-      );
-      final clock = Timer.periodic(const Duration(milliseconds: 20), (_) {
-        toPeer.tick();
-        toRadio.tick();
-      });
-      String peerText() => utf8.decode(peerData, allowMalformed: true);
-
-      try {
-        peer.connect('N0CALL', const []);
-        expect(
-          await waitFor(
-            () => peerText().contains('>\r'),
-            limit: const Duration(seconds: 60),
-          ),
-          isTrue,
-          reason: '$peerEvents ${peerText()}',
-        );
-        expect(peerText(), contains('Handy-Talky Commander BBS'));
-        expect(bbs.activeLink?.remoteCallsign, 'N1ABC');
-
-        peer.send(Uint8List.fromList(utf8.encode('S\r')));
-        expect(
-          await waitFor(
-            () => peerText().contains('open source'),
-            limit: const Duration(seconds: 60),
-          ),
-          isTrue,
-        );
-
-        peer.send(Uint8List.fromList(utf8.encode('D\r')));
-        expect(
-          await waitFor(
-            () => peerEvents.contains('disconnected') && bbs.activeLink == null,
-            limit: const Duration(seconds: 60),
-          ),
-          isTrue,
-          reason: '$peerEvents',
-        );
-      } finally {
-        clock.cancel();
-        bbs.dispose();
-        peer.dispose();
-        modem.dispose();
-        client.dispose();
-      }
-    },
+    () => runOverTheAir(
+      radio: 407,
+      peerCall: 'N1ABC',
+      target: 'N0CALL',
+      stationId: 0,
+    ),
     timeout: const Timeout(Duration(minutes: 4)),
   );
+
+  test(
+    'same-callsign station dialing CALL-SSID reaches the BBS and is captured',
+    () => runOverTheAir(
+      radio: 408,
+      peerCall: 'N0CALL',
+      target: 'N0CALL-1',
+      stationId: 1,
+    ),
+    timeout: const Timeout(Duration(minutes: 4)),
+  );
+}
+
+/// Runs a real XARA peer modem against SoftwareModem (XARA mode) hosting a BBS
+/// on [radio]: connect, read the banner, use the menu, disconnect. Also checks
+/// the session is reported to the packet capture.
+Future<void> runOverTheAir({
+  required int radio,
+  required String peerCall,
+  required String target,
+  required int stationId,
+}) async {
+  final client = DataBrokerClient();
+  client.dispatch(deviceId: 0, name: 'XaraTxLatencyMs', data: 400, store: true);
+  client.dispatch(deviceId: 0, name: 'XaraWide', data: false, store: true);
+  client.dispatch(deviceId: 0, name: 'StationId', data: stationId, store: true);
+  final captured = <TncDataFragment>[];
+  client.subscribe(
+    deviceId: radio,
+    name: 'CaptureFrame',
+    callback: (_, _, d) => captured.add(d! as TncDataFragment),
+  );
+  final modem = SoftwareModem()..init();
+  client.dispatch(
+    deviceId: 0,
+    name: 'SetSoftwareModemMode',
+    data: 'XARA',
+    store: false,
+  );
+  final bbs = Bbs(radio)..enabled = true;
+
+  final peerEvents = <String>[];
+  final peerData = <int>[];
+  late final Playout toPeer, toRadio;
+  final peer = XaraModem(
+    config: XaraModemConfig(callsign: peerCall, txLatencyMs: 400),
+    onTransmit: (pcm) => toRadio.add(pcm),
+    onEvent: (e) {
+      if (e['evt'] == 'data') {
+        peerData.addAll(e['data']! as Uint8List);
+      } else if (e['evt'] != 'frame') {
+        peerEvents.add(e['evt']! as String);
+      }
+    },
+  );
+  toPeer = Playout(250, (c) => peer.pushRx(c, 0, c.length));
+  toRadio = Playout(
+    250,
+    (c) => client.dispatch(
+      deviceId: radio,
+      name: 'AudioDataAvailable',
+      data: {
+        'data': c,
+        'offset': 0,
+        'length': c.length,
+        'channelName': 'Data',
+        'transmit': false,
+      },
+      store: false,
+    ),
+  );
+  client.subscribe(
+    deviceId: radio,
+    name: 'TransmitVoicePCM',
+    callback: (_, _, d) => toPeer.add((d! as Map)['Data'] as Uint8List),
+  );
+  final clock = Timer.periodic(const Duration(milliseconds: 20), (_) {
+    toPeer.tick();
+    toRadio.tick();
+  });
+  String peerText() => utf8.decode(peerData, allowMalformed: true);
+
+  try {
+    peer.connect(target, const []);
+    expect(
+      await waitFor(
+        () => peerText().contains('>\r'),
+        limit: const Duration(seconds: 60),
+      ),
+      isTrue,
+      reason: '$peerEvents ${peerText()}',
+    );
+    expect(peerText(), contains('Handy-Talky Commander BBS'));
+    expect(bbs.activeLink?.remoteCallsign, peerCall);
+
+    peer.send(Uint8List.fromList(utf8.encode('S\r')));
+    expect(
+      await waitFor(
+        () => peerText().contains('open source'),
+        limit: const Duration(seconds: 60),
+      ),
+      isTrue,
+    );
+
+    peer.send(Uint8List.fromList(utf8.encode('D\r')));
+    expect(
+      await waitFor(
+        () => peerEvents.contains('disconnected') && bbs.activeLink == null,
+        limit: const Duration(seconds: 60),
+      ),
+      isTrue,
+      reason: '$peerEvents',
+    );
+
+    // The packet capture saw the connect request, our reply and session data.
+    final frames = [for (final f in captured) (f, XaraCapture.parse(f.data)!)];
+    expect(
+      captured.every((f) => f.frameType == FragmentFrameType.xara),
+      isTrue,
+    );
+    final connect = frames.firstWhere((f) => f.$2.connect != null);
+    expect(connect.$1.incoming, isTrue);
+    expect(connect.$2.connect!.source, peerCall);
+    expect(connect.$2.connect!.target, target);
+    expect(
+      PacketDecoder.fragmentToShortString(connect.$1),
+      '$peerCall>$target: XARA connect request (narrow)',
+    );
+    expect(
+      frames.any(
+        (f) =>
+            !f.$1.incoming &&
+            f.$2.isControl &&
+            f.$2.code == FmCode.connectReplyNarrow,
+      ),
+      isTrue,
+    );
+    expect(
+      frames.any((f) => !f.$1.incoming && !f.$2.isControl && f.$2.record > 0),
+      isTrue,
+    );
+    expect(
+      frames.any((f) => f.$1.incoming && !f.$2.isControl && f.$2.record > 0),
+      isTrue,
+    );
+  } finally {
+    clock.cancel();
+    bbs.dispose();
+    peer.dispose();
+    modem.dispose();
+    client.dispatch(deviceId: 0, name: 'StationId', data: 0, store: true);
+    client.dispose();
+  }
 }

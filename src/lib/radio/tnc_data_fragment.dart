@@ -18,8 +18,10 @@ enum FragmentEncodingType {
   softwareXara,
 }
 
-/// Frame type for TNC data fragments
-enum FragmentFrameType { unknown, ax25, fx25 }
+/// Frame type for TNC data fragments. New values are appended so stored
+/// indexes stay valid. [xara] fragments are XARA session frames packed by
+/// `XaraCapture`; they are captured for display only, never decoded as AX.25.
+enum FragmentFrameType { unknown, ax25, fx25, xara }
 
 /// TNC Data Fragment - represents a fragment of data received from or to be sent to the radio
 class TncDataFragment {

@@ -34,6 +34,9 @@ class XaraModemConfig {
   static const int defaultTxKeyUpMs = 300;
 
   final String callsign;
+
+  /// Extra callsigns (e.g. `CALL-SSID`) this station also answers connects for.
+  final List<String> aliases;
   final bool wide;
   final bool registered;
   final int txLatencyMs;
@@ -44,6 +47,7 @@ class XaraModemConfig {
 
   const XaraModemConfig({
     required this.callsign,
+    this.aliases = const <String>[],
     this.wide = false,
     this.registered = false,
     this.txLatencyMs = 500,
@@ -55,6 +59,7 @@ class XaraModemConfig {
 
   Map<String, Object?> toMap() => <String, Object?>{
         'callsign': callsign,
+        'aliases': aliases,
         'wide': wide,
         'registered': registered,
         'txLatencyMs': txLatencyMs,
@@ -66,6 +71,7 @@ class XaraModemConfig {
 
   static XaraModemConfig fromMap(Map<Object?, Object?> m) => XaraModemConfig(
         callsign: (m['callsign'] as String?) ?? '',
+        aliases: ((m['aliases'] as List?) ?? const <Object?>[]).cast<String>(),
         wide: (m['wide'] as bool?) ?? false,
         registered: (m['registered'] as bool?) ?? false,
         txLatencyMs: (m['txLatencyMs'] as int?) ?? 500,
@@ -259,6 +265,9 @@ Future<void> _xaraIsolateEntry(List<Object?> args) async {
   final ReceivePort commands = ReceivePort();
 
   final FmConfig fc = FmConfig(cfg.wide ? FmBandwidth.wide : FmBandwidth.narrow, cfg.callsign);
+  for (final String a in cfg.aliases) {
+    if (a.isNotEmpty && !fc.host.mycalls.contains(a)) fc.host.mycalls.add(a);
+  }
   fc.host.registered = cfg.registered;
   fc.host.compression = Compression.text;
   fc.seed = DateTime.now().microsecondsSinceEpoch;
@@ -270,16 +279,38 @@ Future<void> _xaraIsolateEntry(List<Object?> args) async {
       hostRate: cfg.sampleRate, keyUp: math.max(0, cfg.txKeyUpMs) * stationRate ~/ 1000);
   station.setKissRx(true);
   station.captureSymbols = cfg.analysis;
+  station.logFrames = true;
   final Stopwatch clock = Stopwatch()..start();
   int wall() => clock.elapsedMicroseconds * stationRate ~/ 1000000;
   String state = '';
+  // True from a local 'connect' until that attempt resolves, so links can be
+  // reported as dialed by us or answered (incoming).
+  bool dialing = false;
 
   void flush() {
     while (true) {
       final Report? r = driver.pop();
       if (r == null) break;
       final Map<String, Object?>? m = xaraReportToMap(r);
-      if (m != null) host.send(m);
+      if (m == null) continue;
+      switch (m['evt']) {
+        case 'connected':
+          m['incoming'] = !dialing;
+          dialing = false;
+        case 'disconnected' || 'timedOut' || 'unableToConnect':
+          dialing = false;
+      }
+      host.send(m);
+    }
+    for (final StationFrame f in station.takeFrames()) {
+      host.send(<String, Object?>{
+        'evt': 'frame',
+        'tx': f.tx,
+        'record': f.record,
+        'code': f.code,
+        'ok': f.ok,
+        'data': f.bytes,
+      });
     }
     for (final FmFrameRx f in station.takeCaptured()) {
       if (f.symbols != null) host.send(xaraAnalysisToMap(f, station.rxLevel(f.record)));
@@ -309,9 +340,13 @@ Future<void> _xaraIsolateEntry(List<Object?> args) async {
         final Uint8List b = (message['pcm'] as TransferableTypedData).materialize().asUint8List();
         driver.pushRx(Int16List.view(b.buffer, b.offsetInBytes, b.lengthInBytes ~/ 2), wall());
       case 'connect':
+        dialing = true;
         final bool ok = station.connect(
             cfg.callsign, message['remote'] as String, (message['vias'] as List).cast<String>());
-        if (!ok) host.send(<String, Object?>{'evt': 'unableToConnect'});
+        if (!ok) {
+          dialing = false;
+          host.send(<String, Object?>{'evt': 'unableToConnect'});
+        }
       case 'send':
         station.send(message['data'] as Uint8List);
       case 'disconnect':

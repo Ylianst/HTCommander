@@ -10,6 +10,7 @@ import 'ax25_packet.dart';
 import 'bss_packet.dart';
 import 'tnc_data_fragment.dart';
 import 'utils.dart';
+import 'xara_capture.dart';
 
 /// A named section of decoded packet detail lines.
 class PacketDecodeSection {
@@ -27,6 +28,10 @@ class PacketDecoder {
   /// Converts a fragment to a short single-line summary for the packet list.
   static String fragmentToShortString(TncDataFragment fragment) {
     final data = fragment.data;
+
+    if (fragment.frameType == FragmentFrameType.xara) {
+      return XaraCapture.parse(data)?.summary ?? RadioUtils.bytesToHex(data);
+    }
 
     // BSS Protocol - decode packets starting with 0x01.
     if (BSSPacket.isBSSPacket(data)) {
@@ -105,6 +110,17 @@ class PacketDecoder {
     final encoding = _encodingString(fragment);
     if (encoding.isNotEmpty) {
       frame.lines.add(MapEntry('Encoding', encoding));
+    }
+
+    if (fragment.frameType == FragmentFrameType.xara) {
+      final xara = PacketDecodeSection('XARA');
+      final capture = XaraCapture.parse(fragment.data);
+      if (capture == null) {
+        xara.lines.add(const MapEntry('Decode', 'Invalid XARA capture.'));
+      } else {
+        xara.lines.addAll(capture.details);
+      }
+      return [frame, packetSection, xara].where((s) => !s.isEmpty).toList();
     }
 
     if (BSSPacket.isBSSPacket(fragment.data)) {
@@ -267,6 +283,9 @@ class PacketDecoder {
 
     if (fragment.frameType == FragmentFrameType.ax25) encoding += ', AX.25';
     if (fragment.frameType == FragmentFrameType.fx25) encoding += ', FX.25';
+    if (fragment.frameType == FragmentFrameType.xara) {
+      return '$encoding, Session';
+    }
 
     // DART reports LDPC bit-error corrections; the AFSK/PSK modems report
     // FX.25 Reed-Solomon symbol / HDLC bit corrections.
