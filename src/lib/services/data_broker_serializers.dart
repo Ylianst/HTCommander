@@ -8,6 +8,7 @@ import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../handlers/bbs_handler.dart';
 import '../models/aircraft.dart';
+import '../radio/radio.dart' show SetLockData, SetUnlockData;
 import '../radio/tnc_data_fragment.dart';
 import '../satellite/satellite_models.dart';
 import '../winlink/winlink_client.dart';
@@ -32,6 +33,31 @@ import 'data_broker.dart';
 /// This must be called on every process (the host/main window and each detached
 /// client window) before any window is attached.
 void registerBrokerSerializers() {
+  DataBroker.registerSerializer<SetLockData>(
+    'setLock',
+    (value) => {
+      'usage': value.usage,
+      'regionId': value.regionId,
+      'channelId': value.channelId,
+      'channelName': value.channelName,
+      'modem': value.modem,
+      'xaraWide': value.xaraWide,
+    },
+    (json) => SetLockData(
+      usage: json['usage'] as String,
+      regionId: json['regionId'] as int,
+      channelId: json['channelId'] as int,
+      channelName: json['channelName'] as String?,
+      modem: json['modem'] as String?,
+      xaraWide: json['xaraWide'] as bool?,
+    ),
+  );
+  DataBroker.registerSerializer<SetUnlockData>(
+    'setUnlock',
+    (value) => {'usage': value.usage},
+    (json) => SetUnlockData(usage: json['usage'] as String),
+  );
+
   // Airplanes are dispatched as `List<Aircraft>` and the map tab rebuilds them
   // with `whereType<Aircraft>()`, which would drop plain maps — so Aircraft
   // must be reconstructed as a concrete type in detached windows.

@@ -3862,6 +3862,36 @@ abstract class AppLocalizations {
   /// **'Not connected'**
   String get terminalNotConnected;
 
+  /// No description provided for @terminalXaraRequiresAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable the radio audio to use XARA. XARA is not available on web or iOS.'**
+  String get terminalXaraRequiresAudio;
+
+  /// No description provided for @terminalXaraNoAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'The XARA connection failed or timed out.'**
+  String get terminalXaraNoAnswer;
+
+  /// No description provided for @terminalXaraLockTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not lock and tune the radio to the terminal channel.'**
+  String get terminalXaraLockTimeout;
+
+  /// No description provided for @terminalXaraDisconnectTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The XARA disconnect timed out; the link was aborted.'**
+  String get terminalXaraDisconnectTimeout;
+
+  /// No description provided for @terminalXaraPathInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter up to two valid digipeater callsigns, separated by commas.'**
+  String get terminalXaraPathInvalid;
+
   /// No description provided for @terminalError.
   ///
   /// In en, this message translates to:

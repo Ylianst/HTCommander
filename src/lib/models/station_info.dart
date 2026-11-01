@@ -28,6 +28,10 @@ enum TerminalProtocol {
   aprs, // 1
   rawX25Compress, // 2
   x25Session, // 3
+  xaraNarrow, // 4
+  xaraWide; // 5
+
+  bool get isXara => this == xaraNarrow || this == xaraWide;
 }
 
 /// A configured station / contact.

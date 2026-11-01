@@ -4,6 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -42,6 +43,8 @@ class TerminalTextSpan {
   });
 }
 
+enum _XaraState { waitingForLock, connecting, connected, disconnecting }
+
 /// Terminal tab - a packet-radio terminal ported from the C#
 /// `TerminalTabUserControl`.
 ///
@@ -49,7 +52,7 @@ class TerminalTextSpan {
 /// the radio to "Terminal" usage on the DataBroker, then exchanges text using
 /// either the connectionless AX.25 protocols (Raw AX.25, Raw AX.25 compressed,
 /// and APRS messaging) or the connected-mode AX.25 session protocol
-/// ([AX25Session], for `X25Session`). It can also listen for an incoming
+/// ([AX25Session], for `X25Session`) or XARA's connected byte stream. It can also listen for an incoming
 /// connected-mode session via "Wait for Connection". All radio interaction
 /// flows through the DataBroker:
 ///   * subscribes to `ConnectedRadios`, `LockState` and `UniqueDataFrame`
@@ -106,6 +109,9 @@ class _TerminalTabState extends State<TerminalTab>
   // Connected-mode AX.25 session, used for the X25Session protocol and for
   // "Wait for Connection" (listening for an incoming connection).
   AX25Session? _session;
+  _XaraState? _xaraState;
+  Timer? _xaraTimer;
+  Timer? _xaraLockPollTimer;
 
   // YAPP file-transfer engine, attached to the live session. Drives both
   // incoming (auto-received) and outgoing file transfers.
@@ -143,7 +149,7 @@ class _TerminalTabState extends State<TerminalTab>
   @override
   bool get wantKeepAlive => true;
 
-  bool get _isConnected => _activeTerminalRadioId > 0;
+  bool get _isConnected => _xaraState != null || _activeTerminalRadioId > 0;
 
   @override
   void initState() {
@@ -175,10 +181,17 @@ class _TerminalTabState extends State<TerminalTab>
       name: 'LockChannelResolveFailed',
       callback: _onLockChannelResolveFailed,
     );
+    _broker.subscribeMultiple(
+      deviceId: DataBroker.allDevices,
+      names: ['XaraEvent', 'XaraDataReceived', 'AudioState'],
+      callback: _onXaraDataOrEvent,
+    );
   }
 
   @override
   void dispose() {
+    _broker.unsubscribeAll();
+    if (_xaraState != null) _finishXara(abort: true, notify: false);
     _yapp?.dispose();
     _yapp = null;
     _transferProgress.dispose();
@@ -217,6 +230,10 @@ class _TerminalTabState extends State<TerminalTab>
 
   void _onConnectedRadios(int deviceId, String name, Object? data) {
     if (!mounted) return;
+    _loadConnectedRadios();
+    if (_xaraState != null && !_connectedRadios.contains(_connectedRadioId)) {
+      _finishXara(abort: true);
+    }
     setState(() {
       _loadConnectedRadios();
       // Drop lock states for radios that are no longer connected.
@@ -231,6 +248,14 @@ class _TerminalTabState extends State<TerminalTab>
 
   void _onLockState(int deviceId, String name, Object? data) {
     if (!mounted) return;
+    if (deviceId == _connectedRadioId && _xaraState != null) {
+      final lock = data is Map<String, dynamic>
+          ? RadioLockState.fromJson(data)
+          : null;
+      if (lock == null || !lock.isLocked || lock.usage != 'Terminal') {
+        _finishXara(abort: true);
+      }
+    }
     setState(() {
       if (data is Map<String, dynamic>) {
         _lockStates[deviceId] = RadioLockState.fromJson(data);
@@ -254,7 +279,7 @@ class _TerminalTabState extends State<TerminalTab>
     // Connection") are handled entirely by the AX25Session, which has its own
     // UniqueDataFrame subscription; the tab must not also decode those frames.
     // Connectionless protocols are decoded here.
-    if (_session != null) return;
+    if (_session != null || _xaraState != null) return;
 
     // UniqueDataFrame carries a TncDataFragment; decode it into an AX.25 packet.
     if (data is! TncDataFragment) return;
@@ -274,6 +299,7 @@ class _TerminalTabState extends State<TerminalTab>
     final station = _connectedStation;
 
     // Release the radio and tear down any pending session.
+    if (_xaraState != null) _finishXara(abort: true);
     _broker.dispatch(
       deviceId: deviceId,
       name: 'SetUnlock',
@@ -333,6 +359,10 @@ class _TerminalTabState extends State<TerminalTab>
   // ---------------------------------------------------------------------------
 
   Future<void> _onConnectPressed() async {
+    if (_xaraState != null) {
+      _disconnectXara();
+      return;
+    }
     final activeRadioId = _activeTerminalRadioId;
     if (activeRadioId > 0) {
       // Ignore repeat clicks while a graceful disconnect is already underway;
@@ -458,6 +488,35 @@ class _TerminalTabState extends State<TerminalTab>
       return;
     }
 
+    if (station.terminalProtocol.isXara) {
+      if (kIsWeb ||
+          Platform.isIOS ||
+          !(_broker.getValue<bool>(radioId, 'AudioState', false) ?? false)) {
+        _xaraError(l10n.terminalXaraRequiresAudio);
+        return;
+      }
+      final path = AX25Address.parsePath(station.ax25Path);
+      if (AX25Address.parse(station.callsign) == null ||
+          path == null ||
+          path.length > 2) {
+        _xaraError(l10n.terminalInvalidCallsignDest);
+        return;
+      }
+      _yapp?.dispose();
+      _yapp = null;
+      _transferProgress.value = null;
+      _session?.dispose();
+      _session = null;
+    }
+
+    setState(() {
+      _connectedStation = station;
+      _connectedRadioId = radioId;
+      _xaraState = station.terminalProtocol.isXara
+          ? _XaraState.waitingForLock
+          : null;
+    });
+
     // Lock the radio to Terminal usage, carrying the contact's modem so the
     // radio uses it for the duration of the lock without touching the global
     // software modem setting. 'Hardware' maps to the radio's built-in TNC.
@@ -469,15 +528,13 @@ class _TerminalTabState extends State<TerminalTab>
         regionId: res.regionId,
         channelId: res.channelId,
         channelName: res.channelName,
-        modem: station.modem,
+        modem: station.terminalProtocol.isXara ? 'XARA' : station.modem,
+        xaraWide: station.terminalProtocol.isXara
+            ? station.terminalProtocol == TerminalProtocol.xaraWide
+            : null,
       ),
       store: false,
     );
-
-    setState(() {
-      _connectedStation = station;
-      _connectedRadioId = radioId;
-    });
 
     _broker.logInfo(
       '[TerminalTab] Connecting to station ${station.callsign} on radio '
@@ -486,12 +543,166 @@ class _TerminalTabState extends State<TerminalTab>
     );
 
     // For the connected-mode protocol, start an AX.25 session handshake.
-    if (station.terminalProtocol == TerminalProtocol.x25Session) {
+    if (station.terminalProtocol.isXara) {
+      _startXara(radioId, station);
+    } else if (station.terminalProtocol == TerminalProtocol.x25Session) {
       _startSession(radioId, station);
     } else {
       _appendSystem('*** Connected to ${station.callsign} ***');
     }
     _inputFocus.requestFocus();
+  }
+
+  void _xaraError(String error) {
+    _broker.logError('[TerminalTab] $error');
+    _appendSystem(
+      '*** ${AppLocalizations.of(context).terminalError(error)} ***',
+    );
+  }
+
+  void _startXara(int radioId, StationInfo station) {
+    if (_xaraState != _XaraState.waitingForLock) return;
+    _appendSystem(
+      '*** ${AppLocalizations.of(context).terminalConnectingTo(station.callsign)} ***',
+    );
+    _xaraTimer = Timer(const Duration(seconds: 15), () {
+      _xaraError(AppLocalizations.of(context).terminalXaraLockTimeout);
+      _finishXara(abort: true);
+    });
+    _xaraLockPollTimer = Timer.periodic(const Duration(milliseconds: 200), (
+      timer,
+    ) {
+      final lock = _lockStates[radioId];
+      final resolution = resolveStationChannel(_broker, radioId, station);
+      final status = _broker.getValueDynamic(radioId, 'HtStatus');
+      final tuned =
+          status is Map &&
+          status['currRegion'] == resolution.regionId &&
+          (resolution.channelId < 0 ||
+              status['currChId'] == resolution.channelId);
+      if (lock?.isLocked == true &&
+          lock?.usage == 'Terminal' &&
+          resolution.status == StationChannelStatus.ok &&
+          tuned) {
+        timer.cancel();
+        _xaraTimer?.cancel();
+        _xaraState = _XaraState.connecting;
+        _xaraTimer = Timer(const Duration(seconds: 120), () {
+          _xaraError(AppLocalizations.of(context).terminalXaraNoAnswer);
+          _finishXara(abort: true);
+        });
+        _broker.dispatch(
+          deviceId: radioId,
+          name: 'XaraConnect',
+          data: {
+            'Remote': station.callsign.trim().toUpperCase(),
+            'Vias': station.ax25Path
+                .split(',')
+                .map((s) => s.trim().toUpperCase())
+                .where((s) => s.isNotEmpty)
+                .toList(),
+          },
+          store: false,
+        );
+      }
+    });
+  }
+
+  void _onXaraDataOrEvent(int deviceId, String name, Object? data) {
+    if (!mounted || _xaraState == null || deviceId != _connectedRadioId) {
+      return;
+    }
+    if (name == 'AudioState') {
+      if (data != true) {
+        _xaraError(AppLocalizations.of(context).terminalXaraRequiresAudio);
+        _finishXara(abort: true);
+      }
+      return;
+    }
+    if (name == 'XaraDataReceived') {
+      if (_xaraState == _XaraState.connected && data is Uint8List) {
+        _appendReceivedData(data);
+      }
+      return;
+    }
+    if (data is! Map) return;
+    switch (data['evt']) {
+      case 'connected':
+        if (_xaraState != _XaraState.connecting) return;
+        _xaraTimer?.cancel();
+        setState(() => _xaraState = _XaraState.connected);
+        _appendSystem('*** ${AppLocalizations.of(context).stateConnected} ***');
+      case 'disconnected':
+        _finishXara();
+      case 'timedOut':
+      case 'unableToConnect':
+        _xaraError(AppLocalizations.of(context).terminalXaraNoAnswer);
+        _finishXara();
+    }
+  }
+
+  void _disconnectXara() {
+    if (_pendingDisconnect) return;
+    if (_xaraState != _XaraState.connected) {
+      _finishXara(abort: true);
+      return;
+    }
+    setState(() {
+      _pendingDisconnect = true;
+      _xaraState = _XaraState.disconnecting;
+    });
+    _appendSystem(
+      '*** ${AppLocalizations.of(context).statusDisconnecting} ***',
+    );
+    _xaraTimer?.cancel();
+    _xaraTimer = Timer(const Duration(seconds: 30), () {
+      _xaraError(AppLocalizations.of(context).terminalXaraDisconnectTimeout);
+      _finishXara(abort: true);
+    });
+    _broker.dispatch(
+      deviceId: _connectedRadioId,
+      name: 'XaraDisconnect',
+      data: null,
+      store: false,
+    );
+  }
+
+  void _finishXara({bool abort = false, bool notify = true}) {
+    _xaraTimer?.cancel();
+    _xaraTimer = null;
+    _xaraLockPollTimer?.cancel();
+    _xaraLockPollTimer = null;
+    final radioId = _connectedRadioId;
+    _xaraState = null;
+    _connectedRadioId = -1;
+    _connectedStation = null;
+    _pendingDisconnect = false;
+    if (abort) {
+      _broker.dispatch(
+        deviceId: radioId,
+        name: 'XaraAbort',
+        data: null,
+        store: false,
+      );
+    }
+    final lock = _broker.getJsonValue<RadioLockState>(
+      radioId,
+      'LockState',
+      RadioLockState.fromJson,
+    );
+    if (lock?.isLocked == true && lock?.usage == 'Terminal') {
+      _broker.dispatch(
+        deviceId: radioId,
+        name: 'SetUnlock',
+        data: SetUnlockData(usage: 'Terminal'),
+        store: false,
+      );
+    }
+    if (notify) {
+      _appendSystem(
+        '*** ${AppLocalizations.of(context).stateDisconnected} ***',
+      );
+    }
   }
 
   /// Creates an [AX25Session] and initiates a connected-mode handshake to
@@ -689,6 +900,10 @@ class _TerminalTabState extends State<TerminalTab>
     // Give the YAPP engine first chance at the data; if it consumes the bytes
     // as protocol traffic, don't display them as terminal text.
     if (_yapp?.processIncomingData(data) == true) return;
+    _appendReceivedData(data);
+  }
+
+  void _appendReceivedData(Uint8List data) {
     final station = _connectedStation;
     final fromCallsign =
         station?.callsign ?? _sessionRemoteCallsign ?? 'UNKNOWN';
@@ -872,6 +1087,21 @@ class _TerminalTabState extends State<TerminalTab>
         // Send a line terminated with a carriage return (BBS convention).
         session.sendString('$text\r');
         break;
+      case TerminalProtocol.xaraNarrow:
+      case TerminalProtocol.xaraWide:
+        if (_xaraState != _XaraState.connected) {
+          _appendSystem(
+            '*** ${AppLocalizations.of(context).terminalNotConnected} ***',
+          );
+          return;
+        }
+        _broker.dispatch(
+          deviceId: radioId,
+          name: 'XaraSend',
+          data: Uint8List.fromList(utf8.encode('$text\r')),
+          store: false,
+        );
+        break;
     }
 
     final myCallsign =
@@ -1012,6 +1242,8 @@ class _TerminalTabState extends State<TerminalTab>
         _processRawX25Packet(packet, fromCallsign, myCallsign);
         break;
       case TerminalProtocol.x25Session:
+      case TerminalProtocol.xaraNarrow:
+      case TerminalProtocol.xaraWide:
         // Connected-mode frames are delivered via AX25Session callbacks
         // (`_onSessionDataReceived`), so nothing is processed here.
         break;
@@ -1644,7 +1876,10 @@ class _TerminalTabState extends State<TerminalTab>
       valueListenable: _transferProgress,
       builder: (context, progress, _) {
         final scheme = Theme.of(context).colorScheme;
-        final enabled = _isConnected && progress == null;
+        final enabled =
+            _isConnected &&
+            progress == null &&
+            (_xaraState == null || _xaraState == _XaraState.connected);
         return Container(
           height: 50,
           color: scheme.surfaceContainerHigh,

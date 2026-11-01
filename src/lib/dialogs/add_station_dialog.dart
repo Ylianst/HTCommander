@@ -141,6 +141,8 @@ const List<_ProtocolOption> _protocolOptions = [
   _ProtocolOption(TerminalProtocol.aprs, 'APRS'),
   _ProtocolOption(TerminalProtocol.rawX25Compress, 'Raw AX.25 (Compressed)'),
   _ProtocolOption(TerminalProtocol.x25Session, 'AX.25 Session'),
+  _ProtocolOption(TerminalProtocol.xaraNarrow, 'XARA Narrow'),
+  _ProtocolOption(TerminalProtocol.xaraWide, 'XARA Wide'),
 ];
 
 /// A selectable modem for Terminal / Winlink sessions.
@@ -492,7 +494,10 @@ class _StationDialogState extends State<_StationDialog> {
   bool get _ax25PathValid {
     final text = _ax25PathController.text.trim();
     if (text.isEmpty) return true; // optional
-    return AX25Address.parsePath(text) != null;
+    final path = AX25Address.parsePath(text);
+    return path != null &&
+        (!(_stationType == StationType.terminal && _terminalProtocol.isXara) ||
+            path.length <= 2);
   }
 
   bool get _isValid {
@@ -792,7 +797,9 @@ class _StationDialogState extends State<_StationDialog> {
       channel: _channelController.text.trim(),
       channelRegion: _channelRegion,
       ax25Destination: _ax25DestController.text.trim(),
-      ax25Path: _terminalProtocol == TerminalProtocol.x25Session
+      ax25Path:
+          (_terminalProtocol == TerminalProtocol.x25Session ||
+              _terminalProtocol.isXara)
           ? _ax25PathController.text.trim()
           : '',
       authPassword: (_stationType == StationType.aprs && _useAuth)
@@ -1039,7 +1046,13 @@ class _StationDialogState extends State<_StationDialog> {
         decoration: _inputDecoration(labelText: l10n.stationTerminalProtocol),
         items: [
           for (final option in _protocolOptions)
-            DropdownMenuItem(value: option.protocol, child: Text(option.label)),
+            if (_audioChannelSupported ||
+                !option.protocol.isXara ||
+                option.protocol == _terminalProtocol)
+              DropdownMenuItem(
+                value: option.protocol,
+                child: Text(option.label),
+              ),
         ],
         onChanged: (value) {
           if (value != null) setState(() => _terminalProtocol = value);
@@ -1069,11 +1082,12 @@ class _StationDialogState extends State<_StationDialog> {
           },
         ),
       ],
-      if (_terminalProtocol == TerminalProtocol.x25Session) ...[
+      if (_terminalProtocol == TerminalProtocol.x25Session ||
+          _terminalProtocol.isXara) ...[
         const SizedBox(height: 12),
         _buildAx25PathField(),
       ],
-      if (_audioChannelSupported) ...[
+      if (_audioChannelSupported && !_terminalProtocol.isXara) ...[
         const SizedBox(height: 12),
         _buildModemDropdown(),
       ],
@@ -1102,7 +1116,9 @@ class _StationDialogState extends State<_StationDialog> {
       decoration: _inputDecoration(
         labelText: l10n.stationAx25Path,
         errorText: _ax25PathController.text.isNotEmpty && !_ax25PathValid
-            ? l10n.stationAx25PathInvalid
+            ? (_stationType == StationType.terminal && _terminalProtocol.isXara
+                  ? l10n.terminalXaraPathInvalid
+                  : l10n.stationAx25PathInvalid)
             : null,
       ),
       onChanged: (value) {
@@ -1113,6 +1129,7 @@ class _StationDialogState extends State<_StationDialog> {
             selection: TextSelection.collapsed(offset: upper.length),
           );
         }
+        setState(() {});
       },
     );
   }
@@ -1132,6 +1149,7 @@ class _StationDialogState extends State<_StationDialog> {
     return DropdownButtonFormField<String>(
       initialValue: current,
       decoration: _inputDecoration(labelText: l10n.stationModem),
+      isExpanded: true,
       items: [
         for (final option in options)
           DropdownMenuItem(value: option.value, child: Text(option.label)),

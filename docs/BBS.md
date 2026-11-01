@@ -9,3 +9,7 @@ The BBS supports AX.25 sessions along with RAW AX.25, APRS and compressed packet
 Right now, the BBS acts as a private Winlink email gateway and has as support for a text adventure game called [The Adventurer](https://github.com/TheTextAdventurer/Adventurer). Any unconnected packets sent to the BBS will initiate the adventure and the adventure game is saved at each turn using the sender's callsign, so, many stations can play at the same time and each will see their own game. You can transmit "quit" at anytime to restart the game.
 
 The BBS tab will show statistics in real-time on what stations are using the BBS and how many bytes and packets have been sent and received.
+
+## XARA (VARA FM compatible) sessions
+
+When **XARA** is selected as the software modem (and the radio audio is enabled), the BBS also answers incoming XARA connections, so stations running VARA FM can use the menu and exchange Winlink mail just like over an AX.25 session (including relay to the Winlink CMS gateway). XARA stations should connect to your callsign without an SSID. AX.25 packets carried by XARA are delivered to the BBS as usual. The BBS serves one connected station at a time; a second station connecting over AX.25 or XARA while another session is active is told the BBS is busy and disconnected. XARA connections show as "XARA" in the statistics.

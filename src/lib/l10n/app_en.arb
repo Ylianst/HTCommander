@@ -1411,6 +1411,11 @@
   "terminalInvalidCallsignDest": "Invalid callsign/destination",
   "terminalInvalidCallsign": "Invalid callsign",
   "terminalNotConnected": "Not connected",
+  "terminalXaraRequiresAudio": "Enable the radio audio to use XARA. XARA is not available on web or iOS.",
+  "terminalXaraNoAnswer": "The XARA connection failed or timed out.",
+  "terminalXaraLockTimeout": "Could not lock and tune the radio to the terminal channel.",
+  "terminalXaraDisconnectTimeout": "The XARA disconnect timed out; the link was aborted.",
+  "terminalXaraPathInvalid": "Enter up to two valid digipeater callsigns, separated by commas.",
   "terminalError": "Error: {error}",
   "@terminalError": {
     "placeholders": {

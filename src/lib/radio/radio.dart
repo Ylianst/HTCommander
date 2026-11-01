@@ -111,12 +111,16 @@ class SetLockData {
   /// setting.
   final String? modem;
 
+  /// XARA bandwidth override for this lock; null keeps the global setting.
+  final bool? xaraWide;
+
   SetLockData({
     required this.usage,
     this.regionId = -1,
     this.channelId = -1,
     this.channelName,
     this.modem,
+    this.xaraWide,
   });
 }
 
@@ -828,6 +832,7 @@ class Radio implements FirmwareRadio {
         regionId: -1,
         channelId: -1,
         modem: lockData.modem,
+        xaraWide: lockData.xaraWide,
       );
       _satTrackCount = 0;
       _dispatch('LockState', _lockState!.toJson());
@@ -865,6 +870,7 @@ class Radio implements FirmwareRadio {
       regionId: targetRegionId,
       channelId: targetChannelId,
       modem: lockData.modem,
+      xaraWide: lockData.xaraWide,
     );
 
     _dispatch('LockState', _lockState!.toJson());
@@ -987,6 +993,7 @@ class Radio implements FirmwareRadio {
       regionId: lock.regionId,
       channelId: ch.channelId,
       modem: lock.modem,
+      xaraWide: lock.xaraWide,
     );
     _dispatch('LockState', _lockState!.toJson());
     _debug(

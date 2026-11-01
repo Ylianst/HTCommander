@@ -104,6 +104,7 @@ class _RadioModemState {
   /// radio's hardware TNC (software modem off for this radio); any other value
   /// forces that software mode regardless of the global setting.
   SoftwareModemMode? lockModemOverride;
+  bool? lockXaraWide;
 
   /// The user's general software modem (null when the general modem is off).
   _ModemInstance? generalModem;
@@ -725,12 +726,22 @@ class SoftwareModem {
     final SoftwareModemMode mode = _effectiveGeneralMode(state);
     final SoftwareModemMode current =
         state.generalModem?.mode ?? SoftwareModemMode.none;
-    if (current == mode) return;
+    if (current == mode &&
+        (mode != SoftwareModemMode.xara ||
+            state.generalModem?.xara?.config.wide ==
+                _effectiveXaraWide(state))) {
+      return;
+    }
     state.generalModem?.dispose();
     state.generalModem = mode == SoftwareModemMode.none
         ? null
         : _buildInstance(state, mode, _fecEnabled);
   }
+
+  bool _effectiveXaraWide(_RadioModemState state) =>
+      state.lockXaraWide ??
+      _broker.getValue<bool>(0, 'XaraWide', false) ??
+      false;
 
   /// Sets the software modem mode. When [persist] is false the change is
   /// applied live but the stored user preference (device 0 'SoftwareModemMode')
@@ -738,7 +749,9 @@ class SoftwareModem {
   void setMode(SoftwareModemMode mode, {bool persist = true}) {
     if (_currentMode == mode) return;
 
-    _debug('Changing software modem mode from ${_currentMode.name} to ${mode.name}');
+    _debug(
+      'Changing software modem mode from ${_currentMode.name} to ${mode.name}',
+    );
 
     // Cleanup all existing per-radio modem states
     for (final state in _radioModems.values) {
@@ -1117,6 +1130,8 @@ class SoftwareModem {
         state.lockModemOverride = _parseLockModem(
           (lockState['modem'] ?? lockState['Modem']) as String?,
         );
+        state.lockXaraWide =
+            (lockState['xaraWide'] ?? lockState['XaraWide']) as bool?;
       }
     }
 
@@ -1254,11 +1269,19 @@ class SoftwareModem {
     if (mode == SoftwareModemMode.xara) {
       instance.xara = XaraModem(
         config: XaraModemConfig(
-          callsign: (_broker.getValue<String>(0, 'CallSign', '') ?? '').trim().toUpperCase(),
-          wide: _broker.getValue<bool>(0, 'XaraWide', false) ?? false,
-          registered: _broker.getValue<bool>(0, 'XaraRegistered', false) ?? false,
+          callsign: (_broker.getValue<String>(0, 'CallSign', '') ?? '')
+              .trim()
+              .toUpperCase(),
+          wide: _effectiveXaraWide(state),
+          registered:
+              _broker.getValue<bool>(0, 'XaraRegistered', false) ?? false,
           txLatencyMs: _broker.getValue<int>(0, 'XaraTxLatencyMs', 500) ?? 500,
-          txKeyUpMs: _broker.getValue<int>(0, 'XaraTxKeyUpMs', XaraModemConfig.defaultTxKeyUpMs) ??
+          txKeyUpMs:
+              _broker.getValue<int>(
+                0,
+                'XaraTxKeyUpMs',
+                XaraModemConfig.defaultTxKeyUpMs,
+              ) ??
               XaraModemConfig.defaultTxKeyUpMs,
           sampleRate: sampleRate,
           analysis: _dartAnalysisEnabled,
@@ -1559,8 +1582,7 @@ class SoftwareModem {
     _broker.dispatch(deviceId: 0, name: 'XaraWide', data: data, store: true);
     for (final _RadioModemState state in _radioModems.values) {
       if (state.generalModem?.xara == null) continue;
-      state.generalModem!.dispose();
-      state.generalModem = _buildInstance(state, SoftwareModemMode.xara, _fecEnabled);
+      _rebuildGeneralModem(state);
     }
     _debug('XARA bandwidth set to ${data ? "wide" : "narrow"}');
   }
@@ -1648,13 +1670,16 @@ class SoftwareModem {
     String? usage;
     int channelId = -1;
     SoftwareModemMode? modemOverride;
+    bool? xaraWide;
     if (data is Map) {
       isLocked = (data['isLocked'] ?? data['IsLocked']) as bool? ?? false;
       usage = (data['usage'] ?? data['Usage']) as String?;
       channelId = _readInt(data['channelId'] ?? data['ChannelId']) ?? -1;
       if (isLocked && usage != null && usage.isNotEmpty) {
-        modemOverride =
-            _parseLockModem((data['modem'] ?? data['Modem']) as String?);
+        modemOverride = _parseLockModem(
+          (data['modem'] ?? data['Modem']) as String?,
+        );
+        xaraWide = (data['xaraWide'] ?? data['XaraWide']) as bool?;
       } else {
         isLocked = false;
         usage = null;
@@ -1679,6 +1704,7 @@ class SoftwareModem {
     state.lockUsage = usage;
     state.lockChannelId = channelId;
     state.lockModemOverride = modemOverride;
+    state.lockXaraWide = xaraWide;
 
     // The override may switch this radio's general modem on, off, or to a
     // different mode independent of the global setting.

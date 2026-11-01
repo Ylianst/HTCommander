@@ -223,23 +223,140 @@ class BbsStatsClearedData {
 }
 
 // ---------------------------------------------------------------------------
+// BbsLink: a connected client, over AX.25 or XARA
+// ---------------------------------------------------------------------------
+
+/// A connected BBS client. The BBS conversation and Winlink mail exchange run
+/// identically over an AX.25 connected-mode session or a XARA (VARA FM) link.
+abstract class BbsLink {
+  /// Per-connection scratch state (mode, Winlink proposals, relay flags...).
+  Map<String, Object?> get sessionState;
+
+  /// Remote callsign including any SSID, for display and statistics.
+  String get remoteCallsign;
+
+  /// Remote callsign without SSID, used for Winlink addressing.
+  String get remoteAddress {
+    final call = remoteCallsign;
+    final dash = call.indexOf('-');
+    return dash > 0 ? call.substring(0, dash) : call;
+  }
+
+  /// Protocol label shown in the BBS statistics.
+  String get protocol;
+
+  bool get isConnected;
+
+  void send(Uint8List data);
+
+  void disconnect();
+}
+
+class _Ax25BbsLink extends BbsLink {
+  final AX25Session session;
+
+  _Ax25BbsLink(this.session);
+
+  @override
+  Map<String, Object?> get sessionState => session.sessionState;
+
+  @override
+  String get remoteCallsign {
+    final addrs = session.addresses;
+    return (addrs == null || addrs.isEmpty) ? '' : addrs[0].toString();
+  }
+
+  @override
+  String get remoteAddress {
+    final addrs = session.addresses;
+    return (addrs == null || addrs.isEmpty) ? '' : addrs[0].address;
+  }
+
+  @override
+  String get protocol => 'Stream';
+
+  @override
+  bool get isConnected =>
+      session.currentState == AX25ConnectionState.connected;
+
+  @override
+  void send(Uint8List data) => session.send(data);
+
+  @override
+  void disconnect() => session.disconnect();
+}
+
+/// An incoming XARA ARQ link, driven through the software modem's per-radio
+/// `XaraSend` / `XaraDisconnect` commands.
+class _XaraBbsLink extends BbsLink {
+  final int deviceId;
+  final DataBrokerClient broker;
+  @override
+  final String remoteCallsign;
+  @override
+  final Map<String, Object?> sessionState = {};
+  bool connected = true;
+
+  _XaraBbsLink(this.deviceId, this.broker, this.remoteCallsign);
+
+  @override
+  String get protocol => 'XARA';
+
+  @override
+  bool get isConnected => connected;
+
+  @override
+  void send(Uint8List data) {
+    if (!connected || data.isEmpty) return;
+    broker.dispatch(
+      deviceId: deviceId,
+      name: 'XaraSend',
+      data: data,
+      store: false,
+    );
+  }
+
+  @override
+  void disconnect() {
+    if (!connected) return;
+    broker.dispatch(
+      deviceId: deviceId,
+      name: 'XaraDisconnect',
+      data: null,
+      store: false,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Bbs: per-radio BBS engine
 // ---------------------------------------------------------------------------
 
 /// BBS (Bulletin Board System) engine for a specific radio device.
 ///
-/// Each instance owns a single [AX25Session]. When a station connects it is
-/// greeted with a banner, after which it can drive the menu (M / S / D) or
-/// speak the Winlink B2F protocol to exchange mail. When possible the session
-/// is relayed to the Winlink CMS gateway; otherwise mail is exchanged locally.
+/// Each instance owns a single [AX25Session] and, when XARA is the radio's
+/// software modem, also answers incoming XARA links. One client is served at a
+/// time. When a station connects it is greeted with a banner, after which it
+/// can drive the menu (M / S / D) or speak the Winlink B2F protocol to exchange
+/// mail. When possible the session is relayed to the Winlink CMS gateway;
+/// otherwise mail is exchanged locally.
 class Bbs {
   final int _deviceId;
   final int channelId;
   final int regionId;
   final DataBrokerClient _broker = DataBrokerClient();
   AX25Session? _session;
+  late final _Ax25BbsLink _ax25Link;
+  _XaraBbsLink? _xaraLink;
+
+  /// The client currently being served, if any.
+  BbsLink? _activeLink;
   WinlinkGatewayRelay? _cmsRelay;
   bool _disposed = false;
+
+  /// Creates the Winlink CMS relay for a connecting client; replaceable in tests.
+  static WinlinkGatewayRelay Function(int deviceId, DataBrokerClient broker)
+  relayFactory = WinlinkGatewayRelay.new;
 
   /// Whether this BBS handler is enabled. When disabled, packets are ignored.
   bool enabled = false;
@@ -250,6 +367,9 @@ class Bbs {
   int get deviceId => _deviceId;
   AX25Session? get session => _session;
 
+  /// The client currently being served (AX.25 or XARA), if any.
+  BbsLink? get activeLink => _activeLink;
+
   Bbs(this._deviceId, {this.channelId = -1, this.regionId = -1}) {
     final session = AX25Session(_deviceId);
     session.onStateChanged = _onSessionStateChanged;
@@ -257,6 +377,19 @@ class Bbs {
     session.onUiDataReceived = _onSessionUiDataReceived;
     session.onError = _onSessionError;
     _session = session;
+    _ax25Link = _Ax25BbsLink(session);
+
+    // XARA links are only reported when XARA is this radio's software modem.
+    _broker.subscribe(
+      deviceId: _deviceId,
+      name: 'XaraEvent',
+      callback: _onXaraEvent,
+    );
+    _broker.subscribe(
+      deviceId: _deviceId,
+      name: 'XaraDataReceived',
+      callback: _onXaraData,
+    );
 
     // Mirror the C# logging subscription for incoming BBS frames. The session
     // itself drives the AX.25 protocol via its own UniqueDataFrame
@@ -312,12 +445,64 @@ class Bbs {
 
   void _onSessionStateChanged(AX25Session sender, AX25ConnectionState state) {
     if (!enabled) return;
-    _processStreamState(sender, state);
+    switch (state) {
+      case AX25ConnectionState.connected:
+        _onLinkConnected(_ax25Link);
+        break;
+      case AX25ConnectionState.disconnected:
+        _onLinkDisconnected(_ax25Link);
+        break;
+      case AX25ConnectionState.connecting:
+        _dispatchControl('Connecting...');
+        break;
+      case AX25ConnectionState.disconnecting:
+        if (identical(_activeLink, _ax25Link)) {
+          _dispatchControl('Disconnecting...');
+        }
+        break;
+    }
   }
 
   void _onSessionDataReceived(AX25Session sender, Uint8List data) {
-    if (!enabled) return;
-    _processStream(sender, data);
+    if (!enabled || !identical(_activeLink, _ax25Link)) return;
+    _processStream(_ax25Link, data);
+  }
+
+  void _onXaraEvent(int deviceId, String name, Object? data) {
+    if (!enabled || _disposed || data is! Map) return;
+    switch (data['evt']) {
+      case 'connected':
+        final caller = (data['caller'] as String?)?.trim().toUpperCase() ?? '';
+        final myCall =
+            (_broker.getValue<String>(0, 'CallSign', '') ?? '')
+                .trim()
+                .toUpperCase();
+        // Only answer incoming links; ignore our own outgoing connects.
+        if (caller.isEmpty || caller == myCall) return;
+        _xaraLink?.connected = false;
+        final link = _XaraBbsLink(_deviceId, _broker, caller);
+        _xaraLink = link;
+        _broker.logInfo(
+          '[BBS/$_deviceId] XARA link from $caller'
+          '${data['wide'] == true ? ' (wide)' : ' (narrow)'}',
+        );
+        _onLinkConnected(link);
+      case 'disconnected':
+      case 'timedOut':
+      case 'unableToConnect':
+        final link = _xaraLink;
+        if (link == null) return;
+        link.connected = false;
+        _xaraLink = null;
+        _onLinkDisconnected(link);
+    }
+  }
+
+  void _onXaraData(int deviceId, String name, Object? data) {
+    if (!enabled || _disposed || data is! Uint8List) return;
+    final link = _xaraLink;
+    if (link == null || !identical(_activeLink, link)) return;
+    _processStream(link, data);
   }
 
   void _onSessionUiDataReceived(AX25Session sender, Uint8List data) {
@@ -375,15 +560,9 @@ class Bbs {
     );
   }
 
-  String _remoteCallsign(AX25Session session) {
-    final addrs = session.addresses;
-    if (addrs == null || addrs.isEmpty) return '';
-    return addrs[0].toString();
-  }
-
   // ---- outbound text --------------------------------------------------------
 
-  void _sessionSend(AX25Session session, String output) {
+  void _sessionSend(BbsLink session, String output) {
     if (!enabled) return;
     if (output.isEmpty) return;
     final dataStrs = output
@@ -392,42 +571,45 @@ class Bbs {
         .split('\r');
     for (int i = 0; i < dataStrs.length; i++) {
       if (dataStrs[i].trim().isEmpty && i == dataStrs.length - 1) continue;
-      _dispatchTraffic(_remoteCallsign(session), true, dataStrs[i].trim());
+      _dispatchTraffic(session.remoteCallsign, true, dataStrs[i].trim());
     }
-    _updateStats(_remoteCallsign(session), 'Stream', 0, 1, 0, output.length);
+    _updateStats(session.remoteCallsign, session.protocol, 0, 1, 0, output.length);
     session.send(Uint8List.fromList(utf8.encode(output)));
   }
 
   // ---- connection state -----------------------------------------------------
 
-  void _processStreamState(AX25Session session, AX25ConnectionState state) {
-    if (!enabled) return;
-    switch (state) {
-      case AX25ConnectionState.connected:
-        _dispatchControl('Connected to ${_remoteCallsign(session)}');
-        final addrs = session.addresses;
-        final stationCallsign = (addrs != null && addrs.isNotEmpty)
-            ? addrs[0].address
-            : '';
-        unawaited(_attemptCmsRelayConnect(session, stationCallsign));
-        break;
-      case AX25ConnectionState.disconnected:
-        _dispatchControl('Disconnected');
-        _cleanupCmsRelay();
-        break;
-      case AX25ConnectionState.connecting:
-        _dispatchControl('Connecting...');
-        break;
-      case AX25ConnectionState.disconnecting:
-        _dispatchControl('Disconnecting...');
-        break;
+  void _onLinkConnected(BbsLink link) {
+    final active = _activeLink;
+    if (active != null && !identical(active, link) && active.isConnected) {
+      // Only one client at a time: turn the newcomer away.
+      _dispatchControl('Busy, rejecting ${link.remoteCallsign}');
+      link.send(
+        Uint8List.fromList(utf8.encode('BBS busy, please try again later\r')),
+      );
+      link.disconnect();
+      return;
     }
+    _activeLink = link;
+    link.sessionState.clear();
+    _dispatchControl(
+      'Connected to ${link.remoteCallsign}'
+      '${link.protocol == 'XARA' ? ' (XARA)' : ''}',
+    );
+    unawaited(_attemptCmsRelayConnect(link, link.remoteAddress));
+  }
+
+  void _onLinkDisconnected(BbsLink link) {
+    if (!identical(_activeLink, link)) return;
+    _activeLink = null;
+    _dispatchControl('Disconnected');
+    _cleanupCmsRelay();
   }
 
   // ---- Winlink CMS relay ----------------------------------------------------
 
   Future<void> _attemptCmsRelayConnect(
-    AX25Session session,
+    BbsLink session,
     String stationCallsign,
   ) async {
     try {
@@ -436,11 +618,17 @@ class Bbs {
       );
       _dispatchControl('Connecting to Winlink gateway...');
 
-      final relay = WinlinkGatewayRelay(_deviceId, _broker);
+      final relay = relayFactory(_deviceId, _broker);
       final connected = await relay.connectAsync(
         stationCallsign,
         timeoutMs: 15000,
       );
+
+      // The client may have left while the gateway was being reached.
+      if (_disposed || !identical(_activeLink, session) || !session.isConnected) {
+        relay.dispose();
+        return;
+      }
 
       if (connected && relay.isConnected) {
         _broker.logInfo(
@@ -483,7 +671,7 @@ class Bbs {
     }
   }
 
-  void _sendLocalBanner(AX25Session session) {
+  void _sendLocalBanner(BbsLink session) {
     session.sessionState['wlRelayMode'] = false;
     session.sessionState['wlChallenge'] = WinlinkSecurity.generateChallenge();
 
@@ -500,9 +688,9 @@ class Bbs {
     _sessionSend(session, sb.toString());
   }
 
-  void _onCmsRelayLineReceived(AX25Session session, String line) {
+  void _onCmsRelayLineReceived(BbsLink session, String line) {
     if (!enabled || _disposed) return;
-    if (session.currentState != AX25ConnectionState.connected) return;
+    if (!session.isConnected) return;
 
     _broker.logInfo('[BBS/$_deviceId] CMS->Radio: $line');
     _dispatchControl('Gateway->Radio: ${utf8.encode(line).length} bytes');
@@ -527,23 +715,23 @@ class Bbs {
     _sessionSend(session, '$line\r');
   }
 
-  void _onCmsRelayBinaryReceived(AX25Session session, Uint8List data) {
+  void _onCmsRelayBinaryReceived(BbsLink session, Uint8List data) {
     if (!enabled || _disposed) return;
-    if (session.currentState != AX25ConnectionState.connected) return;
+    if (!session.isConnected) return;
 
     _broker.logInfo('[BBS/$_deviceId] CMS->Radio: ${data.length} binary bytes');
     _dispatchControl('Gateway->Radio: ${data.length} bytes (binary)');
-    _updateStats(_remoteCallsign(session), 'Stream', 0, 1, 0, data.length);
+    _updateStats(session.remoteCallsign, session.protocol, 0, 1, 0, data.length);
     session.send(data);
   }
 
-  void _onCmsRelayDisconnected(AX25Session session) {
+  void _onCmsRelayDisconnected(BbsLink session) {
     if (_disposed) return;
     _broker.logInfo('[BBS/$_deviceId] CMS relay disconnected');
     _dispatchControl('Winlink gateway disconnected');
 
     final isRelayMode = session.sessionState['wlRelayMode'] == true;
-    if (isRelayMode && session.currentState == AX25ConnectionState.connected) {
+    if (isRelayMode && session.isConnected) {
       session.disconnect();
     }
   }
@@ -561,10 +749,10 @@ class Bbs {
 
   // ---- inbound data ---------------------------------------------------------
 
-  void _processStream(AX25Session session, Uint8List data) {
+  void _processStream(BbsLink session, Uint8List data) {
     if (!enabled) return;
     if (data.isEmpty) return;
-    _updateStats(_remoteCallsign(session), 'Stream', 1, 0, data.length, 0);
+    _updateStats(session.remoteCallsign, session.protocol, 1, 0, data.length, 0);
 
     final mode = session.sessionState['mode'] as String?;
     if (mode == 'mail') {
@@ -574,7 +762,7 @@ class Bbs {
     _processBbsStream(session, data);
   }
 
-  void _processBbsStream(AX25Session session, Uint8List data) {
+  void _processBbsStream(BbsLink session, Uint8List data) {
     if (!enabled) return;
 
     final dataStr = utf8.decode(data, allowMalformed: true);
@@ -586,7 +774,7 @@ class Bbs {
     for (int lineIndex = 0; lineIndex < dataStrs.length; lineIndex++) {
       final str = dataStrs[lineIndex];
       if (str.isEmpty) continue;
-      _dispatchTraffic(_remoteCallsign(session), false, str.trim());
+      _dispatchTraffic(session.remoteCallsign, false, str.trim());
 
       // Switch to Winlink mail mode when the station sends a WL2K SID.
       if (!session.sessionState.containsKey('mode') &&
@@ -651,7 +839,7 @@ class Bbs {
 
   // ---- Winlink mail server --------------------------------------------------
 
-  void _processMailStream(AX25Session session, Uint8List data) {
+  void _processMailStream(BbsLink session, Uint8List data) {
     if (!enabled) return;
 
     // In relay mode, forward all data to the CMS gateway.
@@ -686,7 +874,7 @@ class Bbs {
         .split('\r');
     for (final str in dataStrs) {
       if (str.isEmpty) continue;
-      _dispatchTraffic(_remoteCallsign(session), false, str.trim());
+      _dispatchTraffic(session.remoteCallsign, false, str.trim());
 
       String key = str.toUpperCase();
       String value = '';
@@ -824,7 +1012,7 @@ class Bbs {
     }
   }
 
-  void _processMailStreamRelay(AX25Session session, Uint8List data) {
+  void _processMailStreamRelay(BbsLink session, Uint8List data) {
     if (!enabled) return;
     final relay = _cmsRelay;
     if (relay == null || !relay.isConnected) return;
@@ -836,7 +1024,7 @@ class Bbs {
       );
       _dispatchControl('Radio->Gateway: ${data.length} bytes (binary)');
       relay.sendBinary(data);
-      _updateStats(_remoteCallsign(session), 'Stream', 1, 0, data.length, 0);
+      _updateStats(session.remoteCallsign, session.protocol, 1, 0, data.length, 0);
       return;
     }
 
@@ -849,7 +1037,7 @@ class Bbs {
         .split('\r');
     for (final str in dataStrs) {
       if (str.isEmpty) continue;
-      _dispatchTraffic(_remoteCallsign(session), false, str.trim());
+      _dispatchTraffic(session.remoteCallsign, false, str.trim());
       _broker.logInfo('[BBS/$_deviceId] Radio->CMS: $str');
 
       String key = str.toUpperCase();
@@ -878,7 +1066,7 @@ class Bbs {
     }
   }
 
-  void _sendProposals(AX25Session session, bool lastExchange) {
+  void _sendProposals(BbsLink session, bool lastExchange) {
     if (!enabled) return;
 
     final sb = StringBuffer();
@@ -887,11 +1075,7 @@ class Bbs {
     int checksum = 0;
     int mailSendCount = 0;
 
-    String connectedCallsign = '';
-    final addrs = session.addresses;
-    if (addrs != null && addrs.isNotEmpty) {
-      connectedCallsign = addrs[0].address;
-    }
+    String connectedCallsign = session.remoteAddress;
 
     final mailStore = DataBroker.getDataHandler<MailStore>('MailStore');
     final mails = mailStore?.getAllMails() ?? <WinLinkMail>[];
@@ -970,7 +1154,7 @@ class Bbs {
     return responses;
   }
 
-  bool _extractMail(AX25Session session, List<int> blocks) {
+  bool _extractMail(BbsLink session, List<int> blocks) {
     if (!session.sessionState.containsKey('wlMailProp')) return false;
     final proposals = session.sessionState['wlMailProp'] as List<String>?;
     if (proposals == null) return false;
@@ -1035,7 +1219,7 @@ class Bbs {
     return mailStore?.mailExists(mid) ?? false;
   }
 
-  void _updateEmails(AX25Session session) {
+  void _updateEmails(BbsLink session) {
     if (!enabled) return;
 
     if (session.sessionState.containsKey('OutMails') &&
@@ -1079,6 +1263,10 @@ class Bbs {
     _broker.logInfo('[BBS/$_deviceId] BBS handler disposing');
 
     _cleanupCmsRelay();
+    final xara = _xaraLink;
+    if (xara != null && identical(_activeLink, xara)) xara.disconnect();
+    _xaraLink = null;
+    _activeLink = null;
 
     final session = _session;
     if (session != null) {

@@ -2124,6 +2124,25 @@ class AppLocalizationsIt extends AppLocalizations {
   String get terminalNotConnected => 'Non connesso';
 
   @override
+  String get terminalXaraRequiresAudio =>
+      'Enable the radio audio to use XARA. XARA is not available on web or iOS.';
+
+  @override
+  String get terminalXaraNoAnswer => 'The XARA connection failed or timed out.';
+
+  @override
+  String get terminalXaraLockTimeout =>
+      'Could not lock and tune the radio to the terminal channel.';
+
+  @override
+  String get terminalXaraDisconnectTimeout =>
+      'The XARA disconnect timed out; the link was aborted.';
+
+  @override
+  String get terminalXaraPathInvalid =>
+      'Enter up to two valid digipeater callsigns, separated by commas.';
+
+  @override
   String terminalError(String error) {
     return 'Errore: $error';
   }
