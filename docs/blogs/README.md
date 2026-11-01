@@ -71,6 +71,11 @@ diagnosis and fix.
    packet vs. connected-stream paths, and Bluetooth audio timing — now with a
    progress report on the bit-exact FM physical layer and wire codecs.
 
+2. **[How XARA-FM Works: From Bytes to Radio Audio and Back](xara-fm-how-it-works.md)**
+   A step-by-step introduction to connection setup, framing, whitening, turbo
+   coding, OFDM, receive decoding, acknowledgments, and adaptive speed levels.
+   Explains how Winlink and AX.25 fit, and what remains to be tested on real radios.
+
 ---
 
 ## Firmware Updates

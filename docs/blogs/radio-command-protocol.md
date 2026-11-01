@@ -771,7 +771,7 @@ notification's inline payload.
 | 2 | `dataRxd` | Inline TNC fragment (hardware AFSK path) |
 | 3 | `newInquiryData` | |
 | 4 | `restoreFactorySettings` | |
-| 5 | `htChChanged` | App re-reads settings |
+| 5 | `htChChanged` | Inline `RadioChannelInfo`; updates channel cache and re-reads settings |
 | 6 | `htSettingsChanged` | Inline `RadioSettings` |
 | 7 | `ringingStopped` | |
 | 8 | `radioStatusChanged` | Inline `RadioFmRadioStatus` |
@@ -796,6 +796,23 @@ _sendCommand(RadioCommandGroup.basic, RadioBasicCommand.registerNotification,
 
 `positionChange` is registered with a 4-byte form `[0, 0, 0, 13]`. A radio power
 cycle clears all registrations, so the app re-applies them on every connection.
+
+### htChChanged (5) layout
+
+The payload after the notification byte is a complete 25-byte channel record,
+with the same offsets as a `READ_RF_CH` reply: channel id at frame offset 5,
+TX/RX frequencies at 6/10, sub-audio at 14/16, flags at 18/19, and a
+10-byte GBK channel name at 20. Offsets refer to the command frame without
+the outer GAIA serial header.
+
+Physical-button transmit-power changes push this event even when the selected
+channel id does not change. Bit `0x40` at offset 18 indicates High power,
+bit `0x02` indicates Medium, and neither indicates Low. For example, flags
+`0x1E`, `0x5C`, and `0x1C` report Medium, High, and Low respectively.
+HTCommander updates both the individual channel and the full loaded channel
+list immediately, so channel displays refresh without reconnecting. It also
+retains the settings re-read, but does not treat the event as a response to an
+outstanding channel-read request.
 
 ### freqModeStatusChanged (14) layout
 

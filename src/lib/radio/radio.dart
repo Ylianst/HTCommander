@@ -3234,6 +3234,16 @@ class Radio implements FirmwareRadio {
     final channel = RadioChannelInfo.fromBytes(data);
     // Advance the serialized read queue now that this channel's reply arrived.
     _onReadReplyReceived(RadioBasicCommand.readRfCh, channel.channelId);
+    _storeChannel(channel);
+  }
+
+  void _storeChannel(RadioChannelInfo channel) {
+    if (channels != null && channel.channelId >= channels!.length) {
+      _broker.logError(
+        '[Radio $deviceId] Channel id ${channel.channelId} is out of range',
+      );
+      return;
+    }
     if (channels != null && channel.channelId < channels!.length) {
       channels![channel.channelId] = channel;
       _dispatch('Channel_${channel.channelId}', channel.toJson());
@@ -3402,7 +3412,16 @@ class Radio implements FirmwareRadio {
         _handleHtStatusChanged(data);
         break;
       case RadioNotification.htChChanged:
-        // Channel changed - request fresh settings
+        // Inline channel data has the same offsets as a READ_RF_CH reply.
+        // An unsolicited event must not advance the serialized read queue.
+        if (data.length >= 30) {
+          _storeChannel(RadioChannelInfo.fromBytes(data));
+        } else {
+          _broker.logError(
+            '[Radio $deviceId] Truncated htChChanged notification: '
+            '${RadioUtils.bytesToHex(data)}',
+          );
+        }
         _sendCommand(
           RadioCommandGroup.basic,
           RadioBasicCommand.readSettings,
