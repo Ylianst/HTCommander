@@ -47,6 +47,13 @@ later status notification reports the APRS channel; a packet tagged `APRS` still
 goes only to the APRS modem. Cached status is used only when the packet has no
 channel tag. This prevents late APRS telemetry from swallowing XARA replies.
 
+**XARA transmit pacing experiment:** XARA sets `IsRealtimeDataFrame` in addition
+to `IsDataFrame`. The engine uses a 250 ms pacing lead (plus at most one 96 ms
+write batch), rather than filling the radio with a whole burst immediately.
+This tests whether shortfalls originate in transmit buffering. Other modem
+data, SSTV and voice retain their existing pacing. The XARA data flag still
+controls metering/cancellation behavior; this experiment changes only pacing.
+
 ---
 
 ## The symptom: audio that stutters when the UI is busy

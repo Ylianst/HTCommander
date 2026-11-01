@@ -35,6 +35,8 @@ Uint8List _payload(Uint8List packet) {
 class _Tx {
   final List<Uint8List> packets = <Uint8List>[];
   final List<int> writeSizes = <int>[];
+  final List<int> writeTimes = <int>[];
+  final Stopwatch clock = Stopwatch()..start();
   final List<Map<String, Object?>> events = <Map<String, Object?>>[];
   final Completer<void> done = Completer<void>();
   late final AudioEngine engine = AudioEngine(
@@ -46,6 +48,7 @@ class _Tx {
     },
     btSend: (Uint8List write) async {
       if (write[1] != 0) return;
+      writeTimes.add(clock.elapsedMilliseconds);
       // A write may coalesce several 0x7e-framed packets; split them back out.
       int count = 0;
       int start = 0;
@@ -66,6 +69,7 @@ class _Tx {
     Uint8List pcm, {
     bool data = true,
     bool bulk = false,
+    bool realtime = false,
   }) async {
     engine.transmitVoice(
       pcm,
@@ -74,6 +78,7 @@ class _Tx {
       false,
       isDataFrame: data,
       isBulkData: bulk,
+      isRealtimeDataFrame: realtime,
     );
     await done.future.timeout(const Duration(seconds: 5));
   }
@@ -120,6 +125,34 @@ Uint8List _pcm(List<double> samples) {
 }
 
 void main() {
+  test(
+    'real-time data commands bound transmit buffering to 250 ms plus a batch',
+    () async {
+      final tx = _Tx();
+      await tx.engine.handleCommand(<String, Object?>{
+        'cmd': 'tx',
+        'pcm': Uint8List(128000),
+        'isDataFrame': true,
+        'isRealtimeDataFrame': true,
+      });
+      await tx.done.future.timeout(const Duration(seconds: 5));
+      int audioMs = 0;
+      for (int i = 0; i < tx.writeSizes.length; i++) {
+        audioMs += tx.writeSizes[i] * 24;
+        expect(audioMs - tx.writeTimes[i], lessThanOrEqualTo(250 + 96));
+      }
+      expect(tx.clock.elapsedMilliseconds, greaterThanOrEqualTo(audioMs - 250));
+      expect(
+        tx.events.where((e) => e['evt'] == 'log').map((e) => e['msg']),
+        contains(contains('lead=250ms')),
+      );
+      expect(
+        tx.events.where((e) => e['evt'] == 'txState').last['isDataFrame'],
+        isTrue,
+      );
+    },
+  );
+
   for (final bool data in <bool>[false, true]) {
     test(
       'stock bitrate and bounded complete packets for ${data ? "data" : "voice"}',

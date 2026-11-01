@@ -438,6 +438,7 @@ class RadioAudio {
     bool playLocally = false;
     bool? hold;
     bool isDataFrame = false;
+    bool isRealtimeDataFrame = false;
     bool isBulkData = false;
     if (data is Uint8List) {
       pcm = data;
@@ -456,6 +457,9 @@ class RadioAudio {
       if (h is bool) hold = h;
       final Object? df = data['isDataFrame'] ?? data['IsDataFrame'];
       if (df is bool) isDataFrame = df;
+      final Object? rd =
+          data['isRealtimeDataFrame'] ?? data['IsRealtimeDataFrame'];
+      if (rd is bool) isRealtimeDataFrame = rd;
       final Object? bd = data['isBulkData'] ?? data['IsBulkData'];
       if (bd is bool) isBulkData = bd;
     }
@@ -474,6 +478,7 @@ class RadioAudio {
       'playLocally': playLocally,
       'hold': hold,
       'isDataFrame': isDataFrame,
+      'isRealtimeDataFrame': isRealtimeDataFrame,
       'isBulkData': isBulkData,
     });
   }
