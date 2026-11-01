@@ -32,6 +32,7 @@ Uint8List _payload(Uint8List packet) {
 
 class _Tx {
   final List<Uint8List> packets = <Uint8List>[];
+  final List<int> writeSizes = <int>[];
   final List<Map<String, Object?>> events = <Map<String, Object?>>[];
   final Completer<void> done = Completer<void>();
   late final AudioEngine engine = AudioEngine(
@@ -41,13 +42,37 @@ class _Tx {
         done.complete();
       }
     },
-    btSend: (Uint8List packet) async {
-      if (packet[1] == 0) packets.add(packet);
+    btSend: (Uint8List write) async {
+      if (write[1] != 0) return;
+      // A write may coalesce several 0x7e-framed packets; split them back out.
+      int count = 0;
+      int start = 0;
+      for (int i = 1; i < write.length; i++) {
+        if (write[i] == 0x7e) {
+          packets.add(Uint8List.sublistView(write, start, i + 1));
+          count++;
+          start = i + 1;
+          i++;
+        }
+      }
+      expect(start, write.length);
+      writeSizes.add(count);
     },
   );
 
-  Future<void> send(Uint8List pcm, {bool data = true}) async {
-    engine.transmitVoice(pcm, 0, pcm.length, false, isDataFrame: data);
+  Future<void> send(
+    Uint8List pcm, {
+    bool data = true,
+    bool bulk = false,
+  }) async {
+    engine.transmitVoice(
+      pcm,
+      0,
+      pcm.length,
+      false,
+      isDataFrame: data,
+      isBulkData: bulk,
+    );
     await done.future.timeout(const Duration(seconds: 5));
   }
 
@@ -148,6 +173,32 @@ void main() {
     },
   );
 
+  test('SSTV bulk data uses the deep cancellable lead', () async {
+    final _Tx tx = _Tx();
+    await tx.send(Uint8List(3 * 32000 * 2), data: false, bulk: true);
+    expect(tx.decode(SbcBitAllocationMethod.loudness).length, 3 * 32000);
+    expect(
+      tx.events.where((e) => e['evt'] == 'log').map((e) => e['msg']),
+      contains(startsWith('TX audio: bitpool=18, lead=6000ms, audio=3000ms,')),
+    );
+    expect(
+      tx.events.where((e) => e['evt'] == 'txState' && e['isDataFrame'] == true),
+      isEmpty,
+    );
+  });
+
+  test('SBC packets are coalesced into fewer Bluetooth writes', () async {
+    final _Tx tx = _Tx();
+    // 30 packets of 6 frames each, plus a 2-frame tail packet.
+    await tx.send(Uint8List(182 * 256));
+    expect(tx.writeSizes, <int>[4, 4, 4, 4, 4, 4, 4, 3]);
+    expect(tx.decode(SbcBitAllocationMethod.snr).length, 182 * 128);
+    final int reported = tx.events
+        .where((e) => e['evt'] == 'audioData')
+        .fold(0, (int sum, e) => sum + (e['length'] as int));
+    expect(reported, 182 * 256);
+  });
+
   test('failed writes abort queued audio and report the failure', () async {
     final Completer<void> release = Completer<void>();
     final Completer<void> done = Completer<void>();
@@ -182,6 +233,66 @@ void main() {
       events.where((e) => e['evt'] == 'log').map((e) => e['msg']),
       contains(contains('Voice transmit error: Bad state: write rejected')),
     );
+  });
+
+  group('received audio continuity', () {
+    // Received-audio packets (cmd 0x03), 24 ms each, built by the transmit
+    // encoder so the receive decoder sees real SBC payloads.
+    Future<List<Uint8List>> rxPackets(int count) async {
+      final _Tx tx = _Tx();
+      await tx.send(Uint8List(count * 6 * 256), data: false);
+      return tx.packets.map((Uint8List p) {
+        final Uint8List rx = Uint8List.fromList(p);
+        rx[1] = 0x03;
+        return rx;
+      }).toList();
+    }
+
+    Future<List<String>> run(List<Uint8List> packets, Set<int> dropped) async {
+      int now = 0;
+      final List<String> logs = <String>[];
+      final AudioEngine engine = AudioEngine((Map<String, Object?> e) {
+        if (e['evt'] == 'log') logs.add(e['msg']! as String);
+      }, clockMs: () => now);
+      await engine.handleCommand(<String, Object?>{
+        'cmd': 'setMute',
+        'value': true,
+      });
+      for (int i = 0; i < packets.length; i++) {
+        now = i * 24;
+        if (dropped.contains(i)) continue;
+        await engine.handleCommand(<String, Object?>{
+          'cmd': 'rx',
+          'bytes': packets[i],
+        });
+      }
+      await engine.handleCommand(<String, Object?>{
+        'cmd': 'rx',
+        'bytes': Uint8List.fromList(<int>[0x7e, 0x01, 0x00, 0x7e]),
+      });
+      return logs;
+    }
+
+    test('a continuous run is not reported', () async {
+      final List<String> logs = await run(await rxPackets(60), <int>{});
+      expect(logs.where((String m) => m.startsWith('RX audio loss')), isEmpty);
+    });
+
+    test('packets dropped upstream are reported with the stall', () async {
+      // 20 consecutive packets (480 ms) never arrive, as during a link stall.
+      final List<String> logs = await run(
+        await rxPackets(60),
+        Set<int>.of(List<int>.generate(20, (int i) => 30 + i)),
+      );
+      expect(
+        logs,
+        contains(
+          'RX audio loss: 456ms of 1416ms missing (received 960ms); longest '
+          'gap 504ms at 696ms into the run. Audio was dropped before reaching '
+          'the app (radio-to-host Bluetooth link).',
+        ),
+      );
+    });
   });
 
   test('failed stop writes still release transmit state', () async {

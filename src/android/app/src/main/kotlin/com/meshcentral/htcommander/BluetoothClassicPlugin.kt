@@ -16,6 +16,7 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.StandardMethodCodec
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -29,6 +30,8 @@ import java.util.concurrent.ConcurrentHashMap
  *   - MethodChannel `com.htcommander/bluetooth_classic`
  *   - EventChannel  `com.htcommander/bluetooth_classic_data`   (control channel)
  *   - EventChannel  `com.htcommander/bluetooth_classic_audio`  (BS AOC audio)
+ *   - MethodChannel `com.htcommander/bluetooth_classic_audio_tx` (Android-only,
+ *     `sendAudio` on a background task queue for the transmit audio stream)
  *
  * The control channel (SPP, 0x1101) carries GAIA framed commands. The audio
  * channel uses the vendor "BS AOC" 128-bit UUID. RFCOMM channel numbers are
@@ -45,6 +48,9 @@ class BluetoothClassicPlugin(
         private const val METHOD_CHANNEL = "com.htcommander/bluetooth_classic"
         private const val DATA_EVENT_CHANNEL = "com.htcommander/bluetooth_classic_data"
         private const val AUDIO_EVENT_CHANNEL = "com.htcommander/bluetooth_classic_audio"
+        // Transmit-audio writes only. Served on a background task queue so the
+        // blocking RFCOMM write never waits on (or stalls) the Android UI thread.
+        private const val AUDIO_TX_METHOD_CHANNEL = "com.htcommander/bluetooth_classic_audio_tx"
 
         // Standard Serial Port Profile (control / GAIA).
         private val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
@@ -73,6 +79,12 @@ class BluetoothClassicPlugin(
     private val methodChannel = MethodChannel(messenger, METHOD_CHANNEL)
     private val dataEventChannel = EventChannel(messenger, DATA_EVENT_CHANNEL)
     private val audioEventChannel = EventChannel(messenger, AUDIO_EVENT_CHANNEL)
+    private val audioTxChannel = MethodChannel(
+        messenger,
+        AUDIO_TX_METHOD_CHANNEL,
+        StandardMethodCodec.INSTANCE,
+        messenger.makeBackgroundTaskQueue(),
+    )
 
     private var dataSink: EventChannel.EventSink? = null
     private var audioSink: EventChannel.EventSink? = null
@@ -82,6 +94,15 @@ class BluetoothClassicPlugin(
 
     init {
         methodChannel.setMethodCallHandler(this)
+        audioTxChannel.setMethodCallHandler { call, result ->
+            if (call.method == "sendAudio") {
+                result.success(
+                    send(call.argument<String>("address"), call.argument("data"), audio = true),
+                )
+            } else {
+                result.notImplemented()
+            }
+        }
         dataEventChannel.setStreamHandler(object : EventChannel.StreamHandler {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
                 dataSink = events

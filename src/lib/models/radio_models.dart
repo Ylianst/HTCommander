@@ -79,6 +79,28 @@ class RadioHtStatus {
     'rssi': rssi,
     'currRegion': currRegion,
   };
+
+  /// The highlighted VFO, temporarily following audible dual-watch reception.
+  /// The selected VFO remains in [doubleChannel] for channel-changing controls.
+  int displayedVfo(RadioSettings? settings) {
+    final selected = doubleChannel.index;
+    if (settings == null ||
+        settings.doubleChannel == 0 ||
+        selected == 0 ||
+        !isPowerOn ||
+        isInTx ||
+        !isInRx ||
+        !isSq ||
+        isScan ||
+        settings.scan) {
+      return selected;
+    }
+    final onA = currChId == settings.channelA;
+    final onB = currChId == settings.channelB;
+    // Equal channel assignments cannot identify which VFO is receiving.
+    if (onA == onB) return selected;
+    return onB ? 2 : 1;
+  }
 }
 
 /// FM broadcast radio status - live status of the built-in FM broadcast

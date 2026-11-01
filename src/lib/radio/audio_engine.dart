@@ -38,9 +38,24 @@ import '../sbc/sbc_frame.dart';
 /// calls), has changed.
 class AudioEngine {
   // Named params can't be private, so `btSend` is copied into `_btSend`.
-  AudioEngine(this._emit, {Future<void> Function(Uint8List data)? btSend})
+  AudioEngine(
+    this._emit, {
+    Future<void> Function(Uint8List data)? btSend,
+    int Function()? clockMs,
+  })
     // ignore: prefer_initializing_formals
-    : _btSend = btSend;
+    : _btSend = btSend,
+       _clockMs = clockMs ?? _monotonicMs;
+
+  static final Stopwatch _monotonic = Stopwatch()..start();
+  static int _monotonicMs() => _monotonic.elapsedMilliseconds;
+
+  /// Monotonic millisecond clock (injectable for tests).
+  final int Function() _clockMs;
+
+  /// A received run whose wall-clock duration exceeds the decoded audio by at
+  /// least this much lost audio before it reached the host, so it is logged.
+  static const int _rxLossReportMs = 250;
 
   /// Audio format: 32 kHz, 16-bit, mono (matches the radio's SBC stream).
   static const int _sampleRate = 32000;
@@ -87,6 +102,19 @@ class AudioEngine {
   /// seconds buffered at the radio means Cancel stops the transmission quickly
   /// instead of waiting for a deep buffer to drain.
   static const int _txLeadMsBulkVoice = 2000;
+
+  /// Pre-computed, corruption-sensitive audio that must stay cancellable from
+  /// the UI (SSTV images). A stall longer than the lead tears the image, so it
+  /// gets a deep cushion, while staying shorter than [_txLeadMsBulk] so Cancel
+  /// still stops the transmission within a few seconds.
+  static const int _txLeadMsBulkData = 6000;
+
+  /// Encoded SBC packets coalesced into one Bluetooth write (~24 ms of audio
+  /// each). Each write is a platform-channel round trip (and on Android a
+  /// native thread hop), so batching cuts per-packet overhead that otherwise
+  /// lets slower devices fall behind real time. Every packet keeps its own
+  /// 0x7e framing, so the radio sees the same byte stream.
+  static const int _txPacketsPerWrite = 4;
 
   /// A single transmit chunk at least this large (~2 s of 32 kHz/16-bit mono) is
   /// treated as a bulk, pre-computed transmission and gets the deep pacing lead.
@@ -140,6 +168,16 @@ class AudioEngine {
   int _rxPrerollSampleCount = 0;
   bool _rxPrerollFlushed = false;
 
+  // Receive-run continuity statistics. The radio streams received audio in
+  // real time, so a run's decoded audio should match its wall-clock duration;
+  // a shortfall means packets were dropped upstream of the host (e.g. the
+  // radio discarding audio during a Bluetooth link stall).
+  int _rxRunFirstMs = 0;
+  int _rxRunLastMs = 0;
+  int _rxRunSamples = 0;
+  int _rxRunMaxGapMs = 0;
+  int _rxRunMaxGapAtMs = 0;
+
   // Radio state pushed from the host (updated on HtStatus changes).
   String _channelName = '';
   bool _muteChannel = false;
@@ -163,6 +201,7 @@ class AudioEngine {
   bool _voiceTransmitCancel = false;
   bool _playInputBack = false;
   bool _voiceTransmitIsDataFrame = false;
+  bool _voiceTransmitIsBulkData = false;
   bool _voiceTransmitHold = false;
   Uint8List? _reminderTransmitPcm;
   Completer<void>? _newDataSignal;
@@ -228,6 +267,7 @@ class AudioEngine {
         final bool playLocally = (msg['playLocally'] as bool?) ?? false;
         final bool? hold = msg['hold'] as bool?;
         final bool isDataFrame = (msg['isDataFrame'] as bool?) ?? false;
+        final bool isBulkData = (msg['isBulkData'] as bool?) ?? false;
         if (hold != null) _voiceTransmitHold = hold;
         if (pcm != null && pcm.isNotEmpty) {
           transmitVoice(
@@ -236,6 +276,7 @@ class AudioEngine {
             pcm.length,
             playLocally,
             isDataFrame: isDataFrame,
+            isBulkData: isBulkData,
           );
         }
         break;
@@ -410,19 +451,34 @@ class AudioEngine {
         case 0x00: // Received audio (odd)
         case 0x03: // Received audio
           if (_inAudioRun && _inAudioRunIsTransmit) return;
+          final int nowMs = _clockMs();
           if (!_inAudioRun) {
             _inAudioRun = true;
             _inAudioRunIsTransmit = false;
             _resetRxPreroll();
+            _rxRunFirstMs = nowMs;
+            _rxRunLastMs = nowMs;
+            _rxRunSamples = 0;
+            _rxRunMaxGapMs = 0;
+            _rxRunMaxGapAtMs = 0;
             _dispatchAudioDataStart(false);
           }
+          final int gapMs = nowMs - _rxRunLastMs;
+          if (gapMs > _rxRunMaxGapMs) {
+            _rxRunMaxGapMs = gapMs;
+            _rxRunMaxGapAtMs = _rxRunLastMs - _rxRunFirstMs;
+          }
+          _rxRunLastMs = nowMs;
           _decodeSbcFrame(uframe, 1, uframe.length - 1, false);
           break;
         case 0x01: // Audio end
           if (_inAudioRun) {
             _inAudioRun = false;
             // Release any pre-roll not yet flushed so short bursts still play.
-            if (!_inAudioRunIsTransmit) _flushRxPreroll();
+            if (!_inAudioRunIsTransmit) {
+              _flushRxPreroll();
+              _reportRxRunLoss();
+            }
             _dispatchAudioDataEnd();
           }
           break;
@@ -567,6 +623,7 @@ class AudioEngine {
       }
 
       if (samples.isEmpty) return;
+      if (!isTransmit) _rxRunSamples += samples.length;
 
       // Audio on a muted channel is neither played on the speaker nor recorded,
       // but it is still reported to the host so subscribers can tell which
@@ -602,6 +659,22 @@ class AudioEngine {
     }
   }
 
+  /// Logs a received run whose decoded audio fell short of its wall-clock
+  /// duration. The host reads the radio's audio channel continuously, so the
+  /// shortfall was lost before reaching the app (the radio dropped packets).
+  void _reportRxRunLoss() {
+    final int wallMs = _rxRunLastMs - _rxRunFirstMs;
+    final int audioMs = _rxRunSamples * 1000 ~/ _sampleRate;
+    final int missingMs = wallMs - audioMs;
+    if (missingMs < _rxLossReportMs) return;
+    _log(
+      'RX audio loss: ${missingMs}ms of ${wallMs}ms missing '
+      '(received ${audioMs}ms); longest gap ${_rxRunMaxGapMs}ms at '
+      '${_rxRunMaxGapAtMs}ms into the run. Audio was dropped before reaching '
+      'the app (radio-to-host Bluetooth link).',
+    );
+  }
+
   static double _calculatePcmAmplitude(List<int> samples) {
     if (samples.isEmpty) return 0.0;
     int max = 0;
@@ -619,19 +692,24 @@ class AudioEngine {
 
   /// Queue [length] bytes of 32 kHz / 16-bit / mono PCM (starting at [offset])
   /// for transmission to the radio. When [play] is true the audio is also
-  /// played back locally as it is sent.
+  /// played back locally as it is sent. [isBulkData] marks pre-computed,
+  /// corruption-sensitive audio (SSTV) that needs a deep pacing lead.
   bool transmitVoice(
     Uint8List pcmInput,
     int offset,
     int length,
     bool play, {
     bool isDataFrame = false,
+    bool isBulkData = false,
   }) {
     _playInputBack = play;
     _voiceTransmitCancel = false;
     // The data-frame flag applies to a whole transmission run; only latch it
     // when a fresh run is about to start.
-    if (!_isTransmitting) _voiceTransmitIsDataFrame = isDataFrame;
+    if (!_isTransmitting) {
+      _voiceTransmitIsDataFrame = isDataFrame;
+      _voiceTransmitIsBulkData = isBulkData;
+    }
     _pcmQueue.add(
       Uint8List.fromList(
         Uint8List.sublistView(pcmInput, offset, offset + length),
@@ -731,6 +809,8 @@ class AudioEngine {
     final int txLeadMs;
     if (_voiceTransmitIsDataFrame) {
       txLeadMs = _txLeadMsBulk;
+    } else if (_voiceTransmitIsBulkData) {
+      txLeadMs = _txLeadMsBulkData;
     } else if (pcmLength >= _bulkChunkThresholdBytes) {
       txLeadMs = _txLeadMsBulkVoice;
     } else {
@@ -739,7 +819,13 @@ class AudioEngine {
     final Stopwatch stopwatch = Stopwatch()..start();
     int totalBytesSent = 0;
     int wireBytes = 0;
+    int writes = 0;
     int maxWriteMs = 0;
+    int maxBehindMs = 0;
+
+    BytesBuilder batch = BytesBuilder(copy: false);
+    int batchPackets = 0;
+    int batchPcmStart = pcmOffset;
 
     while (pcmLength >= _pcmInputSizePerFrame && !_voiceTransmitCancel) {
       final (Uint8List? encoded, int bytesConsumed) = _encodeSbcFrames(
@@ -753,19 +839,30 @@ class AudioEngine {
         );
       }
 
-      final Uint8List packet = _escapeBytes(0, encoded);
+      batch.add(_escapeBytes(0, encoded));
+      batchPackets++;
+      pcmOffset += bytesConsumed;
+      pcmLength -= bytesConsumed;
+
+      if (batchPackets < _txPacketsPerWrite &&
+          pcmLength >= _pcmInputSizePerFrame) {
+        continue;
+      }
+
+      final Uint8List packets = batch.takeBytes();
       final Stopwatch writeWatch = Stopwatch()..start();
-      await _sendAudio(packet);
+      await _sendAudio(packets);
       if (writeWatch.elapsedMilliseconds > maxWriteMs) {
         maxWriteMs = writeWatch.elapsedMilliseconds;
       }
-      wireBytes += packet.length;
+      wireBytes += packets.length;
+      writes++;
 
-      // Record / play back / report the PCM that was just consumed.
+      // Record / play back / report the PCM that was just sent.
       final Uint8List consumed = Uint8List.sublistView(
         pcmData,
+        batchPcmStart,
         pcmOffset,
-        pcmOffset + bytesConsumed,
       );
       _recorder?.write(_int16ListFromBytes(consumed));
       if (_playInputBack && !_isMuted) {
@@ -775,14 +872,22 @@ class AudioEngine {
       }
       _dispatchAudioDataAvailable(
         Uint8List.fromList(consumed),
-        bytesConsumed,
+        consumed.length,
         true,
         false,
       );
+      totalBytesSent += consumed.length;
+      batch = BytesBuilder(copy: false);
+      batchPackets = 0;
+      batchPcmStart = pcmOffset;
 
-      pcmOffset += bytesConsumed;
-      pcmLength -= bytesConsumed;
-      totalBytesSent += bytesConsumed;
+      // How far the radio's playout clock is ahead of what has been delivered.
+      // Positive values mean the radio may have run dry (an audible gap / torn
+      // image), which is what the lead is meant to prevent.
+      final int behindMs =
+          stopwatch.elapsedMilliseconds -
+          (totalBytesSent * 1000) ~/ bytesPerSecond;
+      if (behindMs > maxBehindMs) maxBehindMs = behindMs;
 
       // Allow the transmit buffer to run up to txLeadMs ahead of real time,
       // then throttle so we never outpace the radio's playout.
@@ -796,12 +901,13 @@ class AudioEngine {
       }
     }
 
-    if (_voiceTransmitIsDataFrame) {
+    if (_voiceTransmitIsDataFrame || _voiceTransmitIsBulkData) {
       _log(
         'TX audio: bitpool=${_encoderFrame.bitpool}, lead=${txLeadMs}ms, '
         'audio=${totalBytesSent * 1000 ~/ bytesPerSecond}ms, '
         'elapsed=${stopwatch.elapsedMilliseconds}ms, '
-        'maxWrite=${maxWriteMs}ms, wireBytes=$wireBytes',
+        'writes=$writes, maxWrite=${maxWriteMs}ms, '
+        'maxBehind=${maxBehindMs}ms, wireBytes=$wireBytes',
       );
     }
 
@@ -1014,8 +1120,12 @@ Future<void> audioEngineIsolateEntry(List<Object?> initialMessage) async {
   Future<void> Function(Uint8List data)? btSend;
   if (rootToken != null && macAddress.isNotEmpty) {
     BackgroundIsolateBinaryMessenger.ensureInitialized(rootToken);
-    const MethodChannel btChannel = MethodChannel(
-      'com.htcommander/bluetooth_classic',
+    // Android serves transmit writes on a background task queue (a dedicated
+    // channel) so they never queue behind work on the Android UI thread.
+    final MethodChannel btChannel = MethodChannel(
+      Platform.isAndroid
+          ? 'com.htcommander/bluetooth_classic_audio_tx'
+          : 'com.htcommander/bluetooth_classic',
     );
     btSend = (Uint8List data) async {
       final bool? sent = await btChannel.invokeMethod<bool>(

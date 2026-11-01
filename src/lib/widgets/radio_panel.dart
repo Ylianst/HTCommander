@@ -549,13 +549,11 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
               'callsign': s.callsign,
               'description': s.description,
               'id': s.id,
-            })
-        .toList());
-    _broker.dispatch(
-      deviceId: 0,
-      name: 'EchoLinkFavorites',
-      data: json,
+            },
+          )
+          .toList(),
     );
+    _broker.dispatch(deviceId: 0, name: 'EchoLinkFavorites', data: json);
   }
 
   void _addEchoLinkFavorite(StationData station) {
@@ -1382,22 +1380,23 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   /// of enum naming.
   int get _selectedVfo => _currentHtStatus?.doubleChannel.index ?? 0;
 
-  /// True when VFO B is the currently selected VFO in dual-channel mode. The
-  /// radio reports the selected VFO in its live status, so VFO B is highlighted
-  /// whenever the radio has switched to it.
+  int get _displayedVfo =>
+      _currentHtStatus?.displayedVfo(_currentSettings) ?? 0;
+
+  /// True when VFO B is selected or temporarily receiving in dual-watch mode.
   bool get _isVfo2Active {
     if (!_isConnected) return false;
     if (_channelB == null || !_isDualChannel || _currentHtStatus == null) {
       return false;
     }
-    return _selectedVfo == 2;
+    return _displayedVfo == 2;
   }
 
   Color get _vfo1Color {
     if (!_isConnected) return _inactiveColor;
     // In frequency mode only VFO A is active.
     if (_showFrequencyMode) return _activeVfoColor;
-    // When VFO B is the selected VFO, VFO A goes white (inactive).
+    // When VFO B is highlighted, VFO A goes white (inactive).
     if (_isVfo2Active) return _inactiveColor;
     return _activeVfoColor;
   }
@@ -1406,7 +1405,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     if (!_isConnected || _vfo2Label.isEmpty) return _inactiveColor;
     // In frequency mode VFO B is inactive.
     if (_showFrequencyMode) return _inactiveColor;
-    // VFO B turns yellow only while it is the selected VFO.
+    // VFO B turns yellow while selected or receiving.
     if (_isVfo2Active) return _activeVfoColor;
     return _inactiveColor;
   }
@@ -3081,12 +3080,12 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
   /// The large VFO channel-name label. In dual-channel mode a fixed leading
   /// slot is reserved so both VFO labels stay aligned, and a small red
-  /// right-pointing triangle is painted in that slot for the currently selected
+  /// right-pointing triangle is painted in that slot for the highlighted
   /// VFO ([vfoIndex]: 1 = A, 2 = B).
   Widget _buildVfoLabel(int vfoIndex, String label, Color color) {
     final showMarker = _isDualChannel &&
         !_showFrequencyMode &&
-        _selectedVfo == vfoIndex &&
+        _displayedVfo == vfoIndex &&
         label.isNotEmpty;
     return SizedBox(
       height: 32,

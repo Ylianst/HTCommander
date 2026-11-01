@@ -642,11 +642,17 @@ class _CommsTabState extends State<CommsTab>
       return;
     }
 
-    // Send the PCM data to the radio for transmission.
+    // Send the PCM data to the radio for transmission. SSTV is a long,
+    // corruption-sensitive signal, so it requests the deep bulk-data pacing
+    // lead (a short Bluetooth stall would otherwise tear the image).
     _broker.dispatch(
       deviceId: deviceId,
       name: 'TransmitVoicePCM',
-      data: <String, Object?>{'data': pcm, 'playLocally': false},
+      data: <String, Object?>{
+        'data': pcm,
+        'playLocally': false,
+        'isBulkData': true,
+      },
       store: false,
     );
   }

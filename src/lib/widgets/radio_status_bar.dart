@@ -478,6 +478,9 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
   /// round-trips the raw wire value regardless of enum naming.
   int get _selectedVfo => _currentHtStatus?.doubleChannel.index ?? 0;
 
+  int get _displayedVfo =>
+      _currentHtStatus?.displayedVfo(_currentSettings) ?? 0;
+
   /// Selects VFO [vfoIndex] (1 = A, 2 = B) while in dual-channel mode by asking
   /// the radio to set its `doubleChannel` to that VFO. No-op when that VFO is
   /// already selected.
@@ -621,8 +624,8 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
     // In frequency mode only VFO A is active.
     if (_showFrequencyMode) return _activeVfoColor;
 
-    // VFO A goes inactive when the radio has VFO B selected.
-    if (_isDualChannel && _selectedVfo == 2) return _inactiveColor;
+    // VFO A goes inactive when VFO B is selected or receiving.
+    if (_isDualChannel && _displayedVfo == 2) return _inactiveColor;
     return _activeVfoColor;
   }
 
@@ -632,8 +635,8 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
     // In frequency mode VFO B is inactive.
     if (_showFrequencyMode) return _inactiveColor;
 
-    // VFO B turns yellow only while it is the selected VFO.
-    if (_isDualChannel && _selectedVfo == 2) return _activeVfoColor;
+    // VFO B turns yellow while selected or receiving.
+    if (_isDualChannel && _displayedVfo == 2) return _activeVfoColor;
     return _inactiveColor;
   }
 
@@ -838,9 +841,9 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
       return column;
     }
 
-    final showMarker = _selectedVfo == vfoIndex;
+    final showMarker = _displayedVfo == vfoIndex;
     // Fixed leading slot keeps both VFO labels aligned; the red triangle only
-    // paints for the selected VFO.
+    // paints for the highlighted VFO.
     final content = Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -919,7 +922,7 @@ class _RightTrianglePainter extends CustomPainter {
   }
 
   @override
+
   bool shouldRepaint(_RightTrianglePainter oldDelegate) =>
       oldDelegate.color != color;
 }
-

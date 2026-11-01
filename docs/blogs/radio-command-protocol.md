@@ -399,6 +399,16 @@ button press, or the remote `DO_PROG_FUNC`/`TOGGLE_AB_CH` below), so it is the
 reliable source for "which VFO is the operator on right now?". `currChId` is a
 different thing — the channel id the radio is *receiving* on this instant.
 
+During dual-watch reception, the Radio tab and compact status bar temporarily
+move the yellow highlight and red marker to the VFO whose configured channel
+matches `currChId`, while `isInRx` and `isSq` are both set. For example,
+`01 B4 FB 80 00` reports VFO A selected, squelch open, reception on channel 15,
+and RSSI 8; if channel 15 is assigned to VFO B, B is highlighted. The idle frame
+`01 84 FB 00 00` restores the highlight to A even though `currChId` is still 15.
+Channel taps continue to target the selected VFO, not this temporary receive
+highlight. Scanning, unknown receiving channels, and equal A/B assignments keep
+the selected-VFO highlight.
+
 ### READ_RF_CH (13) / WRITE_RF_CH (14) → `RadioChannelInfo`
 
 A channel is a 25-byte record (offset 5 onward in a reply; offset 0 onward in a
