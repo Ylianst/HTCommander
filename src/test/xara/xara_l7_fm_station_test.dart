@@ -510,6 +510,17 @@ void main() {
       }
       expect((off[1] - off[0] - 0.3).abs() < 0.015, isTrue, reason: '$off');
     }, timeout: slow);
+
+    test('record 16 is still received after sending one with a PTT release delay', () {
+      final Air a = fmAir(nn, false, 0.0, Lead(<int>[300, 0], true));
+      a.st[0].setKissRx(true);
+      a.st[1].setKissRx(true);
+      expect(a.st[0].kiss(KissCommand.generic, 'Hello'.codeUnits), isTrue);
+      expect(a.runUntil(6.0, (a) => kissLines(a, 1).contains('KISS 2 Hello')), isTrue);
+      expect(a.runUntil(2.0, (a) => a.st[0].idle && a.st[1].idle), isTrue);
+      expect(a.st[1].kiss(KissCommand.generic, 'Back'.codeUnits), isTrue);
+      expect(a.runUntil(6.0, (a) => kissLines(a, 0).contains('KISS 2 Back')), isTrue, reason: a.trace());
+    }, timeout: slow);
   });
 
   group('fm digi link', () {

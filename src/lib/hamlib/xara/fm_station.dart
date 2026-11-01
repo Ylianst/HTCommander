@@ -549,7 +549,11 @@ class FmStation {
   /// transmit audio for the same sample instants.
   void process(List<double> input, List<double> output) {
     final int t0 = _now, n = input.length;
+    final bool txWasEmpty = _tx.isEmpty;
     final List<double> fed = _keyBlock(t0, input, output);
+    // Broadcast receive is disabled while the transmitter is busy (including the
+    // PTT release delay), so re-arm it once the transmitter has fully gone idle.
+    if (!txWasEmpty && _tx.isEmpty) refreshListen();
     _now = t0 + n;
     final bool forced = _tx.ptt || !_tx.isEmpty || _session.state != FmState.listen || _digi.active;
     for (final bool e in _busy.feed(input, forced)) {
