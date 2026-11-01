@@ -4,8 +4,6 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
-import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -16,19 +14,13 @@ import 'tab_visibility.dart';
 
 import '../dialogs/active_station_selector_dialog.dart';
 import '../dialogs/add_station_dialog.dart';
+import '../handlers/terminal_handler.dart';
 import '../l10n/app_localizations.dart';
 import '../models/radio_models.dart';
 import '../models/station_info.dart';
-import '../radio/ax25_address.dart';
-import '../radio/ax25_packet.dart';
-import '../radio/ax25_session.dart';
-import '../radio/radio.dart';
-import '../radio/tnc_data_fragment.dart';
-import '../radio/yapp_transfer.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/window_service.dart';
-import '../utils/station_channel_resolver.dart';
 
 /// Represents a piece of text with a specific color in the terminal.
 class TerminalTextSpan {
@@ -43,24 +35,13 @@ class TerminalTextSpan {
   });
 }
 
-enum _XaraState { waitingForLock, connecting, connected, disconnecting }
-
 /// Terminal tab - a packet-radio terminal ported from the C#
 /// `TerminalTabUserControl`.
 ///
-/// Connects to a configured Terminal station over a connected radio by locking
-/// the radio to "Terminal" usage on the DataBroker, then exchanges text using
-/// either the connectionless AX.25 protocols (Raw AX.25, Raw AX.25 compressed,
-/// and APRS messaging) or the connected-mode AX.25 session protocol
-/// ([AX25Session], for `X25Session`) or XARA's connected byte stream. It can also listen for an incoming
-/// connected-mode session via "Wait for Connection". All radio interaction
-/// flows through the DataBroker:
-///   * subscribes to `ConnectedRadios`, `LockState` and `UniqueDataFrame`
-///   * dispatches `SetLock` / `SetUnlock` / `TransmitDataFrame`
-///
-/// While a connected-mode [AX25Session] is active, a [YappTransfer] engine is
-/// attached to it so the terminal can both send and receive files using the
-/// YAPP protocol.
+/// The connection engine lives in [TerminalHandler]; this tab picks the radio
+/// and station, sends `Terminal*` commands over the DataBroker (device 1), and
+/// renders the handler's `TerminalState`, `TerminalText` and `TerminalNotice`
+/// events. The same engine serves detached windows and test agents.
 class TerminalTab extends StatefulWidget {
   const TerminalTab({super.key});
 
@@ -100,38 +81,16 @@ class _TerminalTabState extends State<TerminalTab>
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocus = FocusNode();
 
-  // Connection state.
+  // Radios, for choosing one that is free.
   final List<int> _connectedRadios = [];
   final Map<int, RadioLockState> _lockStates = {};
-  StationInfo? _connectedStation;
-  int _connectedRadioId = -1;
 
-  // Connected-mode AX.25 session, used for the X25Session protocol and for
-  // "Wait for Connection" (listening for an incoming connection).
-  AX25Session? _session;
-  _XaraState? _xaraState;
-  Timer? _xaraTimer;
-  Timer? _xaraLockPollTimer;
+  // The engine's published state (see TerminalHandler).
+  Map<Object?, Object?> _state = const {};
 
-  // YAPP file-transfer engine, attached to the live session. Drives both
-  // incoming (auto-received) and outgoing file transfers.
-  YappTransfer? _yapp;
-
-  // Current file-transfer progress, or null when no transfer is active. Drives
-  // the transfer progress panel without rebuilding the whole tab.
-  final ValueNotifier<YappProgress?> _transferProgress =
-      ValueNotifier<YappProgress?>(null);
-
-  // "Wait for Connection" state: true while listening for an incoming SABM and
-  // until the connection is established. The remote callsign is captured once an
-  // incoming connection is accepted, for header display and message attribution.
-  bool _waitingForConnection = false;
-  String? _sessionRemoteCallsign;
-
-  // True while a graceful AX.25 disconnect is in progress (DISC sent, awaiting
-  // the remote's UA). Used to ignore repeat Disconnect clicks so an in-flight
-  // disconnect handshake is not aborted early (mirrors the C# `pendingDisconnect`).
-  bool _pendingDisconnect = false;
+  // Set while a connect this tab requested has not been answered, so contact
+  // problems reported by the engine open the fix dialog only here.
+  bool _awaitingConnect = false;
 
   // Settings (persisted on broker device 0).
   bool _showCallsign = false;
@@ -149,7 +108,14 @@ class _TerminalTabState extends State<TerminalTab>
   @override
   bool get wantKeepAlive => true;
 
-  bool get _isConnected => _xaraState != null || _activeTerminalRadioId > 0;
+  String get _status => (_state['status'] as String?) ?? 'idle';
+
+  bool get _isConnected => _status != TerminalStatus.idle.name;
+
+  bool get _pendingDisconnect => _state['pendingDisconnect'] == true;
+
+  Map<Object?, Object?>? get _transfer =>
+      _state['transfer'] is Map ? _state['transfer']! as Map : null;
 
   @override
   void initState() {
@@ -160,6 +126,7 @@ class _TerminalTabState extends State<TerminalTab>
     _wordWrap = _broker.getValue<bool>(0, 'TerminalWordWrap', false) ?? false;
 
     _loadConnectedRadios();
+    _applyState(_broker.getValueDynamic(1, 'TerminalState', null));
 
     _broker.subscribe(
       deviceId: 1,
@@ -172,31 +139,23 @@ class _TerminalTabState extends State<TerminalTab>
       callback: _onLockState,
     );
     _broker.subscribe(
-      deviceId: DataBroker.allDevices,
-      name: 'UniqueDataFrame',
-      callback: _onUniqueDataFrame,
+      deviceId: 1,
+      name: 'TerminalState',
+      callback: (_, _, data) {
+        if (mounted) setState(() => _applyState(data));
+      },
     );
+    _broker.subscribe(deviceId: 1, name: 'TerminalText', callback: _onText);
+    _broker.subscribe(deviceId: 1, name: 'TerminalNotice', callback: _onNotice);
     _broker.subscribe(
-      deviceId: DataBroker.allDevices,
-      name: 'LockChannelResolveFailed',
-      callback: _onLockChannelResolveFailed,
-    );
-    _broker.subscribeMultiple(
-      deviceId: DataBroker.allDevices,
-      names: ['XaraEvent', 'XaraDataReceived', 'AudioState'],
-      callback: _onXaraDataOrEvent,
+      deviceId: 1,
+      name: 'TerminalFileReceived',
+      callback: _onFileReceived,
     );
   }
 
   @override
   void dispose() {
-    _broker.unsubscribeAll();
-    if (_xaraState != null) _finishXara(abort: true, notify: false);
-    _yapp?.dispose();
-    _yapp = null;
-    _transferProgress.dispose();
-    _session?.dispose();
-    _session = null;
     _broker.dispose();
     _inputController.dispose();
     _scrollController.dispose();
@@ -204,8 +163,15 @@ class _TerminalTabState extends State<TerminalTab>
     super.dispose();
   }
 
+  void _applyState(Object? data) {
+    _state = data is Map ? data : const {};
+  }
+
+  void _command(String name, [Object? data]) =>
+      _broker.dispatch(deviceId: 1, name: name, data: data, store: false);
+
   // ---------------------------------------------------------------------------
-  // DataBroker subscriptions
+  // Radios
   // ---------------------------------------------------------------------------
 
   void _loadConnectedRadios() {
@@ -230,110 +196,21 @@ class _TerminalTabState extends State<TerminalTab>
 
   void _onConnectedRadios(int deviceId, String name, Object? data) {
     if (!mounted) return;
-    _loadConnectedRadios();
-    if (_xaraState != null && !_connectedRadios.contains(_connectedRadioId)) {
-      _finishXara(abort: true);
-    }
     setState(() {
       _loadConnectedRadios();
-      // Drop lock states for radios that are no longer connected.
       _lockStates.removeWhere((id, _) => !_connectedRadios.contains(id));
-      if (_connectedRadioId > 0 &&
-          !_connectedRadios.contains(_connectedRadioId)) {
-        _connectedRadioId = -1;
-        _connectedStation = null;
-      }
     });
   }
 
   void _onLockState(int deviceId, String name, Object? data) {
     if (!mounted) return;
-    if (deviceId == _connectedRadioId && _xaraState != null) {
-      final lock = data is Map<String, dynamic>
-          ? RadioLockState.fromJson(data)
-          : null;
-      if (lock == null || !lock.isLocked || lock.usage != 'Terminal') {
-        _finishXara(abort: true);
-      }
-    }
     setState(() {
       if (data is Map<String, dynamic>) {
         _lockStates[deviceId] = RadioLockState.fromJson(data);
       } else if (data == null) {
         _lockStates.remove(deviceId);
-        if (_connectedRadioId == deviceId) {
-          _connectedRadioId = -1;
-          _connectedStation = null;
-        }
       }
     });
-  }
-
-  void _onUniqueDataFrame(int deviceId, String name, Object? data) {
-    if (!mounted) return;
-    // Only process frames while we have a radio locked to Terminal usage.
-    final radioId = _activeTerminalRadioId;
-    if (radioId <= 0 || deviceId != radioId) return;
-
-    // Connected-mode sessions (the X25Session protocol and "Wait for
-    // Connection") are handled entirely by the AX25Session, which has its own
-    // UniqueDataFrame subscription; the tab must not also decode those frames.
-    // Connectionless protocols are decoded here.
-    if (_session != null || _xaraState != null) return;
-
-    // UniqueDataFrame carries a TncDataFragment; decode it into an AX.25 packet.
-    if (data is! TncDataFragment) return;
-    if (!data.incoming) return;
-    final packet = AX25Packet.decode(data);
-    if (packet == null) return;
-    _processIncomingPacket(packet);
-  }
-
-  /// A radio reported that the connected station's channel could not be found in
-  /// the region it switched to (a cross-region channel that no longer exists).
-  /// Aborts the connection and offers to fix the contact.
-  void _onLockChannelResolveFailed(int deviceId, String name, Object? data) {
-    if (!mounted) return;
-    if (data is! Map || data['usage'] != 'Terminal') return;
-    if (deviceId != _connectedRadioId) return;
-    final station = _connectedStation;
-
-    // Release the radio and tear down any pending session.
-    if (_xaraState != null) _finishXara(abort: true);
-    _broker.dispatch(
-      deviceId: deviceId,
-      name: 'SetUnlock',
-      data: SetUnlockData(usage: 'Terminal'),
-      store: false,
-    );
-    _session?.dispose();
-    _session = null;
-    setState(() {
-      _connectedStation = null;
-      _connectedRadioId = -1;
-    });
-
-    if (station == null) return;
-    final l10n = AppLocalizations.of(context);
-    showStationConnectErrorDialog(
-      context,
-      station: station,
-      message: l10n.stationConnectErrorChannel(station.channel),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Radio selection helpers (port of GetActiveTerminalRadioId / GetAvailable*)
-  // ---------------------------------------------------------------------------
-
-  int get _activeTerminalRadioId {
-    for (final radioId in _connectedRadios) {
-      final lock = _lockStates[radioId];
-      if (lock != null && lock.isLocked && lock.usage == 'Terminal') {
-        return radioId;
-      }
-    }
-    return -1;
   }
 
   List<int> get _availableRadios {
@@ -354,105 +231,22 @@ class _TerminalTabState extends State<TerminalTab>
         'Radio $radioId';
   }
 
-  // ---------------------------------------------------------------------------
-  // Connect / disconnect (port of terminalConnectButton_Click)
-  // ---------------------------------------------------------------------------
-
-  Future<void> _onConnectPressed() async {
-    if (_xaraState != null) {
-      _disconnectXara();
-      return;
-    }
-    final activeRadioId = _activeTerminalRadioId;
-    if (activeRadioId > 0) {
-      // Ignore repeat clicks while a graceful disconnect is already underway;
-      // calling disconnect() again mid-handshake would abort it and release the
-      // radio lock before the remote confirms (mirrors the C# guard).
-      if (_pendingDisconnect) {
-        _broker.logInfo('[TerminalTab] Disconnect already in progress');
-        return;
-      }
-
-      // For a connected-mode session, perform a graceful AX.25 disconnect; the
-      // radio is unlocked only when the session reaches the DISCONNECTED state
-      // (i.e. once the remote acknowledges the DISC with a UA).
-      final session = _session;
-      if (session != null &&
-          session.currentState != AX25ConnectionState.disconnected) {
-        setState(() => _pendingDisconnect = true);
-        // Only initiate a DISC while still connected/connecting. If the session
-        // is already disconnecting, just wait for the in-flight handshake to
-        // complete rather than forcing an immediate teardown.
-        if (session.currentState == AX25ConnectionState.connected ||
-            session.currentState == AX25ConnectionState.connecting) {
-          _broker.logInfo('[TerminalTab] Initiating graceful AX.25 disconnect');
-          session.disconnect();
-        }
-        return;
-      }
-
-      // Otherwise (connectionless protocols) just unlock the radio. The modem
-      // override is released together with the lock.
-      _broker.dispatch(
-        deviceId: activeRadioId,
-        name: 'SetUnlock',
-        data: SetUnlockData(usage: 'Terminal'),
-        store: false,
-      );
-      _broker.logInfo('[TerminalTab] Disconnecting from radio $activeRadioId');
-      _yapp?.dispose();
-      _yapp = null;
-      _transferProgress.value = null;
-      _session?.dispose();
-      _session = null;
-      setState(() {
-        _connectedStation = null;
-        _connectedRadioId = -1;
-        _waitingForConnection = false;
-        _sessionRemoteCallsign = null;
-        _pendingDisconnect = false;
-      });
-      _appendSystem(
-        '*** ${AppLocalizations.of(context).stateDisconnected} ***',
-      );
-      return;
-    }
-
+  Future<int?> _chooseRadio() async {
     final available = _availableRadios;
     if (available.isEmpty) {
-      if (!mounted) return;
+      if (!mounted) return null;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context).terminalNoRadio)),
       );
-      return;
+      return null;
     }
-
-    int radioId;
-    if (available.length > 1) {
-      final picked = await _pickRadio(available);
-      if (picked == null) return;
-      radioId = picked;
-    } else {
-      radioId = available.first;
-    }
-
-    if (!mounted) return;
-    final station = await showActiveStationSelector(
-      context,
-      stationType: StationType.terminal,
-    );
-    if (station == null) return;
-
-    _connectToStation(radioId, station);
-  }
-
-  Future<int?> _pickRadio(List<int> radios) async {
+    if (available.length == 1) return available.first;
     return showDialog<int>(
       context: context,
       builder: (context) => SimpleDialog(
         title: Text(AppLocalizations.of(context).stateSelectRadio),
         children: [
-          for (final radioId in radios)
+          for (final radioId in available)
             SimpleDialogOption(
               onPressed: () => Navigator.of(context).pop(radioId),
               child: Text(_friendlyName(radioId)),
@@ -462,540 +256,56 @@ class _TerminalTabState extends State<TerminalTab>
     );
   }
 
-  /// Locks the radio to Terminal usage and connects to [station] (port of
-  /// `ActiveLockToStation`).
-  void _connectToStation(int radioId, StationInfo station) {
-    if (radioId <= 0) return;
+  // ---------------------------------------------------------------------------
+  // Actions
+  // ---------------------------------------------------------------------------
 
-    // Validate the station's region/channel up front so a missing region or
-    // channel offers a quick way to fix the contact instead of failing quietly.
-    final res = resolveStationChannel(_broker, radioId, station);
-    final l10n = AppLocalizations.of(context);
-    if (res.status == StationChannelStatus.regionMissing) {
-      showStationConnectErrorDialog(
-        context,
-        station: station,
-        message: l10n.stationConnectErrorRegion(station.channelRegion),
-      );
+  Future<void> _onConnectPressed() async {
+    if (_isConnected) {
+      _command('TerminalDisconnect');
       return;
     }
-    if (res.status == StationChannelStatus.channelMissing) {
-      showStationConnectErrorDialog(
-        context,
-        station: station,
-        message: l10n.stationConnectErrorChannel(station.channel),
-      );
-      return;
-    }
-
-    if (station.terminalProtocol.isXara) {
-      if (kIsWeb ||
-          Platform.isIOS ||
-          !(_broker.getValue<bool>(radioId, 'AudioState', false) ?? false)) {
-        _xaraError(l10n.terminalXaraRequiresAudio);
-        return;
-      }
-      final path = AX25Address.parsePath(station.ax25Path);
-      if (AX25Address.parse(station.callsign) == null ||
-          path == null ||
-          path.length > 2) {
-        _xaraError(l10n.terminalInvalidCallsignDest);
-        return;
-      }
-      _yapp?.dispose();
-      _yapp = null;
-      _transferProgress.value = null;
-      _session?.dispose();
-      _session = null;
-    }
-
-    setState(() {
-      _connectedStation = station;
-      _connectedRadioId = radioId;
-      _xaraState = station.terminalProtocol.isXara
-          ? _XaraState.waitingForLock
-          : null;
+    final radioId = await _chooseRadio();
+    if (radioId == null || !mounted) return;
+    final station = await showActiveStationSelector(
+      context,
+      stationType: StationType.terminal,
+    );
+    if (station == null) return;
+    _awaitingConnect = true;
+    _command('TerminalConnect', <String, Object?>{
+      'RadioId': radioId,
+      'Station': station.toJson(),
     });
-
-    // Lock the radio to Terminal usage, carrying the contact's modem so the
-    // radio uses it for the duration of the lock without touching the global
-    // software modem setting. 'Hardware' maps to the radio's built-in TNC.
-    _broker.dispatch(
-      deviceId: radioId,
-      name: 'SetLock',
-      data: SetLockData(
-        usage: 'Terminal',
-        regionId: res.regionId,
-        channelId: res.channelId,
-        channelName: res.channelName,
-        modem: station.terminalProtocol.isXara ? 'XARA' : station.modem,
-        xaraWide: station.terminalProtocol.isXara
-            ? station.terminalProtocol == TerminalProtocol.xaraWide
-            : null,
-      ),
-      store: false,
-    );
-
-    _broker.logInfo(
-      '[TerminalTab] Connecting to station ${station.callsign} on radio '
-      '$radioId (Channel: ${res.channelId >= 0 ? res.channelId : res.channelName}, '
-      'Region: ${res.regionId})',
-    );
-
-    // For the connected-mode protocol, start an AX.25 session handshake.
-    if (station.terminalProtocol.isXara) {
-      _startXara(radioId, station);
-    } else if (station.terminalProtocol == TerminalProtocol.x25Session) {
-      _startSession(radioId, station);
-    } else {
-      _appendSystem('*** Connected to ${station.callsign} ***');
-    }
+    _awaitingConnect = false;
     _inputFocus.requestFocus();
   }
 
-  void _xaraError(String error) {
-    _broker.logError('[TerminalTab] $error');
-    _appendSystem(
-      '*** ${AppLocalizations.of(context).terminalError(error)} ***',
-    );
-  }
-
-  void _startXara(int radioId, StationInfo station) {
-    if (_xaraState != _XaraState.waitingForLock) return;
-    _appendSystem(
-      '*** ${AppLocalizations.of(context).terminalConnectingTo(station.callsign)} ***',
-    );
-    _xaraTimer = Timer(const Duration(seconds: 15), () {
-      _xaraError(AppLocalizations.of(context).terminalXaraLockTimeout);
-      _finishXara(abort: true);
-    });
-    _xaraLockPollTimer = Timer.periodic(const Duration(milliseconds: 200), (
-      timer,
-    ) {
-      final lock = _lockStates[radioId];
-      final resolution = resolveStationChannel(_broker, radioId, station);
-      final status = _broker.getValueDynamic(radioId, 'HtStatus');
-      final tuned =
-          status is Map &&
-          status['currRegion'] == resolution.regionId &&
-          (resolution.channelId < 0 ||
-              status['currChId'] == resolution.channelId);
-      if (lock?.isLocked == true &&
-          lock?.usage == 'Terminal' &&
-          resolution.status == StationChannelStatus.ok &&
-          tuned) {
-        timer.cancel();
-        _xaraTimer?.cancel();
-        _xaraState = _XaraState.connecting;
-        _xaraTimer = Timer(const Duration(seconds: 120), () {
-          _xaraError(AppLocalizations.of(context).terminalXaraNoAnswer);
-          _finishXara(abort: true);
-        });
-        _broker.dispatch(
-          deviceId: radioId,
-          name: 'XaraConnect',
-          data: {
-            'Remote': station.callsign.trim().toUpperCase(),
-            'Vias': station.ax25Path
-                .split(',')
-                .map((s) => s.trim().toUpperCase())
-                .where((s) => s.isNotEmpty)
-                .toList(),
-          },
-          store: false,
-        );
-      }
-    });
-  }
-
-  void _onXaraDataOrEvent(int deviceId, String name, Object? data) {
-    if (!mounted || _xaraState == null || deviceId != _connectedRadioId) {
-      return;
-    }
-    if (name == 'AudioState') {
-      if (data != true) {
-        _xaraError(AppLocalizations.of(context).terminalXaraRequiresAudio);
-        _finishXara(abort: true);
-      }
-      return;
-    }
-    if (name == 'XaraDataReceived') {
-      if (_xaraState == _XaraState.connected && data is Uint8List) {
-        _appendReceivedData(data);
-      }
-      return;
-    }
-    if (data is! Map) return;
-    switch (data['evt']) {
-      case 'connected':
-        if (_xaraState != _XaraState.connecting) return;
-        _xaraTimer?.cancel();
-        setState(() => _xaraState = _XaraState.connected);
-        _appendSystem('*** ${AppLocalizations.of(context).stateConnected} ***');
-      case 'disconnected':
-        _finishXara();
-      case 'timedOut':
-      case 'unableToConnect':
-        _xaraError(AppLocalizations.of(context).terminalXaraNoAnswer);
-        _finishXara();
-    }
-  }
-
-  void _disconnectXara() {
-    if (_pendingDisconnect) return;
-    if (_xaraState != _XaraState.connected) {
-      _finishXara(abort: true);
-      return;
-    }
-    setState(() {
-      _pendingDisconnect = true;
-      _xaraState = _XaraState.disconnecting;
-    });
-    _appendSystem(
-      '*** ${AppLocalizations.of(context).statusDisconnecting} ***',
-    );
-    _xaraTimer?.cancel();
-    _xaraTimer = Timer(const Duration(seconds: 30), () {
-      _xaraError(AppLocalizations.of(context).terminalXaraDisconnectTimeout);
-      _finishXara(abort: true);
-    });
-    _broker.dispatch(
-      deviceId: _connectedRadioId,
-      name: 'XaraDisconnect',
-      data: null,
-      store: false,
-    );
-  }
-
-  void _finishXara({bool abort = false, bool notify = true}) {
-    _xaraTimer?.cancel();
-    _xaraTimer = null;
-    _xaraLockPollTimer?.cancel();
-    _xaraLockPollTimer = null;
-    final radioId = _connectedRadioId;
-    _xaraState = null;
-    _connectedRadioId = -1;
-    _connectedStation = null;
-    _pendingDisconnect = false;
-    if (abort) {
-      _broker.dispatch(
-        deviceId: radioId,
-        name: 'XaraAbort',
-        data: null,
-        store: false,
-      );
-    }
-    final lock = _broker.getJsonValue<RadioLockState>(
-      radioId,
-      'LockState',
-      RadioLockState.fromJson,
-    );
-    if (lock?.isLocked == true && lock?.usage == 'Terminal') {
-      _broker.dispatch(
-        deviceId: radioId,
-        name: 'SetUnlock',
-        data: SetUnlockData(usage: 'Terminal'),
-        store: false,
-      );
-    }
-    if (notify) {
-      _appendSystem(
-        '*** ${AppLocalizations.of(context).stateDisconnected} ***',
-      );
-    }
-  }
-
-  /// Creates an [AX25Session] and initiates a connected-mode handshake to
-  /// [station] (used for [TerminalProtocol.x25Session]).
-  void _startSession(int radioId, StationInfo station) {
-    _session?.dispose();
-
-    final myCallsign =
-        _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
-    final myStationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
-
-    final dest = AX25Address.parse(
-      station.ax25Destination.isNotEmpty
-          ? station.ax25Destination
-          : station.callsign,
-    );
-    final src = AX25Address.getAddress(myCallsign, myStationId);
-    if (dest == null || src == null) {
-      _appendSystem(
-        '*** ${AppLocalizations.of(context).terminalInvalidCallsignDest} ***',
-      );
-      return;
-    }
-
-    // Optional digipeater path (e.g. "RELAY-1,WIDE1-1"). Invalid entries were
-    // rejected at contact-edit time, so a null here just means no path.
-    final digipeaters = AX25Address.parsePath(station.ax25Path) ?? const [];
-
-    final session = AX25Session(radioId);
-    session.callSignOverride = myCallsign;
-    session.stationIdOverride = myStationId;
-    // Outgoing client: fall silent once the link is torn down so we don't keep
-    // answering the peer's retransmitted DISC after the radio is unlocked.
-    session.acceptIncoming = false;
-    session.onStateChanged = _onSessionStateChanged;
-    session.onDataReceived = _onSessionDataReceived;
-    session.onError = _onSessionError;
-    _session = session;
-    _attachYapp(session);
-
-    _appendSystem(
-      '*** ${AppLocalizations.of(context).terminalConnectingTo(station.callsign)} ***',
-    );
-    session.connect([dest, src, ...digipeaters]);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Wait for incoming connection (port of WaitForConnectionOnRadio)
-  // ---------------------------------------------------------------------------
-
-  /// Handles the "Wait for Connection" menu action: chooses a radio (prompting
-  /// when more than one is free) and starts listening for an incoming AX.25
-  /// connected-mode session.
   Future<void> _onWaitForConnectionPressed() async {
     if (_isConnected) return;
-    final available = _availableRadios;
-    if (available.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).terminalNoRadio)),
-      );
-      return;
-    }
-
-    int radioId;
-    if (available.length > 1) {
-      final picked = await _pickRadio(available);
-      if (picked == null) return;
-      radioId = picked;
-    } else {
-      radioId = available.first;
-    }
-
-    if (!mounted) return;
-    _startWaitForConnection(radioId);
-  }
-
-  /// Locks the radio to Terminal usage and creates an [AX25Session] that listens
-  /// for an incoming connection request (SABM/SABME). Unlike [_startSession],
-  /// no [AX25Session.connect] is issued and no station/modem override is set —
-  /// the session accepts the first incoming connection on the current channel
-  /// using the currently active software modem (mirroring the legacy C#
-  /// `WaitForConnectionOnRadio`).
-  void _startWaitForConnection(int radioId) {
-    if (radioId <= 0) return;
-
-    _session?.dispose();
-
-    // Lock the radio to Terminal usage on its current region/channel (-1 lets
-    // the radio keep its current values).
-    _broker.dispatch(
-      deviceId: radioId,
-      name: 'SetLock',
-      data: SetLockData(usage: 'Terminal', regionId: -1, channelId: -1),
-      store: false,
-    );
-
-    final myCallsign =
-        _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
-    final myStationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
-
-    final session = AX25Session(radioId);
-    session.callSignOverride = myCallsign;
-    session.stationIdOverride = myStationId;
-    session.onStateChanged = _onSessionStateChanged;
-    session.onDataReceived = _onSessionDataReceived;
-    session.onError = _onSessionError;
-    _session = session;
-    _attachYapp(session);
-
-    setState(() {
-      _connectedStation = null;
-      _connectedRadioId = radioId;
-      _waitingForConnection = true;
-      _sessionRemoteCallsign = null;
-      _pendingDisconnect = false;
-    });
-
-    _broker.logInfo(
-      '[TerminalTab] Waiting for incoming connection on radio $radioId',
-    );
-    _appendSystem(
-      '*** ${AppLocalizations.of(context).terminalWaitingForConnection} ***',
-    );
+    final radioId = await _chooseRadio();
+    if (radioId == null || !mounted) return;
+    _command('TerminalWait', <String, Object?>{'RadioId': radioId});
     _inputFocus.requestFocus();
   }
 
-  void _onSessionStateChanged(AX25Session sender, AX25ConnectionState state) {
-    if (!mounted) return;
-    switch (state) {
-      case AX25ConnectionState.connected:
-        if (_waitingForConnection) {
-          // Incoming connection accepted: capture the remote callsign for
-          // display and message attribution.
-          final addrs = sender.addresses;
-          final remote = (addrs != null && addrs.isNotEmpty)
-              ? addrs[0].callSignWithId
-              : 'UNKNOWN';
-          setState(() {
-            _waitingForConnection = false;
-            _sessionRemoteCallsign = remote;
-          });
-          _broker.logInfo(
-            '[TerminalTab] Incoming connection established from $remote',
-          );
-          _appendSystem(
-            '*** ${AppLocalizations.of(context).terminalConnectedFrom(remote)} ***',
-          );
-        } else {
-          _appendSystem(
-            '*** ${AppLocalizations.of(context).stateConnected} ***',
-          );
-        }
-        if (_pendingDisconnect) setState(() => _pendingDisconnect = false);
-        break;
-      case AX25ConnectionState.disconnected:
-        _appendSystem(
-          '*** ${AppLocalizations.of(context).stateDisconnected} ***',
-        );
-        // Abort any in-progress file transfer.
-        _yapp?.reset();
-        _transferProgress.value = null;
-        // If the radio is still locked to Terminal, release it so the UI
-        // returns to the disconnected state.
-        final radioId = _activeTerminalRadioId;
-        if (radioId > 0) {
-          _broker.dispatch(
-            deviceId: radioId,
-            name: 'SetUnlock',
-            data: SetUnlockData(usage: 'Terminal'),
-            store: false,
-          );
-        }
-        setState(() {
-          _connectedStation = null;
-          _connectedRadioId = -1;
-          _waitingForConnection = false;
-          _sessionRemoteCallsign = null;
-          _pendingDisconnect = false;
-        });
-        break;
-      case AX25ConnectionState.disconnecting:
-        // DISC sent; awaiting the remote's UA before the radio is released.
-        _appendSystem(
-          '*** ${AppLocalizations.of(context).statusDisconnecting} ***',
-        );
-        break;
-      case AX25ConnectionState.connecting:
-        break;
-    }
-  }
-
-  void _onSessionDataReceived(AX25Session sender, Uint8List data) {
-    if (!mounted) return;
-    // Give the YAPP engine first chance at the data; if it consumes the bytes
-    // as protocol traffic, don't display them as terminal text.
-    if (_yapp?.processIncomingData(data) == true) return;
-    _appendReceivedData(data);
-  }
-
-  void _appendReceivedData(Uint8List data) {
-    final station = _connectedStation;
-    final fromCallsign =
-        station?.callsign ?? _sessionRemoteCallsign ?? 'UNKNOWN';
-    final myCallsign =
-        _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
-    _appendString(
-      outgoing: false,
-      from: fromCallsign,
-      to: myCallsign,
-      text: utf8.decode(data, allowMalformed: true),
-    );
-  }
-
-  void _onSessionError(AX25Session sender, String error) {
-    if (!mounted) return;
-    _appendSystem(
-      '*** ${AppLocalizations.of(context).terminalError(error)} ***',
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // YAPP file transfer
-  // ---------------------------------------------------------------------------
-
-  /// Attaches a [YappTransfer] engine to [session] and arms it to auto-receive
-  /// incoming file transfers.
-  void _attachYapp(AX25Session session) {
-    _yapp?.dispose();
-    final yapp = YappTransfer(session);
-    yapp.onProgress = (progress) {
-      if (!mounted) return;
-      _transferProgress.value = progress;
-    };
-    yapp.onReceiveComplete = _onYappFileReceived;
-    yapp.onSendComplete = (filename) {
-      if (!mounted) return;
-      _transferProgress.value = null;
-      _appendSystem(
-        '*** ${AppLocalizations.of(context).terminalFileSent(filename)} ***',
-      );
-    };
-    yapp.onError = (message) {
-      if (!mounted) return;
-      _transferProgress.value = null;
-      _appendSystem(
-        '*** ${AppLocalizations.of(context).terminalFileTransferError(message)} ***',
-      );
-    };
-    yapp.enableAutoReceive();
-    _yapp = yapp;
-  }
-
-  /// Handles a fully received incoming file: clears the progress panel, reports
-  /// completion and prompts the user to choose a save location.
-  Future<void> _onYappFileReceived(String filename, Uint8List data) async {
-    if (!mounted) return;
-    _transferProgress.value = null;
-    _appendSystem(
-      '*** ${AppLocalizations.of(context).terminalFileReceived(filename, data.length)} ***',
-    );
-    try {
-      await FilePicker.saveFile(
-        dialogTitle: AppLocalizations.of(context).terminalSaveFileTitle,
-        fileName: filename,
-        bytes: data,
-      );
-    } catch (_) {
-      // User cancelled the save dialog or the platform threw; the file bytes
-      // are simply discarded.
-    }
+  void _onSend() {
+    final text = _inputController.text;
+    if (text.isEmpty) return;
+    _command('TerminalSend', <String, Object?>{'Text': text});
+    _inputController.clear();
+    _inputFocus.requestFocus();
   }
 
   /// Prompts the user to pick a file and sends it over the active session using
   /// the YAPP protocol.
   Future<void> _onSendFilePressed() async {
-    final yapp = _yapp;
-    final session = _session;
-    if (yapp == null ||
-        session == null ||
-        session.currentState != AX25ConnectionState.connected) {
+    if (_state['canSendFile'] != true) {
       _appendSystem(
         '*** ${AppLocalizations.of(context).terminalNotConnected} ***',
       );
       return;
     }
-    if (yapp.isBusy) {
-      _appendSystem(
-        '*** ${AppLocalizations.of(context).terminalTransferInProgress} ***',
-      );
-      return;
-    }
-
     final result = await FilePicker.pickFiles(withData: true);
     if (result == null || result.files.isEmpty) return;
     final file = result.files.first;
@@ -1008,317 +318,118 @@ class _TerminalTabState extends State<TerminalTab>
         bytes = null;
       }
     }
+    if (!mounted) return;
     if (bytes == null) {
-      if (!mounted) return;
       _appendSystem(
         '*** ${AppLocalizations.of(context).terminalFileTransferError(file.name)} ***',
       );
       return;
     }
-
-    if (!mounted) return;
-    _appendSystem(
-      '*** ${AppLocalizations.of(context).terminalSendingFile(file.name)} ***',
-    );
-    yapp.sendFile(file.name, bytes);
+    _command('TerminalSendFile', <String, Object?>{
+      'Name': file.name,
+      'Data': bytes,
+    });
   }
 
   // ---------------------------------------------------------------------------
-  // Sending (port of SendRawX25Packet / SendRawX25CompressPacket / SendAprsPacket)
+  // Engine events
   // ---------------------------------------------------------------------------
 
-  void _onSend() {
-    final text = _inputController.text;
-    if (text.isEmpty) return;
-    final radioId = _activeTerminalRadioId;
-    if (radioId <= 0) return;
-    // A YAPP file transfer owns the session; block text sends while it runs.
-    if (_yapp?.isBusy ?? false) return;
-    final station = _connectedStation;
-
-    // "Wait for Connection" has no configured station: send through the live
-    // connected-mode session directly.
-    if (station == null) {
-      final session = _session;
-      if (session == null ||
-          session.currentState != AX25ConnectionState.connected) {
-        _appendSystem(
-          '*** ${AppLocalizations.of(context).terminalNotConnected} ***',
-        );
-        return;
-      }
-      session.sendString('$text\r');
-      final myCallsign =
-          _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
-      final myStationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
-      final myAddress = myStationId > 0
-          ? '$myCallsign-$myStationId'
-          : myCallsign;
-      _appendString(
-        outgoing: true,
-        from: myAddress,
-        to: _sessionRemoteCallsign ?? 'UNKNOWN',
-        text: '$text\n',
-      );
-      _inputController.clear();
-      _inputFocus.requestFocus();
-      return;
-    }
-
-    switch (station.terminalProtocol) {
-      case TerminalProtocol.aprs:
-        _sendAprsPacket(radioId, station, text);
-        break;
-      case TerminalProtocol.rawX25Compress:
-        _sendRawX25Packet(radioId, station, text, compress: true);
-        break;
-      case TerminalProtocol.rawX25:
-        _sendRawX25Packet(radioId, station, text, compress: false);
-        break;
-      case TerminalProtocol.x25Session:
-        final session = _session;
-        if (session == null ||
-            session.currentState != AX25ConnectionState.connected) {
-          _appendSystem(
-            '*** ${AppLocalizations.of(context).terminalNotConnected} ***',
-          );
-          return;
-        }
-        // Send a line terminated with a carriage return (BBS convention).
-        session.sendString('$text\r');
-        break;
-      case TerminalProtocol.xaraNarrow:
-      case TerminalProtocol.xaraWide:
-        if (_xaraState != _XaraState.connected) {
-          _appendSystem(
-            '*** ${AppLocalizations.of(context).terminalNotConnected} ***',
-          );
-          return;
-        }
-        _broker.dispatch(
-          deviceId: radioId,
-          name: 'XaraSend',
-          data: Uint8List.fromList(utf8.encode('$text\r')),
-          store: false,
-        );
-        break;
-    }
-
-    final myCallsign =
-        _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
-    final myStationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
-    final myAddress = myStationId > 0 ? '$myCallsign-$myStationId' : myCallsign;
+  void _onText(int deviceId, String name, Object? data) {
+    if (!mounted || data is! Map) return;
     _appendString(
-      outgoing: true,
-      from: myAddress,
-      to: station.callsign,
-      text: '$text\n',
-    );
-    _inputController.clear();
-    _inputFocus.requestFocus();
-  }
-
-  /// Builds the source AX.25 address from our configured callsign + station id.
-  AX25Address? _buildSourceAddress() {
-    final myCallsign =
-        _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
-    final myStationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
-    return AX25Address.getAddress(myCallsign, myStationId);
-  }
-
-  AX25Address? _buildDestAddress(StationInfo station) {
-    // For raw protocols, the AX25Destination overrides the callsign when set.
-    final target = station.ax25Destination.isNotEmpty
-        ? station.ax25Destination
-        : station.callsign;
-    return AX25Address.parse(target);
-  }
-
-  void _transmit(int radioId, AX25Packet packet) {
-    packet.incoming = false;
-    packet.sent = false;
-    _broker.dispatch(
-      deviceId: radioId,
-      name: 'TransmitDataFrame',
-      data: TransmitDataFrameData(packet: packet, channelId: -1, regionId: -1),
-      store: false,
+      outgoing: data['outgoing'] == true,
+      from: data['from'] as String?,
+      to: data['to'] as String?,
+      text: (data['text'] as String?) ?? '',
     );
   }
 
-  void _sendRawX25Packet(
-    int radioId,
-    StationInfo station,
-    String text, {
-    required bool compress,
-  }) {
-    final src = _buildSourceAddress();
-    final dest = _buildDestAddress(station);
-    if (src == null || dest == null) {
-      _appendSystem(
-        '*** ${AppLocalizations.of(context).terminalInvalidCallsignDest} ***',
-      );
-      return;
-    }
+  void _onNotice(int deviceId, String name, Object? data) {
+    if (!mounted || data is! Map) return;
+    final l10n = AppLocalizations.of(context);
+    final kind = data['kind'] as String?;
+    String arg(String key) => '${data[key] ?? ''}';
 
-    final raw = Uint8List.fromList(utf8.encode(text));
-    int pid = 241; // none
-    Uint8List payload = raw;
-
-    if (compress) {
-      // Pick the smallest of uncompressed (241) or Deflate (243). Brotli (242)
-      // from the C# implementation is unavailable in the Dart SDK, so it is
-      // skipped; receivers still decode 241/243 interoperably.
-      try {
-        final deflated = Uint8List.fromList(zlib.encode(raw));
-        if (deflated.length < payload.length) {
-          payload = deflated;
-          pid = 243;
-        }
-      } catch (_) {
-        // Fall back to uncompressed on any compression error.
-      }
-    }
-
-    final packet = AX25Packet(
-      addresses: [dest, src],
-      data: payload,
-      type: FrameType.uFrameUi,
-      command: true,
-      time: DateTime.now(),
-    );
-    packet.pid = pid;
-    _transmit(radioId, packet);
-  }
-
-  void _sendAprsPacket(int radioId, StationInfo station, String text) {
-    final src = _buildSourceAddress();
-    final dest = AX25Address.parse('APRS');
-    if (src == null || dest == null) {
-      _appendSystem(
-        '*** ${AppLocalizations.of(context).terminalInvalidCallsign} ***',
-      );
-      return;
-    }
-
-    // APRS message format: :CALLSIGN  :message  (9-char padded callsign)
-    var paddedAddr = station.callsignNoZero;
-    if (paddedAddr.length > 9) paddedAddr = paddedAddr.substring(0, 9);
-    while (paddedAddr.length < 9) {
-      paddedAddr += ' ';
-    }
-    final aprsContent = ':$paddedAddr:$text';
-
-    final packet = AX25Packet(
-      addresses: [dest, src],
-      dataStr: aprsContent,
-      type: FrameType.uFrameUi,
-      command: true,
-      time: DateTime.now(),
-    );
-    packet.pid = 240;
-    _transmit(radioId, packet);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Receiving (port of ProcessRawX25Packet / ProcessRawX25CompressPacket /
-  // ProcessAprsPacket)
-  // ---------------------------------------------------------------------------
-
-  void _processIncomingPacket(AX25Packet packet) {
-    final station = _connectedStation;
-    if (station == null) return;
-    if (packet.addresses.length < 2) return;
-
-    final fromCallsign = packet.addresses[1].callSignWithId;
-    final myCallsign =
-        _broker.getValue<String>(0, 'CallSign', 'N0CALL') ?? 'N0CALL';
-
-    switch (station.terminalProtocol) {
-      case TerminalProtocol.aprs:
-        _processAprsPacket(packet, fromCallsign, myCallsign);
-        break;
-      case TerminalProtocol.rawX25:
-      case TerminalProtocol.rawX25Compress:
-        _processRawX25Packet(packet, fromCallsign, myCallsign);
-        break;
-      case TerminalProtocol.x25Session:
-      case TerminalProtocol.xaraNarrow:
-      case TerminalProtocol.xaraWide:
-        // Connected-mode frames are delivered via AX25Session callbacks
-        // (`_onSessionDataReceived`), so nothing is processed here.
-        break;
-    }
-  }
-
-  void _processRawX25Packet(
-    AX25Packet packet,
-    String fromCallsign,
-    String myCallsign,
-  ) {
-    String? text;
-    final pid = packet.pid;
-
-    if (packet.data != null && packet.data!.isNotEmpty) {
-      if (pid == 243) {
-        // Deflate compressed.
-        try {
-          text = utf8.decode(zlib.decode(packet.data!), allowMalformed: true);
-        } catch (_) {
-          text = utf8.decode(packet.data!, allowMalformed: true);
-        }
-      } else if (pid == 242) {
-        // Brotli compressed - unsupported in this build; show raw bytes count.
-        _appendSystem('*** ${AppLocalizations.of(context).terminalBrotli} ***');
-        return;
+    // Contact problems: offer to fix the contact when this tab asked for the
+    // connection; otherwise (an agent or another window) just report it.
+    if (kind == TerminalNotices.regionMissing ||
+        kind == TerminalNotices.channelMissing) {
+      final station = data['station'];
+      if (station is! Map) return;
+      final info = StationInfo.fromJson(station.cast<String, dynamic>());
+      final message = kind == TerminalNotices.regionMissing
+          ? l10n.stationConnectErrorRegion(info.channelRegion)
+          : l10n.stationConnectErrorChannel(info.channel);
+      if (_awaitingConnect) {
+        showStationConnectErrorDialog(context, station: info, message: message);
       } else {
-        text = utf8.decode(packet.data!, allowMalformed: true);
+        _appendSystem('*** $message ***');
       }
-    } else if (packet.dataStr != null && packet.dataStr!.isNotEmpty) {
-      text = packet.dataStr;
+      return;
     }
 
-    if (text != null && text.isNotEmpty) {
-      _appendString(
-        outgoing: false,
-        from: fromCallsign,
-        to: myCallsign,
-        text: text,
-      );
-    }
+    final String? text = switch (kind) {
+      TerminalNotices.connecting => l10n.terminalConnectingTo(arg('callsign')),
+      TerminalNotices.connected => l10n.stateConnected,
+      TerminalNotices.connectedTo => l10n.terminalConnectedTo(arg('callsign')),
+      TerminalNotices.connectedFrom => l10n.terminalConnectedFrom(
+        arg('callsign'),
+      ),
+      TerminalNotices.disconnecting => l10n.statusDisconnecting,
+      TerminalNotices.disconnected => l10n.stateDisconnected,
+      TerminalNotices.waiting => l10n.terminalWaitingForConnection,
+      TerminalNotices.notConnected => l10n.terminalNotConnected,
+      TerminalNotices.busy => l10n.terminalBusy,
+      TerminalNotices.invalidCallsignDest => l10n.terminalInvalidCallsignDest,
+      TerminalNotices.invalidCallsign => l10n.terminalInvalidCallsign,
+      TerminalNotices.brotli => l10n.terminalBrotli,
+      TerminalNotices.error => l10n.terminalError(_errorText(arg('error'))),
+      TerminalNotices.transferInProgress => l10n.terminalTransferInProgress,
+      TerminalNotices.sendingFile => l10n.terminalSendingFile(arg('filename')),
+      TerminalNotices.fileSent => l10n.terminalFileSent(arg('filename')),
+      TerminalNotices.fileReceived => l10n.terminalFileReceived(
+        arg('filename'),
+        (data['size'] as num?)?.toInt() ?? 0,
+      ),
+      TerminalNotices.fileTransferError => l10n.terminalFileTransferError(
+        arg('message'),
+      ),
+      _ => null,
+    };
+    if (text != null) _appendSystem('*** $text ***');
   }
 
-  void _processAprsPacket(
-    AX25Packet packet,
-    String fromCallsign,
-    String myCallsign,
-  ) {
-    var aprsData = packet.dataStr;
-    if ((aprsData == null || aprsData.isEmpty) &&
-        packet.data != null &&
-        packet.data!.isNotEmpty) {
-      aprsData = utf8.decode(packet.data!, allowMalformed: true);
-    }
-    if (aprsData == null || aprsData.length < 11) return;
-    if (aprsData[0] != ':') return;
-    if (aprsData[10] != ':') return;
+  /// Localizes engine error codes; other errors (e.g. AX.25) pass through.
+  String _errorText(String error) {
+    final l10n = AppLocalizations.of(context);
+    return switch (error) {
+      TerminalNotices.xaraRequiresAudio => l10n.terminalXaraRequiresAudio,
+      TerminalNotices.xaraNoAnswer => l10n.terminalXaraNoAnswer,
+      TerminalNotices.xaraLockTimeout => l10n.terminalXaraLockTimeout,
+      TerminalNotices.xaraDisconnectTimeout =>
+        l10n.terminalXaraDisconnectTimeout,
+      TerminalNotices.invalidCallsignDest => l10n.terminalInvalidCallsignDest,
+      _ => error,
+    };
+  }
 
-    var messageContent = aprsData.substring(11);
-    final msgIdIndex = messageContent.lastIndexOf('{');
-    if (msgIdIndex >= 0) {
-      messageContent = messageContent.substring(0, msgIdIndex);
-    }
-    final authIndex = messageContent.lastIndexOf('}');
-    if (authIndex >= 0) {
-      messageContent = messageContent.substring(0, authIndex);
-    }
-
-    if (messageContent.isNotEmpty) {
-      _appendString(
-        outgoing: false,
-        from: fromCallsign,
-        to: myCallsign,
-        text: messageContent,
+  /// Prompts the user to save a file received over YAPP.
+  Future<void> _onFileReceived(int deviceId, String name, Object? data) async {
+    if (!mounted || data is! Map) return;
+    final fileName = data['Name'];
+    final raw = data['Data'];
+    if (fileName is! String || raw is! List) return;
+    final bytes = raw is Uint8List ? raw : Uint8List.fromList(raw.cast<int>());
+    try {
+      await FilePicker.saveFile(
+        dialogTitle: AppLocalizations.of(context).terminalSaveFileTitle,
+        fileName: fileName,
+        bytes: bytes,
       );
+    } catch (_) {
+      // User cancelled the save dialog or the platform threw; the file bytes
+      // are simply discarded.
     }
   }
 
@@ -1547,9 +658,7 @@ class _TerminalTabState extends State<TerminalTab>
           value: 'sendFile',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled:
-              _session?.currentState == AX25ConnectionState.connected &&
-              !(_yapp?.isBusy ?? true),
+          enabled: _state['canSendFile'] == true,
           child: Row(
             children: [
               const SizedBox(width: 20),
@@ -1649,20 +758,16 @@ class _TerminalTabState extends State<TerminalTab>
 
   Widget _buildHeader() {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     final connected = _isConnected;
+    final remote = _state['remote'] as String?;
     final String title;
-    if (connected && _connectedStation != null) {
-      title = AppLocalizations.of(
-        context,
-      ).terminalHeaderWith(_connectedStation!.callsign);
-    } else if (connected && _sessionRemoteCallsign != null) {
-      title = AppLocalizations.of(
-        context,
-      ).terminalHeaderWith(_sessionRemoteCallsign!);
-    } else if (connected && _waitingForConnection) {
-      title = AppLocalizations.of(context).terminalWaitingForConnection;
+    if (connected && _status == TerminalStatus.waiting.name) {
+      title = l10n.terminalWaitingForConnection;
+    } else if (connected && remote != null && remote.isNotEmpty) {
+      title = l10n.terminalHeaderWith(remote);
     } else {
-      title = AppLocalizations.of(context).tabTerminal;
+      title = l10n.tabTerminal;
     }
     return Container(
       height: 40,
@@ -1699,10 +804,10 @@ class _TerminalTabState extends State<TerminalTab>
                     ),
                     child: Text(
                       _pendingDisconnect
-                          ? AppLocalizations.of(context).statusDisconnecting
+                          ? l10n.statusDisconnecting
                           : connected
-                          ? AppLocalizations.of(context).commonDisconnect
-                          : AppLocalizations.of(context).commonConnect,
+                          ? l10n.commonDisconnect
+                          : l10n.commonConnect,
                     ),
                   ),
                 ),
@@ -1803,129 +908,117 @@ class _TerminalTabState extends State<TerminalTab>
 
   /// Shows the current YAPP file-transfer progress, or nothing when idle.
   Widget _buildTransferPanel() {
-    return ValueListenableBuilder<YappProgress?>(
-      valueListenable: _transferProgress,
-      builder: (context, progress, _) {
-        if (progress == null) return const SizedBox.shrink();
-        final scheme = Theme.of(context).colorScheme;
-        final l10n = AppLocalizations.of(context);
-        final sending = progress.direction == YappDirection.send;
-        final label = sending
-            ? l10n.terminalSendingFile(progress.filename)
-            : l10n.terminalReceivingFile(progress.filename);
-        final pct = (progress.fraction * 100).toStringAsFixed(0);
-        return Container(
-          color: scheme.surfaceContainerHigh,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(
-            children: [
-              Icon(
-                sending ? Icons.upload_file : Icons.download,
-                size: 18,
-                color: scheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    const SizedBox(height: 4),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: progress.fileSize > 0 ? progress.fraction : null,
-                        backgroundColor: scheme.surfaceContainerHighest,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          sending ? Colors.lightBlue : Colors.green,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${progress.bytesTransferred}/${progress.fileSize} ($pct%)',
-                style: const TextStyle(fontSize: 11),
-              ),
-              const SizedBox(width: 4),
-              IconButton(
-                icon: const Icon(Icons.close, size: 18),
-                tooltip: l10n.terminalCancelTransfer,
-                visualDensity: VisualDensity.compact,
-                onPressed: () => _yapp?.cancel(),
-              ),
-            ],
+    final transfer = _transfer;
+    if (transfer == null) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
+    final filename = '${transfer['filename'] ?? ''}';
+    final size = (transfer['fileSize'] as num?)?.toInt() ?? 0;
+    final done = (transfer['bytesTransferred'] as num?)?.toInt() ?? 0;
+    final fraction = size > 0 ? (done / size).clamp(0.0, 1.0) : 0.0;
+    final sending = transfer['direction'] == 'send';
+    final label = sending
+        ? l10n.terminalSendingFile(filename)
+        : l10n.terminalReceivingFile(filename);
+    final pct = (fraction * 100).toStringAsFixed(0);
+    return Container(
+      color: scheme.surfaceContainerHigh,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Row(
+        children: [
+          Icon(
+            sending ? Icons.upload_file : Icons.download,
+            size: 18,
+            color: scheme.onSurfaceVariant,
           ),
-        );
-      },
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: size > 0 ? fraction : null,
+                    backgroundColor: scheme.surfaceContainerHighest,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      sending ? Colors.lightBlue : Colors.green,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text('$done/$size ($pct%)', style: const TextStyle(fontSize: 11)),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            tooltip: l10n.terminalCancelTransfer,
+            visualDensity: VisualDensity.compact,
+            onPressed: () => _command('TerminalCancelTransfer'),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildInputPanel() {
-    // Rebuild whenever a transfer starts/stops so the input is disabled while
-    // a YAPP file transfer is using the session.
-    return ValueListenableBuilder<YappProgress?>(
-      valueListenable: _transferProgress,
-      builder: (context, progress, _) {
-        final scheme = Theme.of(context).colorScheme;
-        final enabled =
-            _isConnected &&
-            progress == null &&
-            (_xaraState == null || _xaraState == _XaraState.connected);
-        return Container(
-          height: 50,
-          color: scheme.surfaceContainerHigh,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: enabled
-                        ? scheme.surface
-                        : scheme.surfaceContainerHighest,
-                    border: Border.all(color: scheme.outline),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: TextField(
-                    controller: _inputController,
-                    focusNode: _inputFocus,
-                    enabled: enabled,
-                    style: const TextStyle(fontSize: 14),
-                    decoration: const InputDecoration(
-                      contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                      border: InputBorder.none,
-                      isCollapsed: true,
-                    ),
-                    onSubmitted: (_) => _onSend(),
-                  ),
-                ),
+    final scheme = Theme.of(context).colorScheme;
+    // The engine reports when text can be sent (connected, no transfer).
+    final enabled = _isConnected && _state['canSend'] == true;
+    return Container(
+      height: 50,
+      color: scheme.surfaceContainerHigh,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 34,
+              decoration: BoxDecoration(
+                color: enabled
+                    ? scheme.surface
+                    : scheme.surfaceContainerHighest,
+                border: Border.all(color: scheme.outline),
+                borderRadius: BorderRadius.circular(4),
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 34,
-                child: ElevatedButton(
-                  onPressed: enabled ? _onSend : null,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                  child: Text(AppLocalizations.of(context).terminalSend),
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: TextField(
+                controller: _inputController,
+                focusNode: _inputFocus,
+                enabled: enabled,
+                style: const TextStyle(fontSize: 14),
+                decoration: const InputDecoration(
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                  border: InputBorder.none,
+                  isCollapsed: true,
                 ),
+                onSubmitted: (_) => _onSend(),
               ),
-            ],
+            ),
           ),
-        );
-      },
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 34,
+            child: ElevatedButton(
+              onPressed: enabled ? _onSend : null,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              child: Text(AppLocalizations.of(context).terminalSend),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

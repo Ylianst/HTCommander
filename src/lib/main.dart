@@ -26,6 +26,7 @@ import 'dialogs/rename_regions_dialog.dart';
 import 'dialogs/repeaterbook_dialog.dart';
 import 'dialogs/app_settings.dart';
 import 'dialogs/settings_dialog.dart';
+import 'dialogs/xara_settings_dialog.dart';
 import 'handlers/frame_deduplicator.dart';
 import 'handlers/packet_store.dart';
 import 'handlers/aprs_handler.dart';
@@ -40,6 +41,7 @@ import 'handlers/agwpe_handler.dart';
 import 'handlers/web_server_handler.dart';
 import 'handlers/home_assistant_handler.dart';
 import 'handlers/debug_log_handler.dart';
+import 'handlers/terminal_handler.dart';
 import 'handlers/location_handler.dart';
 import 'gps/gps_serial_handler.dart';
 import 'gps/gps_data.dart';
@@ -102,6 +104,7 @@ import 'winlink/mail_store.dart';
 import 'winlink/winlink_client.dart';
 import 'widgets/radio_panel.dart';
 import 'widgets/radio_status_bar.dart';
+import 'widgets/agent_control_banner.dart';
 import 'echolink/echolink_client.dart' show echoLinkDeviceId;
 import 'allstar/allstar_client.dart' show allStarDeviceId;
 import 'widgets/comms_tab.dart';
@@ -575,6 +578,13 @@ Future<void> _startApp(List<String> args) async {
   final debugLogHandler = DebugLogHandler();
   debugLogHandler.init();
   DataBroker.addDataHandler('DebugLogHandler', debugLogHandler);
+
+  // Register the terminal engine. The Terminal tab (in this or a detached
+  // window) and test agents drive it with Terminal* commands. The hosted web
+  // build keeps its own, since it runs its terminal against its own radio view.
+  final terminalHandler = TerminalHandler();
+  terminalHandler.init();
+  DataBroker.addDataHandler('TerminalHandler', terminalHandler);
 
   // Register the torrent handler so that the Torrent tab can share, request and
   // transfer files over a radio locked to the "Torrent" usage. Its store is
@@ -1295,6 +1305,7 @@ class _MainFormState extends State<MainForm>
         'StationId',
         'AllowTransmit',
         'WinlinkPassword',
+        HostBridge.hostCredentialsValue,
         'CheckForUpdates',
         'ShowAllChannels',
         'ShowChannelFrequency',
@@ -1577,15 +1588,27 @@ class _MainFormState extends State<MainForm>
     });
   }
 
+  /// Whether a Winlink password is set. The hosted web UI never receives the
+  /// host's credentials, only which ones are configured.
+  bool _readWinlinkPasswordSet() {
+    if (HostBridge.isHosted) {
+      final set = DataBroker.getValueDynamic(
+        0,
+        HostBridge.hostCredentialsValue,
+      );
+      return set is List && set.contains('WinlinkPassword');
+    }
+    return (DataBroker.getValue<String>(0, 'WinlinkPassword', '') ?? '')
+        .isNotEmpty;
+  }
+
   /// Load settings from DataBroker (device 0).
   void _loadSettingsFromBroker() {
     _callSign = DataBroker.getValue<String>(0, 'CallSign', '') ?? '';
     _stationId = DataBroker.getValue<int>(0, 'StationId', 0) ?? 0;
     _allowTransmit =
         (DataBroker.getValue<int>(0, 'AllowTransmit', 0) ?? 0) == 1;
-    _winlinkPasswordSet =
-        (DataBroker.getValue<String>(0, 'WinlinkPassword', '') ?? '')
-            .isNotEmpty;
+    _winlinkPasswordSet = _readWinlinkPasswordSet();
     _repeaterBookTokenSet = _isValidRepeaterBookToken(
       DataBroker.getValue<String>(0, 'RepeaterBookToken', '') ?? '',
     );
@@ -1705,7 +1728,8 @@ class _MainFormState extends State<MainForm>
           _rebuildTabsForTransmit();
           break;
         case 'WinlinkPassword':
-          _winlinkPasswordSet = (data as String? ?? '').isNotEmpty;
+        case HostBridge.hostCredentialsValue:
+          _winlinkPasswordSet = _readWinlinkPasswordSet();
           _rebuildTabsForTransmit();
           break;
         case 'ShowAllChannels':
@@ -3750,6 +3774,11 @@ class _MainFormState extends State<MainForm>
                     onPressed: () => _setXaraWide(true),
                     checked: _xaraWide,
                   ),
+                  const AppMenuDivider(),
+                  AppMenuAction(
+                    label: l10n.menuSettings,
+                    onPressed: () => showXaraSettingsDialog(context),
+                  ),
                 ],
               ),
             AppSubmenu(
@@ -3979,6 +4008,8 @@ class _MainFormState extends State<MainForm>
                     ],
                   ),
                 ),
+                // Shown while test agents control this station (with Stop).
+                if (!kIsWeb) const AgentControlBanner(),
                 // Status bar (hidden when disabled, height is too small, or
                 // keyboard is shown)
                 if (_showStatusBar &&

@@ -1061,6 +1061,52 @@ class AppLocalizationsHi extends AppLocalizations {
   String get settingsEnableWebServer => 'वेब सर्वर सक्षम करें';
 
   @override
+  String get settingsEnableAgentApi =>
+      'परीक्षण एजेंटों को अनुमति दें (ऑटोमेशन API)';
+
+  @override
+  String agentControlActive(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count परीक्षण एजेंट इस स्टेशन को नियंत्रित कर रहे हैं',
+      one: 'एक परीक्षण एजेंट इस स्टेशन को नियंत्रित कर रहा है',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String agentControlActiveRadios(int count, String radios) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count परीक्षण एजेंट इस स्टेशन को नियंत्रित कर रहे हैं',
+      one: 'एक परीक्षण एजेंट इस स्टेशन को नियंत्रित कर रहा है',
+    );
+    return '$_temp0 - रेडियो: $radios';
+  }
+
+  @override
+  String get agentControlStop => 'रोकें और अक्षम करें';
+
+  @override
+  String get settingsAgentApiToken => 'टोकन:';
+
+  @override
+  String get settingsAgentApiCopyToken => 'टोकन कॉपी करें';
+
+  @override
+  String get settingsAgentApiNewToken => 'नया टोकन बनाएँ';
+
+  @override
+  String get settingsAgentApiTokenCopied =>
+      'एजेंट टोकन क्लिपबोर्ड में कॉपी किया गया';
+
+  @override
+  String get settingsAgentApiWarning =>
+      'इस टोकन वाले क्लाइंट इस स्टेशन के पैकेट कैप्चर और लॉग पढ़ सकते हैं, रेडियो लॉक कर सकते हैं, BBS चला सकते हैं और XARA कनेक्शन बना सकते हैं, जिनसे प्रसारण होता है। एजेंट के कनेक्ट रहने पर रोकने के बटन वाला बैनर दिखाई देता है। टोकन केवल भरोसेमंद टूल के साथ साझा करें और वेब सर्वर पोर्ट को कभी भी इंटरनेट पर सार्वजनिक न करें।';
+
+  @override
   String get settingsPort => 'पोर्ट:';
 
   @override
@@ -2109,23 +2155,27 @@ class AppLocalizationsHi extends AppLocalizations {
   String get terminalNotConnected => 'कनेक्ट नहीं है';
 
   @override
-  String get terminalXaraRequiresAudio =>
-      'Enable the radio audio to use XARA. XARA is not available on web or iOS.';
+  String get terminalBusy => 'टर्मिनल पहले से उपयोग में है';
 
   @override
-  String get terminalXaraNoAnswer => 'The XARA connection failed or timed out.';
+  String get terminalXaraRequiresAudio =>
+      'XARA का उपयोग करने के लिए रेडियो ऑडियो सक्षम करें। XARA वेब या iOS पर उपलब्ध नहीं है।';
+
+  @override
+  String get terminalXaraNoAnswer =>
+      'XARA कनेक्शन विफल हुआ या समय सीमा समाप्त हो गई।';
 
   @override
   String get terminalXaraLockTimeout =>
-      'Could not lock and tune the radio to the terminal channel.';
+      'रेडियो को लॉक करके टर्मिनल चैनल पर ट्यून नहीं किया जा सका।';
 
   @override
   String get terminalXaraDisconnectTimeout =>
-      'The XARA disconnect timed out; the link was aborted.';
+      'XARA को डिस्कनेक्ट करने की समय सीमा समाप्त हो गई; लिंक समाप्त कर दिया गया।';
 
   @override
   String get terminalXaraPathInvalid =>
-      'Enter up to two valid digipeater callsigns, separated by commas.';
+      'अधिकतम दो मान्य डिजिपीटर कॉलसाइन दर्ज करें, जिन्हें अल्पविराम से अलग करें।';
 
   @override
   String terminalError(String error) {
@@ -3217,6 +3267,42 @@ class AppLocalizationsHi extends AppLocalizations {
   String beaconEveryMinutes(int n) {
     return 'हर $n मिनट';
   }
+
+  @override
+  String get xaraSettingsTitle => 'XARA सेटिंग्स';
+
+  @override
+  String get xaraSettingsKeyUp => 'प्रसारण से पहले का मौन (ms)';
+
+  @override
+  String get xaraSettingsKeyUpHelp =>
+      'हर बर्स्ट से पहले मौन, ताकि रेडियो प्रसारण शुरू कर सके और दूरस्थ स्टेशन का स्क्वेल्च खुल सके।';
+
+  @override
+  String get xaraSettingsLatency => 'प्रसारण विलंब (ms)';
+
+  @override
+  String get xaraSettingsLatencyHelp =>
+      'रेडियो को ऑडियो सौंपने से लेकर दूरस्थ स्टेशन पर उसके सुनाई देने तक का विलंब। प्रसारण से पहले का मौन इसमें शामिल न करें; XARA इसे अपने आप जोड़ता है। बहुत कम विलंब के कारण उत्तर छूट सकते हैं।';
+
+  @override
+  String xaraSettingsDefaultMs(int value) {
+    return 'डिफ़ॉल्ट: $value ms। सीमा: 0-5000 ms।';
+  }
+
+  @override
+  String get xaraSettingsTimingInvalid =>
+      '0 से 5000 तक की पूर्ण संख्या दर्ज करें।';
+
+  @override
+  String get xaraSettingsLinkWarning =>
+      'ये सेटिंग्स सभी XARA रेडियो पर लागू होती हैं। बदले हुए समय मान सहेजने से सभी सक्रिय XARA लिंक डिस्कनेक्ट हो जाते हैं।';
+
+  @override
+  String get xaraSettingsRestoreDefaults => 'डिफ़ॉल्ट बहाल करें';
+
+  @override
+  String get xaraSettingsSave => 'सहेजें';
 
   @override
   String get assConnectTerminal => 'टर्मिनल स्टेशन से कनेक्ट करें';

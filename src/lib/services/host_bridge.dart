@@ -58,12 +58,48 @@ class HostBridge {
   /// output volume: each side controls (and can mute) its own playback.
   static bool isLocalOnlySetting(String name) => name == 'OutputVolume';
 
+  static final RegExp _secretName = RegExp(
+    'password|token|passcode|apikey|secret',
+    caseSensitive: false,
+  );
+
+  /// Whether a device-0 setting holds a credential (passwords, API keys and
+  /// tokens such as `WinlinkPassword`, `RepeaterBookToken`, `AprsIsPasscode`).
+  /// Credentials never leave the host: they are not sent to browsers or agents
+  /// and browsers cannot change them.
+  static bool isSecretSetting(String name) => _secretName.hasMatch(name);
+
+  /// Host-published device-0 value listing which credential settings are set
+  /// on the host (names only, never values), so the hosted web UI can show
+  /// features that need them (e.g. the Mail tab needs a Winlink password).
+  /// Browsers cannot change it.
+  static const String hostCredentialsValue = 'HostConfiguredCredentials';
+
+  /// Names of the credential settings that are non-empty in [settings].
+  static List<String> configuredCredentials(Map<String, Object?> settings) {
+    final names = <String>[
+      for (final e in settings.entries)
+        if (isSecretSetting(e.key) &&
+            !e.key.startsWith('AgentApi') &&
+            e.value != null &&
+            e.value.toString().isNotEmpty)
+          e.key,
+    ]..sort();
+    return names;
+  }
+
   /// Whether a device-0 setting is shared between the host and the browser.
   /// Transient per-instance UI selection state (`Selected*`: current tab, radio,
-  /// satellite, APRS route) and local-only settings (see [isLocalOnlySetting])
-  /// are excluded so they do not bleed across the bridge.
+  /// satellite, APRS route), local-only settings (see [isLocalOnlySetting]),
+  /// credentials (see [isSecretSetting]) and the agent API controls are
+  /// excluded. The agent settings must never be readable or writable by a
+  /// browser, or any web client could turn on the automation channel or read
+  /// its token.
   static bool isSyncedSetting(String name) =>
-      !name.startsWith('Selected') && !isLocalOnlySetting(name);
+      !name.startsWith('Selected') &&
+      !isLocalOnlySetting(name) &&
+      !isSecretSetting(name) &&
+      !name.startsWith('AgentApi');
 
   /// Device-1 clear requests the hosted web page forwards to the host, so
   /// history the user clears in the browser is also removed from the host's
@@ -80,4 +116,18 @@ class HostBridge {
   /// `[magic, channels, sampleRateLo, sampleRateHi]` then little-endian 16-bit
   /// interleaved PCM.
   static const int audioFrameMagic = 0xF1;
+
+  /// Device-0 software-modem settings a remote client (browser or agent) can
+  /// change, mapped to the command the host's SoftwareModem consumes to apply
+  /// them live (it persists the setting itself).
+  static const Map<String, String> modemSettingCommands = <String, String>{
+    'SoftwareModemMode': 'SetSoftwareModemMode',
+    'SoftwareModemFec': 'SetSoftwareModemFec',
+    'DartTxMode': 'SetDartTxMode',
+    'XaraWide': 'SetXaraWide',
+    'XaraTxLatencyMs': 'SetXaraTxLatencyMs',
+    'XaraTxKeyUpMs': 'SetXaraTxKeyUpMs',
+    'AprsSoftwareModemMode': 'SetAprsSoftwareModemMode',
+    'AprsSoftwareModemFec': 'SetAprsSoftwareModemFec',
+  };
 }

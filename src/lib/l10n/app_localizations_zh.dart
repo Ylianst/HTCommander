@@ -1023,6 +1023,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsEnableWebServer => '启用 Web 服务器';
 
   @override
+  String get settingsEnableAgentApi => '允许测试代理（自动化 API）';
+
+  @override
+  String agentControlActive(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个测试代理正在控制此台站',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String agentControlActiveRadios(int count, String radios) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个测试代理正在控制此台站',
+    );
+    return '$_temp0 - 电台：$radios';
+  }
+
+  @override
+  String get agentControlStop => '停止并禁用';
+
+  @override
+  String get settingsAgentApiToken => '令牌：';
+
+  @override
+  String get settingsAgentApiCopyToken => '复制令牌';
+
+  @override
+  String get settingsAgentApiNewToken => '生成新令牌';
+
+  @override
+  String get settingsAgentApiTokenCopied => '代理令牌已复制到剪贴板';
+
+  @override
+  String get settingsAgentApiWarning =>
+      '持有此令牌的客户端可以读取此台站的抓包数据和日志、锁定电台、运行 BBS，以及建立会进行发射的 XARA 连接。代理连接期间会显示带有停止按钮的横幅。请仅与您信任的工具共享令牌，切勿将 Web 服务器端口暴露到互联网。';
+
+  @override
   String get settingsPort => '端口：';
 
   @override
@@ -2054,23 +2096,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get terminalNotConnected => '未连接';
 
   @override
-  String get terminalXaraRequiresAudio =>
-      'Enable the radio audio to use XARA. XARA is not available on web or iOS.';
+  String get terminalBusy => '终端已在使用中';
 
   @override
-  String get terminalXaraNoAnswer => 'The XARA connection failed or timed out.';
+  String get terminalXaraRequiresAudio => '请启用电台音频以使用 XARA。XARA 不支持网页版或 iOS。';
 
   @override
-  String get terminalXaraLockTimeout =>
-      'Could not lock and tune the radio to the terminal channel.';
+  String get terminalXaraNoAnswer => 'XARA 连接失败或超时。';
 
   @override
-  String get terminalXaraDisconnectTimeout =>
-      'The XARA disconnect timed out; the link was aborted.';
+  String get terminalXaraLockTimeout => '无法锁定电台并将其调谐到终端信道。';
 
   @override
-  String get terminalXaraPathInvalid =>
-      'Enter up to two valid digipeater callsigns, separated by commas.';
+  String get terminalXaraDisconnectTimeout => 'XARA 断开连接超时；链路已中止。';
+
+  @override
+  String get terminalXaraPathInvalid => '请输入最多两个有效的数字中继呼号，以逗号分隔。';
 
   @override
   String terminalError(String error) {
@@ -3123,6 +3164,40 @@ class AppLocalizationsZh extends AppLocalizations {
   String beaconEveryMinutes(int n) {
     return '每 $n 分钟';
   }
+
+  @override
+  String get xaraSettingsTitle => 'XARA 设置';
+
+  @override
+  String get xaraSettingsKeyUp => '发射前静音时长 (ms)';
+
+  @override
+  String get xaraSettingsKeyUpHelp => '每次突发传输前的静音，让电台有时间开始发射，并让远端台站的静噪打开。';
+
+  @override
+  String get xaraSettingsLatency => '发射延迟 (ms)';
+
+  @override
+  String get xaraSettingsLatencyHelp =>
+      '从将音频交给电台到远端台站听到音频的延迟。不要包含发射前的静音时长；XARA 会自动将其加上。延迟过短可能导致错过回复。';
+
+  @override
+  String xaraSettingsDefaultMs(int value) {
+    return '默认值：$value ms。范围：0-5000 ms。';
+  }
+
+  @override
+  String get xaraSettingsTimingInvalid => '请输入 0 到 5000 之间的整数。';
+
+  @override
+  String get xaraSettingsLinkWarning =>
+      '这些设置适用于所有 XARA 电台。保存更改后的时间参数会断开所有活动的 XARA 链路。';
+
+  @override
+  String get xaraSettingsRestoreDefaults => '恢复默认值';
+
+  @override
+  String get xaraSettingsSave => '保存';
 
   @override
   String get assConnectTerminal => '连接到终端台站';

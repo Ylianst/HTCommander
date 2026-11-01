@@ -2002,6 +2002,60 @@ abstract class AppLocalizations {
   /// **'Enable Web Server'**
   String get settingsEnableWebServer;
 
+  /// No description provided for @settingsEnableAgentApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow test agents (automation API)'**
+  String get settingsEnableAgentApi;
+
+  /// No description provided for @agentControlActive.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{A test agent is controlling this station} other{{count} test agents are controlling this station}}'**
+  String agentControlActive(int count);
+
+  /// No description provided for @agentControlActiveRadios.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{A test agent is controlling this station} other{{count} test agents are controlling this station}} - radios: {radios}'**
+  String agentControlActiveRadios(int count, String radios);
+
+  /// No description provided for @agentControlStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop & disable'**
+  String get agentControlStop;
+
+  /// No description provided for @settingsAgentApiToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Token:'**
+  String get settingsAgentApiToken;
+
+  /// No description provided for @settingsAgentApiCopyToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy token'**
+  String get settingsAgentApiCopyToken;
+
+  /// No description provided for @settingsAgentApiNewToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate a new token'**
+  String get settingsAgentApiNewToken;
+
+  /// No description provided for @settingsAgentApiTokenCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent token copied to clipboard'**
+  String get settingsAgentApiTokenCopied;
+
+  /// No description provided for @settingsAgentApiWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Clients with this token can read this station\'s packet capture and logs, and can lock radios, run the BBS and make XARA connections, which transmit. A banner with a Stop button is shown while an agent is connected. Share the token only with tools you trust, and never expose the web server port to the internet.'**
+  String get settingsAgentApiWarning;
+
   /// No description provided for @settingsPort.
   ///
   /// In en, this message translates to:
@@ -3861,6 +3915,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not connected'**
   String get terminalNotConnected;
+
+  /// No description provided for @terminalBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'The terminal is already in use'**
+  String get terminalBusy;
 
   /// No description provided for @terminalXaraRequiresAudio.
   ///
@@ -5853,6 +5913,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Every {n} minutes'**
   String beaconEveryMinutes(int n);
+
+  /// No description provided for @xaraSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'XARA Settings'**
+  String get xaraSettingsTitle;
+
+  /// No description provided for @xaraSettingsKeyUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Key-up pre-roll (ms)'**
+  String get xaraSettingsKeyUp;
+
+  /// No description provided for @xaraSettingsKeyUpHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Silence before each burst so the radio can key up and the remote squelch can open.'**
+  String get xaraSettingsKeyUpHelp;
+
+  /// No description provided for @xaraSettingsLatency.
+  ///
+  /// In en, this message translates to:
+  /// **'Transmit latency (ms)'**
+  String get xaraSettingsLatency;
+
+  /// No description provided for @xaraSettingsLatencyHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Delay from handing audio to the radio until the remote station hears it. Do not include the key-up pre-roll; XARA adds it automatically. Too little latency can cause missed replies.'**
+  String get xaraSettingsLatencyHelp;
+
+  /// No description provided for @xaraSettingsDefaultMs.
+  ///
+  /// In en, this message translates to:
+  /// **'Default: {value} ms. Range: 0-5000 ms.'**
+  String xaraSettingsDefaultMs(int value);
+
+  /// No description provided for @xaraSettingsTimingInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number from 0 to 5000.'**
+  String get xaraSettingsTimingInvalid;
+
+  /// No description provided for @xaraSettingsLinkWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'These settings apply to all XARA radios. Saving changed timings disconnects any active XARA links.'**
+  String get xaraSettingsLinkWarning;
+
+  /// No description provided for @xaraSettingsRestoreDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore Defaults'**
+  String get xaraSettingsRestoreDefaults;
+
+  /// No description provided for @xaraSettingsSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get xaraSettingsSave;
 
   /// No description provided for @assConnectTerminal.
   ///

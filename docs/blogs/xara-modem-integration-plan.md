@@ -35,6 +35,14 @@ XARA FM is now a software modem mode beside DART. Choose **Software Modem >
 XARA FM** (with a **Narrow/Wide** bandwidth submenu), and the radio's audio is
 handled by the Dart port of XARA instead of DART.
 
+The **XARA FM** submenu also has **Settings...** below a separator after
+**Narrow/Wide**. This dialog edits the global key-up pre-roll (default **300 ms**)
+and transmit latency (default **800 ms**, excluding the pre-roll) in whole
+milliseconds from **0 to 5000**. Each field shows its default; **Restore Defaults**
+resets both fields, and **Save** applies and persists the changes. **Cancel**
+discards edits. Saving changed timings rebuilds live XARA modems and disconnects
+active links; saving unchanged values leaves links alone.
+
 **How it is wired.** The modem runs in its own isolate (`src/lib/radio/xara_modem.dart`)
 so its DSP never touches the UI isolate. `SoftwareModem` feeds it the radio's
 32 kHz receive audio and sends whatever it transmits to the radio through the

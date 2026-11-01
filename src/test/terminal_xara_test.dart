@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/dialogs/add_station_dialog.dart';
+import 'package:htcommander/handlers/terminal_handler.dart';
 import 'package:htcommander/l10n/app_localizations.dart';
 import 'package:htcommander/models/station_info.dart';
 import 'package:htcommander/radio/radio.dart';
@@ -152,6 +153,20 @@ Future<void> connect(WidgetTester tester) async {
 }
 
 void main() {
+  // The terminal engine, as main.dart registers it in the app.
+  late TerminalHandler handler;
+  setUp(() => handler = TerminalHandler()..init());
+  // Ends a test: stop the engine (it outlives the tab) and drop the widget.
+  Future<void> finish(WidgetTester tester) async {
+    handler.abort();
+    await tester.pumpWidget(app(const SizedBox()));
+  }
+
+  tearDown(() {
+    handler.abort();
+    handler.dispose();
+  });
+
   test('radio lock preserves the per-connection XARA bandwidth', () {
     for (final wide in [null, false, true]) {
       final lock = radio_models.RadioLockState(
@@ -216,7 +231,7 @@ void main() {
       );
       expect(find.text('Connect'), findsOneWidget);
       expect(radio.broker.getValue<bool>(0, 'XaraWide'), isFalse);
-      await tester.pumpWidget(app(const SizedBox()));
+      await finish(tester);
     });
 
     testWidgets('$protocol can be edited in the address book', (tester) async {
@@ -343,7 +358,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 250));
     expect(radio.commands, ['SetLock', 'XaraConnect']);
-    await tester.pumpWidget(app(const SizedBox()));
+    await finish(tester);
     radio.broker.dispatch(deviceId: radioId, name: 'RegionNames', data: null);
   });
 
@@ -354,7 +369,7 @@ void main() {
     await connect(tester);
     expect(radio.commands, isEmpty);
     expect(find.textContaining('Enable the radio audio'), findsOneWidget);
-    await tester.pumpWidget(app(const SizedBox()));
+    await finish(tester);
   });
 
   testWidgets('raw AX.25 terminal contacts still use their configured modem', (
@@ -372,7 +387,7 @@ void main() {
     expect(radio.commands, ['SetLock', 'TransmitDataFrame']);
     await tester.tap(find.text('Disconnect'));
     await tester.pumpAndSettle();
-    await tester.pumpWidget(app(const SizedBox()));
+    await finish(tester);
   });
 
   testWidgets('failed XARA link releases the terminal lock', (tester) async {
@@ -383,7 +398,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('failed or timed out'), findsOneWidget);
     expect(radio.commands.last, 'SetUnlock');
-    await tester.pumpWidget(app(const SizedBox()));
+    await finish(tester);
   });
 
   testWidgets('cancel while connecting aborts XARA', (tester) async {
@@ -393,7 +408,7 @@ void main() {
     await tester.tap(find.text('Disconnect'));
     await tester.pumpAndSettle();
     expect(radio.commands, containsAllInOrder(['XaraAbort', 'SetUnlock']));
-    await tester.pumpWidget(app(const SizedBox()));
+    await finish(tester);
   });
 
   testWidgets('lock and link timeouts abort instead of reporting success', (
@@ -406,7 +421,7 @@ void main() {
     await tester.pump(const Duration(seconds: 16));
     expect(find.textContaining('Could not lock and tune'), findsOneWidget);
     expect(radio.commands, ['SetLock', 'XaraAbort']);
-    await tester.pumpWidget(app(const SizedBox()));
+    await finish(tester);
 
     radio.applyLock = true;
     radio.commands.clear();
@@ -414,10 +429,10 @@ void main() {
     await tester.pump(const Duration(seconds: 121));
     expect(find.textContaining('failed or timed out'), findsOneWidget);
     expect(radio.commands, containsAllInOrder(['XaraAbort', 'SetUnlock']));
-    await tester.pumpWidget(app(const SizedBox()));
+    await finish(tester);
   });
 
-  testWidgets('disconnect timeout and widget disposal release XARA', (
+  testWidgets('disconnect timeout releases XARA; the link outlives the tab', (
     tester,
   ) async {
     final radio = TerminalRadio(contact(TerminalProtocol.xaraWide))
@@ -433,10 +448,23 @@ void main() {
       radio.commands,
       containsAllInOrder(['XaraDisconnect', 'XaraAbort', 'SetUnlock']),
     );
-    await tester.pumpWidget(app(const SizedBox()));
+    await finish(tester);
+
+    // Closing the tab keeps the engine's link (a detached window or an agent
+    // may be using it); reopening the tab shows it again.
     radio.commands.clear();
     await connect(tester);
+    radio.event('connected');
+    await tester.pump();
     await tester.pumpWidget(app(const SizedBox()));
+    expect(radio.commands, isNot(contains('XaraAbort')));
+    await tester.pumpWidget(app(const TerminalTab()));
+    expect(find.text('Disconnect'), findsOneWidget);
+    expect(find.text('Terminal - N1BBS-1'), findsOneWidget);
+    expect(tester.widget<TextField>(find.byType(TextField)).enabled, isTrue);
+
+    // Stopping the engine releases the radio.
+    await finish(tester);
     expect(radio.commands, containsAllInOrder(['XaraAbort', 'SetUnlock']));
   });
 
@@ -448,7 +476,7 @@ void main() {
     radio.broker.dispatch(deviceId: radioId, name: 'AudioState', data: false);
     await tester.pumpAndSettle();
     expect(radio.commands, containsAllInOrder(['XaraAbort', 'SetUnlock']));
-    await tester.pumpWidget(app(const SizedBox()));
+    await finish(tester);
 
     radio.broker.dispatch(deviceId: radioId, name: 'AudioState', data: true);
     radio.commands.clear();
@@ -461,6 +489,6 @@ void main() {
     await tester.pump();
     expect(radio.commands.last, 'XaraAbort');
     expect(radio.commands, isNot(contains('SetUnlock')));
-    await tester.pumpWidget(app(const SizedBox()));
+    await finish(tester);
   });
 }

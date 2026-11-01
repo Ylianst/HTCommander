@@ -19,6 +19,7 @@ import '../allstar/allstar_portal_service.dart';
 import '../allstar/iax2_constants.dart' show iax2DefaultPort;
 import '../aprsis/aprsfi_client.dart';
 import '../echolink/echolink_credential_test.dart';
+import '../handlers/agent_api.dart';
 import '../handlers/location_handler.dart';
 import '../radio/repeaterbook_client.dart';
 import '../services/serial/serial_port.dart';
@@ -3679,6 +3680,92 @@ class _SettingsDialogState extends State<SettingsDialog>
     );
   }
 
+  /// Agent API (automation) controls, shown under the web server: an enable
+  /// checkbox, the access token with copy / regenerate, and a warning.
+  Widget _buildAgentApiSettings(AppLocalizations l10n) {
+    final bool webOn = _settings.webServerEnabled;
+    void setEnabled(bool on) => setState(() {
+      _settings.agentApiEnabled = on;
+      if (on && _settings.agentApiToken.isEmpty) {
+        _settings.agentApiToken = AgentApi.generateToken();
+      }
+    });
+    return Padding(
+      padding: const EdgeInsets.only(left: 36, top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Checkbox(
+                value: _settings.agentApiEnabled,
+                onChanged: webOn ? (v) => setEnabled(v ?? false) : null,
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: webOn
+                      ? () => setEnabled(!_settings.agentApiEnabled)
+                      : null,
+                  child: Text(l10n.settingsEnableAgentApi),
+                ),
+              ),
+            ],
+          ),
+          if (_settings.agentApiEnabled) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: Row(
+                children: [
+                  Text(
+                    l10n.settingsAgentApiToken,
+                    style: DialogStyles.labelStyle,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: SelectableText(
+                      _settings.agentApiToken,
+                      style: const TextStyle(fontFamily: 'monospace'),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: l10n.settingsAgentApiCopyToken,
+                    icon: const Icon(Icons.copy, size: 18),
+                    onPressed: () {
+                      Clipboard.setData(
+                        ClipboardData(text: _settings.agentApiToken),
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(l10n.settingsAgentApiTokenCopied),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    tooltip: l10n.settingsAgentApiNewToken,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    onPressed: () => setState(
+                      () => _settings.agentApiToken = AgentApi.generateToken(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 12, top: 4),
+              child: Text(
+                l10n.settingsAgentApiWarning,
+                style: DialogStyles.bodyStyle.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildServersTab() {
     final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
@@ -3736,6 +3823,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                     ],
                   ),
                 ),
+                _buildAgentApiSettings(l10n),
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 16),

@@ -1066,6 +1066,52 @@ class AppLocalizationsIt extends AppLocalizations {
   String get settingsEnableWebServer => 'Abilita server web';
 
   @override
+  String get settingsEnableAgentApi =>
+      'Consenti agenti di test (API di automazione)';
+
+  @override
+  String agentControlActive(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count agenti di test stanno controllando questa stazione',
+      one: 'Un agente di test sta controllando questa stazione',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String agentControlActiveRadios(int count, String radios) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count agenti di test stanno controllando questa stazione',
+      one: 'Un agente di test sta controllando questa stazione',
+    );
+    return '$_temp0 - radio: $radios';
+  }
+
+  @override
+  String get agentControlStop => 'Arresta e disabilita';
+
+  @override
+  String get settingsAgentApiToken => 'Token:';
+
+  @override
+  String get settingsAgentApiCopyToken => 'Copia token';
+
+  @override
+  String get settingsAgentApiNewToken => 'Genera un nuovo token';
+
+  @override
+  String get settingsAgentApiTokenCopied =>
+      'Token dell\'agente copiato negli appunti';
+
+  @override
+  String get settingsAgentApiWarning =>
+      'I client con questo token possono leggere la cattura dei pacchetti e i registri di questa stazione, bloccare le radio, eseguire il BBS e stabilire connessioni XARA che effettuano trasmissioni. Finché un agente è connesso, viene visualizzato un banner con un pulsante di arresto. Condividi il token solo con strumenti affidabili e non esporre mai la porta del server web a Internet.';
+
+  @override
   String get settingsPort => 'Porta:';
 
   @override
@@ -2124,23 +2170,27 @@ class AppLocalizationsIt extends AppLocalizations {
   String get terminalNotConnected => 'Non connesso';
 
   @override
-  String get terminalXaraRequiresAudio =>
-      'Enable the radio audio to use XARA. XARA is not available on web or iOS.';
+  String get terminalBusy => 'Il terminale è già in uso';
 
   @override
-  String get terminalXaraNoAnswer => 'The XARA connection failed or timed out.';
+  String get terminalXaraRequiresAudio =>
+      'Abilita l\'audio della radio per usare XARA. XARA non è disponibile sul web o su iOS.';
+
+  @override
+  String get terminalXaraNoAnswer =>
+      'La connessione XARA non è riuscita o ha superato il tempo di attesa.';
 
   @override
   String get terminalXaraLockTimeout =>
-      'Could not lock and tune the radio to the terminal channel.';
+      'Impossibile bloccare la radio e sintonizzarla sul canale del terminale.';
 
   @override
   String get terminalXaraDisconnectTimeout =>
-      'The XARA disconnect timed out; the link was aborted.';
+      'La disconnessione XARA ha superato il tempo di attesa; il collegamento è stato interrotto.';
 
   @override
   String get terminalXaraPathInvalid =>
-      'Enter up to two valid digipeater callsigns, separated by commas.';
+      'Inserisci fino a due nominativi di digipeater validi, separati da virgole.';
 
   @override
   String terminalError(String error) {
@@ -3237,6 +3287,42 @@ class AppLocalizationsIt extends AppLocalizations {
   String beaconEveryMinutes(int n) {
     return 'Ogni $n minuti';
   }
+
+  @override
+  String get xaraSettingsTitle => 'Impostazioni XARA';
+
+  @override
+  String get xaraSettingsKeyUp => 'Silenzio prima della trasmissione (ms)';
+
+  @override
+  String get xaraSettingsKeyUpHelp =>
+      'Silenzio prima di ogni raffica affinché la radio possa iniziare a trasmettere e lo squelch della stazione remota possa aprirsi.';
+
+  @override
+  String get xaraSettingsLatency => 'Latenza di trasmissione (ms)';
+
+  @override
+  String get xaraSettingsLatencyHelp =>
+      'Ritardo dalla consegna dell\'audio alla radio fino alla sua ricezione da parte della stazione remota. Non includere il silenzio prima della trasmissione; XARA lo aggiunge automaticamente. Una latenza troppo bassa può causare la perdita di risposte.';
+
+  @override
+  String xaraSettingsDefaultMs(int value) {
+    return 'Predefinito: $value ms. Intervallo: 0-5000 ms.';
+  }
+
+  @override
+  String get xaraSettingsTimingInvalid =>
+      'Inserisci un numero intero da 0 a 5000.';
+
+  @override
+  String get xaraSettingsLinkWarning =>
+      'Queste impostazioni si applicano a tutte le radio XARA. Il salvataggio di tempi modificati disconnette tutti i collegamenti XARA attivi.';
+
+  @override
+  String get xaraSettingsRestoreDefaults => 'Ripristina valori predefiniti';
+
+  @override
+  String get xaraSettingsSave => 'Salva';
 
   @override
   String get assConnectTerminal => 'Connetti alla stazione terminale';

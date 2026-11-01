@@ -399,6 +399,16 @@ decisions that keep the radio responsive.
    bridge, plus a phased plan for hardening the web server and adding support
    for remote HTCommanders.
 
+4. **[Two Radios, One Agent: Letting an AI Drive Real Over-the-Air Tests](ai-agent-radio-testing.md)**
+   How an AI agent could control two HTCommanders on different PCs over the
+   existing WebSocket bridge: what the bridge offers today, a proposed opt-in
+   `agent:` automation channel (decoded packet capture, logs, allowlisted
+   BBS/terminal/XARA commands, emergency stop), a lightweight two-station test
+   client with clock-corrected merged timelines, MCP tools for the agent, and
+   the safety rules for an interface that can make a radio transmit. Steps 1,
+   2 and 4 are implemented: observation, allowlisted control with an operator
+   Stop button, and the `src/tools/htc_agent` MCP server.
+
 ---
 
 ## Building & Contributing

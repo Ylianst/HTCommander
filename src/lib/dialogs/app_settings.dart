@@ -74,6 +74,12 @@ class AppSettings {
   // Web Server tab
   bool webServerEnabled;
   int webServerPort;
+
+  /// Opt-in automation channel for test agents over the web server WebSocket.
+  bool agentApiEnabled;
+
+  /// Secret agents must present to use the automation channel.
+  String agentApiToken;
   bool agwpeServerEnabled;
   int agwpeServerPort;
 
@@ -211,6 +217,8 @@ class AppSettings {
     this.echoLinkProxyPassword = 'PUBLIC',
     this.webServerEnabled = false,
     this.webServerPort = 8080,
+    this.agentApiEnabled = false,
+    this.agentApiToken = '',
     this.agwpeServerEnabled = false,
     this.agwpeServerPort = 8000,
     this.homeAssistantEnabled = false,
@@ -266,6 +274,8 @@ class AppSettings {
     String? echoLinkProxyPassword,
     bool? webServerEnabled,
     int? webServerPort,
+    bool? agentApiEnabled,
+    String? agentApiToken,
     bool? agwpeServerEnabled,
     int? agwpeServerPort,
     bool? homeAssistantEnabled,
@@ -322,12 +332,16 @@ class AppSettings {
           echoLinkProxyPassword ?? this.echoLinkProxyPassword,
       webServerEnabled: webServerEnabled ?? this.webServerEnabled,
       webServerPort: webServerPort ?? this.webServerPort,
+      agentApiEnabled: agentApiEnabled ?? this.agentApiEnabled,
+      agentApiToken: agentApiToken ?? this.agentApiToken,
       agwpeServerEnabled: agwpeServerEnabled ?? this.agwpeServerEnabled,
       agwpeServerPort: agwpeServerPort ?? this.agwpeServerPort,
       homeAssistantEnabled: homeAssistantEnabled ?? this.homeAssistantEnabled,
       homeAssistantMqttUrl: homeAssistantMqttUrl ?? this.homeAssistantMqttUrl,
-      homeAssistantUsername: homeAssistantUsername ?? this.homeAssistantUsername,
-      homeAssistantPassword: homeAssistantPassword ?? this.homeAssistantPassword,
+      homeAssistantUsername:
+          homeAssistantUsername ?? this.homeAssistantUsername,
+      homeAssistantPassword:
+          homeAssistantPassword ?? this.homeAssistantPassword,
       gpsSerialPort: gpsSerialPort ?? this.gpsSerialPort,
       gpsBaudRate: gpsBaudRate ?? this.gpsBaudRate,
       shareSerialGpsLocation:
@@ -417,10 +431,13 @@ class AppSettings {
           DataBroker.getValue<int>(0, 'EchoLinkProxyPort', 8100) ?? 8100,
       echoLinkProxyPassword:
           DataBroker.getValue<String>(0, 'EchoLinkProxyPassword', 'PUBLIC') ??
-              'PUBLIC',
+          'PUBLIC',
       webServerEnabled:
           (DataBroker.getValue<int>(0, 'webServerEnabled', 0) ?? 0) == 1,
       webServerPort: DataBroker.getValue<int>(0, 'webServerPort', 8080) ?? 8080,
+      agentApiEnabled:
+          (DataBroker.getValue<int>(0, 'AgentApiEnabled', 0) ?? 0) == 1,
+      agentApiToken: DataBroker.getValue<String>(0, 'AgentApiToken', '') ?? '',
       agwpeServerEnabled:
           (DataBroker.getValue<int>(0, 'agwpeServerEnabled', 0) ?? 0) == 1,
       agwpeServerPort:
@@ -590,6 +607,18 @@ class AppSettings {
       deviceId: 0,
       name: 'webServerPort',
       data: webServerPort,
+    );
+    // Write the token before enabling, so an agent never sees the API on
+    // without its current secret.
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'AgentApiToken',
+      data: agentApiToken,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'AgentApiEnabled',
+      data: agentApiEnabled ? 1 : 0,
     );
     DataBroker.dispatch(
       deviceId: 0,

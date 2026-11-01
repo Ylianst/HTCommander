@@ -795,6 +795,26 @@
   "settingsServersIntro": "Configure local server settings.",
   "settingsLocalServers": "Local Servers",
   "settingsEnableWebServer": "Enable Web Server",
+  "settingsEnableAgentApi": "Allow test agents (automation API)",
+  "agentControlActive": "{count, plural, one{A test agent is controlling this station} other{{count} test agents are controlling this station}}",
+  "@agentControlActive": {
+    "placeholders": {
+      "count": { "type": "int", "example": "1" }
+    }
+  },
+  "agentControlActiveRadios": "{count, plural, one{A test agent is controlling this station} other{{count} test agents are controlling this station}} - radios: {radios}",
+  "@agentControlActiveRadios": {
+    "placeholders": {
+      "count": { "type": "int", "example": "1" },
+      "radios": { "type": "String", "example": "101" }
+    }
+  },
+  "agentControlStop": "Stop & disable",
+  "settingsAgentApiToken": "Token:",
+  "settingsAgentApiCopyToken": "Copy token",
+  "settingsAgentApiNewToken": "Generate a new token",
+  "settingsAgentApiTokenCopied": "Agent token copied to clipboard",
+  "settingsAgentApiWarning": "Clients with this token can read this station's packet capture and logs, and can lock radios, run the BBS and make XARA connections, which transmit. A banner with a Stop button is shown while an agent is connected. Share the token only with tools you trust, and never expose the web server port to the internet.",
   "settingsPort": "Port:",
   "settingsEnableAgwpeServer": "Enable AGWPE Server",
 
@@ -1411,6 +1431,7 @@
   "terminalInvalidCallsignDest": "Invalid callsign/destination",
   "terminalInvalidCallsign": "Invalid callsign",
   "terminalNotConnected": "Not connected",
+  "terminalBusy": "The terminal is already in use",
   "terminalXaraRequiresAudio": "Enable the radio audio to use XARA. XARA is not available on web or iOS.",
   "terminalXaraNoAnswer": "The XARA connection failed or timed out.",
   "terminalXaraLockTimeout": "Could not lock and tune the radio to the terminal channel.",
@@ -1919,6 +1940,22 @@
       "n": { "type": "int", "example": "5" }
     }
   },
+
+  "xaraSettingsTitle": "XARA Settings",
+  "xaraSettingsKeyUp": "Key-up pre-roll (ms)",
+  "xaraSettingsKeyUpHelp": "Silence before each burst so the radio can key up and the remote squelch can open.",
+  "xaraSettingsLatency": "Transmit latency (ms)",
+  "xaraSettingsLatencyHelp": "Delay from handing audio to the radio until the remote station hears it. Do not include the key-up pre-roll; XARA adds it automatically. Too little latency can cause missed replies.",
+  "xaraSettingsDefaultMs": "Default: {value} ms. Range: 0-5000 ms.",
+  "@xaraSettingsDefaultMs": {
+    "placeholders": {
+      "value": { "type": "int", "example": "300" }
+    }
+  },
+  "xaraSettingsTimingInvalid": "Enter a whole number from 0 to 5000.",
+  "xaraSettingsLinkWarning": "These settings apply to all XARA radios. Saving changed timings disconnects any active XARA links.",
+  "xaraSettingsRestoreDefaults": "Restore Defaults",
+  "xaraSettingsSave": "Save",
 
   "assConnectTerminal": "Connect to Terminal Station",
   "assConnectBbs": "Connect to BBS Station",

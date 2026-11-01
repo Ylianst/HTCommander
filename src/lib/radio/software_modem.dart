@@ -629,6 +629,11 @@ class SoftwareModem {
       name: 'SetXaraWide',
       callback: _onSetXaraWideRequested,
     );
+    _broker.subscribeMultiple(
+      deviceId: 0,
+      names: const <String>['SetXaraTxLatencyMs', 'SetXaraTxKeyUpMs'],
+      callback: _onSetXaraTimingRequested,
+    );
 
     // Publish initial mode
     _broker.dispatch(deviceId: 0, name: 'SoftwareModemMode', data: _currentMode.name, store: true);
@@ -1629,6 +1634,22 @@ class SoftwareModem {
       _rebuildGeneralModem(state);
     }
     _debug('XARA bandwidth set to ${data ? "wide" : "narrow"}');
+  }
+
+  /// Changes XARA's transmit latency or key-up pre-roll (`SetXaraTxLatencyMs` /
+  /// `SetXaraTxKeyUpMs`, in ms). Both are read when a modem is built, so live
+  /// XARA modems are rebuilt, which drops any link in progress.
+  void _onSetXaraTimingRequested(int deviceId, String name, Object? data) {
+    if (_disposed || data is! num) return;
+    final int ms = data.toInt().clamp(0, 5000);
+    final String setting = name.substring('Set'.length);
+    _broker.dispatch(deviceId: 0, name: setting, data: ms, store: true);
+    for (final _RadioModemState state in _radioModems.values) {
+      if (state.generalModem?.xara == null) continue;
+      state.generalModem!.dispose();
+      state.generalModem = _buildInstance(state, SoftwareModemMode.xara, _fecEnabled);
+    }
+    _debug('$setting set to $ms ms');
   }
 
   /// Handles 'XaraConnect' (`{'Remote': String, 'Vias': List<String>}`),

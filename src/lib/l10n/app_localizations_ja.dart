@@ -1037,6 +1037,48 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsEnableWebServer => 'Web サーバーを有効化';
 
   @override
+  String get settingsEnableAgentApi => 'テストエージェントを許可（自動化 API）';
+
+  @override
+  String agentControlActive(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 個のテストエージェントがこの局を制御しています',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String agentControlActiveRadios(int count, String radios) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 個のテストエージェントがこの局を制御しています',
+    );
+    return '$_temp0 - 無線機: $radios';
+  }
+
+  @override
+  String get agentControlStop => '停止して無効化';
+
+  @override
+  String get settingsAgentApiToken => 'トークン:';
+
+  @override
+  String get settingsAgentApiCopyToken => 'トークンをコピー';
+
+  @override
+  String get settingsAgentApiNewToken => '新しいトークンを生成';
+
+  @override
+  String get settingsAgentApiTokenCopied => 'エージェントのトークンをクリップボードにコピーしました';
+
+  @override
+  String get settingsAgentApiWarning =>
+      'このトークンを持つクライアントは、この局のパケットキャプチャやログを読み取り、無線機をロックし、BBS を実行し、送信を伴う XARA 接続を確立できます。エージェントの接続中は、停止ボタン付きのバナーが表示されます。トークンは信頼できるツールとのみ共有し、Web サーバーのポートをインターネットに公開しないでください。';
+
+  @override
   String get settingsPort => 'ポート:';
 
   @override
@@ -2072,23 +2114,25 @@ class AppLocalizationsJa extends AppLocalizations {
   String get terminalNotConnected => '未接続';
 
   @override
+  String get terminalBusy => 'ターミナルはすでに使用中です';
+
+  @override
   String get terminalXaraRequiresAudio =>
-      'Enable the radio audio to use XARA. XARA is not available on web or iOS.';
+      'XARA を使用するには無線機の音声を有効にしてください。XARA は Web および iOS では利用できません。';
 
   @override
-  String get terminalXaraNoAnswer => 'The XARA connection failed or timed out.';
+  String get terminalXaraNoAnswer => 'XARA 接続に失敗したか、タイムアウトしました。';
 
   @override
-  String get terminalXaraLockTimeout =>
-      'Could not lock and tune the radio to the terminal channel.';
+  String get terminalXaraLockTimeout => '無線機をロックしてターミナルのチャンネルに合わせることができませんでした。';
 
   @override
   String get terminalXaraDisconnectTimeout =>
-      'The XARA disconnect timed out; the link was aborted.';
+      'XARA の切断がタイムアウトしたため、リンクを強制終了しました。';
 
   @override
   String get terminalXaraPathInvalid =>
-      'Enter up to two valid digipeater callsigns, separated by commas.';
+      '有効なデジピーターのコールサインを最大 2 つ、カンマで区切って入力してください。';
 
   @override
   String terminalError(String error) {
@@ -3156,6 +3200,41 @@ class AppLocalizationsJa extends AppLocalizations {
   String beaconEveryMinutes(int n) {
     return '$n 分ごと';
   }
+
+  @override
+  String get xaraSettingsTitle => 'XARA 設定';
+
+  @override
+  String get xaraSettingsKeyUp => '送信前の無音時間 (ms)';
+
+  @override
+  String get xaraSettingsKeyUpHelp =>
+      '各バーストの前に無音時間を設け、無線機が送信を開始し、相手局のスケルチが開くのを待ちます。';
+
+  @override
+  String get xaraSettingsLatency => '送信遅延 (ms)';
+
+  @override
+  String get xaraSettingsLatencyHelp =>
+      '音声を無線機に渡してから相手局に聞こえるまでの遅延です。送信前の無音時間は含めないでください。XARA が自動的に加算します。遅延が短すぎると応答を受信できない場合があります。';
+
+  @override
+  String xaraSettingsDefaultMs(int value) {
+    return '既定値: $value ms。範囲: 0-5000 ms。';
+  }
+
+  @override
+  String get xaraSettingsTimingInvalid => '0 から 5000 までの整数を入力してください。';
+
+  @override
+  String get xaraSettingsLinkWarning =>
+      'これらの設定はすべての XARA 無線機に適用されます。変更した時間設定を保存すると、アクティブな XARA リンクがすべて切断されます。';
+
+  @override
+  String get xaraSettingsRestoreDefaults => '既定値に戻す';
+
+  @override
+  String get xaraSettingsSave => '保存';
 
   @override
   String get assConnectTerminal => 'ターミナル局に接続';

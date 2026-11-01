@@ -23,7 +23,7 @@ resolves to an inert stub.
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 
 import '../aprs/aprs_packet.dart';
 import '../models/aircraft.dart';
@@ -35,18 +35,28 @@ import '../services/data_broker_client.dart';
 import '../services/host_bridge.dart';
 import '../services/web/web_server.dart';
 import '../winlink/winlink_mail.dart';
+import 'agent_api.dart';
 
 /// Manages the lifecycle of the [WebServer] and bridges WebSocket clients to the
 /// radio, based on app settings.
 class WebServerHandler {
-  WebServerHandler() : _broker = DataBrokerClient();
+  WebServerHandler() : _broker = DataBrokerClient() {
+    _agent = AgentApi(_broker);
+  }
 
   final DataBrokerClient _broker;
+
+  /// Opt-in, token-authenticated automation channel (`agent:` messages).
+  late final AgentApi _agent;
 
   WebServer? _server;
   bool _enabled = false;
   int _port = 8080;
   bool _disposed = false;
+
+  /// Credential names last sent to browsers (see
+  /// [HostBridge.hostCredentialsValue]).
+  List<String>? _lastCredentials;
 
   /// Latest APRS packet list seen on the broker, cached so it can be snapshotted
   /// to a browser on connect. Refreshed on demand via `RequestAprsPackets`.
@@ -83,6 +93,7 @@ class WebServerHandler {
     _port = _broker.getValue<int>(0, 'webServerPort', 8080) ?? 8080;
 
     _refreshConnectedRadios();
+    _agent.init();
     _selectedRadioDeviceId =
         _broker.getValue<int>(1, 'SelectedRadioDeviceId', -1) ?? -1;
 
@@ -110,18 +121,10 @@ class WebServerHandler {
     );
     // Airplanes (Dump1090) polled by the host: cache and push to browsers, which
     // cannot reach the LAN Dump1090 server themselves.
-    _broker.subscribe(
-      deviceId: 0,
-      name: 'Airplanes',
-      callback: _onAirplanes,
-    );
+    _broker.subscribe(deviceId: 0, name: 'Airplanes', callback: _onAirplanes);
     // Cache the Winlink mail list (dispatched on demand via `MailGetAll`) and
     // push a fresh snapshot to browsers whenever the host's mail changes.
-    _broker.subscribe(
-      deviceId: 0,
-      name: 'MailList',
-      callback: _onMailList,
-    );
+    _broker.subscribe(deviceId: 0, name: 'MailList', callback: _onMailList);
     _broker.subscribe(
       deviceId: 0,
       name: 'MailsChanged',
@@ -336,7 +339,9 @@ class WebServerHandler {
   void _onAprsPacketList(int deviceId, String name, Object? data) {
     if (_disposed) return;
     if (data is List) {
-      _lastAprsPacketList = data.whereType<AprsPacket>().toList(growable: false);
+      _lastAprsPacketList = data.whereType<AprsPacket>().toList(
+        growable: false,
+      );
     }
   }
 
@@ -406,8 +411,22 @@ class WebServerHandler {
   /// excluded (see [HostBridge.isSyncedSetting]).
   void _onHostSettingChanged(int deviceId, String name, Object? data) {
     if (_disposed) return;
-    if (!HostBridge.isSyncedSetting(name)) return;
     final server = _server;
+    if (HostBridge.isSecretSetting(name)) {
+      // Only tell browsers which credentials are set, never their values.
+      final names = HostBridge.configuredCredentials(
+        DataBroker.getDeviceValues(0),
+      );
+      if (_lastCredentials != null && listEquals(_lastCredentials, names)) {
+        return;
+      }
+      _lastCredentials = names;
+      if (server == null || server.clientCount == 0) return;
+      final encoded = _encodeSetting(HostBridge.hostCredentialsValue, names);
+      if (encoded != null) server.broadcastText('setting:$encoded');
+      return;
+    }
+    if (!HostBridge.isSyncedSetting(name)) return;
     if (server == null || server.clientCount == 0) return;
     final encoded = _encodeSetting(name, data);
     if (encoded == null) return;
@@ -418,7 +437,8 @@ class WebServerHandler {
   void _sendSettingsTo(WebSocketClient client) {
     try {
       final safe = <String, Object?>{};
-      DataBroker.getDeviceValues(0).forEach((name, value) {
+      final all = DataBroker.getDeviceValues(0);
+      all.forEach((name, value) {
         if (!HostBridge.isSyncedSetting(name)) return;
         try {
           jsonEncode(value); // Only include JSON-serializable settings.
@@ -427,6 +447,8 @@ class WebServerHandler {
           // Skip values that cannot be represented on the wire.
         }
       });
+      _lastCredentials = HostBridge.configuredCredentials(all);
+      safe[HostBridge.hostCredentialsValue] = _lastCredentials;
       if (safe.isEmpty) return;
       client.sendText('settings:${jsonEncode(safe)}');
     } catch (ex) {
@@ -451,7 +473,11 @@ class WebServerHandler {
       final data = jsonDecode(json);
       if (data is! Map) return;
       final name = data['name'];
-      if (name is! String || !HostBridge.isSyncedSetting(name)) return;
+      if (name is! String ||
+          !HostBridge.isSyncedSetting(name) ||
+          name == HostBridge.hostCredentialsValue) {
+        return;
+      }
       Object? value = data['value'];
       if (value is List && value.every((e) => e is String)) {
         value = value.cast<String>();
@@ -459,7 +485,7 @@ class WebServerHandler {
       // Software-modem controls must reconfigure the live modem, so dispatch the
       // command the host's SoftwareModem consumes (it persists the setting
       // itself) rather than writing the raw setting value.
-      final modemCommand = _modemSettingCommands[name];
+      final modemCommand = HostBridge.modemSettingCommands[name];
       if (modemCommand != null) {
         _broker.dispatch(
           deviceId: 0,
@@ -474,17 +500,6 @@ class WebServerHandler {
       _broker.logError('[WebServer] Failed to apply client setting: $ex');
     }
   }
-
-  /// Device-0 software-modem settings a browser can change, mapped to the
-  /// command event the host's SoftwareModem consumes to apply them live.
-  static const Map<String, String> _modemSettingCommands = <String, String>{
-    'SoftwareModemMode': 'SetSoftwareModemMode',
-    'SoftwareModemFec': 'SetSoftwareModemFec',
-    'DartTxMode': 'SetDartTxMode',
-    'XaraWide': 'SetXaraWide',
-    'AprsSoftwareModemMode': 'SetAprsSoftwareModemMode',
-    'AprsSoftwareModemFec': 'SetAprsSoftwareModemFec',
-  };
 
   /// Applies a radio-switch request from a browser: makes the requested radio
   /// the host's preferred (selected) radio, which re-points the bridge.
@@ -561,7 +576,8 @@ class WebServerHandler {
       final data = jsonDecode(json);
       if (data is! Map) return;
       final event = data['event'];
-      if (event is! String || !HostBridge.forwardedClearEvents.contains(event)) {
+      if (event is! String ||
+          !HostBridge.forwardedClearEvents.contains(event)) {
         return;
       }
       final peer = data['peer'];
@@ -627,12 +643,7 @@ class WebServerHandler {
   /// Refreshes the cached mail list (a synchronous `MailGetAll` dispatch updates
   /// [_lastMailList]) and encodes it as a `mail:` snapshot message.
   String _encodeMailSnapshot() {
-    _broker.dispatch(
-      deviceId: 0,
-      name: 'MailGetAll',
-      data: null,
-      store: false,
-    );
+    _broker.dispatch(deviceId: 0, name: 'MailGetAll', data: null, store: false);
     final mails = _lastMailList ?? const <WinLinkMail>[];
     final list = mails.map((m) => m.toJson()).toList(growable: false);
     return 'mail:${jsonEncode(list)}';
@@ -672,6 +683,8 @@ class WebServerHandler {
 
   void _onTextMessage(WebSocketClient client, String message) {
     if (_disposed) return;
+    // Automation clients (test agents) use their own authenticated channel.
+    if (_agent.handle(client, message)) return;
     if (message.startsWith('setsetting:')) {
       _applyClientSetting(message.substring('setsetting:'.length));
       return;
@@ -774,6 +787,7 @@ class WebServerHandler {
   void _onClientDisconnected(WebSocketClient client) {
     if (_disposed) return;
     _audioClients.remove(client.id);
+    _agent.remove(client);
   }
 
   /// Mirrors a buffer of host playback audio to every opted-in browser as a
@@ -799,6 +813,7 @@ class WebServerHandler {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _agent.dispose();
     _stopServer();
     _broker.dispose();
   }
