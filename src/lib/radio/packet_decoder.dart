@@ -88,7 +88,9 @@ class PacketDecoder {
     if (fragment.frameType != FragmentFrameType.xara) return fragment.data;
     final capture = XaraCapture.parse(fragment.data);
     if (capture == null) return fragment.data;
-    return capture.isControl ? Uint8List(0) : capture.payload;
+    return capture.isControl || capture.isListen
+        ? Uint8List(0)
+        : capture.payload;
   }
 
   /// Builds the full set of decode detail sections for a fragment.
@@ -109,10 +111,13 @@ class PacketDecoder {
       );
     }
     packetSection.lines.add(MapEntry('Time', fragment.time.toString()));
-    // Control codes are tone patterns with no frame bytes to show.
+    // Control codes are tone patterns and receiver-state entries are local, so
+    // neither has frame bytes to show.
+    final xaraCapture = fragment.frameType == FragmentFrameType.xara
+        ? XaraCapture.parse(fragment.data)
+        : null;
     final bool xaraControl =
-        fragment.frameType == FragmentFrameType.xara &&
-        (XaraCapture.parse(fragment.data)?.isControl ?? false);
+        xaraCapture != null && (xaraCapture.isControl || xaraCapture.isListen);
     if (!xaraControl) {
       final bytes = frameBytes(fragment);
       final len = bytes.length;

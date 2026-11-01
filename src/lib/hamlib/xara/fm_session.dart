@@ -268,6 +268,11 @@ class FmSession {
   FmBandwidth get bandwidth => _bw;
   FmConfig get config => _cfg;
   int get key => _keyD;
+
+  /// Upstream key (caller hash); connect replies are coded with it.
+  int get keyU => _keyU;
+  String get caller => _caller;
+  String get answerer => _answerer;
   int get viaCount => _vias.length;
   bool get hasVias => _vias.isNotEmpty;
   int get buffered => _tx.buf.length + _link.files.length;

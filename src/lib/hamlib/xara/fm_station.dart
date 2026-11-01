@@ -120,6 +120,48 @@ class FmStation {
     if (logFrames) _frameLog.add(f);
   }
 
+  /// Control codebook keys: codes 1..22 are keyed by D (downstream hash),
+  /// connect replies by U (the caller's hash).
+  static Map<String, Object?> _keyMeta(Codebook? cb) =>
+      cb == null ? const <String, Object?>{} : <String, Object?>{'keyD': cb.keyD, 'keyU': cb.keyU};
+
+  Map<String, Object?> _linkMeta() {
+    final FmSession s = _session;
+    return <String, Object?>{
+      if (s.caller.isNotEmpty) 'caller': s.caller,
+      if (s.answerer.isNotEmpty) 'answerer': s.answerer,
+    };
+  }
+
+  String _lastListen = '';
+
+  /// Records what the receiver now waits for (records, control codes, keys),
+  /// when that changes, so a missed reply can be compared with what was sent.
+  void _logListen(FmListen l, List<FmRecord> records, bool answering) {
+    if (!logFrames) return;
+    final (int, int)? c = l.ctrl;
+    final String sig = '${l.bw.name}|${records.map((r) => r.index).join(',')}|'
+        '${l.codes.join(',')}|${c?.$1}|${c?.$2}|${l.nframes}|$answering';
+    if (sig == _lastListen) return;
+    _lastListen = sig;
+    _logFrame(StationFrame(
+      tx: false,
+      record: -2,
+      bytes: Uint8List(0),
+      meta: <String, Object?>{
+        'bw': l.bw.name,
+        'records': <int>[for (final FmRecord r in records) r.index],
+        'codes': List<int>.of(l.codes),
+        if (c != null) ...<String, Object?>{'keyD': c.$1, 'keyU': c.$2},
+        'n': l.nframes,
+        'linked': l.linked,
+        if (!answering) 'answering': false,
+        ..._linkMeta(),
+        'state': _session.state.debug,
+      },
+    ));
+  }
+
   /// Records a session transmission rendered as [samples] station samples.
   void _logTx(FmTx t, int samples) {
     if (!logFrames) return;
@@ -131,7 +173,15 @@ class FmStation {
           tx: true,
           code: code,
           bytes: Uint8List(0),
-          meta: <String, Object?>{'lead': lead, 'burstMs': burstMs, 'state': state},
+          meta: <String, Object?>{
+            'lead': lead,
+            'rows': lead + codeRows,
+            'burstMs': burstMs,
+            'drive': _opts.driveDb,
+            ..._keyMeta(_cb),
+            ..._linkMeta(),
+            'state': state,
+          },
         ));
       case FmTxData(:final FmRecord record, :final List<Uint8List> frames, :final int lead):
         final FmBandwidth bw = record == FmRecord.connect ? _cfg.bw : _session.bandwidth;
@@ -382,6 +432,8 @@ class FmStation {
             'hits': d.hits,
             'row': d.leadRow,
             'side': ctrl.side.name,
+            ..._keyMeta(digi ? _digiCb[ctrl.side.idx] : _cb),
+            ..._linkMeta(),
             'state': digi ? 'Digipeating' : _session.state.debug,
           },
         ));
@@ -557,6 +609,7 @@ class FmStation {
     _rx.expect(records, l.nframes);
     final (int, int)? c = l.ctrl;
     _cb = c == null ? null : Codebook(c.$1, c.$2);
+    _logListen(l, records, answering);
     final Codebook? cb = _cb;
     if (cb != null && l.codes.isNotEmpty) {
       _rx.setCtrl(Side.source, cb, l.codes);

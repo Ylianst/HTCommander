@@ -294,6 +294,7 @@ Future<void> runOverTheAir({
 
   final peerEvents = <String>[];
   final peerData = <int>[];
+  final peerFrames = <Map<String, Object?>>[];
   late final Playout toPeer, toRadio;
   final peer = XaraModem(
     config: XaraModemConfig(callsign: peerCall, txLatencyMs: 400),
@@ -301,7 +302,9 @@ Future<void> runOverTheAir({
     onEvent: (e) {
       if (e['evt'] == 'data') {
         peerData.addAll(e['data']! as Uint8List);
-      } else if (e['evt'] != 'frame') {
+      } else if (e['evt'] == 'frame') {
+        peerFrames.add(e);
+      } else {
         peerEvents.add(e['evt']! as String);
       }
     },
@@ -389,19 +392,35 @@ Future<void> runOverTheAir({
       isTrue,
     );
     expect(
-      frames.any((f) => !f.$1.incoming && !f.$2.isControl && f.$2.record > 0),
+      frames.any(
+        (f) =>
+            !f.$1.incoming &&
+            !f.$2.isControl &&
+            !f.$2.isListen &&
+            f.$2.record > 0,
+      ),
       isTrue,
     );
     expect(
-      frames.any((f) => f.$1.incoming && !f.$2.isControl && f.$2.record > 0),
+      frames.any(
+        (f) =>
+            f.$1.incoming &&
+            !f.$2.isControl &&
+            !f.$2.isListen &&
+            f.$2.record > 0,
+      ),
       isTrue,
     );
 
     // Every session frame carries debugging metadata from the live link.
     final rxData = frames.where(
-      (f) => f.$1.incoming && !f.$2.isControl && f.$2.ok,
+      (f) => f.$1.incoming && !f.$2.isControl && !f.$2.isListen && f.$2.ok,
     );
-    final txData = frames.where((f) => !f.$1.incoming && !f.$2.isControl);
+    final txData = frames.where(
+      (f) => !f.$1.incoming && !f.$2.isControl && !f.$2.isListen,
+    );
+    expect(rxData, isNotEmpty);
+    expect(txData, isNotEmpty);
     expect(rxData.every((f) => f.$2.meta['bw'] == 'narrow'), isTrue);
     expect(rxData.every((f) => f.$2.meta['snr'] is num), isTrue);
     expect(rxData.every((f) => f.$2.meta['iter'] is num), isTrue);
@@ -420,6 +439,43 @@ Future<void> runOverTheAir({
         (f) =>
             f.$1.incoming &&
             PacketDecoder.fragmentToShortString(f.$1).contains('S'),
+      ),
+      isTrue,
+    );
+
+    // The BBS coded its connect reply with the key the caller listened for,
+    // and both captures show it.
+    final reply = frames.firstWhere(
+      (f) =>
+          !f.$1.incoming &&
+          f.$2.isControl &&
+          XaraCapture.usesCallerKey(f.$2.code),
+    );
+    expect(reply.$2.keyU, XaraCapture.callKey(peerCall));
+    expect(reply.$2.codeTones, hasLength(10));
+    expect(reply.$2.meta['rows'], isA<num>());
+    expect(reply.$2.meta['burstMs'], isA<num>());
+    final callerListen = peerFrames.firstWhere(
+      (e) =>
+          e['record'] == -2 &&
+          ((e['meta']! as Map)['codes'] as List).contains(
+            FmCode.connectReplyNarrow,
+          ),
+    );
+    expect((callerListen['meta']! as Map)['keyU'], reply.$2.keyU);
+    final heardReply = peerFrames.firstWhere(
+      (e) => e['record'] == -1 && e['code'] == FmCode.connectReplyNarrow,
+    );
+    final heardMeta = heardReply['meta']! as Map;
+    expect(heardMeta['keyU'], reply.$2.keyU);
+    expect(heardMeta['hits'], isA<num>());
+    expect(
+      frames.any(
+        (f) =>
+            f.$2.isListen &&
+            PacketDecoder.fragmentToShortString(
+              f.$1,
+            ).startsWith('XARA listening'),
       ),
       isTrue,
     );

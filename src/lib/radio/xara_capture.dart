@@ -7,9 +7,12 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'dart:convert';
 import 'dart:typed_data';
 
-import '../hamlib/xara/fm_ctrl.dart' show FmCode;
+import '../hamlib/xara/call.dart' show callHash;
+import '../hamlib/xara/fm_ctrl.dart'
+    show Codebook, FmCode, codeRows, ctrlSymbol, leadRows;
 import '../hamlib/xara/fm_frame.dart' show Kind, Record0, parseData;
 import '../hamlib/xara/fm_level.dart';
+import '../hamlib/xara/ofdm_const.dart' as ofdm;
 import 'utils.dart';
 
 /// A XARA (VARA FM) session frame or control code as stored in the packet
@@ -25,6 +28,9 @@ import 'utils.dart';
 /// captures without it still parse.
 class XaraCapture {
   static const int controlRecord = 0xFF;
+
+  /// A receiver-state entry: what the station now listens for (no payload).
+  static const int listenRecord = 0xFE;
   static const int _flagOk = 0x01;
   static const int _flagMeta = 0x80;
 
@@ -42,8 +48,12 @@ class XaraCapture {
 
   bool get isControl => record == controlRecord;
 
+  bool get isListen => record == listenRecord;
+
   int get code => isControl && payload.isNotEmpty ? payload[0] : -1;
 
+  /// Packs a capture entry. [record] is the FM record index, -1 for a control
+  /// code ([code]) or -2 for a receiver-state entry.
   static Uint8List encode({
     required int record,
     required int code,
@@ -51,7 +61,9 @@ class XaraCapture {
     required Uint8List data,
     Map<String, Object?> meta = const <String, Object?>{},
   }) {
-    final List<int> body = record < 0 ? <int>[code & 0xFF] : data;
+    final List<int> body = record == -1
+        ? <int>[code & 0xFF]
+        : (record < 0 ? const <int>[] : data);
     final Map<String, Object?> clean = {
       for (final e in meta.entries)
         if (e.value != null)
@@ -65,7 +77,9 @@ class XaraCapture {
     final int flags =
         (record < 0 || ok ? _flagOk : 0) | (json.isEmpty ? 0 : _flagMeta);
     return Uint8List.fromList([
-      record < 0 ? controlRecord : record & 0xFF,
+      record == -1
+          ? controlRecord
+          : (record < 0 ? listenRecord : record & 0xFF),
       flags,
       if (json.isNotEmpty) ...[json.length >> 8, json.length & 0xFF, ...json],
       ...body,
@@ -142,6 +156,7 @@ class XaraCapture {
 
   String get recordName => switch (record) {
     controlRecord => 'Control',
+    listenRecord => 'Listen',
     0 => 'Connect',
     14 => 'Short',
     15 => 'Start',
@@ -150,6 +165,45 @@ class XaraCapture {
   };
 
   String get codeName => _codeNames[code] ?? 'Code $code';
+
+  static String _codeLabel(int c) => _codeNames[c] ?? 'Code $c';
+
+  /// Control frames are 3-tone FSK rows of [ctrlSymbol] samples.
+  static const double rowMs = ctrlSymbol * 1000.0 / ofdm.fs;
+  static const double _toneHz = ofdm.fs / ctrlSymbol;
+
+  static String keyHex(int k) =>
+      '0x${k.toRadixString(16).toUpperCase().padLeft(6, '0')}';
+
+  /// Hash a callsign the way XARA keys its control codebook.
+  static int callKey(String call) => callHash(utf8.encode(call));
+
+  /// Connect replies are coded with the caller key (U); every other control
+  /// code with the downstream key (D).
+  static bool usesCallerKey(int c) =>
+      c == FmCode.connectReplyNarrow || c == FmCode.connectReplyWide;
+
+  int? get keyD => _int('keyD');
+  int? get keyU => _int('keyU');
+
+  /// The key [code] was (or would be) coded with, labelled.
+  String? get codeKey {
+    final k = usesCallerKey(code) ? keyU : keyD;
+    if (k == null) return null;
+    return '${usesCallerKey(code) ? 'U' : 'D'}=${keyHex(k)}';
+  }
+
+  /// Tone frequencies (Hz) of the 10 code rows, derived from the keys.
+  List<List<double>>? get codeTones {
+    final d = keyD, u = keyU;
+    if (!isControl || d == null || u == null || code < 1 || code > 24) {
+      return null;
+    }
+    return [
+      for (final row in Codebook(d, u).code(code))
+        [for (final bin in row) bin * _toneHz],
+    ];
+  }
 
   FmBandwidth? get bandwidth => switch (meta['bw']) {
     'narrow' => FmBandwidth.narrow,
@@ -160,7 +214,7 @@ class XaraCapture {
   /// The modem level this frame was sent with, when the bandwidth is known.
   FmLevel? get level {
     final bw = bandwidth;
-    if (bw == null || isControl || record > 16) return null;
+    if (bw == null || isControl || isListen || record > 16) return null;
     return bw.level(FmRecord(record));
   }
 
@@ -196,7 +250,9 @@ class XaraCapture {
     int? chainSnr,
   })?
   get dataFrame {
-    if (isControl || record == 0 || !ok || payload.isEmpty) return null;
+    if (isControl || isListen || record == 0 || !ok || payload.isEmpty) {
+      return null;
+    }
     final d = parseData(FmRecord(record), payload, _vias);
     if (d == null) return null;
     return (
@@ -232,31 +288,76 @@ class XaraCapture {
     final sb = StringBuffer('Software XARA FM');
     final bw = bandwidth;
     if (isControl) {
-      sb.write(', Session control');
-    } else {
+      // Control frames are not OFDM: 3-tone FSK rows, lead-in + 10 code rows.
+      sb.write(', Session control (3-tone FSK');
+      final rows = _int('rows');
+      if (rows != null) {
+        sb.write(
+          ', $rows rows x ${rowMs.toStringAsFixed(1)} ms = '
+          '${(rows * rowMs).round()} ms',
+        );
+      }
+      final k = codeKey;
+      if (k != null) sb.write(', key $k');
+      sb.write(')');
+      final hits = _int('hits');
+      if (hits != null) sb.write(', $hits/$codeRows hits');
+      return sb.toString();
+    }
+    if (isListen) {
       if (bw != null) {
         sb.write(' ${bw == FmBandwidth.wide ? 'Wide' : 'Narrow'}');
       }
-      sb.write(' $recordName');
-      final mode = modeDescription;
-      if (mode != null) sb.write(' ($mode)');
-      sb.write(', Session');
+      return '$sb, Receiver state';
     }
+    if (bw != null) {
+      sb.write(' ${bw == FmBandwidth.wide ? 'Wide' : 'Narrow'}');
+    }
+    sb.write(' $recordName');
+    final mode = modeDescription;
+    if (mode != null) sb.write(' ($mode)');
+    sb.write(', Session');
     if (!ok) sb.write(', CRC failed');
     final snr = _num('snr');
     if (snr != null) sb.write(', SNR ${snr.toStringAsFixed(1)} dB');
     final iter = _int('iter');
-    if (iter != null && !isControl) {
+    if (iter != null) {
       sb.write(', $iter LDPC iteration${iter == 1 ? '' : 's'}');
     }
     return sb.toString();
+  }
+
+  List<int> _list(String k) => [
+    for (final v in (meta[k] as List?) ?? const <Object?>[])
+      if (v is num) v.toInt(),
+  ];
+
+  String get _listenWhat {
+    final records = _list('records');
+    final codes = _list('codes');
+    final parts = <String>[
+      if (records.isNotEmpty)
+        'frames ${records.map((r) => XaraCapture(r, true, Uint8List(0)).recordName).join(', ')}',
+      if (codes.isNotEmpty) 'codes ${codes.map(_codeLabel).join(', ')}',
+    ];
+    return parts.isEmpty ? 'nothing' : parts.join('; ');
   }
 
   /// Single-line summary for the packet list.
   String get summary {
     if (isControl) {
       final hits = _int('hits');
-      return 'XARA control: $codeName${hits == null ? '' : ' ($hits hits)'}';
+      final k = codeKey;
+      return 'XARA control: $codeName'
+          '${k == null ? '' : ' [$k]'}'
+          '${hits == null ? '' : ' ($hits hits)'}';
+    }
+    if (isListen) {
+      final codes = _list('codes');
+      final keys = codes.isEmpty || keyD == null
+          ? ''
+          : ' [D=${keyHex(keyD!)}, U=${keyHex(keyU ?? 0)}]';
+      return 'XARA listening (${meta['state'] ?? '?'}): $_listenWhat$keys';
     }
     if (!ok) {
       return 'XARA $recordName$_position: '
@@ -297,11 +398,76 @@ class XaraCapture {
     String ms(String k) => '${_num(k)!.toStringAsFixed(0)} ms';
 
     if (isControl) {
-      add('Type', 'Control code');
+      add('Type', 'Control code (3-tone FSK, not OFDM)');
       add('Code', '$code ($codeName)');
-      if (meta['hits'] != null) add('Detection hits', _int('hits'));
-      if (meta['row'] != null) add('Lead row', _int('row'));
+      final k = codeKey;
+      if (k != null) {
+        add(
+          'Coded with',
+          usesCallerKey(code)
+              ? 'Caller key $k (connect replies use the caller hash)'
+              : 'Downstream key $k',
+        );
+      }
+      if (keyD != null) add('Key D', keyHex(keyD!));
+      if (keyU != null) add('Key U', keyHex(keyU!));
+      if (meta['caller'] != null) add('Link caller', meta['caller']);
+      if (meta['answerer'] != null) add('Link answerer', meta['answerer']);
+      final lead = _int('lead');
+      final rows = _int('rows');
+      if (lead != null) add('Lead-in rows', '$lead of $leadRows');
+      add('Code rows', codeRows);
+      add('Row duration', '${rowMs.toStringAsFixed(1)} ms');
+      if (rows != null) add('Frame airtime', '${(rows * rowMs).round()} ms');
+      if (meta['hits'] != null) {
+        add('Detection hits', '${_int('hits')} of $codeRows rows');
+      }
+      if (meta['row'] != null) add('Lead-in heard from row', _int('row'));
       if (meta['side'] != null) add('Side', meta['side']);
+      final tones = codeTones;
+      if (tones != null) {
+        add(
+          'Code tones (Hz)',
+          tones.map((r) => r.map((f) => f.round()).join('/')).join(', '),
+        );
+      }
+    } else if (isListen) {
+      add('Type', 'Receiver state (what this station now listens for)');
+      final bw = bandwidth;
+      if (bw != null) {
+        add('Bandwidth', bw == FmBandwidth.wide ? 'Wide' : 'Narrow');
+      }
+      final records = _list('records');
+      add(
+        'Expected frames',
+        records.isEmpty
+            ? 'None'
+            : records
+                  .map(
+                    (r) =>
+                        '$r (${XaraCapture(r, true, Uint8List(0)).recordName})',
+                  )
+                  .join(', '),
+      );
+      final codes = _list('codes');
+      add(
+        'Expected codes',
+        codes.isEmpty
+            ? 'None'
+            : codes.map((c) => '$c (${_codeLabel(c)})').join(', '),
+      );
+      if (keyD != null) add('Key D', keyHex(keyD!));
+      if (keyU != null) add('Key U', keyHex(keyU!));
+      if (codes.any(usesCallerKey) && keyU != null) {
+        add('Connect replies must use', 'U=${keyHex(keyU!)}');
+      }
+      if (meta['n'] != null) add('Frames per burst', _int('n'));
+      if (meta['linked'] != null) {
+        add('Linked', meta['linked'] == true ? 'Yes' : 'No');
+      }
+      if (meta['answering'] == false) add('Answering calls', 'No');
+      if (meta['caller'] != null) add('Link caller', meta['caller']);
+      if (meta['answerer'] != null) add('Link answerer', meta['answerer']);
     } else {
       add('Record', '$record ($recordName)');
       final bw = bandwidth;
@@ -332,7 +498,7 @@ class XaraCapture {
     if (meta['ms'] != null) add('Frame airtime', ms('ms'));
 
     // Transmission (sent frames).
-    if (meta['lead'] != null) add('Lead-in', _int('lead'));
+    if (meta['lead'] != null && !isControl) add('Lead-in', _int('lead'));
     if (meta['burstMs'] != null) add('Burst airtime', ms('burstMs'));
     if (meta['drive'] != null) add('Drive', db('drive'));
 
@@ -349,6 +515,12 @@ class XaraCapture {
       add('Requested bandwidth', r.wide ? 'Wide' : 'Narrow');
       add('Registered', r.registered ? 'Yes' : 'No');
       add('Hop', r.hop);
+      // The keys both ends derive from these callsigns. The answer must send its
+      // connect reply with U, and the caller listens for it with U.
+      final down = r.via1.isNotEmpty ? r.via1 : r.target;
+      add('Key D (hash of $down)', keyHex(callKey(down)));
+      add('Key U (hash of ${r.source})', keyHex(callKey(r.source)));
+      add('Expected reply key', 'U=${keyHex(callKey(r.source))}');
       return lines;
     }
 
@@ -368,7 +540,7 @@ class XaraCapture {
         if (!d.compressed) add('Payload text', _ascii(d.data));
         add('Payload HEX', RadioUtils.bytesToHex(d.data));
       }
-    } else if (!isControl && payload.isNotEmpty) {
+    } else if (!isControl && !isListen && payload.isNotEmpty) {
       add('Frame HEX', RadioUtils.bytesToHex(payload));
     }
     return lines;
