@@ -61,6 +61,24 @@ continuous 48 kHz timeline with sample-accurate transmit timing. A small driver
   with silence (300 ms by default, setting `XaraTxKeyUpMs`) so that loss and
   noise fall before XARA's own lead-in instead of on the frame.
 
+**Bluetooth transmit continuity.** XARA already hands the audio engine a complete
+burst, tagged as data, so it uses the existing 10-second transmit pacing lead.
+This streams ahead into the available OS/radio buffers; it does not preload the
+radio before keying, and there is no separate firmware preload/start command in
+this path. The experimental SBC bitpool 40 has been restored to the radio's
+default 18: at 32 kHz mono each 4 ms frame now occupies 44 bytes rather than 88
+bytes (88 rather than 176 kbit/s before transport overhead). Modem audio retains
+SNR bit allocation; voice retains loudness allocation. Packets contain complete
+SBC frames and stay within the 300-byte unescaped SBC payload limit.
+
+The audio engine logs each data chunk's audio duration, elapsed send time,
+longest Bluetooth write and wire byte count. Rejected native Bluetooth writes
+now terminate and log the failed transmission instead of silently discarding
+audio. These are host-side diagnostics, not radio buffer acknowledgements:
+hardware testing is still needed to establish whether the link sustains the
+stream. Increasing the lead cannot compensate for sustained insufficient
+throughput, and native platform-thread stalls can still delay writes.
+
 **Two data paths.**
 
 - **Unconnected frames.** AX.25 frames HTCommander sends while XARA is selected
