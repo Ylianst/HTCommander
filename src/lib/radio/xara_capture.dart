@@ -172,6 +172,32 @@ class XaraCapture {
   static const double rowMs = ctrlSymbol * 1000.0 / ofdm.fs;
   static const double _toneHz = ofdm.fs / ctrlSymbol;
 
+  /// ARQ reply timing is counted in 128-sample ticks.
+  static const double tickMs = 128 * 1000.0 / ofdm.fs;
+
+  /// How the session treated a received control code, when known.
+  String? get verdict => meta['verdict'] as String?;
+
+  bool get dropped => verdict != null && verdict != 'accepted';
+
+  String _ms(int ticks) => '${(ticks * tickMs).round()} ms';
+
+  /// e.g. "dropped: late, 1650 ms > window 1333 ms".
+  String? get verdictText {
+    final v = verdict;
+    if (v == null) return null;
+    final t = _int('ticks'), w = _int('window');
+    final delay = t == null ? '' : ', reply after ${_ms(t)}';
+    return switch (v) {
+      'accepted' => 'accepted$delay${w == null ? '' : ' (window ${_ms(w)})'}',
+      'late' => 'dropped: late${t == null || w == null ? '' : ', ${_ms(t)} > window ${_ms(w)}'}',
+      'early' => 'dropped: early${t == null ? '' : ', ${_ms(t)} < ${_ms(80)}'}',
+      'transmitting' => 'dropped: arrived while transmitting',
+      'unexpected' => 'dropped: not expected in this state',
+      _ => v,
+    };
+  }
+
   static String keyHex(int k) =>
       '0x${k.toRadixString(16).toUpperCase().padLeft(6, '0')}';
 
@@ -302,6 +328,7 @@ class XaraCapture {
       sb.write(')');
       final hits = _int('hits');
       if (hits != null) sb.write(', $hits/$codeRows hits');
+      if (dropped) sb.write(', ${verdictText!}');
       return sb.toString();
     }
     if (isListen) {
@@ -350,7 +377,8 @@ class XaraCapture {
       final k = codeKey;
       return 'XARA control: $codeName'
           '${k == null ? '' : ' [$k]'}'
-          '${hits == null ? '' : ' ($hits hits)'}';
+          '${hits == null ? '' : ' ($hits hits)'}'
+          '${dropped ? ' - ${verdictText!}' : ''}';
     }
     if (isListen) {
       final codes = _list('codes');
@@ -424,6 +452,10 @@ class XaraCapture {
       }
       if (meta['row'] != null) add('Lead-in heard from row', _int('row'));
       if (meta['side'] != null) add('Side', meta['side']);
+      if (verdict != null) add('Session verdict', verdictText);
+      final t = _int('ticks'), w = _int('window');
+      if (t != null) add('Reply delay', '${_ms(t)} ($t ticks)');
+      if (w != null) add('Reply window', '${_ms(w)} ($w ticks)');
       final tones = codeTones;
       if (tones != null) {
         add(

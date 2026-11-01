@@ -424,6 +424,7 @@ class FmStation {
       case CtrlEv<FmCtrlEvent, FmRecord, FmFrameRx>(:final FmCtrlEvent ctrl):
         final d = ctrl.det;
         final bool digi = _digi.active;
+        final check = !digi && ctrl.side == Side.source ? _session.ctrlCheck(d.code, tEnd) : null;
         _logFrame(StationFrame(
           tx: false,
           code: d.code,
@@ -432,6 +433,11 @@ class FmStation {
             'hits': d.hits,
             'row': d.leadRow,
             'side': ctrl.side.name,
+            if (check != null) ...<String, Object?>{
+              'verdict': check.verdict,
+              'ticks': check.ticks,
+              if (check.window != null) 'window': check.window,
+            },
             ..._keyMeta(digi ? _digiCb[ctrl.side.idx] : _cb),
             ..._linkMeta(),
             'state': digi ? 'Digipeating' : _session.state.debug,

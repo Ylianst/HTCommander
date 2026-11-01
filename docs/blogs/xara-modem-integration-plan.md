@@ -52,9 +52,17 @@ continuous 48 kHz timeline with sample-accurate transmit timing. A small driver
   burst is complete, resamples it to 32 kHz and sends it as one buffer. The
   radio hears nothing while it transmits, so no receive audio is lost.
 - The delay from "PCM handed to the radio" to "remote audio heard" is passed to
-  XARA as its transmit latency (500 ms by default, setting `XaraTxLatencyMs`).
-  This is the same compensation XARA's own tests show is needed beyond about
-  half a second of PTT lead.
+  XARA as its transmit latency (800 ms by default, setting `XaraTxLatencyMs`),
+  plus the key-up pre-roll below, since that silence delays every frame's
+  content by the same amount. XARA times its ARQ reply windows and transmit
+  holds from this latency, and the radio's receive path (squelch, SBC decode,
+  Bluetooth) adds delay XARA's soundcard-based windows do not expect. If the
+  latency is under-estimated, replies arrive after the window and control
+  codes (ACKs, connect replies) are dropped while data frames still decode. If
+  it is over-estimated nothing breaks, so the default leaves headroom: in
+  simulation it keeps links clean from 0 to about 1 s of one-way radio lag.
+  The packet capture shows each received control code's reply delay, window
+  and verdict (`accepted`, `late`, `early`, `transmitting`).
 - The radio keys up on the arriving audio, so the start of every burst is lost
   while it keys and the far squelch opens (about 240 ms was measured, followed
   by a loud squelch-open noise burst). The driver therefore leads each burst

@@ -599,6 +599,23 @@ class FmSession {
     return (d - d % tick) ~/ tick + detectHold;
   }
 
+  /// How [onCtrl] treats a detected [code] ending at [tEnd]: the delay in
+  /// ticks since our transmission ended, the reply window, and the verdict
+  /// (`accepted`, `late`, `early`, `transmitting` or `unexpected`).
+  ({int ticks, int? window, String verdict}) ctrlCheck(int code, int tEnd) {
+    final int ticks = _codeTicks(tEnd);
+    final String verdict = _core.transmitting
+        ? 'transmitting'
+        : !_codes().contains(code)
+            ? 'unexpected'
+            : ticks < codeGate
+                ? 'early'
+                : (_window != null && ticks > _window!)
+                    ? 'late'
+                    : 'accepted';
+    return (ticks: ticks, window: _window, verdict: verdict);
+  }
+
   void onCtrl(int now, CtrlIn c) {
     if (_core.transmitting || !_codes().contains(c.code)) return;
     final int ticks = _codeTicks(c.tEnd);

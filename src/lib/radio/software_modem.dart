@@ -1281,7 +1281,13 @@ class SoftwareModem {
           wide: _effectiveXaraWide(state),
           registered:
               _broker.getValue<bool>(0, 'XaraRegistered', false) ?? false,
-          txLatencyMs: _broker.getValue<int>(0, 'XaraTxLatencyMs', 500) ?? 500,
+          txLatencyMs:
+              _broker.getValue<int>(
+                0,
+                'XaraTxLatencyMs',
+                XaraModemConfig.defaultTxLatencyMs,
+              ) ??
+              XaraModemConfig.defaultTxLatencyMs,
           txKeyUpMs:
               _broker.getValue<int>(
                 0,

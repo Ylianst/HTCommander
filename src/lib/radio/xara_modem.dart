@@ -33,6 +33,12 @@ class XaraModemConfig {
   /// squelch can open before the XARA lead-in starts (~240 ms was measured lost).
   static const int defaultTxKeyUpMs = 300;
 
+  /// Default delay from PCM handed to the radio until the far station hears it,
+  /// on top of [defaultTxKeyUpMs] (which the modem adds itself). Over-estimating
+  /// is harmless while under-estimating drops ARQ replies as late, so this is
+  /// set to cover Bluetooth HT paths of up to about 1 s.
+  static const int defaultTxLatencyMs = 800;
+
   final String callsign;
 
   /// Extra callsigns (e.g. `CALL-SSID`) this station also answers connects for.
@@ -50,7 +56,7 @@ class XaraModemConfig {
     this.aliases = const <String>[],
     this.wide = false,
     this.registered = false,
-    this.txLatencyMs = 500,
+    this.txLatencyMs = defaultTxLatencyMs,
     this.txKeyUpMs = defaultTxKeyUpMs,
     this.driveDb = defaultDriveDb,
     this.sampleRate = 32000,
@@ -74,7 +80,7 @@ class XaraModemConfig {
         aliases: ((m['aliases'] as List?) ?? const <Object?>[]).cast<String>(),
         wide: (m['wide'] as bool?) ?? false,
         registered: (m['registered'] as bool?) ?? false,
-        txLatencyMs: (m['txLatencyMs'] as int?) ?? 500,
+        txLatencyMs: (m['txLatencyMs'] as int?) ?? defaultTxLatencyMs,
         txKeyUpMs: (m['txKeyUpMs'] as int?) ?? defaultTxKeyUpMs,
         driveDb: (m['driveDb'] as num?)?.toDouble() ?? defaultDriveDb,
         sampleRate: (m['sampleRate'] as int?) ?? 32000,
@@ -263,6 +269,7 @@ Future<void> _xaraIsolateEntry(List<Object?> args) async {
   final SendPort host = args[0] as SendPort;
   final XaraModemConfig cfg = XaraModemConfig.fromMap(args[1] as Map<Object?, Object?>);
   final ReceivePort commands = ReceivePort();
+  final int keyUp = math.max(0, cfg.txKeyUpMs) * stationRate ~/ 1000;
 
   final FmConfig fc = FmConfig(cfg.wide ? FmBandwidth.wide : FmBandwidth.narrow, cfg.callsign);
   for (final String a in cfg.aliases) {
@@ -271,12 +278,15 @@ Future<void> _xaraIsolateEntry(List<Object?> args) async {
   fc.host.registered = cfg.registered;
   fc.host.compression = Compression.text;
   fc.seed = DateTime.now().microsecondsSinceEpoch;
+  // The driver leads every burst with [keyUp] of silence, so the frame content
+  // reaches the air that much later than the station renders it. The station's
+  // latency must include it, or its reply windows and transmit holds run early
+  // and replies are dropped once the radio path adds a few hundred ms more.
   final FmStation station = FmStation(
     fc,
-    StationOptions(driveDb: cfg.driveDb, txLatency: cfg.txLatencyMs * stationRate ~/ 1000),
+    StationOptions(driveDb: cfg.driveDb, txLatency: cfg.txLatencyMs * stationRate ~/ 1000 + keyUp),
   );
-  final XaraDriver driver = XaraDriver(station,
-      hostRate: cfg.sampleRate, keyUp: math.max(0, cfg.txKeyUpMs) * stationRate ~/ 1000);
+  final XaraDriver driver = XaraDriver(station, hostRate: cfg.sampleRate, keyUp: keyUp);
   station.setKissRx(true);
   station.captureSymbols = cfg.analysis;
   station.logFrames = true;

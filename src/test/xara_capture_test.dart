@@ -173,6 +173,50 @@ void main() {
     );
   });
 
+  test('dropped control codes say why', () {
+    XaraCapture rx(Map<String, Object?> meta) => XaraCapture.parse(
+      XaraCapture.encode(
+        record: -1,
+        code: FmCode.ackStay,
+        ok: true,
+        data: Uint8List(0),
+        meta: meta,
+      ),
+    )!;
+    final late = rx({
+      'hits': 8,
+      'verdict': 'late',
+      'ticks': 600,
+      'window': 500,
+    });
+    expect(late.dropped, isTrue);
+    expect(late.verdictText, 'dropped: late, 1600 ms > window 1333 ms');
+    expect(
+      late.summary,
+      endsWith(' - dropped: late, 1600 ms > window 1333 ms'),
+    );
+    expect(
+      late.encodingLabel,
+      endsWith(', dropped: late, 1600 ms > window 1333 ms'),
+    );
+    final details = {for (final e in late.details) e.key: e.value};
+    expect(details['Reply delay'], '1600 ms (600 ticks)');
+    expect(details['Reply window'], '1333 ms (500 ticks)');
+
+    expect(
+      rx({'verdict': 'early', 'ticks': 30}).verdictText,
+      'dropped: early, 80 ms < 213 ms',
+    );
+    expect(
+      rx({'verdict': 'transmitting'}).verdictText,
+      'dropped: arrived while transmitting',
+    );
+    final ok = rx({'verdict': 'accepted', 'ticks': 300, 'window': 500});
+    expect(ok.dropped, isFalse);
+    expect(ok.verdictText, 'accepted, reply after 800 ms (window 1333 ms)');
+    expect(ok.summary, isNot(contains('dropped')));
+  });
+
   test('sent connect replies show key, rows, airtime and tones', () {
     final keyD = XaraCapture.callKey('N0CALL-1');
     final keyU = XaraCapture.callKey('N1ABC');
