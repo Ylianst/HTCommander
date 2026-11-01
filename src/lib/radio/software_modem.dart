@@ -1306,12 +1306,7 @@ class SoftwareModem {
           _broker.dispatch(
             deviceId: state.deviceId,
             name: 'TransmitVoicePCM',
-            data: {
-              'Data': pcm,
-              'PlayLocally': false,
-              'IsDataFrame': true,
-              'IsRealtimeDataFrame': true,
-            },
+            data: {'Data': pcm, 'PlayLocally': false, 'IsDataFrame': true},
             store: false,
           );
         },

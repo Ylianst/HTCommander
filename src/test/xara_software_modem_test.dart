@@ -176,12 +176,8 @@ void main() {
         client.subscribe(
           deviceId: radio,
           name: 'TransmitVoicePCM',
-          callback: (int d, String n, Object? data) {
-            final payload = data! as Map;
-            expect(payload['IsDataFrame'], isTrue);
-            expect(payload['IsRealtimeDataFrame'], isTrue);
-            toPeer.add(payload['Data'] as Uint8List);
-          },
+          callback: (int d, String n, Object? data) =>
+              toPeer.add((data! as Map)['Data'] as Uint8List),
         );
         final List<Map<Object?, Object?>> events = <Map<Object?, Object?>>[];
         final List<int> radioData = <int>[];

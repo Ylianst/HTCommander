@@ -93,8 +93,6 @@ class AudioEngine {
   /// not establish that the radio's audio buffer has enough capacity.
   static const int _txLeadMsVoice = 1000;
   static const int _txLeadMsBulk = 10000;
-  // Short ARQ bursts can test bounded buffering without changing other data TX.
-  static const int _txLeadMsRealtimeData = 250;
 
   /// Pre-computed *voice* transmissions (spoken text / WAV playback) use a
   /// shallow lead: unlike data, a brief stall only causes a small audible
@@ -206,7 +204,6 @@ class AudioEngine {
   bool _voiceTransmitCancel = false;
   bool _playInputBack = false;
   bool _voiceTransmitIsDataFrame = false;
-  bool _voiceTransmitIsRealtimeDataFrame = false;
   bool _voiceTransmitIsBulkData = false;
   bool _voiceTransmitHold = false;
   Uint8List? _reminderTransmitPcm;
@@ -283,7 +280,6 @@ class AudioEngine {
             playLocally,
             isDataFrame: isDataFrame,
             isBulkData: isBulkData,
-            isRealtimeDataFrame: (msg['isRealtimeDataFrame'] as bool?) ?? false,
           );
         }
         break;
@@ -766,7 +762,6 @@ class AudioEngine {
   /// for transmission to the radio. When [play] is true the audio is also
   /// played back locally as it is sent. [isBulkData] marks pre-computed,
   /// corruption-sensitive audio (SSTV) that needs a deep pacing lead.
-  /// [isRealtimeDataFrame] selects bounded buffering for the XARA experiment.
   bool transmitVoice(
     Uint8List pcmInput,
     int offset,
@@ -774,7 +769,6 @@ class AudioEngine {
     bool play, {
     bool isDataFrame = false,
     bool isBulkData = false,
-    bool isRealtimeDataFrame = false,
   }) {
     _playInputBack = play;
     _voiceTransmitCancel = false;
@@ -782,7 +776,6 @@ class AudioEngine {
     // when a fresh run is about to start.
     if (!_isTransmitting) {
       _voiceTransmitIsDataFrame = isDataFrame;
-      _voiceTransmitIsRealtimeDataFrame = isRealtimeDataFrame;
       _voiceTransmitIsBulkData = isBulkData;
     }
     _pcmQueue.add(
@@ -889,9 +882,7 @@ class AudioEngine {
     //    stall, so they use a shallow lead so Cancel stops them quickly.
     //  - Live PTT voice arrives as small streamed chunks and stays low-latency.
     final int txLeadMs;
-    if (_voiceTransmitIsRealtimeDataFrame) {
-      txLeadMs = _txLeadMsRealtimeData;
-    } else if (_voiceTransmitIsDataFrame) {
+    if (_voiceTransmitIsDataFrame) {
       txLeadMs = _txLeadMsBulk;
     } else if (_voiceTransmitIsBulkData) {
       txLeadMs = _txLeadMsBulkData;
