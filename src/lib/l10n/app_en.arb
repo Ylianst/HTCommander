@@ -2342,7 +2342,7 @@
   },
   "cslAutoUpdateWifiSubtitle": "Keep installed databases up to date automatically, only over Wi-Fi or wired connections to avoid mobile data charges.",
   "settingsWinlinkGatewayDbTitle": "Offline Gateway Directory",
-  "settingsWinlinkGatewayDbInfo": "Download a small offline list of Winlink packet gateways to find nearby stations and their frequencies on the map.",
+  "settingsWinlinkGatewayDbInfo": "Download a small offline list of Winlink packet and VARA-FM gateways to find nearby stations, frequencies and supported modes on the map.",
   "settingsWinlinkGatewayDbInstalled": "Installed: {version} ({count} gateways)",
   "@settingsWinlinkGatewayDbInstalled": {
     "description": "Installed Winlink gateway directory version and gateway count",

@@ -40,6 +40,7 @@ import '../utils/num_parsing.dart';
 import 'modem_tx_encoder.dart';
 import 'radio_models.dart' as radio;
 import 'tnc_data_fragment.dart';
+import 'xara_modem.dart';
 
 /// Software modem mode types.
 enum SoftwareModemMode {
@@ -47,6 +48,7 @@ enum SoftwareModemMode {
   afsk1200,
   psk2400,
   dart,
+  xara,
 }
 
 /// Holds a frame waiting to be transmitted once the channel is clear. The
@@ -203,6 +205,10 @@ class _ModemInstance {
   /// failed-CRC frames too (poor receptions are exactly what we want to see).
   void Function(DartDecodeResult result)? onDartAnalysis;
 
+  /// Non-null only for [SoftwareModemMode.xara]: the VARA FM compatible modem,
+  /// running in its own isolate.
+  XaraModem? xara;
+
   // A valid-FCS frame the plain HDLC receiver decoded from inside an FX.25
   // block, held briefly while we wait to see if the FX.25 Reed-Solomon path
   // delivers the same frame. If it does not (RS decode failed or the block did
@@ -230,6 +236,10 @@ class _ModemInstance {
   void processSamples(Uint8List data, int offset, int length) {
     const int chan = 0;
     const int subchan = 0;
+    if (xara != null) {
+      xara!.pushRx(data, offset, length);
+      return;
+    }
     if (dartModem != null) {
       _processDartSamples(data, offset, length);
       return;
@@ -369,6 +379,8 @@ class _ModemInstance {
     _dartScannedPos = 0;
     onDartFrame = null;
     onDartAnalysis = null;
+    xara?.dispose();
+    xara = null;
   }
 }
 
@@ -602,6 +614,20 @@ class SoftwareModem {
       callback: _onChannelClear,
     );
 
+    // XARA (VARA FM compatible) connected-mode link control, per radio.
+    for (final String command in const <String>['XaraConnect', 'XaraSend', 'XaraDisconnect', 'XaraAbort']) {
+      _broker.subscribe(
+        deviceId: DataBroker.allDevices,
+        name: command,
+        callback: _onXaraCommand,
+      );
+    }
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'SetXaraWide',
+      callback: _onSetXaraWideRequested,
+    );
+
     // Publish initial mode
     _broker.dispatch(deviceId: 0, name: 'SoftwareModemMode', data: _currentMode.name, store: true);
 
@@ -644,6 +670,8 @@ class SoftwareModem {
         return SoftwareModemMode.psk2400;
       case 'DART':
         return SoftwareModemMode.dart;
+      case 'XARA':
+        return SoftwareModemMode.xara;
       default:
         return SoftwareModemMode.none;
     }
@@ -665,6 +693,8 @@ class SoftwareModem {
         return FragmentEncodingType.softwarePsk2400;
       case SoftwareModemMode.dart:
         return FragmentEncodingType.softwareDart;
+      case SoftwareModemMode.xara:
+        return FragmentEncodingType.softwareXara;
       default:
         return FragmentEncodingType.unknown;
     }
@@ -815,6 +845,7 @@ class SoftwareModem {
     // Apply to any live DART instances immediately.
     for (final state in _radioModems.values) {
       state.generalModem?.dartCaptureQuality = _dartAnalysisEnabled;
+      state.generalModem?.xara?.setAnalysis(_dartAnalysisEnabled);
     }
     _broker.dispatch(
       deviceId: 0,
@@ -1191,6 +1222,7 @@ class SoftwareModem {
       case SoftwareModemMode.dart:
         // DART bypasses the Direwolf modem config entirely.
         break;
+      case SoftwareModemMode.xara:
       case SoftwareModemMode.none:
         break;
     }
@@ -1216,6 +1248,32 @@ class SoftwareModem {
           _onDartFrameReceived(state, instance, frame, result);
       instance.onDartAnalysis = (result) => _onDartAnalysis(result);
       _debug('Built DART modem instance for device ${state.deviceId}');
+      return instance;
+    }
+
+    if (mode == SoftwareModemMode.xara) {
+      instance.xara = XaraModem(
+        config: XaraModemConfig(
+          callsign: (_broker.getValue<String>(0, 'CallSign', '') ?? '').trim().toUpperCase(),
+          wide: _broker.getValue<bool>(0, 'XaraWide', false) ?? false,
+          registered: _broker.getValue<bool>(0, 'XaraRegistered', false) ?? false,
+          txLatencyMs: _broker.getValue<int>(0, 'XaraTxLatencyMs', 500) ?? 500,
+          sampleRate: sampleRate,
+          analysis: _dartAnalysisEnabled,
+        ),
+        onTransmit: (Uint8List pcm) {
+          // External audio sources are receive-only.
+          if (_disposed || !identical(_radioModems[state.deviceId], state)) return;
+          _broker.dispatch(
+            deviceId: state.deviceId,
+            name: 'TransmitVoicePCM',
+            data: {'Data': pcm, 'PlayLocally': false, 'IsDataFrame': true},
+            store: false,
+          );
+        },
+        onEvent: (Map<String, Object?> e) => _onXaraEvent(state, instance, e),
+      );
+      _debug('Built XARA modem instance for device ${state.deviceId}');
       return instance;
     }
 
@@ -1249,6 +1307,8 @@ class SoftwareModem {
         instance.pskDemodState = demodState;
         break;
       case SoftwareModemMode.dart:
+        break; // handled by the early return above
+      case SoftwareModemMode.xara:
         break; // handled by the early return above
       case SoftwareModemMode.none:
         break;
@@ -1423,6 +1483,118 @@ class SoftwareModem {
   }
 
   // ---------------------------------------------------------------------------
+  // XARA (VARA FM compatible) modem
+  // ---------------------------------------------------------------------------
+
+  /// Routes an event from a XARA modem isolate. Unconnected KISS frames join
+  /// the normal AX.25 receive path; link events are published per radio as
+  /// 'XaraLinkState' (stored), 'XaraDataReceived' and 'XaraEvent'.
+  void _onXaraEvent(
+    _RadioModemState state,
+    _ModemInstance instance,
+    Map<String, Object?> e,
+  ) {
+    if (_disposed) return;
+    final int dev = state.deviceId;
+    switch (e['evt']) {
+      case 'kiss':
+        final Object? data = e['data'];
+        if (data is! Uint8List || data.isEmpty) return;
+        _debug('RX XARA: ${data.length}-byte frame: ${_hex(data)}');
+        _refreshFollowedChannel(state);
+        final fragment = TncDataFragment(
+          finalFragment: true,
+          fragmentId: 0,
+          data: Uint8List.fromList(data),
+          channelId: state.currentChannelId,
+          regionId: state.currentRegionId,
+          channelName: state.currentChannelName,
+          incoming: true,
+          encoding: instance.encoding,
+          frameType: FragmentFrameType.ax25,
+          time: DateTime.now(),
+          radioMac: state.macAddress,
+          radioDeviceId: dev,
+        );
+        fragment.corrections = 0;
+        _dispatchDecodedFrame(dev, fragment);
+      case 'data':
+        _broker.dispatch(deviceId: dev, name: 'XaraDataReceived', data: e['data'], store: false);
+      case 'log':
+        _debug('XARA: ${e['text']}');
+      case 'state':
+        _broker.dispatch(deviceId: dev, name: 'XaraLinkState', data: e, store: true);
+      case 'analysis':
+        if (!_dartAnalysisEnabled) return;
+        _broker.dispatch(
+          deviceId: 1,
+          name: 'DartAnalysis',
+          data: <String, dynamic>{...e, 'time': DateTime.now().toIso8601String()}..remove('evt'),
+          store: true,
+        );
+      default:
+        _broker.dispatch(deviceId: dev, name: 'XaraEvent', data: e, store: false);
+    }
+  }
+
+  /// The XARA modem serving [deviceId]'s general pipeline, created on demand,
+  /// or null when XARA is not the effective software modem for that radio.
+  XaraModem? _xaraFor(int deviceId) {
+    if (!_softwareActiveForDevice(deviceId)) return null;
+    _RadioModemState? state = _radioModems[deviceId];
+    if (state == null) {
+      state = _createRadioModemState(deviceId);
+      if (state == null) return null;
+      _radioModems[deviceId] = state;
+    }
+    return state.generalModem?.xara;
+  }
+
+  /// Switches XARA between narrow and wide FM. Live XARA modems are rebuilt, which
+  /// drops any link in progress.
+  void _onSetXaraWideRequested(int deviceId, String name, Object? data) {
+    if (_disposed || data is! bool) return;
+    _broker.dispatch(deviceId: 0, name: 'XaraWide', data: data, store: true);
+    for (final _RadioModemState state in _radioModems.values) {
+      if (state.generalModem?.xara == null) continue;
+      state.generalModem!.dispose();
+      state.generalModem = _buildInstance(state, SoftwareModemMode.xara, _fecEnabled);
+    }
+    _debug('XARA bandwidth set to ${data ? "wide" : "narrow"}');
+  }
+
+  /// Handles 'XaraConnect' (`{'Remote': String, 'Vias': List<String>}`),
+  /// 'XaraSend' (Uint8List or String), 'XaraDisconnect' and 'XaraAbort'.
+  void _onXaraCommand(int deviceId, String name, Object? data) {
+    if (_disposed || deviceId <= 0) return;
+    final XaraModem? x = _xaraFor(deviceId);
+    if (x == null) {
+      _debug('$name ignored: XARA is not the software modem on device $deviceId');
+      return;
+    }
+    switch (name) {
+      case 'XaraConnect':
+        final Object? remote = data is Map ? (data['Remote'] ?? data['remote']) : data;
+        if (remote is! String || remote.trim().isEmpty) return;
+        final Object? vias = data is Map ? (data['Vias'] ?? data['vias']) : null;
+        x.connect(
+          remote.trim().toUpperCase(),
+          vias is List ? vias.map((v) => v.toString().trim().toUpperCase()).toList() : const <String>[],
+        );
+      case 'XaraSend':
+        if (data is Uint8List) {
+          x.send(data);
+        } else if (data is String) {
+          x.send(Uint8List.fromList(data.codeUnits));
+        }
+      case 'XaraDisconnect':
+        x.disconnect();
+      case 'XaraAbort':
+        x.abort();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // HtStatus tracking
   // ---------------------------------------------------------------------------
 
@@ -1553,6 +1725,13 @@ class SoftwareModem {
         'TransmitPacket: no ${isAprs ? "APRS" : "general"} modem instance for '
         'device $deviceId - dropping frame',
       );
+      return;
+    }
+
+    if (target.xara != null) {
+      // XARA schedules its own unconnected (record 16) transmissions and waits
+      // for a clear channel itself.
+      target.xara!.kiss(Uint8List.fromList(fragment.data));
       return;
     }
 
@@ -1830,6 +2009,7 @@ class SoftwareModem {
       case SoftwareModemMode.psk2400:
         return PacketModulation.psk2400;
       case SoftwareModemMode.dart:
+      case SoftwareModemMode.xara:
       case SoftwareModemMode.none:
         return null;
     }

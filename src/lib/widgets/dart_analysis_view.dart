@@ -16,21 +16,25 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:pasteboard/pasteboard.dart';
 
-/// Immutable view model for one received DART packet's reception analysis.
+/// Immutable view model for one received DART or XARA packet's reception analysis.
 ///
 /// Built from the JSON-safe map published by the software modem on device 1
-/// under 'DartAnalysis' (see SoftwareModem._onDartAnalysis).
+/// under 'DartAnalysis' (see SoftwareModem._onDartAnalysis / _onXaraEvent).
 class DartReceptionAnalysis {
+  /// 'DART' or 'XARA'.
+  final String protocol;
   final int modeIndex;
   final String modeDescription;
   final bool isFsk;
   final bool crcOk;
   final double evmPercent;
   final double snrDb;
-  final double preambleCorrelation;
-  final double channelGainDb;
+  final double? preambleCorrelation;
+  final double? channelGainDb;
   final double? phaseDriftDeg;
-  final int ldpcCorrections;
+  final int? ldpcCorrections;
+  final double? coherence;
+  final int? turboIterations;
   final int payloadLength;
   final double durationMs;
 
@@ -43,6 +47,7 @@ class DartReceptionAnalysis {
   final DateTime time;
 
   const DartReceptionAnalysis({
+    this.protocol = 'DART',
     required this.modeIndex,
     required this.modeDescription,
     required this.isFsk,
@@ -53,6 +58,8 @@ class DartReceptionAnalysis {
     required this.channelGainDb,
     required this.phaseDriftDeg,
     required this.ldpcCorrections,
+    this.coherence,
+    this.turboIterations,
     required this.payloadLength,
     required this.durationMs,
     required this.received,
@@ -66,6 +73,8 @@ class DartReceptionAnalysis {
     double d(Object? v, [double def = 0]) =>
         (v is num) ? v.toDouble() : def;
     int i(Object? v, [int def = 0]) => (v is num) ? v.toInt() : def;
+    double? od(Object? v) => (v is num) ? v.toDouble() : null;
+    int? oi(Object? v) => (v is num) ? v.toInt() : null;
 
     List<Offset> points(Object? iv, Object? qv) {
       if (iv is! List || qv is! List) return const <Offset>[];
@@ -83,16 +92,19 @@ class DartReceptionAnalysis {
 
     final drift = data['phaseDrift'];
     return DartReceptionAnalysis(
+      protocol: data['protocol']?.toString() ?? 'DART',
       modeIndex: i(data['mode']),
       modeDescription: data['modeDesc']?.toString() ?? '',
       isFsk: data['isFsk'] == true,
       crcOk: data['crcOk'] == true,
       evmPercent: d(data['evm']),
       snrDb: d(data['snr']),
-      preambleCorrelation: d(data['corr']),
-      channelGainDb: d(data['gain']),
+      preambleCorrelation: od(data['corr']),
+      channelGainDb: od(data['gain']),
       phaseDriftDeg: drift is num ? drift.toDouble() : null,
-      ldpcCorrections: i(data['ldpc']),
+      ldpcCorrections: oi(data['ldpc']),
+      coherence: od(data['coherence']),
+      turboIterations: oi(data['iterations']),
       payloadLength: i(data['payloadLen']),
       durationMs: d(data['durationMs']),
       received: points(data['rxI'], data['rxQ']),
@@ -107,7 +119,14 @@ class DartReceptionAnalysis {
 class DartAnalysisSection extends StatelessWidget {
   final DartReceptionAnalysis? analysis;
 
-  const DartAnalysisSection({super.key, required this.analysis});
+  /// Protocol named in the waiting placeholder.
+  final String protocol;
+
+  const DartAnalysisSection({
+    super.key,
+    required this.analysis,
+    this.protocol = 'DART',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +136,7 @@ class DartAnalysisSection extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Text(
-          'Waiting for a received DART packet…',
+          'Waiting for a received $protocol packet…',
           style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
         ),
       );
@@ -271,18 +290,29 @@ class DartAnalysisSection extends StatelessWidget {
             : '${ago.inMinutes}m ago';
 
     final chips = <Widget>[
-      _chip(scheme, 'Mode', '${a.modeIndex} — ${a.modeDescription}'),
+      _chip(
+        scheme,
+        a.protocol == 'XARA' ? 'Record' : 'Mode',
+        '${a.modeIndex} — ${a.modeDescription}',
+      ),
       _chip(scheme, 'SNR', '${a.snrDb.toStringAsFixed(1)} dB', emphasize: true),
       _chip(scheme, 'EVM', '${a.evmPercent.toStringAsFixed(1)} %'),
-      _chip(scheme, 'Preamble corr', a.preambleCorrelation.toStringAsFixed(2)),
-      _chip(scheme, 'Channel gain', '${a.channelGainDb.toStringAsFixed(1)} dB'),
+      if (a.preambleCorrelation != null)
+        _chip(scheme, 'Preamble corr', a.preambleCorrelation!.toStringAsFixed(2)),
+      if (a.coherence != null)
+        _chip(scheme, 'Coherence', a.coherence!.toStringAsFixed(2)),
+      if (a.channelGainDb != null)
+        _chip(scheme, 'Channel gain', '${a.channelGainDb!.toStringAsFixed(1)} dB'),
       if (a.phaseDriftDeg != null)
         _chip(
           scheme,
           'Phase drift',
           '${a.phaseDriftDeg!.toStringAsFixed(1)}°/sym',
         ),
-      _chip(scheme, 'LDPC fixes', '${a.ldpcCorrections}'),
+      if (a.ldpcCorrections != null)
+        _chip(scheme, 'LDPC fixes', '${a.ldpcCorrections}'),
+      if (a.turboIterations != null)
+        _chip(scheme, 'Turbo iterations', '${a.turboIterations}'),
       _chip(scheme, 'Payload', '${a.payloadLength} B'),
       _chip(scheme, 'Duration', '${a.durationMs.toStringAsFixed(0)} ms'),
       _chip(

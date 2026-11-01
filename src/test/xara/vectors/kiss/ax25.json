@@ -1,0 +1,696 @@
+{
+ "cases": [
+  {
+   "name": "position_symbol_comment_alias_path",
+   "kiss_command": 0,
+   "kiss_tcp_in_hex": "c00082a0ac82a482e09c608682989872ae92888a624062ae92888a64406303f021343930332e35304e2f30373230312e3735572d5048473233363020564152412048462074657374202f413d303031323334c0",
+   "ax25_frame_hex": "82a0ac82a482e09c608682989872ae92888a624062ae92888a64406303f021343930332e35304e2f30373230312e3735572d5048473233363020564152412048462074657374202f413d303031323334",
+   "record": {
+    "dest": "APVARA",
+    "src": "N0CALL-9",
+    "digis": ["WIDE1-1", "WIDE2-1"],
+    "aprs_type": 2,
+    "alias_index": 1
+   },
+   "bit_fields": [
+    {
+     "bits": "00"
+    },
+    {
+     "bits": "110011"
+    },
+    {
+     "bits": "0011100110110000110000010011000011001001"
+    },
+    {
+     "bits": "1001"
+    },
+    {
+     "bits": "010"
+    },
+    {
+     "bits": "0111011110110110111011000010101111110100101111101011011010000100100010001110110010011001101101100110000010000000000100100000000010011101001100101111001111101000100000000000100010011010010"
+    },
+    {
+     "bits": "000000"
+    }
+   ],
+   "vara_kiss_buffer_hex": "493339b0c130c994ef6dd857e97d6d0911d9336cc10024013a65e7d100113480",
+   "level": 2,
+   "announce_code": 47,
+   "fragments": 2,
+   "frames": [
+    {
+     "field_hex": "c9e03339b0c130c994ef6dd857e97d6d0911d9336cc1",
+     "frame_hex": "c9e03339b0c130c994ef6dd857e97d6d0911d9336cc1017d59",
+     "control_byte": 1,
+     "coded_tx_bits_hex": "2949a00def95de7f7cad1595fa39e61e97cee82412aa591bcf3c08e342db834562368dfba71b6e43371d9fa202f7ded614d6e485a77dec852d129f08952a50331e6afad8c95f85d37b278a4810",
+     "coded_tx_bits": 612
+    },
+    {
+     "field_hex": "490024013a65e7d100113480",
+     "frame_hex": "490024013a65e7d10011348014000000000000000000005c09",
+     "control_byte": 0,
+     "coded_tx_bits_hex": "c5ef47e81e6cfae91f1129ec6aa33806b2a96233a8801dc48e2abd7170a9ff25b390e468a3421ce316bdd6a2ac63a27740599c02262496b298214c9f86698e3ec84c1017fd01d709e67ea785f0",
+     "coded_tx_bits": 612
+    }
+   ],
+   "receiver_ax25_frame_hex": "82a0ac82a482609c608682989872ae92888a624062ae92888a64406303f021343930332e35304e2f30373230312e3735572d5048473233363020564152412048462074657374202f413d303031323334",
+   "receiver_kiss_tcp_out_hex": "c00082a0ac82a482609c608682989872ae92888a624062ae92888a64406303f021343930332e35304e2f30373230312e3735572d5048473233363020564152412048462074657374202f413d303031323334c0",
+   "receiver_equals_input": false
+  },
+  {
+   "name": "position_timestamp_hms",
+   "kiss_command": 0,
+   "kiss_tcp_in_hex": "c00082a0a4a64040e09c60868298986103f04030393233343568343930332e35304e2f30373230312e3735573e4d6f62696c65c0",
+   "ax25_frame_hex": "82a0a4a64040e09c60868298986103f04030393233343568343930332e35304e2f30373230312e3735573e4d6f62696c65",
+   "record": {
+    "dest": "APRS",
+    "src": "N0CALL",
+    "digis": [],
+    "aprs_type": 3,
+    "alias_index": 0
+   },
+   "bit_fields": [
+    {
+     "bits": "110100010010010011000000"
+    },
+    {
+     "bits": "0011100110110000110000010011000011000000"
+    },
+    {
+     "bits": "011"
+    },
+    {
+     "bits": "00010110100010111001011101111011011011101100001010111111010010111110111110100110111011111100010110100111011001100101"
+    },
+    {
+     "bits": "0"
+    }
+   ],
+   "vara_kiss_buffer_hex": "40d124c039b0c130c062d172ef6dd857e97df4ddf8b4ecca",
+   "level": 1,
+   "announce_code": 45,
+   "fragments": 3,
+   "frames": [
+    {
+     "field_hex": "c061d124c039b0c130",
+     "frame_hex": "c061d124c039b0c130092be0",
+     "control_byte": 9,
+     "coded_tx_bits_hex": "4b5fd12b32a6931e5017c88d11a48f270cbb218b226a7bdd1bc005967f3e3c9ca5e34399ff20",
+     "coded_tx_bits": 300
+    },
+    {
+     "field_hex": "c0c062d172ef6dd857",
+     "frame_hex": "c0c062d172ef6dd85709a9db",
+     "control_byte": 9,
+     "coded_tx_bits_hex": "c19df217dae0ace7d9fe7e9c3e85479855706e32b87b43df1d6cec72191bf1fec3282a79bbc0",
+     "coded_tx_bits": 300
+    },
+    {
+     "field_hex": "40e97df4ddf8b4ecca",
+     "frame_hex": "40e97df4ddf8b4ecca09b0eb",
+     "control_byte": 9,
+     "coded_tx_bits_hex": "6013dd2653bccc738f3252dc2f821cbe8213de89e06f6789a787fd8cbda6633a25c03bfb2730",
+     "coded_tx_bits": 300
+    }
+   ],
+   "receiver_ax25_frame_hex": "82a0a4a64040609c60868298986103f04030393233343568343930332e35304e2f30373230312e3735573e4d6f62696c65",
+   "receiver_kiss_tcp_out_hex": "c00082a0a4a64040609c60868298986103f04030393233343568343930332e35304e2f30373230312e3735573e4d6f62696c65c0",
+   "receiver_equals_input": false
+  },
+  {
+   "name": "message_with_msgno",
+   "kiss_command": 0,
+   "kiss_tcp_in_hex": "c00082a0a4a64040e09c608682989860ae92888a64406303f03a4e3143414c4c2d35203a48656c6c6f2061636b20746573747b303031c0",
+   "ax25_frame_hex": "82a0a4a64040e09c608682989860ae92888a64406303f03a4e3143414c4c2d35203a48656c6c6f2061636b20746573747b303031",
+   "record": {
+    "dest": "APRS",
+    "src": "N0CALL",
+    "digis": ["WIDE2-1"],
+    "aprs_type": 4,
+    "alias_index": 0
+   },
+   "bit_fields": [
+    {
+     "bits": "0"
+    },
+    {
+     "bits": "110100010010010011000000"
+    },
+    {
+     "bits": "0011100110110000110000010011000011000000"
+    },
+    {
+     "bits": "0"
+    },
+    {
+     "bits": "100101101"
+    },
+    {
+     "bits": "100"
+    },
+    {
+     "bits": "00111001110000001100000100110000110001011001000110010111011001101100110111101000000000101010000011101001100101111001111101001111011011000001100000110001"
+    },
+    {
+     "bits": "00"
+    }
+   ],
+   "vara_kiss_buffer_hex": "486892601cd860986025b0e70304c316465d9b37a00a83a65e7d3db060c4",
+   "level": 2,
+   "announce_code": 47,
+   "fragments": 2,
+   "frames": [
+    {
+     "field_hex": "c8706892601cd860986025b0e70304c316465d9b37a0",
+     "frame_hex": "c8706892601cd860986025b0e70304c316465d9b37a0012e2c",
+     "control_byte": 1,
+     "coded_tx_bits_hex": "ea4b1b404055a3e2915061f26f4f58de0bab26f5210fca116c142908b515ea7982c0797b630a7855e4769eeea2edb269f296df4356b87d55a71203931e7f1167d3b9e1d5a7cf8262e03a1f67d0",
+     "coded_tx_bits": 612
+    },
+    {
+     "field_hex": "480a83a65e7d3db060c4",
+     "frame_hex": "480a83a65e7d3db060c4140000000000000000000000000a5e",
+     "control_byte": 0,
+     "coded_tx_bits_hex": "6562c5fa4c139b66b90c56cf6ea872c7828d014a830c71b89d20a9013339b58eb7c3ee6134a4697dd0b297c3c972f7356a5902d3e32e02fc7990f41f379382acdd2ddf1fd3335d7f36f2057c60",
+     "coded_tx_bits": 612
+    }
+   ],
+   "receiver_ax25_frame_hex": "82a0a4a64040609c608682989860ae92888a64406303f03a4e3143414c4c2d35203a48656c6c6f2061636b20746573747b303031",
+   "receiver_kiss_tcp_out_hex": "c00082a0a4a64040609c608682989860ae92888a64406303f03a4e3143414c4c2d35203a48656c6c6f2061636b20746573747b303031c0",
+   "receiver_equals_input": false
+  },
+  {
+   "name": "status",
+   "kiss_command": 0,
+   "kiss_tcp_in_hex": "c00082a0ac82a482e09c60868298986103f03e5374617475732074657874c0",
+   "ax25_frame_hex": "82a0ac82a482e09c60868298986103f03e5374617475732074657874",
+   "record": {
+    "dest": "APVARA",
+    "src": "N0CALL",
+    "digis": [],
+    "aprs_type": 0,
+    "alias_index": 0
+   },
+   "bit_fields": [
+    {
+     "bits": "110011"
+    },
+    {
+     "bits": "0011100110110000110000010011000011000000"
+    },
+    {
+     "bits": "000"
+    },
+    {
+     "bits": "011111010100111110100110000111101001110101111001101000001110100110010111110001110100"
+    },
+    {
+     "bits": "1"
+    },
+    {
+     "bits": "11"
+    }
+   ],
+   "vara_kiss_buffer_hex": "40cce6c304c3003ea7d30f4ebcd074cbe3a7",
+   "level": 2,
+   "announce_code": 47,
+   "fragments": 1,
+   "frames": [
+    {
+     "field_hex": "40cce6c304c3003ea7d30f4ebcd074cbe3a7",
+     "frame_hex": "40cce6c304c3003ea7d30f4ebcd074cbe3a714000000007807",
+     "control_byte": 0,
+     "coded_tx_bits_hex": "e5e407f17df16d74898686646cd9f4cfbe6547422e3adffb750bd49750bef650717cbb6ccc10adfa068075384eb25d6cdcd450d363c2ef06103b1c2bb39001b8dbeedd8fd1457f352d47aa9290",
+     "coded_tx_bits": 612
+    }
+   ],
+   "receiver_ax25_frame_hex": "82a0ac82a482609c60868298986103f03e5374617475732074657874",
+   "receiver_kiss_tcp_out_hex": "c00082a0ac82a482609c60868298986103f03e5374617475732074657874c0",
+   "receiver_equals_input": false
+  },
+  {
+   "name": "telemetry",
+   "kiss_command": 0,
+   "kiss_tcp_in_hex": "c00082a0a4a64040e09c60868298986103f054233030352c3139392c3030302c3235352c3037332c3132332c3031313031303031c0",
+   "ax25_frame_hex": "82a0a4a64040e09c60868298986103f054233030352c3139392c3030302c3235352c3037332c3132332c3031313031303031",
+   "record": {
+    "dest": "APRS",
+    "src": "N0CALL",
+    "digis": [],
+    "aprs_type": 0,
+    "alias_index": 0
+   },
+   "bit_fields": [
+    {
+     "bits": "110100010010010011000000"
+    },
+    {
+     "bits": "0011100110110000110000010011000011000000"
+    },
+    {
+     "bits": "000"
+    },
+    {
+     "bits": "1010100010001101100000110000011010101011000110001011100101110010101100011000001100000110000010110001100100110101011010101011000110000011011101100110101100011000101100100110011010110001100000110001011000101100000110001011000001100000110001"
+    },
+    {
+     "bits": "0"
+    },
+    {
+     "bits": "000000"
+    }
+   ],
+   "vara_kiss_buffer_hex": "40d124c039b0c130c01511b060d563172e563060c16326ad56306ecd63164cd63062c583160c1880",
+   "level": 2,
+   "announce_code": 47,
+   "fragments": 2,
+   "frames": [
+    {
+     "field_hex": "c060d124c039b0c130c01511b060d563172e563060c1",
+     "frame_hex": "c060d124c039b0c130c01511b060d563172e563060c101b9e2",
+     "control_byte": 1,
+     "coded_tx_bits_hex": "282892516ebd0e3afdbc7d6afe92da435e80890c14ce4e7c1ca4fc1b07da5295d62806f30a8a5babc3f811eacfb5ebf5d8dff26e80097c1f10c3db30178b380fa0e83b73d935b7a977f3a19e00",
+     "coded_tx_bits": 612
+    },
+    {
+     "field_hex": "406326ad56306ecd63164cd63062c583160c1880",
+     "frame_hex": "406326ad56306ecd63164cd63062c583160c18801400005b19",
+     "control_byte": 0,
+     "coded_tx_bits_hex": "f58511927ec087b59f001e5d7e41aa064665b6303ccfd989cc029c1d9329987a7e9e29ecab5a1d22fba991744e620f3514599d9745a00a9cf106758fe580293c44af8bb3fbe1486d2ebe95ca20",
+     "coded_tx_bits": 612
+    }
+   ],
+   "receiver_ax25_frame_hex": "82a0a4a64040609c60868298986103f054233030352c3139392c3030302c3235352c3037332c3132332c3031313031303031",
+   "receiver_kiss_tcp_out_hex": "c00082a0a4a64040609c60868298986103f054233030352c3139392c3030302c3235352c3037332c3132332c3031313031303031c0",
+   "receiver_equals_input": false
+  },
+  {
+   "name": "plain_ui_to_cq",
+   "kiss_command": 0,
+   "kiss_tcp_in_hex": "c00086a240404040e09c60868298986103f048656c6c6f204351206465204e3043414c4cc0",
+   "ax25_frame_hex": "86a240404040e09c60868298986103f048656c6c6f204351206465204e3043414c4c",
+   "record": {
+    "dest": "CQ",
+    "src": "N0CALL",
+    "digis": [],
+    "aprs_type": 0,
+    "alias_index": 0
+   },
+   "bit_fields": [
+    {
+     "bits": "101011"
+    },
+    {
+     "bits": "0011100110110000110000010011000011000000"
+    },
+    {
+     "bits": "0"
+    },
+    {
+     "bits": "100100011001011101100110110011011110100000100001110100010100000110010011001010100000100111001100001000011100000110011001001100"
+    },
+    {
+     "bits": "1"
+    },
+    {
+     "bits": "11"
+    }
+   ],
+   "vara_kiss_buffer_hex": "40ace6c304c301232ecd9bd043a2832654139843833267",
+   "level": 2,
+   "announce_code": 47,
+   "fragments": 2,
+   "frames": [
+    {
+     "field_hex": "c070ace6c304c301232ecd9bd043a283265413984383",
+     "frame_hex": "c070ace6c304c301232ecd9bd043a2832654139843830118fa",
+     "control_byte": 1,
+     "coded_tx_bits_hex": "64dd003678f6c6b9f17f60cceb71101e5375293d0be09d82beac6f7417dd21e1a4ed1d7a593aae012861d4085a74fae9ac37b36bc2201dc662f943af4f0bb1e3f7f89fbedbfeda64fd5b3ed290",
+     "coded_tx_bits": 612
+    },
+    {
+     "field_hex": "403267",
+     "frame_hex": "403267140000000000000000000000000000000000000056f8",
+     "control_byte": 0,
+     "coded_tx_bits_hex": "690cc2e8062dfb4d3d3865441685380af4a7740c0bc9a7b7bfacab28b5b0f94eb7ab8e7174d45918517b948b8cb4e2bdc459c0f632a5aaa6b09305bbc78b8e26f31f4f99f567547cecdb866f70",
+     "coded_tx_bits": 612
+    }
+   ],
+   "receiver_ax25_frame_hex": "86a240404040609c60868298986103f048656c6c6f204351206465204e3043414c4c",
+   "receiver_kiss_tcp_out_hex": "c00086a240404040609c60868298986103f048656c6c6f204351206465204e3043414c4cc0",
+   "receiver_equals_input": false
+  },
+  {
+   "name": "digipeated_path_h_bit",
+   "kiss_command": 0,
+   "kiss_tcp_in_hex": "c00082a0a4a64040e09c6086829898609c6288928e40e0ae92888a64406303f021343930332e35304e5c30373230312e3735576bc0",
+   "ax25_frame_hex": "82a0a4a64040e09c6086829898609c6288928e40e0ae92888a64406303f021343930332e35304e5c30373230312e3735576b",
+   "record": {
+    "dest": "APRS",
+    "src": "N0CALL",
+    "digis": ["N1DIG", "WIDE2-1"],
+    "aprs_type": 2,
+    "alias_index": 0
+   },
+   "bit_fields": [
+    {
+     "bits": "10"
+    },
+    {
+     "bits": "110100010010010011000000"
+    },
+    {
+     "bits": "0011100110110000110000010011000011000000"
+    },
+    {
+     "bits": "0"
+    },
+    {
+     "bits": "0011100111000001000010010001110000000000"
+    },
+    {
+     "bits": "100101101"
+    },
+    {
+     "bits": "010"
+    },
+    {
+     "bits": "011101111011011011101100101010111111010010111111101011"
+    },
+    {
+     "bits": "000"
+    }
+   ],
+   "vara_kiss_buffer_hex": "49b449300e6c304c30073821238012d4ef6dd957e97f58",
+   "level": 1,
+   "announce_code": 45,
+   "fragments": 3,
+   "frames": [
+    {
+     "field_hex": "c911b449300e6c304c",
+     "frame_hex": "c911b449300e6c304c09bdc2",
+     "control_byte": 9,
+     "coded_tx_bits_hex": "b26cdee0e1f2ae7a04fafb5f717576bf3e902ea23eb34e0d2c7c5ba49336f9f60b7db7a973b0",
+     "coded_tx_bits": 300
+    },
+    {
+     "field_hex": "c930073821238012d4",
+     "frame_hex": "c930073821238012d4097ae3",
+     "control_byte": 9,
+     "coded_tx_bits_hex": "b93b7b74faf79d9a944c7bd03934cc34b7d38dbdaae13f18ab7bdace512331365d7af580de30",
+     "coded_tx_bits": 300
+    },
+    {
+     "field_hex": "49ef6dd957e97f58",
+     "frame_hex": "49ef6dd957e97f5814082381",
+     "control_byte": 8,
+     "coded_tx_bits_hex": "580a31526dfd61375b4c8b0ada63431639e95e2484f6363eb716fba2aae18692ff4ad2ada340",
+     "coded_tx_bits": 300
+    }
+   ],
+   "receiver_ax25_frame_hex": "82a0a4a64040609c6086829898609c6288928e40e0ae92888a64406303f021343930332e35304e5c30373230312e3735576b",
+   "receiver_kiss_tcp_out_hex": "c00082a0a4a64040609c6086829898609c6288928e40e0ae92888a64406303f021343930332e35304e5c30373230312e3735576bc0",
+   "receiver_equals_input": false
+  },
+  {
+   "name": "third_party",
+   "kiss_command": 0,
+   "kiss_tcp_in_hex": "c00082a0a4a64040e0928e82a88a406103f07d4e3043414c4c3e415052532c54435049502c49474154452a3a21343930332e35304e2f30373230312e3735572d4869c0",
+   "ax25_frame_hex": "82a0a4a64040e0928e82a88a406103f07d4e3043414c4c3e415052532c54435049502c49474154452a3a21343930332e35304e2f30373230312e3735572d4869",
+   "record": {
+    "dest": "APRS",
+    "src": "IGATE",
+    "digis": [],
+    "aprs_type": 6,
+    "alias_index": 0
+   },
+   "bit_fields": [
+    {
+     "bits": "110100010010010011000000"
+    },
+    {
+     "bits": "0010010001110000010101000001010000000000"
+    },
+    {
+     "bits": "110"
+    },
+    {
+     "bits": "0011100110110000110000010011000011000000"
+    },
+    {
+     "bits": "110100010010010011000000"
+    },
+    {
+     "bits": "0010010001110000010101000001010000000000"
+    },
+    {
+     "bits": "00"
+    },
+    {
+     "bits": "01110111101101101110110000101011111101001011111010110110010001101001"
+    },
+    {
+     "bits": "0000000"
+    }
+   ],
+   "vara_kiss_buffer_hex": "40d124c02470541400c7361826181a2498048e0a828003bdb7615fa5f5b23480",
+   "level": 2,
+   "announce_code": 47,
+   "fragments": 2,
+   "frames": [
+    {
+     "field_hex": "c020d124c02470541400c7361826181a2498048e0a82",
+     "frame_hex": "c020d124c02470541400c7361826181a2498048e0a8201ad5a",
+     "control_byte": 1,
+     "coded_tx_bits_hex": "7a66c02a9e5f502b0f40c851eab05045d8b1c9f211de2fdeececfd3da1f8ebf494494f47ffe878f3d3a8998bade63e6cde7bdc5080e66caddd8a1a9d4d139a17e788cff2fbd7f4566ad219b8c0",
+     "coded_tx_bits": 612
+    },
+    {
+     "field_hex": "408003bdb7615fa5f5b23480",
+     "frame_hex": "408003bdb7615fa5f5b234801400000000000000000000a49a",
+     "control_byte": 0,
+     "coded_tx_bits_hex": "f1c7cafa004258e6fa1006c196bcca17466358392144cd5bcfa2ab19a524e5b5b37ca47924da6c4093bc9dd9bd320775265c932662edceee1188b13366e9c355da7c14c9ebb1d76cf84a869ff0",
+     "coded_tx_bits": 612
+    }
+   ],
+   "receiver_ax25_frame_hex": "82a0a4a6404060928e82a88a406103f07d4e3043414c4c3e415052532c54435049502c49474154452a3a21343930332e35304e2f30373230312e3735572d4869",
+   "receiver_kiss_tcp_out_hex": "c00082a0a4a6404060928e82a88a406103f07d4e3043414c4c3e415052532c54435049502c49474154452a3a21343930332e35304e2f30373230312e3735572d4869c0",
+   "receiver_equals_input": false
+  },
+  {
+   "name": "compressed_position_raw",
+   "kiss_command": 0,
+   "kiss_tcp_in_hex": "c00082a0a4a64040e09c60868298986103f0212f354c21213c2a65373e37505bc0",
+   "ax25_frame_hex": "82a0a4a64040e09c60868298986103f0212f354c21213c2a65373e37505b",
+   "record": {
+    "dest": "APRS",
+    "src": "N0CALL",
+    "digis": [],
+    "aprs_type": 0,
+    "alias_index": 0
+   },
+   "bit_fields": [
+    {
+     "bits": "110100010010010011000000"
+    },
+    {
+     "bits": "0011100110110000110000010011000011000000"
+    },
+    {
+     "bits": "000"
+    },
+    {
+     "bits": "01000010101111011010110011000100001010000101111000101010110010101101110111110011011110100001011011"
+    },
+    {
+     "bits": "0"
+    },
+    {
+     "bits": "00"
+    }
+   ],
+   "vara_kiss_buffer_hex": "40d124c039b0c130c00857b598850bc5595bbe6f42d8",
+   "level": 2,
+   "announce_code": 47,
+   "fragments": 1,
+   "frames": [
+    {
+     "field_hex": "40d124c039b0c130c00857b598850bc5595bbe6f42d8",
+     "frame_hex": "40d124c039b0c130c00857b598850bc5595bbe6f42d801e9ff",
+     "control_byte": 1,
+     "coded_tx_bits_hex": "2b941daf73112a791de3e6994ee5d4c5cc254ca29a5ef1794ce0f9f2a3e345235e0bc8be70e7e81b4fc8d08a5434c5d106c6ef6864a6f6cdc46cb99a8e73855f556f4c90633f5abc0506ee7f50",
+     "coded_tx_bits": 612
+    }
+   ],
+   "receiver_ax25_frame_hex": "82a0a4a64040609c60868298986103f0212f354c21213c2a65373e37505b",
+   "receiver_kiss_tcp_out_hex": "c00082a0a4a64040609c60868298986103f0212f354c21213c2a65373e37505bc0",
+   "receiver_equals_input": false
+  },
+  {
+   "name": "binary_info_8bit",
+   "kiss_command": 0,
+   "kiss_tcp_in_hex": "c000848a82869e9ce09c60868298986103f08081828384858687c0",
+   "ax25_frame_hex": "848a82869e9ce09c60868298986103f08081828384858687",
+   "record": {
+    "dest": "BEACON",
+    "src": "N0CALL",
+    "digis": [],
+    "aprs_type": 1,
+    "alias_index": 0
+   },
+   "bit_fields": [
+    {
+     "bits": "0000100001010000010000110011110011100000"
+    },
+    {
+     "bits": "0011100110110000110000010011000011000000"
+    },
+    {
+     "bits": "1"
+    },
+    {
+     "bits": "1000000010000001100000101000001110000100100001011000011010000111"
+    },
+    {
+     "bits": "0000000"
+    }
+   ],
+   "vara_kiss_buffer_hex": "400850433ce039b0c130c0c040c141c242c34380",
+   "level": 2,
+   "announce_code": 47,
+   "fragments": 1,
+   "frames": [
+    {
+     "field_hex": "400850433ce039b0c130c0c040c141c242c34380",
+     "frame_hex": "400850433ce039b0c130c0c040c141c242c3438014000087d5",
+     "control_byte": 0,
+     "coded_tx_bits_hex": "60a245a855d3638ac9190f4102c634d705311436b246fbef7d22eafbb37b5f9e479f51e8b57c98505d92dc8d0b67fd6142d85923a689a2a938c03d9104ac834d489ca93bd15f4c8ddf7f0d2320",
+     "coded_tx_bits": 612
+    }
+   ],
+   "receiver_ax25_frame_hex": "848a82869e9c609c60868298986103f08081828384858687",
+   "receiver_kiss_tcp_out_hex": "c000848a82869e9c609c60868298986103f08081828384858687c0",
+   "receiver_equals_input": false
+  },
+  {
+   "name": "seven_char_calls_cmd1",
+   "kiss_command": 1,
+   "kiss_tcp_in_hex": "c00182a0a4a6404040e09c6086829898b06103f03e372d636861722063616c6c73c0",
+   "ax25_frame_hex": "82a0a4a6404040e09c6086829898b06103f03e372d636861722063616c6c73",
+   "record": {
+    "dest": "APRS",
+    "src": "N0CALLX",
+    "digis": [],
+    "aprs_type": 0,
+    "alias_index": 0
+   },
+   "bit_fields": [
+    {
+     "bits": "110100010010010011000000"
+    },
+    {
+     "bits": "0011100110110000110000010011000011000110000000"
+    },
+    {
+     "bits": "000"
+    },
+    {
+     "bits": "0111110011011101011011100011110100011000011110010010000011000111100001110110011011001110011"
+    },
+    {
+     "bits": "0"
+    },
+    {
+     "bits": "000"
+    }
+   ],
+   "vara_kiss_buffer_hex": "50d124c039b0c130c6003e6eb71e8c3c9063c3b36730",
+   "level": 2,
+   "announce_code": 47,
+   "fragments": 1,
+   "frames": [
+    {
+     "field_hex": "50d124c039b0c130c6003e6eb71e8c3c9063c3b36730",
+     "frame_hex": "50d124c039b0c130c6003e6eb71e8c3c9063c3b3673001638b",
+     "control_byte": 1,
+     "coded_tx_bits_hex": "e88875e8117d23b8ff1c7df113219646b7a86ca77b129ddc3f57a914f5c6566a13c89b177d4d895067cd332ad62bb2505658a325f3fff6811fb5bb82cbaa663aa17e7007eb942830c46e34b8e0",
+     "coded_tx_bits": 612
+    }
+   ],
+   "receiver_ax25_frame_hex": "82a0a4a6404040609c6086829898b06103f03e372d636861722063616c6c73",
+   "receiver_kiss_tcp_out_hex": "c00182a0a4a6404040609c6086829898b06103f03e372d636861722063616c6c73c0",
+   "receiver_equals_input": false
+  },
+  {
+   "name": "quirk_wide2_2_and_equals",
+   "kiss_command": 0,
+   "kiss_tcp_in_hex": "c00082a0a4a64040e09c608682989860ae92888a64406503f03d343930332e35304e2f30373230312e3735572d78c0",
+   "ax25_frame_hex": "82a0a4a64040e09c608682989860ae92888a64406503f03d343930332e35304e2f30373230312e3735572d78",
+   "record": {
+    "dest": "APRS",
+    "src": "N0CALL",
+    "digis": ["WIDE2-2"],
+    "aprs_type": 2,
+    "alias_index": 0
+   },
+   "bit_fields": [
+    {
+     "bits": "0"
+    },
+    {
+     "bits": "110100010010010011000000"
+    },
+    {
+     "bits": "0011100110110000110000010011000011000000"
+    },
+    {
+     "bits": "0"
+    },
+    {
+     "bits": "100101110"
+    },
+    {
+     "bits": "010"
+    },
+    {
+     "bits": "0111011110110110111011000010101111110100101111101011011111000"
+    },
+    {
+     "bits": "00000"
+    }
+   ],
+   "vara_kiss_buffer_hex": "486892601cd860986025c9dedbb0afd2fadf00",
+   "level": 1,
+   "announce_code": 45,
+   "fragments": 3,
+   "frames": [
+    {
+     "field_hex": "c8f16892601cd86098",
+     "frame_hex": "c8f16892601cd86098093443",
+     "control_byte": 9,
+     "coded_tx_bits_hex": "2d435e863b8427a8cc70efeb5dfff42fc6f6709cf1ab2f0b2c810ea4f83b8ed6396eb439db70",
+     "coded_tx_bits": 300
+    },
+    {
+     "field_hex": "c86025c9dedbb0afd2",
+     "frame_hex": "c86025c9dedbb0afd2092993",
+     "control_byte": 9,
+     "coded_tx_bits_hex": "fd9ef955b0a08f66c0d631c8823d679c157b689996d31698384c341ed5ce1354efc992059a30",
+     "coded_tx_bits": 300
+    },
+    {
+     "field_hex": "48fadf00",
+     "frame_hex": "48fadf00140000000008af6c",
+     "control_byte": 8,
+     "coded_tx_bits_hex": "bf6195acc79a515752882faf94897ea52ca1248d58d45e8d3fea1adffbd064528d8fd01a0e20",
+     "coded_tx_bits": 300
+    }
+   ],
+   "receiver_ax25_frame_hex": "82a0a4a64040609c608682989860ae92888a64407503f021343930332e35304e2f30373230312e3735572d78",
+   "receiver_kiss_tcp_out_hex": "c00082a0a4a64040609c608682989860ae92888a64407503f021343930332e35304e2f30373230312e3735572d78c0",
+   "receiver_equals_input": false
+  }
+ ]
+}

@@ -3947,7 +3947,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settingsWinlinkGatewayDbInfo =>
-      'Winlink パケットゲートウェイの小さなオフライン一覧をダウンロードし、近くの局とその周波数を地図で確認できます。';
+      'Winlink パケットおよび VARA-FM ゲートウェイの小さなオフライン一覧をダウンロードし、近くの局とその周波数を地図で確認できます。';
 
   @override
   String settingsWinlinkGatewayDbInstalled(String version, int count) {

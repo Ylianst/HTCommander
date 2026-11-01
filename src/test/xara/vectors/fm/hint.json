@@ -1,0 +1,543 @@
+{
+ "cases": [
+  {
+   "mode": "NARROW",
+   "level": 15,
+   "queued_after": 0,
+   "vias": false,
+   "hint": 2
+  },
+  {
+   "mode": "NARROW",
+   "level": 15,
+   "queued_after": 11,
+   "vias": false,
+   "hint": 2
+  },
+  {
+   "mode": "NARROW",
+   "level": 15,
+   "queued_after": 300,
+   "vias": false,
+   "hint": 2
+  },
+  {
+   "mode": "NARROW",
+   "level": 15,
+   "queued_after": 334,
+   "vias": false,
+   "hint": 2
+  },
+  {
+   "mode": "NARROW",
+   "level": 15,
+   "queued_after": 335,
+   "vias": false,
+   "hint": 4
+  },
+  {
+   "mode": "NARROW",
+   "level": 15,
+   "queued_after": 668,
+   "vias": false,
+   "hint": 4
+  },
+  {
+   "mode": "NARROW",
+   "level": 15,
+   "queued_after": 669,
+   "vias": false,
+   "hint": 4
+  },
+  {
+   "mode": "NARROW",
+   "level": 15,
+   "queued_after": 1400,
+   "vias": false,
+   "hint": 5
+  },
+  {
+   "mode": "NARROW",
+   "level": 15,
+   "queued_after": 3000,
+   "vias": false,
+   "hint": 7
+  },
+  {
+   "mode": "NARROW",
+   "level": 15,
+   "queued_after": 6000,
+   "vias": false,
+   "hint": 7
+  },
+  {
+   "mode": "NARROW",
+   "level": 15,
+   "queued_after": 20000,
+   "vias": false,
+   "hint": 7
+  },
+  {
+   "mode": "NARROW",
+   "level": 1,
+   "queued_after": 0,
+   "vias": false,
+   "hint": 2
+  },
+  {
+   "mode": "NARROW",
+   "level": 1,
+   "queued_after": 11,
+   "vias": false,
+   "hint": 2
+  },
+  {
+   "mode": "NARROW",
+   "level": 1,
+   "queued_after": 300,
+   "vias": false,
+   "hint": 2
+  },
+  {
+   "mode": "NARROW",
+   "level": 1,
+   "queued_after": 334,
+   "vias": false,
+   "hint": 2
+  },
+  {
+   "mode": "NARROW",
+   "level": 1,
+   "queued_after": 335,
+   "vias": false,
+   "hint": 4
+  },
+  {
+   "mode": "NARROW",
+   "level": 1,
+   "queued_after": 668,
+   "vias": false,
+   "hint": 4
+  },
+  {
+   "mode": "NARROW",
+   "level": 1,
+   "queued_after": 669,
+   "vias": false,
+   "hint": 4
+  },
+  {
+   "mode": "NARROW",
+   "level": 1,
+   "queued_after": 1400,
+   "vias": false,
+   "hint": 5
+  },
+  {
+   "mode": "NARROW",
+   "level": 1,
+   "queued_after": 3000,
+   "vias": false,
+   "hint": 7
+  },
+  {
+   "mode": "NARROW",
+   "level": 1,
+   "queued_after": 6000,
+   "vias": false,
+   "hint": 7
+  },
+  {
+   "mode": "NARROW",
+   "level": 1,
+   "queued_after": 20000,
+   "vias": false,
+   "hint": 7
+  },
+  {
+   "mode": "NARROW",
+   "level": 2,
+   "queued_after": 0,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 2,
+   "queued_after": 11,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 2,
+   "queued_after": 300,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 2,
+   "queued_after": 334,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 2,
+   "queued_after": 335,
+   "vias": false,
+   "hint": 2
+  },
+  {
+   "mode": "NARROW",
+   "level": 2,
+   "queued_after": 668,
+   "vias": false,
+   "hint": 2
+  },
+  {
+   "mode": "NARROW",
+   "level": 2,
+   "queued_after": 669,
+   "vias": false,
+   "hint": 2
+  },
+  {
+   "mode": "NARROW",
+   "level": 2,
+   "queued_after": 1400,
+   "vias": false,
+   "hint": 4
+  },
+  {
+   "mode": "NARROW",
+   "level": 2,
+   "queued_after": 3000,
+   "vias": false,
+   "hint": 7
+  },
+  {
+   "mode": "NARROW",
+   "level": 2,
+   "queued_after": 6000,
+   "vias": false,
+   "hint": 7
+  },
+  {
+   "mode": "NARROW",
+   "level": 2,
+   "queued_after": 20000,
+   "vias": false,
+   "hint": 7
+  },
+  {
+   "mode": "NARROW",
+   "level": 3,
+   "queued_after": 0,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 3,
+   "queued_after": 11,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 3,
+   "queued_after": 300,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 3,
+   "queued_after": 334,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 3,
+   "queued_after": 335,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 3,
+   "queued_after": 668,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 3,
+   "queued_after": 669,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 3,
+   "queued_after": 1400,
+   "vias": false,
+   "hint": 2
+  },
+  {
+   "mode": "NARROW",
+   "level": 3,
+   "queued_after": 3000,
+   "vias": false,
+   "hint": 6
+  },
+  {
+   "mode": "NARROW",
+   "level": 3,
+   "queued_after": 6000,
+   "vias": false,
+   "hint": 6
+  },
+  {
+   "mode": "NARROW",
+   "level": 3,
+   "queued_after": 20000,
+   "vias": false,
+   "hint": 7
+  },
+  {
+   "mode": "NARROW",
+   "level": 5,
+   "queued_after": 0,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 5,
+   "queued_after": 11,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 5,
+   "queued_after": 300,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 5,
+   "queued_after": 334,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 5,
+   "queued_after": 335,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 5,
+   "queued_after": 668,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 5,
+   "queued_after": 669,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 5,
+   "queued_after": 1400,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 5,
+   "queued_after": 3000,
+   "vias": false,
+   "hint": 4
+  },
+  {
+   "mode": "NARROW",
+   "level": 5,
+   "queued_after": 6000,
+   "vias": false,
+   "hint": 7
+  },
+  {
+   "mode": "NARROW",
+   "level": 5,
+   "queued_after": 20000,
+   "vias": false,
+   "hint": 7
+  },
+  {
+   "mode": "NARROW",
+   "level": 9,
+   "queued_after": 0,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 9,
+   "queued_after": 11,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 9,
+   "queued_after": 300,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 9,
+   "queued_after": 334,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 9,
+   "queued_after": 335,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 9,
+   "queued_after": 668,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 9,
+   "queued_after": 669,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 9,
+   "queued_after": 1400,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 9,
+   "queued_after": 3000,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 9,
+   "queued_after": 6000,
+   "vias": false,
+   "hint": 4
+  },
+  {
+   "mode": "NARROW",
+   "level": 9,
+   "queued_after": 20000,
+   "vias": false,
+   "hint": 7
+  },
+  {
+   "mode": "NARROW",
+   "level": 11,
+   "queued_after": 0,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 11,
+   "queued_after": 11,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 11,
+   "queued_after": 300,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 11,
+   "queued_after": 334,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 11,
+   "queued_after": 335,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 11,
+   "queued_after": 668,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 11,
+   "queued_after": 669,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 11,
+   "queued_after": 1400,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 11,
+   "queued_after": 3000,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 11,
+   "queued_after": 6000,
+   "vias": false,
+   "hint": 0
+  },
+  {
+   "mode": "NARROW",
+   "level": 11,
+   "queued_after": 20000,
+   "vias": false,
+   "hint": 7
+  }
+ ]
+}

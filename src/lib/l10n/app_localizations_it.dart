@@ -4040,7 +4040,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get settingsWinlinkGatewayDbInfo =>
-      'Scarica un piccolo elenco offline di gateway packet Winlink per trovare le stazioni vicine e le loro frequenze sulla mappa.';
+      'Scarica un piccolo elenco offline di gateway packet e VARA-FM Winlink per trovare le stazioni vicine e le loro frequenze sulla mappa.';
 
   @override
   String settingsWinlinkGatewayDbInstalled(String version, int count) {

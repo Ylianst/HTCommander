@@ -1,5 +1,12 @@
 # Every Winlink Gateway in 12 KB: An Offline RMS Directory
 
+**October 2026 update:** The directory now merges the PUBLIC packet and VARA-FM
+feeds into one station per full callsign/SSID, with Packet 1200, VARA-FM, or
+both recorded per frequency. Format v2 uses 15-byte records, adding a mode byte
+at offset 14 (1 = packet, 2 = VARA-FM, 3 = both). The app still reads v1 caches.
+The size figures and v1 walkthrough below describe the original packet-only
+directory; see [the current format documentation](../Winlink-Gateways.md).
+
 *How HTCommander pulls the live Winlink gateway list twice a week, boils each
 station down to three facts, and ships the whole world's packet RMS network as a
 file smaller than this blog post — then reads it back to drop gateways on the

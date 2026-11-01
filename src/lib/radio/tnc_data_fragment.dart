@@ -15,6 +15,7 @@ enum FragmentEncodingType {
   softwareAfsk1200,
   softwarePsk2400,
   softwareDart,
+  softwareXara,
 }
 
 /// Frame type for TNC data fragments

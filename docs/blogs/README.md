@@ -63,6 +63,16 @@ diagnosis and fix.
 
 ---
 
+## XARA Modem
+
+1. **[Bringing XARA Into HTCommander: A Direct Modem Integration Plan](xara-modem-integration-plan.md)**
+   A plan to port XARA's VARA-compatible modem entirely to Dart alongside DART,
+   without Rust/FFI or its TCP front end: reference-backed DSP and ARQ porting,
+   packet vs. connected-stream paths, and Bluetooth audio timing — now with a
+   progress report on the bit-exact FM physical layer and wire codecs.
+
+---
+
 ## Firmware Updates
 
 FIguring out the radio's firmware-update path — from

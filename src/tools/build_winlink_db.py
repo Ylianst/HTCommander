@@ -3,26 +3,25 @@
 # Licensed under the Apache License, Version 2.0 (the "License");
 # http://www.apache.org/licenses/LICENSE-2.0
 #
-# Builds the HTCommander offline Winlink packet-gateway database from the
-# Winlink CMS gateway-status feed.
+# Builds the HTCommander offline Winlink gateway database from the
+# Winlink CMS packet and VARA-FM gateway-status feeds.
 #
-# HTCommander only supports 1200-baud VHF/UHF packet Winlink gateways, so the
-# builder keeps just the fields the app needs to show a gateway on the map and
-# let the user tune to it:
+# The builder keeps the fields needed to show a gateway and tune to it:
 #
 #   * callsign-stationid  (base callsign + AX.25 SSID, e.g. "KG4MRA-10")
 #   * location            (latitude / longitude)
-#   * frequency           (Hz; baud/mode are implied — always Packet 1200)
+#   * frequency           (Hz)
+#   * modes               (Packet 1200, VARA-FM, or both per frequency)
 #
 # Everything else in the feed (comments, timestamps, operating hours, antenna,
-# radio range, grid squares, non-1200/non-packet channels, ...) is discarded.
+# radio range, grid squares, unsupported channels, ...) is discarded.
 #
 # The output is a compact, sorted, read-only binary file (`.wdb`) that the app
 # downloads and reads directly. The layout is documented in
 # `docs/Winlink-Gateways.md`; keep the Dart reader in lock-step with it.
 #
 # Usage:
-#   # Download the live PUBLIC packet feed and build the database:
+#   # Download both live PUBLIC feeds and build the database:
 #   python build_winlink_db.py --download --out winlink_packet.wdb --compress
 #
 #   # Build from a previously saved feed response (JSON or JSONP):
@@ -52,9 +51,11 @@ WINLINK_PUBLIC_KEY = "F37B2075C6EF48D19F4886B9A985456E"
 
 # ── binary format constants (see docs/Winlink-Gateways.md) ──────────────────
 MAGIC = int.from_bytes(b"WLGW", "little")  # 0x57474C57
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 HEADER_SIZE = 32
-RECORD_SIZE = 14  # 5 (callsign+ssid) + 3 (lat) + 3 (lon) + 3 (freq)
+RECORD_SIZE = 15
+MODE_PACKET = 1
+MODE_VARA_FM = 2
 
 # Callsign packing: base-37 over up to 6 characters, then × 16 + SSID (0..15).
 CALL_MAX_LEN = 6
@@ -84,11 +85,11 @@ AMATEUR_BANDS_HZ = (
 
 # ── feed parsing ────────────────────────────────────────────────────────────
 
-def build_feed_url(history_hours, key):
+def build_feed_url(history_hours, key, mode="packet"):
     from urllib.parse import urlencode
     params = urlencode({
         "historyHours": history_hours,
-        "mode": "packet",
+        "mode": mode,
         "serviceCodes": "PUBLIC",
         "format": "json",
         "key": key,
@@ -96,8 +97,8 @@ def build_feed_url(history_hours, key):
     return f"{WINLINK_STATUS_URL}?{params}"
 
 
-def download_feed(history_hours, key):
-    url = build_feed_url(history_hours, key)
+def download_feed(history_hours, key, mode="packet"):
+    url = build_feed_url(history_hours, key, mode)
     req = urllib.request.Request(url, headers={"User-Agent": "HTCommander-winlink-db/1"})
     with urllib.request.urlopen(req, timeout=120) as resp:
         return resp.read().decode("utf-8", "replace")
@@ -157,12 +158,12 @@ def _encode_call_key(base, ssid):
 def distill(gateways, band_filter=True):
     """Turns the raw feed into a sorted, de-duplicated list of records.
 
-    Each record is a ``(call_key, lat_q, lon_q, freq_q)`` tuple. A gateway with
-    several 1200-baud packet channels yields one record per distinct frequency.
+    Each record is a ``(call_key, lat_q, lon_q, freq_q, modes)`` tuple.
+    Modes are merged per callsign and frequency across both feeds.
     Returns ``(records, gateway_count, dropped)``.
     """
-    seen = set()
-    records = []
+    channels = {}
+    locations = {}
     stations = set()
     dropped = {"callsign": 0, "no_channels": 0, "band": 0, "coord": 0}
 
@@ -185,9 +186,13 @@ def distill(gateways, band_filter=True):
 
         freqs = []
         for ch in gw.get("GatewayChannels") or []:
-            if str(ch.get("Baud")) != "1200":
-                continue
-            if "packet" not in str(ch.get("SupportedModes", "")).lower():
+            supported = str(ch.get("SupportedModes", "")).lower()
+            modes = 0
+            if "packet" in supported and str(ch.get("Baud")) == "1200":
+                modes |= MODE_PACKET
+            if "varafm" in re.sub(r"[^a-z]", "", supported):
+                modes |= MODE_VARA_FM
+            if not modes:
                 continue
             freq = ch.get("Frequency")
             if not isinstance(freq, (int, float)) or freq <= 0:
@@ -196,25 +201,21 @@ def distill(gateways, band_filter=True):
             if band_filter and not _in_amateur_band(freq):
                 dropped["band"] += 1
                 continue
-            freqs.append(freq)
+            freqs.append((freq, modes))
 
         if not freqs:
             dropped["no_channels"] += 1
             continue
 
-        station_has_channel = False
-        for freq in freqs:
+        locations[call_key] = min(locations.get(call_key, (lat_q, lon_q)), (lat_q, lon_q))
+        for freq, modes in freqs:
             freq_q = round(freq / FREQ_SCALE)
-            row = (call_key, lat_q, lon_q, freq_q)
-            if row in seen:
-                continue
-            seen.add(row)
-            records.append(row)
-            station_has_channel = True
-        if station_has_channel:
-            stations.add(call_key)
+            key = (call_key, freq_q)
+            channels[key] = channels.get(key, 0) | modes
+        stations.add(call_key)
 
-    records.sort()
+    records = [(call_key, *locations[call_key], freq_q, modes)
+               for (call_key, freq_q), modes in sorted(channels.items())]
     return records, len(stations), dropped
 
 
@@ -224,11 +225,12 @@ def pack_records(records):
     """Serialises the sorted record list to the on-disk records payload."""
     buf = bytearray(len(records) * RECORD_SIZE)
     off = 0
-    for call_key, lat_q, lon_q, freq_q in records:
+    for call_key, lat_q, lon_q, freq_q, modes in records:
         buf[off:off + 5] = call_key.to_bytes(5, "big")
         buf[off + 5:off + 8] = lat_q.to_bytes(3, "big")
         buf[off + 8:off + 11] = lon_q.to_bytes(3, "big")
         buf[off + 11:off + 14] = freq_q.to_bytes(3, "big")
+        buf[off + 14] = modes
         off += RECORD_SIZE
     return bytes(buf)
 
@@ -266,7 +268,7 @@ def _decode_call_key(call_key):
 
 
 def read_wdb(buf):
-    """Decodes a ``.wdb`` back into ``(callsign, lat, lon, freq_hz)`` tuples."""
+    """Decodes a ``.wdb`` into ``(callsign, lat, lon, freq_hz, modes)`` tuples."""
     if len(buf) < HEADER_SIZE or struct.unpack_from("<I", buf, 0)[0] != MAGIC:
         raise ValueError("not a Winlink gateway database (bad magic)")
     version = struct.unpack_from("<H", buf, 4)[0]
@@ -280,12 +282,14 @@ def read_wdb(buf):
         lat_q = int.from_bytes(buf[off + 5:off + 8], "big")
         lon_q = int.from_bytes(buf[off + 8:off + 11], "big")
         freq_q = int.from_bytes(buf[off + 11:off + 14], "big")
+        modes = buf[off + 14]
         off += RECORD_SIZE
         out.append((
             _decode_call_key(call_key),
             lat_q / COORD_SCALE - LAT_OFFSET,
             lon_q / COORD_SCALE - LON_OFFSET,
             freq_q * FREQ_SCALE,
+            modes,
         ))
     return out
 
@@ -293,11 +297,12 @@ def read_wdb(buf):
 # ── driver ──────────────────────────────────────────────────────────────────
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="Build the offline Winlink packet-gateway database.")
+    ap = argparse.ArgumentParser(description="Build the offline Winlink packet and VARA-FM gateway database.")
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--download", action="store_true",
-                     help="Download the live PUBLIC packet feed from the Winlink CMS.")
-    src.add_argument("--input", help="Read a saved feed response (JSON or JSONP) instead.")
+                     help="Download the live PUBLIC packet and VARA-FM feeds from the Winlink CMS.")
+    src.add_argument("--input", nargs="+",
+                     help="Read one or more saved feed responses (JSON or JSONP) instead.")
     ap.add_argument("--history-hours", type=int, default=168,
                     help="Include gateways heard within this many hours (download only; default 168).")
     ap.add_argument("--key", default=WINLINK_PUBLIC_KEY, help="Winlink CMS API key.")
@@ -314,12 +319,17 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     if args.download:
-        text = download_feed(args.history_hours, args.key)
+        gateways = []
+        for mode in ("packet", "varafm"):
+            feed = parse_feed(download_feed(args.history_hours, args.key, mode))
+            if not feed:
+                raise ValueError(f"{mode} feed returned no gateways")
+            gateways.extend(feed)
     else:
-        with open(args.input, "r", encoding="utf-8", errors="replace") as f:
-            text = f.read()
-
-    gateways = parse_feed(text)
+        gateways = []
+        for path in args.input:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                gateways.extend(parse_feed(f.read()))
     records, gateway_count, dropped = distill(gateways, band_filter=not args.no_band_filter)
     if not records:
         print("Refusing to write an empty database (feed parsing produced no records).", file=sys.stderr)

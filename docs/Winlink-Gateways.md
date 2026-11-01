@@ -1,7 +1,7 @@
-# Offline Winlink Packet Gateway Directory
+# Offline Winlink Gateway Directory
 
-HTCommander ships a tiny, fully-offline directory of **Winlink 1200-baud packet
-gateways** so a user can find a nearby RMS and the frequency to tune to without
+HTCommander ships a compact, fully-offline directory of **Winlink 1200-baud packet
+and VARA-FM gateways** so a user can find a nearby RMS and the frequency to tune to without
 any Internet access. It is built and published the same way as the
 [offline callsign database](Callsign-Country-Data.md): a scheduled GitHub Action
 rebuilds a compact binary, uploads it as a rolling-release asset, and commits a
@@ -19,31 +19,40 @@ To be gentle on the Winlink servers the workflow runs only **twice a week**
 (Mondays and Thursdays) and on demand, and it skips publishing when the
 distilled station set has not changed.
 
-## What we keep (and why the file is ~12 KB)
+The download fetches both `mode=packet` and `mode=varafm` using the public CMS
+key embedded in RMSChannels. The existing key works for both feeds; `--key`
+can override it if Winlink changes it. JSONP callbacks are unnecessary. Both
+requests use `serviceCodes=PUBLIC` and a 168-hour history by default. A failed
+request or empty feed aborts the build before publishing a partial directory.
+
+## What we keep
 
 The live feed is large and verbose — every gateway carries comments, status
 timestamps, operating hours, antenna type, radio range, grid squares and one or
-more channels at various bauds/modes. HTCommander only supports 1200-baud
-VHF/UHF packet, so the builder throws almost all of that away and keeps just the
-three things the app needs:
+more channels at various bauds/modes. The builder keeps these fields:
 
 | Field | Source | Notes |
 |-------|--------|-------|
 | callsign-stationid | `Callsign` | base callsign + AX.25 SSID, e.g. `KG4MRA-10` |
 | location | `Latitude` / `Longitude` | for map placement and nearest-gateway search |
-| frequency | `GatewayChannels[].Frequency` | one record per distinct 1200 packet channel |
+| frequency | `GatewayChannels[].Frequency` | one record per distinct station/frequency pair |
+| modes | `GatewayChannels[].SupportedModes` / `Baud` | Packet 1200, VARA-FM, or both |
 
-Baud and mode are **implied** — every record is Packet 1200 — so they cost zero
-bytes. Channels that are not `Baud == "1200"` + `SupportedModes` containing
-`Packet` are dropped, as are frequencies outside the amateur VHF/UHF bands
-(the feed carries the odd 101 MHz / 245 MHz test entry).
+Packet channels require `Baud == "1200"` and `SupportedModes` containing
+`Packet`. Both `VARA FM` and `VARA FM WIDE` are retained regardless of the
+feed's baud field. Other modes (including VARA HF and packet 9600) are dropped,
+as are frequencies outside the existing amateur-band filter.
 
-A recent build distils ~1200 gateways / ~1250 channels into **17.6 KB raw /
-12.3 KB xz-compressed**.
+Stations merge by normalized full callsign **including SSID**, not by base
+callsign or proximity. Frequencies merge in 100 Hz units and their mode bits
+are OR-ed. Different SSIDs remain separately addressable stations. If duplicate
+station entries disagree on coordinates, the lexicographically smallest
+quantized `(latitude, longitude)` pair is used consistently for all channels,
+making the result independent of feed order.
 
 ## Compaction strategy
 
-Each channel becomes a fixed **14-byte** record. Fixed-size, sorted records keep
+Each channel becomes a fixed **15-byte** record. Fixed-size, sorted records keep
 the format trivial to read and binary-searchable, and the repetition (shared
 callsign/location bytes across a gateway's channels) compresses away under xz.
 
@@ -53,6 +62,7 @@ callsign/location bytes across a gateway's channels) compresses away under xz.
 | 3 | latitude | `round((lat + 90) * 10000)`, big-endian u24 (~11 m) |
 | 3 | longitude | `round((lon + 180) * 10000)`, big-endian u24 (~11 m) |
 | 3 | frequency | `round(freqHz / 100)`, big-endian u24 (100 Hz units) |
+| 1 | modes | bit 0 = Packet 1200, bit 1 = VARA-FM; 3 = both |
 
 - **Callsign** — the base callsign (≤ 6 alphanumeric characters) is packed
   base-37 (`A–Z` → 1–26, `0–9` → 27–36), then multiplied by 16 and OR-ed with
@@ -73,15 +83,20 @@ All values little-endian in the 32-byte header, big-endian inside records.
 ```
 Header (32 bytes)
   0  u32  magic        = "WLGW"  (0x57474C57)
-  4  u16  formatVersion = 1
+  4  u16  formatVersion = 2
   6  u16  flags        = 0
   8  u32  recordCount
  12  u32  sourceDate   (YYYYMMDD, UTC)
  16  u32  recordsOffset (= 32)
  20  ...  reserved (zero)
 
-Records: recordCount × 14 bytes, sorted ascending (see table above)
+Records: recordCount × 15 bytes, sorted ascending (see table above)
 ```
+
+Version 2 adds the mode byte at record offset 14. The current Dart reader also
+accepts version 1's 14-byte packet-only records, treating them as mode 1. Older
+apps cannot read version 2 and must be upgraded. Manifest schema and download
+filenames remain unchanged, including the historical `winlink_packet` prefix.
 
 ### Manifest
 
@@ -101,7 +116,7 @@ Records: recordCount × 14 bytes, sorted ascending (see table above)
 ```
 
 `recordsMd5` is the change-detection key: it depends only on the distilled
-stations/locations/frequencies, not on the feed's ever-changing status
+stations/locations/frequencies/modes, not on the feed's ever-changing status
 timestamps, so the workflow can skip republishing when nothing meaningful moved.
 
 ## Rebuilding by hand
@@ -114,5 +129,8 @@ python build_winlink_db.py --download `
   --base-url "https://github.com/Ylianst/HTCommander/releases/download/winlink-db/"
 ```
 
-Or from a saved feed response (`--input feed.json`, JSON or JSONP). Run the
+Or from saved feed responses (`--input packet.json varafm.json`, JSON or JSONP).
+The map groups each station into one marker and labels each frequency's modes.
+This directory change does not implement or automatically select a modem.
+Run the
 tests with `python src\tools\test_build_winlink_db.py`.

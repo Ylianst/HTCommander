@@ -1,0 +1,1546 @@
+s0 Host(Pending)
+s0 Host(Log("Starting Digipeater: N0CALL <-> N2CALL <-> N1CALL"))
+s0 Tx(Data { record: 0, frame: <39 bytes 5820c663>, lead: 21, side: 1 })
+s0 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s1 Host(Log("Digipeating: N0CALL <-> N2CALL <-> N1CALL"))
+s1 Tx(Ctrl { code: 23, lead: 28, side: 0 })
+s1 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s2 Tx(Ctrl { code: 14, lead: 28, side: 1 })
+s2 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [15], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s3 Tx(Data { record: 15, frame: <16 bytes 5b1ee542>, lead: 25, side: 0 })
+s3 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s4 Tx(Ctrl { code: 1, lead: 3, side: 1 })
+s4 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s5 Tx(Data { record: 14, frame: <134 bytes cd80e4c8>, lead: 25, side: 0 })
+s5 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s6 Tx(Ctrl { code: 9, lead: 3, side: 1 })
+s6 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [7], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s7 Tx(Data { record: 7, frame: <4252 bytes 6b74951d>, lead: 25, side: 0 })
+s7 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [7], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s8 Tx(Ctrl { code: 1, lead: 3, side: 1 })
+s8 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [7], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s9 Tx(Ctrl { code: 2, lead: 3, side: 1 })
+s9 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [5, 6], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s10 Tx(Ctrl { code: 2, lead: 3, side: 1 })
+s10 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [4, 5, 6], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s11 Tx(Ctrl { code: 2, lead: 3, side: 1 })
+s11 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [3, 4, 5, 6], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s12 Tx(Data { record: 5, frame: <2551 bytes 5b811b2e>, lead: 25, side: 0 })
+s12 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [5], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s13 Tx(Ctrl { code: 6, lead: 3, side: 1 })
+s13 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [4], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s14 Tx(Data { record: 4, frame: <1903 bytes 7cd73e22>, lead: 25, side: 0 })
+s14 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [4], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s15 Tx(Ctrl { code: 8, lead: 3, side: 1 })
+s15 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [7], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s16 Tx(Ctrl { code: 4, lead: 3, side: 1 })
+s16 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+s17 Tx(Ctrl { code: 14, lead: 28, side: 0 })
+s17 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [15], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+s18 Tx(Data { record: 15, frame: <16 bytes abad0a4b>, lead: 3, side: 1 })
+s18 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [1, 14], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+s19 Tx(Ctrl { code: 4, lead: 3, side: 0 })
+s19 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s20 Tx(Ctrl { code: 14, lead: 3, side: 1 })
+s20 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [9], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s21 Host(Log("QRT Received"))
+s21 Tx(Ctrl { code: 3, lead: 3, side: 1 })
+s21 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+s-end Host(Log("Digipeater is disconnected"))
+s-end Host(CancelPending)
+s-end Done
+0 in record0 true
+0 Host(Pending)
+0 Host(Log("Starting Digipeater: N0CALL <-> N3CALL <-> N2CALL <-> N1CALL"))
+0 Tx(Data { record: 0, frame: <39 bytes 44283c05>, lead: 21, side: 1 })
+0 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+2 in data 9 ok true
+2 Tx(Data { record: 9, frame: <5740 bytes 8057d74e>, lead: 25, side: 0 })
+2 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+3 Host(CancelPending)
+3 Done
+4 in record0 true
+4 Host(Pending)
+4 Host(Log("Starting Digipeater: N0CALL <-> N2CALL <-> N3CALL <-> N1CALL"))
+4 Tx(Data { record: 0, frame: <39 bytes af7d223e>, lead: 21, side: 1 })
+4 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+5 in ctrl 14 row 1 side 0
+5 Tx(Ctrl { code: 14, lead: 28, side: 1 })
+5 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [15], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+6 in data 2 ok true
+6 Tx(Data { record: 2, frame: <709 bytes cf6cf27c>, lead: 25, side: 0 })
+6 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [2], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+7 in ctrl 4 row 21 side 1
+7 Tx(Ctrl { code: 4, lead: 28, side: 0 })
+7 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+8 in data 7 ok false
+8 Host(Log("rec7 from side 1 failed: relay failed"))
+8 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+9 in ctrl 22 row 9 side 0
+9 Tx(Ctrl { code: 22, lead: 28, side: 1 })
+9 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+10 in ctrl 12 row 2 side 1
+10 Tx(Ctrl { code: 12, lead: 28, side: 0 })
+10 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+12 in data 15 ok true
+12 Tx(Data { record: 15, frame: <16 bytes 3048b827>, lead: 25, side: 0 })
+12 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+13 in ctrl 12 row 18 side 0
+13 Tx(Ctrl { code: 12, lead: 28, side: 1 })
+13 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+15 in ctrl 9 row 11 side 0
+15 Tx(Ctrl { code: 9, lead: 28, side: 1 })
+15 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [7], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+16 in data 4 ok true
+16 Tx(Data { record: 4, frame: <1903 bytes 64862945>, lead: 25, side: 0 })
+16 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [4], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+17 in ctrl 1 row 20 side 1
+18 in ctrl 6 row 7 side 0
+18 Tx(Ctrl { code: 6, lead: 28, side: 1 })
+18 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [3], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+19 in data 4 ok false
+19 Host(Log("rec4 from side 1 failed: relay failed"))
+19 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+20 in ctrl 8 row 22 side 1
+21 in data 3 ok true
+21 Tx(Data { record: 3, frame: <1427 bytes 98c4387c>, lead: 25, side: 0 })
+21 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [3], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+22 in ctrl 2 row 12 side 0
+22 Tx(Ctrl { code: 2, lead: 28, side: 1 })
+22 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+23 in record0 true
+23 Tx(Data { record: 0, frame: <39 bytes 1b6d0529>, lead: 21, side: 1 })
+23 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+24 in ctrl 6 row 16 side 1
+25 in data 2 ok true
+25 Tx(Data { record: 2, frame: <709 bytes 0222b8bc>, lead: 25, side: 0 })
+25 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [2], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+26 in ctrl 9 row 7 side 1
+29 in ctrl 4 row 15 side 1
+29 Tx(Ctrl { code: 4, lead: 28, side: 0 })
+29 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+30 in ctrl 13 row 2 side 1
+30 Tx(Ctrl { code: 13, lead: 28, side: 0 })
+30 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+32 in data 8 ok false
+32 Host(Log("rec8 from side 1 failed: relay failed"))
+32 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+34 in data 5 ok true
+34 Tx(Data { record: 5, frame: <2551 bytes 6b252c58>, lead: 25, side: 0 })
+34 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [5], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+35 in data 7 ok true
+35 Tx(Data { record: 7, frame: <4252 bytes 90bcff42>, lead: 25, side: 0 })
+35 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [7], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+36 in ctrl 11 row 20 side 0
+36 Tx(Ctrl { code: 11, lead: 28, side: 1 })
+36 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+38 in ctrl 21 row 0 side 0
+38 Tx(Ctrl { code: 21, lead: 28, side: 1 })
+38 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+39 in ctrl 4 row 13 side 0
+39 Tx(Ctrl { code: 4, lead: 28, side: 1 })
+39 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+40 in ctrl 4 row 18 side 0
+40 Tx(Ctrl { code: 4, lead: 28, side: 1 })
+40 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+41 in data 2 ok true
+41 Tx(Data { record: 2, frame: <709 bytes 22ea5d46>, lead: 25, side: 1 })
+41 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [2], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+43 in data 5 ok true
+43 Tx(Data { record: 5, frame: <2551 bytes b3a6c4bf>, lead: 25, side: 1 })
+43 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [5], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+45 in data 3 ok true
+45 Tx(Data { record: 3, frame: <1427 bytes 5dcb65e7>, lead: 25, side: 1 })
+45 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [3], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+47 in data 1 ok true
+47 Tx(Data { record: 1, frame: <338 bytes 2b98d513>, lead: 25, side: 1 })
+47 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [1, 14], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+50 in data 4 ok true
+50 Tx(Data { record: 4, frame: <1903 bytes 9148bea8>, lead: 25, side: 1 })
+50 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [4], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+52 in ctrl 21 row 0 side 1
+52 Tx(Ctrl { code: 21, lead: 8, side: 0 })
+52 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+53 in data 8 ok false
+53 Host(Log("rec8 from side 0 failed: relay failed"))
+53 Tx(Ctrl { code: 22, lead: 28, side: 1 })
+54 in ctrl 1 row 13 side 0
+55 in data 8 ok false
+55 Host(Log("rec8 from side 0 failed: relay failed"))
+55 Tx(Ctrl { code: 22, lead: 28, side: 1 })
+56 in ctrl 22 row 13 side 0
+56 Tx(Ctrl { code: 22, lead: 28, side: 1 })
+56 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+57 Host(Log("Connection timed out"))
+57 Host(CancelPending)
+57 Done
+58 in record0 false
+59 in record0 true
+59 Host(Pending)
+59 Host(Log("Starting Digipeater: N0CALL <-> N2CALL <-> N3CALL <-> N1CALL"))
+59 Tx(Data { record: 0, frame: <39 bytes 581dca4f>, lead: 21, side: 1 })
+59 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+60 in ctrl 8 row 20 side 0
+60 Tx(Ctrl { code: 8, lead: 28, side: 1 })
+60 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 4], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+62 in data 8 ok true
+62 Tx(Data { record: 8, frame: <5103 bytes 0be63a2a>, lead: 25, side: 0 })
+62 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 8], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+63 in data 11 ok false
+63 Host(Log("rec11 from side 1 failed: relay failed"))
+63 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+64 in ctrl 3 row 21 side 1
+64 Host(Log("QRT Received"))
+64 Tx(Ctrl { code: 3, lead: 28, side: 0 })
+64 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+65 Host(CancelPending)
+65 Done
+66 in record0 true
+66 Host(Pending)
+66 Host(Log("Starting Digipeater: N0CALL <-> N2CALL <-> N3CALL <-> N1CALL"))
+66 Tx(Data { record: 0, frame: <39 bytes f1509b37>, lead: 21, side: 1 })
+66 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+67 in data 4 ok true
+67 Tx(Data { record: 4, frame: <1903 bytes 5b9e491a>, lead: 25, side: 0 })
+67 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 4], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+68 in data 2 ok true
+68 Tx(Data { record: 2, frame: <709 bytes 1d7e53e6>, lead: 25, side: 0 })
+68 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 2], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+69 in ctrl 9 row 9 side 1
+70 in ctrl 9 row 5 side 0
+70 Tx(Ctrl { code: 9, lead: 24, side: 1 })
+70 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 8], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+72 in data 3 ok false
+72 Host(Log("rec3 from side 1 failed: relay failed"))
+72 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+73 in data 15 ok true
+73 Tx(Data { record: 15, frame: <16 bytes bd988755>, lead: 25, side: 0 })
+73 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+74 in data 4 ok true
+74 Tx(Data { record: 4, frame: <1903 bytes 20a39f93>, lead: 25, side: 0 })
+74 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 4], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+75 in ctrl 13 row 25 side 1
+75 Tx(Ctrl { code: 13, lead: 28, side: 0 })
+75 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+76 in ctrl 2 row 6 side 1
+78 in data 14 ok true
+78 Tx(Data { record: 14, frame: <134 bytes 3263e35f>, lead: 25, side: 0 })
+78 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+79 in data 2 ok true
+79 Tx(Data { record: 2, frame: <709 bytes 2840f541>, lead: 25, side: 0 })
+79 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 2], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+80 in data 2 ok false
+80 Host(Log("rec2 from side 1 failed: relay failed"))
+80 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+82 in data 11 ok false
+82 Host(Log("rec11 from side 1 failed: relay failed"))
+82 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+83 in data 10 ok true
+83 Tx(Data { record: 10, frame: <6697 bytes aed0125d>, lead: 25, side: 0 })
+83 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 10], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+85 in ctrl 9 row 22 side 0
+85 Tx(Ctrl { code: 9, lead: 24, side: 1 })
+85 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 11], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+86 in data 6 ok true
+86 Tx(Data { record: 6, frame: <3401 bytes 59ee44b4>, lead: 25, side: 0 })
+86 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 6], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+87 in data 1 ok false
+87 Host(Log("rec1 from side 1 failed: relay failed"))
+87 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+88 in ctrl 23 row 6 side 0
+89 in data 8 ok true
+89 Tx(Data { record: 8, frame: <5103 bytes 4a425c1c>, lead: 25, side: 0 })
+89 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 8], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+90 in data 14 ok true
+90 Tx(Data { record: 14, frame: <134 bytes b0453a3e>, lead: 25, side: 0 })
+90 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+91 in ctrl 12 row 11 side 1
+91 Tx(Ctrl { code: 12, lead: 28, side: 0 })
+91 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+92 in data 2 ok true
+92 Tx(Data { record: 2, frame: <709 bytes b7c449f3>, lead: 25, side: 0 })
+92 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 2], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+94 in ctrl 4 row 15 side 0
+94 Tx(Ctrl { code: 4, lead: 24, side: 1 })
+94 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+95 Host(CancelPending)
+95 Done
+96 in record0 false
+97 in record0 false
+98 in record0 true
+98 Host(Pending)
+98 Host(Log("Starting Digipeater: N0CALL <-> N2CALL <-> N3CALL <-> N1CALL"))
+98 Tx(Data { record: 0, frame: <39 bytes a370efcc>, lead: 21, side: 1 })
+98 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+100 in data 2 ok true
+100 Tx(Data { record: 2, frame: <709 bytes 50154039>, lead: 25, side: 0 })
+100 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 2], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+102 in ctrl 21 row 3 side 1
+102 Tx(Ctrl { code: 21, lead: 28, side: 0 })
+102 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+103 in ctrl 3 row 14 side 1
+103 Host(Log("QRT Received"))
+103 Tx(Ctrl { code: 3, lead: 28, side: 0 })
+103 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+104 in ctrl 5 row 19 side 1
+105 in record0 true
+105 Tx(Data { record: 0, frame: <39 bytes 43678fe2>, lead: 21, side: 1 })
+105 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+106 in data 15 ok false
+107 Host(CancelPending)
+107 Done
+108 in record0 true
+108 Host(Pending)
+108 Host(Log("Starting Digipeater: N0CALL <-> N3CALL <-> N2CALL <-> N1CALL"))
+108 Tx(Data { record: 0, frame: <39 bytes 73bd230d>, lead: 21, side: 1 })
+108 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+110 in data 10 ok true
+110 Tx(Data { record: 10, frame: <6697 bytes e6541362>, lead: 25, side: 0 })
+110 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+111 in record0 true
+111 Tx(Data { record: 0, frame: <39 bytes 53cf0a17>, lead: 21, side: 1 })
+111 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+112 in record0 false
+113 in ctrl 3 row 4 side 1
+113 Host(Log("QRT Received"))
+113 Tx(Ctrl { code: 3, lead: 28, side: 0 })
+113 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+114 in data 4 ok true
+115 Host(CancelPending)
+115 Done
+116 in record0 true
+116 Host(Pending)
+116 Host(Log("Starting Digipeater: N0CALL <-> N3CALL <-> N2CALL <-> N1CALL"))
+116 Tx(Data { record: 0, frame: <39 bytes acb834af>, lead: 21, side: 1 })
+116 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+117 in ctrl 6 row 27 side 1
+119 in data 5 ok true
+119 Tx(Data { record: 5, frame: <2551 bytes 7eed2541>, lead: 25, side: 0 })
+119 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 5], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+120 in ctrl 2 row 14 side 1
+121 in data 14 ok true
+121 Tx(Data { record: 14, frame: <134 bytes 4f448562>, lead: 25, side: 0 })
+121 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+122 in ctrl 20 row 5 side 0
+122 Tx(Ctrl { code: 20, lead: 27, side: 1 })
+122 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+123 in ctrl 10 row 1 side 0
+123 Tx(Ctrl { code: 10, lead: 27, side: 1 })
+123 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+124 in data 15 ok true
+124 Tx(Data { record: 15, frame: <16 bytes 08f4570f>, lead: 25, side: 0 })
+124 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+125 in ctrl 13 row 11 side 0
+125 Tx(Ctrl { code: 13, lead: 27, side: 1 })
+125 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+126 in data 8 ok true
+126 Tx(Data { record: 8, frame: <5103 bytes 5eb303cc>, lead: 25, side: 0 })
+126 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 8], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+127 in data 2 ok true
+127 Tx(Data { record: 2, frame: <709 bytes 95f78243>, lead: 25, side: 0 })
+127 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 2], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+128 in data 14 ok true
+128 Tx(Data { record: 14, frame: <134 bytes e465e5d8>, lead: 25, side: 0 })
+128 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+129 in data 3 ok true
+129 Tx(Data { record: 3, frame: <1427 bytes f6de0d6f>, lead: 25, side: 0 })
+129 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 3], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+130 in ctrl 11 row 6 side 1
+131 in data 11 ok true
+131 Tx(Data { record: 11, frame: <7306 bytes 56b8de04>, lead: 25, side: 0 })
+131 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 11], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+132 in data 15 ok false
+132 Host(Log("rec15 from side 1 failed: relay failed"))
+132 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+133 in data 3 ok true
+133 Tx(Data { record: 3, frame: <1427 bytes 63e19dcd>, lead: 25, side: 0 })
+133 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 3], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+134 in ctrl 20 row 2 side 0
+134 Tx(Ctrl { code: 20, lead: 27, side: 1 })
+134 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+135 in data 10 ok true
+135 Tx(Data { record: 10, frame: <6697 bytes ed55e2c7>, lead: 25, side: 0 })
+135 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+136 in data 14 ok true
+136 Tx(Data { record: 14, frame: <134 bytes 9d8f29ed>, lead: 25, side: 0 })
+136 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+137 in data 8 ok true
+137 Tx(Data { record: 8, frame: <5103 bytes 47397d66>, lead: 25, side: 0 })
+137 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 8], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+138 in data 11 ok true
+138 Tx(Data { record: 11, frame: <7306 bytes c89d6370>, lead: 25, side: 0 })
+138 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 11], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+139 in ctrl 23 row 28 side 1
+139 Host(Log("Digipeating: N0CALL <-> N3CALL <-> N2CALL <-> N1CALL"))
+139 Tx(Ctrl { code: 23, lead: 28, side: 0 })
+139 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+140 in ctrl 14 row 25 side 0
+140 Tx(Ctrl { code: 14, lead: 27, side: 1 })
+140 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [15], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+141 in record0 true
+141 Tx(Data { record: 0, frame: <39 bytes 96509663>, lead: 21, side: 1 })
+141 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+143 in ctrl 9 row 25 side 0
+143 Tx(Ctrl { code: 9, lead: 27, side: 1 })
+143 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [11], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+145 in ctrl 24 row 11 side 1
+145 Tx(Ctrl { code: 24, lead: 28, side: 0 })
+145 Listen(DigiListen { bw: Wide, data_key: 14214996, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+146 in data 12 ok true
+146 Tx(Data { record: 12, frame: <6697 bytes ecbdb58a>, lead: 25, side: 0 })
+146 Listen(DigiListen { bw: Wide, data_key: 14214996, records: [12], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+147 in data 8 ok false
+147 Host(Log("rec8 from side 1 failed: relay failed"))
+147 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+148 in data 2 ok true
+148 Tx(Data { record: 2, frame: <709 bytes 7b164ae8>, lead: 25, side: 0 })
+148 Listen(DigiListen { bw: Wide, data_key: 14214996, records: [2], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+149 in ctrl 3 row 26 side 1
+149 Host(Log("QRT Received"))
+149 Tx(Ctrl { code: 3, lead: 28, side: 0 })
+149 Listen(DigiListen { bw: Wide, data_key: 14214996, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+150 Host(Log("Digipeater is disconnected"))
+150 Host(CancelPending)
+150 Done
+151 in record0 true
+151 Host(Pending)
+151 Host(Log("Starting Digipeater: N0CALL <-> N2CALL <-> N1CALL"))
+151 Tx(Data { record: 0, frame: <39 bytes bda201b6>, lead: 21, side: 1 })
+151 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+152 in data 7 ok true
+152 Tx(Data { record: 7, frame: <4252 bytes dd62ef24>, lead: 25, side: 0 })
+152 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+153 in data 7 ok true
+153 Tx(Data { record: 7, frame: <4252 bytes 003dcaf4>, lead: 25, side: 0 })
+153 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+154 in ctrl 6 row 17 side 0
+154 Tx(Ctrl { code: 6, lead: 13, side: 1 })
+154 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 6], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+155 in data 6 ok true
+155 Tx(Data { record: 6, frame: <3401 bytes 281b64d2>, lead: 25, side: 0 })
+155 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 6], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+156 in data 4 ok false
+156 Host(Log("rec4 from side 1 failed: relay failed"))
+156 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+157 in data 6 ok true
+157 Tx(Data { record: 6, frame: <3401 bytes 5f456b6a>, lead: 25, side: 0 })
+157 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 6], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+158 in ctrl 6 row 5 side 1
+159 in ctrl 22 row 12 side 1
+159 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+159 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+161 in ctrl 9 row 29 side 1
+162 in data 11 ok true
+162 Tx(Data { record: 11, frame: <7306 bytes ebeefcd6>, lead: 25, side: 0 })
+162 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 11], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+163 in data 2 ok false
+163 Host(Log("rec2 from side 1 failed: relay failed"))
+163 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+165 in data 15 ok true
+165 Tx(Data { record: 15, frame: <16 bytes c944bab0>, lead: 25, side: 0 })
+165 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+167 in ctrl 7 row 29 side 0
+167 Tx(Ctrl { code: 7, lead: 13, side: 1 })
+167 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 2], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+168 in ctrl 6 row 15 side 0
+168 Tx(Ctrl { code: 6, lead: 13, side: 1 })
+168 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+169 in data 5 ok true
+169 Tx(Data { record: 5, frame: <2551 bytes 5ca480a7>, lead: 25, side: 0 })
+169 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 5], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+170 in data 10 ok false
+170 Host(Log("rec10 from side 1 failed: relay failed"))
+170 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+171 in data 10 ok true
+171 Tx(Data { record: 10, frame: <6697 bytes 4bdc5b4c>, lead: 25, side: 0 })
+171 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+172 in data 15 ok false
+172 Host(Log("rec15 from side 1 failed: relay failed"))
+172 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+173 in ctrl 11 row 25 side 0
+173 Tx(Ctrl { code: 11, lead: 13, side: 1 })
+173 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+174 in ctrl 24 row 6 side 1
+174 Host(Log("Digipeating: N0CALL <-> N2CALL <-> N1CALL"))
+174 Tx(Ctrl { code: 24, lead: 28, side: 0 })
+174 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+175 in data 15 ok true
+175 Tx(Data { record: 15, frame: <16 bytes 3d3f4398>, lead: 25, side: 0 })
+175 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+176 in ctrl 2 row 11 side 0
+176 Tx(Ctrl { code: 2, lead: 13, side: 1 })
+176 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+177 in ctrl 7 row 24 side 1
+178 in ctrl 10 row 10 side 1
+179 Host(Log("Digipeater is disconnected (Timeout)"))
+179 Host(CancelPending)
+179 Done
+180 in record0 true
+180 Host(Pending)
+180 Host(Log("Starting Digipeater: N0CALL <-> N2CALL <-> N3CALL <-> N1CALL"))
+180 Tx(Data { record: 0, frame: <39 bytes 27341dd0>, lead: 21, side: 1 })
+180 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+181 in data 7 ok false
+181 Host(Log("rec7 from side 1 failed: relay failed"))
+181 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+182 in ctrl 2 row 12 side 1
+184 in data 5 ok true
+184 Tx(Data { record: 5, frame: <2551 bytes fdf48b20>, lead: 25, side: 0 })
+184 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 5], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+185 in ctrl 12 row 1 side 1
+185 Tx(Ctrl { code: 12, lead: 28, side: 0 })
+185 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+186 in data 14 ok false
+186 Host(Log("rec14 from side 1 failed: relay failed"))
+186 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+187 in ctrl 10 row 15 side 1
+188 in data 14 ok true
+188 Tx(Data { record: 14, frame: <134 bytes 5a28de68>, lead: 25, side: 0 })
+188 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+189 in data 6 ok true
+189 Tx(Data { record: 6, frame: <3401 bytes af15a1b7>, lead: 25, side: 0 })
+189 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 6], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+190 in record0 false
+191 in ctrl 20 row 22 side 1
+191 Tx(Ctrl { code: 20, lead: 28, side: 0 })
+191 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+192 in data 14 ok true
+192 Tx(Data { record: 14, frame: <134 bytes 755daee6>, lead: 25, side: 0 })
+192 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+193 in ctrl 11 row 29 side 1
+195 in data 1 ok true
+195 Tx(Data { record: 1, frame: <338 bytes 94050878>, lead: 25, side: 0 })
+195 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+196 in ctrl 4 row 1 side 1
+196 Tx(Ctrl { code: 4, lead: 28, side: 0 })
+196 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+197 in data 9 ok true
+197 Tx(Data { record: 9, frame: <5740 bytes 8e5e73c8>, lead: 25, side: 0 })
+197 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 9], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+199 in data 4 ok true
+199 Tx(Data { record: 4, frame: <1903 bytes 4750f3f0>, lead: 25, side: 0 })
+199 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 4], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+200 in record0 true
+200 Tx(Data { record: 0, frame: <39 bytes 763c0095>, lead: 21, side: 1 })
+200 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+201 in ctrl 9 row 10 side 1
+202 in ctrl 1 row 18 side 0
+202 Tx(Ctrl { code: 1, lead: 10, side: 1 })
+202 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 4], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+203 in data 15 ok true
+203 Tx(Data { record: 15, frame: <16 bytes 24dec404>, lead: 25, side: 0 })
+203 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+204 in data 6 ok true
+204 Tx(Data { record: 6, frame: <3401 bytes c2d37641>, lead: 25, side: 0 })
+204 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 6], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+206 in ctrl 6 row 29 side 0
+206 Tx(Ctrl { code: 6, lead: 10, side: 1 })
+206 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 5], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+208 in ctrl 14 row 4 side 1
+209 Host(CancelPending)
+209 Done
+210 in record0 true
+210 Host(Pending)
+210 Host(Log("Starting Digipeater: N0CALL <-> N2CALL <-> N3CALL <-> N1CALL"))
+210 Tx(Data { record: 0, frame: <39 bytes c9e9aff3>, lead: 21, side: 1 })
+210 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+212 in ctrl 21 row 22 side 0
+212 Tx(Ctrl { code: 21, lead: 28, side: 1 })
+212 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+213 in record0 true
+213 Tx(Data { record: 0, frame: <39 bytes 4b4a7141>, lead: 21, side: 1 })
+213 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+214 Host(CancelPending)
+214 Done
+215 in record0 true
+215 Host(Pending)
+215 Host(Log("Starting Digipeater: N0CALL <-> N3CALL <-> N2CALL <-> N1CALL"))
+215 Tx(Data { record: 0, frame: <39 bytes c072743c>, lead: 21, side: 1 })
+215 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+218 in ctrl 24 row 8 side 1
+218 Host(Log("Digipeating: N0CALL <-> N3CALL <-> N2CALL <-> N1CALL"))
+218 Tx(Ctrl { code: 24, lead: 28, side: 0 })
+218 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+219 in data 7 ok true
+219 Tx(Data { record: 7, frame: <5748 bytes a23d9896>, lead: 25, side: 0 })
+219 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+220 in ctrl 10 row 22 side 0
+220 Tx(Ctrl { code: 10, lead: 24, side: 1 })
+220 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+221 in ctrl 14 row 1 side 1
+223 in ctrl 22 row 21 side 0
+223 Tx(Ctrl { code: 22, lead: 24, side: 1 })
+223 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+226 in ctrl 21 row 13 side 0
+226 Tx(Ctrl { code: 21, lead: 24, side: 1 })
+226 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+227 in ctrl 5 row 16 side 0
+227 Tx(Ctrl { code: 5, lead: 24, side: 1 })
+227 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+228 in ctrl 2 row 8 side 1
+230 in ctrl 9 row 24 side 1
+231 in data 9 ok true
+231 Tx(Data { record: 9, frame: <6959 bytes 710ad389>, lead: 25, side: 0 })
+231 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+233 in ctrl 8 row 3 side 1
+235 in ctrl 1 row 18 side 1
+236 in data 13 ok true
+236 Tx(Data { record: 13, frame: <6958 bytes bbe5e9ae>, lead: 25, side: 0 })
+236 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 13], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+237 in data 2 ok true
+237 Tx(Data { record: 2, frame: <709 bytes e33ec780>, lead: 25, side: 0 })
+237 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 2], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+239 in ctrl 4 row 19 side 1
+239 Tx(Ctrl { code: 4, lead: 28, side: 0 })
+239 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+240 in ctrl 6 row 22 side 1
+241 in ctrl 2 row 4 side 1
+242 in ctrl 4 row 17 side 1
+242 Tx(Ctrl { code: 4, lead: 28, side: 0 })
+242 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+243 in data 15 ok true
+243 Tx(Data { record: 15, frame: <16 bytes 1c0ab5b7>, lead: 25, side: 0 })
+243 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+244 in data 9 ok true
+244 Tx(Data { record: 9, frame: <6959 bytes a8bddcc9>, lead: 25, side: 0 })
+244 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+246 in data 9 ok false
+246 Host(Log("rec9 from side 1 failed: relay failed"))
+246 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+247 in data 1 ok true
+247 Tx(Data { record: 1, frame: <338 bytes 73a77a67>, lead: 25, side: 0 })
+247 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+248 in data 1 ok true
+248 Tx(Data { record: 1, frame: <338 bytes 6a657305>, lead: 25, side: 0 })
+248 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+249 in data 2 ok true
+249 Tx(Data { record: 2, frame: <709 bytes cb1bb0fd>, lead: 25, side: 0 })
+249 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 2], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+252 in data 4 ok true
+252 Tx(Data { record: 4, frame: <2412 bytes ea40f138>, lead: 25, side: 0 })
+252 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 4], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+254 in ctrl 4 row 27 side 1
+254 Tx(Ctrl { code: 4, lead: 28, side: 0 })
+254 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+256 in ctrl 21 row 7 side 0
+256 Tx(Ctrl { code: 21, lead: 17, side: 1 })
+256 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+257 in data 14 ok false
+257 Host(Log("rec14 from side 1 failed: relay failed"))
+257 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+258 in ctrl 7 row 21 side 1
+259 in data 9 ok true
+259 Tx(Data { record: 9, frame: <6959 bytes a106a2fd>, lead: 25, side: 0 })
+259 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+260 in ctrl 6 row 24 side 0
+260 Tx(Ctrl { code: 6, lead: 17, side: 1 })
+260 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 8], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+261 in data 9 ok true
+261 Tx(Data { record: 9, frame: <6959 bytes 3041e388>, lead: 25, side: 0 })
+261 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+262 in data 15 ok true
+262 Tx(Data { record: 15, frame: <16 bytes 42cdc8cc>, lead: 25, side: 0 })
+262 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+263 in ctrl 10 row 4 side 1
+264 in data 13 ok true
+264 Tx(Data { record: 13, frame: <6958 bytes dfe23273>, lead: 25, side: 0 })
+264 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 13], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+265 in data 4 ok false
+265 Host(Log("rec4 from side 1 failed: relay failed"))
+265 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+266 in ctrl 21 row 0 side 1
+266 Tx(Ctrl { code: 21, lead: 28, side: 0 })
+266 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+267 in ctrl 6 row 28 side 0
+267 Tx(Ctrl { code: 6, lead: 17, side: 1 })
+267 Listen(DigiListen { bw: Wide, data_key: 14197719, records: [0, 12], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+268 in ctrl 1 row 21 side 1
+269 Host(Log("Digipeater is disconnected"))
+269 Host(CancelPending)
+269 Done
+270 in record0 true
+270 Host(Pending)
+270 Host(Log("Starting Digipeater: N0CALL <-> N3CALL <-> N2CALL <-> N1CALL"))
+270 Tx(Data { record: 0, frame: <39 bytes a6c0bdab>, lead: 21, side: 1 })
+270 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+273 in data 14 ok true
+273 Tx(Data { record: 14, frame: <134 bytes abbe4da5>, lead: 25, side: 0 })
+273 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+274 in data 3 ok false
+274 Host(Log("rec3 from side 1 failed: relay failed"))
+274 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+275 in data 1 ok false
+275 Host(Log("rec1 from side 1 failed: relay failed"))
+275 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+276 in record0 true
+276 Tx(Data { record: 0, frame: <39 bytes a814049a>, lead: 21, side: 1 })
+276 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+277 in ctrl 22 row 15 side 1
+277 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+277 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+278 in data 7 ok true
+278 Tx(Data { record: 7, frame: <4252 bytes 582134da>, lead: 25, side: 0 })
+278 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 7], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+279 in data 14 ok true
+279 Tx(Data { record: 14, frame: <134 bytes 1884f6fd>, lead: 25, side: 0 })
+279 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+280 in data 7 ok true
+280 Tx(Data { record: 7, frame: <4252 bytes a28b8582>, lead: 25, side: 0 })
+280 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 7], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+285 in ctrl 22 row 21 side 1
+285 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+285 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+286 in data 1 ok false
+286 Host(Log("rec1 from side 1 failed: relay failed"))
+286 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+287 in ctrl 13 row 28 side 1
+287 Tx(Ctrl { code: 13, lead: 28, side: 0 })
+287 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+288 in data 4 ok true
+288 Tx(Data { record: 4, frame: <1903 bytes 1c22e34d>, lead: 25, side: 0 })
+288 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 4], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+289 in data 6 ok true
+289 Tx(Data { record: 6, frame: <3401 bytes 7e06961c>, lead: 25, side: 0 })
+289 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 6], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+290 in data 14 ok true
+290 Tx(Data { record: 14, frame: <134 bytes 2b195ef9>, lead: 25, side: 0 })
+290 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+291 in data 1 ok true
+291 Tx(Data { record: 1, frame: <338 bytes 4e05f578>, lead: 25, side: 0 })
+291 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+293 in data 5 ok true
+293 Tx(Data { record: 5, frame: <2551 bytes bd0c759c>, lead: 25, side: 0 })
+293 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 5], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+294 in data 5 ok true
+294 Tx(Data { record: 5, frame: <2551 bytes 9fc10835>, lead: 25, side: 0 })
+294 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 5], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+296 in ctrl 11 row 11 side 0
+296 Tx(Ctrl { code: 11, lead: 6, side: 1 })
+296 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+297 in ctrl 4 row 6 side 0
+297 Tx(Ctrl { code: 4, lead: 6, side: 1 })
+297 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+300 in ctrl 7 row 6 side 0
+301 in data 4 ok true
+301 Tx(Data { record: 4, frame: <1903 bytes 5882fc34>, lead: 6, side: 1 })
+301 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 4], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+303 in ctrl 14 row 8 side 0
+305 in data 1 ok true
+305 Tx(Data { record: 1, frame: <338 bytes c33ad1aa>, lead: 6, side: 1 })
+305 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 1, 14], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+307 in data 7 ok true
+307 Tx(Data { record: 7, frame: <4252 bytes 47c152e9>, lead: 6, side: 1 })
+307 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 7], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+308 in ctrl 6 row 22 side 0
+310 in ctrl 5 row 21 side 1
+310 Tx(Ctrl { code: 5, lead: 23, side: 0 })
+310 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 9], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+311 in ctrl 7 row 14 side 0
+312 in data 7 ok false
+312 Host(Log("rec7 from side 0 failed: relay failed"))
+312 Tx(Ctrl { code: 22, lead: 6, side: 1 })
+313 in data 9 ok true
+313 Tx(Data { record: 9, frame: <5740 bytes 16433b40>, lead: 6, side: 1 })
+313 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 9], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+314 in data 9 ok true
+314 Tx(Data { record: 9, frame: <5740 bytes 0aedb490>, lead: 6, side: 1 })
+314 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 9], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+316 in data 5 ok true
+316 Tx(Data { record: 5, frame: <2551 bytes d614c31d>, lead: 6, side: 1 })
+316 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 5], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+319 in ctrl 21 row 15 side 1
+319 Tx(Ctrl { code: 21, lead: 23, side: 0 })
+319 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+320 in ctrl 13 row 23 side 0
+320 Tx(Ctrl { code: 13, lead: 6, side: 1 })
+320 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+321 in ctrl 7 row 14 side 1
+321 Tx(Ctrl { code: 7, lead: 23, side: 0 })
+321 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 6], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+322 in data 15 ok true
+322 Tx(Data { record: 15, frame: <16 bytes c0340205>, lead: 6, side: 1 })
+322 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 1, 14], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+324 in ctrl 6 row 0 side 0
+325 in data 5 ok true
+325 Tx(Data { record: 5, frame: <2551 bytes e68705f6>, lead: 6, side: 1 })
+325 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 5], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+326 in data 8 ok false
+326 Host(Log("rec8 from side 0 failed: relay failed"))
+326 Tx(Ctrl { code: 22, lead: 6, side: 1 })
+327 in data 10 ok true
+327 Tx(Data { record: 10, frame: <6697 bytes d6ab8461>, lead: 6, side: 1 })
+327 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 10], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+329 in ctrl 11 row 13 side 0
+331 in ctrl 23 row 20 side 0
+333 in data 9 ok true
+333 Tx(Data { record: 9, frame: <5740 bytes 9e8e91bc>, lead: 6, side: 1 })
+333 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 9], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+334 in data 10 ok true
+334 Tx(Data { record: 10, frame: <6697 bytes 1e6df24b>, lead: 6, side: 1 })
+334 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 10], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+335 in ctrl 13 row 29 side 1
+335 Tx(Ctrl { code: 13, lead: 23, side: 0 })
+335 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+336 in data 7 ok true
+336 Tx(Data { record: 7, frame: <4252 bytes 75847019>, lead: 6, side: 1 })
+336 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 7], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+337 in data 1 ok true
+337 Tx(Data { record: 1, frame: <338 bytes b1f3fb30>, lead: 6, side: 1 })
+337 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 1, 14], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+338 in ctrl 24 row 11 side 1
+339 in data 5 ok true
+339 Tx(Data { record: 5, frame: <2551 bytes 68048233>, lead: 6, side: 1 })
+339 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 5], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+340 in data 15 ok true
+340 Tx(Data { record: 15, frame: <16 bytes 7323091f>, lead: 6, side: 1 })
+340 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 1, 14], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+345 in data 7 ok true
+345 Tx(Data { record: 7, frame: <4252 bytes 8c6ac9ad>, lead: 6, side: 1 })
+345 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 7], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+346 in data 15 ok false
+346 Host(Log("rec15 from side 0 failed: relay failed"))
+346 Tx(Ctrl { code: 22, lead: 6, side: 1 })
+348 in ctrl 13 row 22 side 1
+348 Tx(Ctrl { code: 13, lead: 23, side: 0 })
+348 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+349 in data 2 ok true
+349 Tx(Data { record: 2, frame: <709 bytes b399d213>, lead: 6, side: 1 })
+349 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 2], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+350 in data 14 ok true
+350 Tx(Data { record: 14, frame: <134 bytes 29c15a3f>, lead: 6, side: 1 })
+350 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 1, 14], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+351 in data 11 ok true
+351 Tx(Data { record: 11, frame: <7306 bytes df8f1a21>, lead: 6, side: 1 })
+351 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 11], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+352 in data 8 ok true
+352 Tx(Data { record: 8, frame: <5103 bytes 23cff654>, lead: 6, side: 1 })
+352 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 8], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+353 in ctrl 11 row 5 side 1
+353 Tx(Ctrl { code: 11, lead: 23, side: 0 })
+353 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+354 in data 2 ok false
+354 Host(Log("rec2 from side 0 failed: relay failed"))
+354 Tx(Ctrl { code: 22, lead: 6, side: 1 })
+355 in ctrl 20 row 13 side 0
+355 Tx(Ctrl { code: 20, lead: 6, side: 1 })
+355 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+356 in data 6 ok true
+356 Tx(Data { record: 6, frame: <3401 bytes 08f11635>, lead: 6, side: 1 })
+356 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 6], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+357 in ctrl 8 row 12 side 1
+357 Tx(Ctrl { code: 8, lead: 23, side: 0 })
+357 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 9], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+358 in data 8 ok true
+358 Tx(Data { record: 8, frame: <5103 bytes 29df11ac>, lead: 6, side: 1 })
+358 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 8], ctrl: [(14175493, 14158214, [3, 4, 12, 13, 20, 21, 22]), (14214996, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+359 in ctrl 6 row 27 side 0
+360 in record0 true
+360 Tx(Data { record: 0, frame: <39 bytes 43d7f0d5>, lead: 21, side: 1 })
+360 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+361 in data 15 ok true
+361 Tx(Data { record: 15, frame: <16 bytes f526bdcd>, lead: 21, side: 0 })
+361 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+363 in data 10 ok true
+363 Tx(Data { record: 10, frame: <6697 bytes 20e0eea7>, lead: 21, side: 0 })
+363 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+365 in data 2 ok false
+365 Host(Log("rec2 from side 1 failed: relay failed"))
+365 Tx(Ctrl { code: 22, lead: 23, side: 0 })
+366 in data 15 ok true
+366 Tx(Data { record: 15, frame: <16 bytes 17556824>, lead: 21, side: 0 })
+366 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+367 in ctrl 5 row 21 side 1
+368 in data 10 ok false
+368 Host(Log("rec10 from side 1 failed: relay failed"))
+368 Tx(Ctrl { code: 22, lead: 23, side: 0 })
+369 in ctrl 13 row 25 side 0
+369 Tx(Ctrl { code: 13, lead: 6, side: 1 })
+369 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+370 in ctrl 12 row 10 side 0
+370 Tx(Ctrl { code: 12, lead: 6, side: 1 })
+370 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+371 in data 5 ok true
+371 Tx(Data { record: 5, frame: <2551 bytes 6fc85c91>, lead: 21, side: 0 })
+371 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 5], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+372 in record0 true
+372 Tx(Data { record: 0, frame: <39 bytes 455c1ba1>, lead: 21, side: 1 })
+372 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+373 in ctrl 24 row 4 side 0
+374 in data 9 ok true
+374 Tx(Data { record: 9, frame: <5740 bytes 25f79d22>, lead: 21, side: 0 })
+374 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 9], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+375 in ctrl 13 row 11 side 1
+375 Tx(Ctrl { code: 13, lead: 23, side: 0 })
+375 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+376 in data 3 ok true
+376 Tx(Data { record: 3, frame: <1427 bytes 3df60cf2>, lead: 21, side: 0 })
+376 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 3], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+377 in data 11 ok true
+377 Tx(Data { record: 11, frame: <7306 bytes b0dbe19e>, lead: 21, side: 0 })
+377 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 11], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+378 in record0 false
+379 in ctrl 11 row 22 side 0
+379 Tx(Ctrl { code: 11, lead: 6, side: 1 })
+379 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+381 in ctrl 8 row 8 side 0
+381 Tx(Ctrl { code: 8, lead: 6, side: 1 })
+381 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 11], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+384 in ctrl 6 row 10 side 1
+385 in data 8 ok true
+385 Tx(Data { record: 8, frame: <5103 bytes af1109cc>, lead: 21, side: 0 })
+385 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0, 8], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+386 in data 4 ok false
+386 Host(Log("rec4 from side 1 failed: relay failed"))
+386 Tx(Ctrl { code: 22, lead: 23, side: 0 })
+387 in ctrl 14 row 0 side 0
+387 Tx(Ctrl { code: 14, lead: 6, side: 1 })
+387 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [15], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+389 in ctrl 4 row 27 side 1
+389 Tx(Ctrl { code: 4, lead: 23, side: 0 })
+389 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+390 in data 1 ok false
+390 Host(Log("rec1 from side 1 failed: relay failed"))
+390 Tx(Ctrl { code: 22, lead: 23, side: 0 })
+391 in ctrl 6 row 8 side 1
+392 in data 1 ok true
+392 Tx(Data { record: 1, frame: <338 bytes c7cecd23>, lead: 21, side: 0 })
+392 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+393 in ctrl 11 row 0 side 1
+395 in data 2 ok false
+395 Host(Log("rec2 from side 1 failed: relay failed"))
+395 Tx(Ctrl { code: 22, lead: 23, side: 0 })
+396 in data 3 ok true
+396 Tx(Data { record: 3, frame: <1427 bytes 27826af2>, lead: 21, side: 0 })
+396 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [3], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+397 in ctrl 11 row 14 side 0
+397 Tx(Ctrl { code: 11, lead: 6, side: 1 })
+397 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+399 in data 1 ok true
+399 Tx(Data { record: 1, frame: <338 bytes 9704a192>, lead: 21, side: 0 })
+399 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+401 in record0 true
+401 Tx(Data { record: 0, frame: <39 bytes 3759d375>, lead: 21, side: 1 })
+401 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+402 in data 3 ok true
+402 Tx(Data { record: 3, frame: <1427 bytes f66e95d6>, lead: 21, side: 0 })
+402 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [3], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+403 in ctrl 13 row 3 side 0
+403 Tx(Ctrl { code: 13, lead: 6, side: 1 })
+403 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+404 in data 3 ok true
+404 Tx(Data { record: 3, frame: <1427 bytes 723d9235>, lead: 21, side: 0 })
+404 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [3], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+405 in data 7 ok true
+405 Tx(Data { record: 7, frame: <4252 bytes 41e95924>, lead: 21, side: 0 })
+405 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+406 in ctrl 11 row 7 side 1
+407 in ctrl 1 row 12 side 1
+408 in data 6 ok true
+408 Tx(Data { record: 6, frame: <3401 bytes 282c3ff9>, lead: 21, side: 0 })
+408 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [6], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+409 in data 5 ok true
+409 Tx(Data { record: 5, frame: <2551 bytes 9799434e>, lead: 21, side: 0 })
+409 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [5], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+410 in data 5 ok true
+410 Tx(Data { record: 5, frame: <2551 bytes 639e9190>, lead: 21, side: 0 })
+410 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [5], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+414 in data 5 ok true
+414 Tx(Data { record: 5, frame: <2551 bytes d121567c>, lead: 21, side: 0 })
+414 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [5], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+415 in ctrl 22 row 27 side 0
+415 Tx(Ctrl { code: 22, lead: 6, side: 1 })
+415 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+416 in data 9 ok true
+416 Tx(Data { record: 9, frame: <5740 bytes bf16caa1>, lead: 21, side: 0 })
+416 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+418 in ctrl 13 row 16 side 1
+418 Tx(Ctrl { code: 13, lead: 23, side: 0 })
+418 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+419 in data 10 ok true
+419 Tx(Data { record: 10, frame: <6697 bytes 81004458>, lead: 21, side: 0 })
+419 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [10], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+421 in data 5 ok true
+421 Tx(Data { record: 5, frame: <2551 bytes b3b741e3>, lead: 21, side: 0 })
+421 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [5], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+422 in data 7 ok true
+422 Tx(Data { record: 7, frame: <4252 bytes 17925e42>, lead: 21, side: 0 })
+422 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+423 in ctrl 14 row 14 side 1
+424 in data 14 ok false
+424 Host(Log("rec14 from side 1 failed: relay failed"))
+424 Tx(Ctrl { code: 22, lead: 23, side: 0 })
+425 in ctrl 7 row 0 side 0
+425 Tx(Ctrl { code: 7, lead: 6, side: 1 })
+425 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [8], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+428 in data 14 ok true
+428 Tx(Data { record: 14, frame: <134 bytes 5aeffa8c>, lead: 21, side: 0 })
+428 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+429 in ctrl 11 row 21 side 1
+430 Host(CancelPending)
+430 Done
+431 in record0 true
+431 Host(Pending)
+431 Host(Log("Starting Digipeater: N0CALL <-> N3CALL <-> N2CALL <-> N1CALL"))
+431 Tx(Data { record: 0, frame: <39 bytes f262306c>, lead: 21, side: 1 })
+431 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+432 in record0 true
+432 Tx(Data { record: 0, frame: <39 bytes 814a63b3>, lead: 21, side: 1 })
+432 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+433 in ctrl 10 row 25 side 1
+434 in ctrl 20 row 2 side 0
+434 Tx(Ctrl { code: 20, lead: 28, side: 1 })
+434 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+435 in ctrl 13 row 8 side 0
+435 Tx(Ctrl { code: 13, lead: 28, side: 1 })
+435 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+436 in ctrl 14 row 12 side 0
+436 Tx(Ctrl { code: 14, lead: 28, side: 1 })
+436 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [15], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+437 in data 9 ok true
+437 Tx(Data { record: 9, frame: <5740 bytes 62ddb518>, lead: 25, side: 0 })
+437 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+438 in ctrl 20 row 27 side 1
+438 Tx(Ctrl { code: 20, lead: 28, side: 0 })
+438 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+439 in data 8 ok true
+439 Tx(Data { record: 8, frame: <5103 bytes 49b14f49>, lead: 25, side: 0 })
+439 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [8], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+440 in ctrl 11 row 26 side 0
+440 Tx(Ctrl { code: 11, lead: 13, side: 1 })
+440 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+441 in ctrl 5 row 9 side 1
+442 in ctrl 13 row 2 side 1
+442 Tx(Ctrl { code: 13, lead: 28, side: 0 })
+442 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+443 in ctrl 5 row 13 side 1
+444 in data 6 ok true
+444 Tx(Data { record: 6, frame: <3401 bytes 9f1cad3a>, lead: 25, side: 0 })
+444 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [6], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+445 in ctrl 12 row 5 side 1
+445 Tx(Ctrl { code: 12, lead: 28, side: 0 })
+445 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+446 in ctrl 23 row 25 side 1
+446 Host(Log("Digipeating: N0CALL <-> N3CALL <-> N2CALL <-> N1CALL"))
+446 Tx(Ctrl { code: 23, lead: 28, side: 0 })
+446 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+447 in ctrl 8 row 4 side 0
+447 Tx(Ctrl { code: 8, lead: 13, side: 1 })
+447 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+448 in ctrl 5 row 27 side 1
+449 Host(Log("Digipeater is disconnected"))
+449 Host(CancelPending)
+449 Done
+450 in record0 true
+450 Host(Pending)
+450 Host(Log("Starting Digipeater: N0CALL <-> N3CALL <-> N2CALL <-> N1CALL"))
+450 Tx(Data { record: 0, frame: <39 bytes 84fb0b95>, lead: 21, side: 1 })
+450 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+451 in ctrl 13 row 1 side 0
+451 Tx(Ctrl { code: 13, lead: 28, side: 1 })
+451 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+452 in ctrl 1 row 25 side 1
+453 in data 10 ok true
+453 Tx(Data { record: 10, frame: <6697 bytes 713530a6>, lead: 25, side: 0 })
+453 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+454 in data 8 ok true
+454 Tx(Data { record: 8, frame: <5103 bytes 140e10bf>, lead: 25, side: 0 })
+454 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 8], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+456 in ctrl 7 row 17 side 0
+456 Tx(Ctrl { code: 7, lead: 9, side: 1 })
+456 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+457 in ctrl 9 row 10 side 1
+460 in ctrl 3 row 21 side 0
+460 Host(Log("QRT Received"))
+460 Tx(Ctrl { code: 3, lead: 9, side: 1 })
+460 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+461 in ctrl 14 row 24 side 1
+462 in data 6 ok true
+463 in ctrl 22 row 7 side 0
+464 in data 15 ok true
+465 in ctrl 6 row 16 side 0
+466 in ctrl 20 row 5 side 1
+467 in ctrl 21 row 22 side 0
+468 in data 4 ok true
+469 Host(CancelPending)
+469 Done
+470 in record0 true
+470 Host(Pending)
+470 Host(Log("Starting Digipeater: N0CALL <-> N3CALL <-> N2CALL <-> N1CALL"))
+470 Tx(Data { record: 0, frame: <39 bytes a1b0e76b>, lead: 21, side: 1 })
+470 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+471 in ctrl 11 row 4 side 0
+471 Tx(Ctrl { code: 11, lead: 28, side: 1 })
+471 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+472 in data 11 ok true
+472 Tx(Data { record: 11, frame: <7306 bytes 4ce53960>, lead: 25, side: 0 })
+472 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 11], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+474 in data 11 ok true
+474 Tx(Data { record: 11, frame: <7306 bytes 5fe0ec98>, lead: 25, side: 0 })
+474 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 11], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+475 in ctrl 1 row 10 side 1
+476 in data 14 ok true
+476 Tx(Data { record: 14, frame: <134 bytes d1598af1>, lead: 25, side: 0 })
+476 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+478 in data 4 ok true
+478 Tx(Data { record: 4, frame: <1903 bytes b5c568e1>, lead: 25, side: 0 })
+478 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 4], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+479 in data 5 ok true
+479 Tx(Data { record: 5, frame: <2551 bytes adec6ea0>, lead: 25, side: 0 })
+479 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 5], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+480 in ctrl 5 row 22 side 1
+481 in ctrl 6 row 15 side 1
+482 in ctrl 8 row 5 side 1
+483 in ctrl 5 row 12 side 0
+483 Tx(Ctrl { code: 5, lead: 20, side: 1 })
+483 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+485 in ctrl 1 row 26 side 1
+486 in record0 false
+487 in data 1 ok true
+487 Tx(Data { record: 1, frame: <338 bytes b2bb63a3>, lead: 25, side: 0 })
+487 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+488 in data 5 ok true
+488 Tx(Data { record: 5, frame: <2551 bytes 61a56784>, lead: 25, side: 0 })
+488 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 5], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+489 in ctrl 11 row 1 side 0
+489 Tx(Ctrl { code: 11, lead: 20, side: 1 })
+489 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+491 in data 7 ok true
+491 Tx(Data { record: 7, frame: <4252 bytes 26ae42c0>, lead: 25, side: 0 })
+491 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+493 in ctrl 23 row 25 side 1
+493 Host(Log("Digipeating: N0CALL <-> N3CALL <-> N2CALL <-> N1CALL"))
+493 Tx(Ctrl { code: 23, lead: 28, side: 0 })
+493 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+494 in data 8 ok true
+494 Tx(Data { record: 8, frame: <5103 bytes 5eaeb790>, lead: 25, side: 0 })
+494 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 8], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+495 in data 14 ok true
+495 Tx(Data { record: 14, frame: <134 bytes 501954b5>, lead: 25, side: 0 })
+495 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+496 in data 15 ok true
+496 Tx(Data { record: 15, frame: <16 bytes 4e19b810>, lead: 25, side: 0 })
+496 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+498 in data 8 ok true
+498 Tx(Data { record: 8, frame: <5103 bytes 7afccd90>, lead: 25, side: 0 })
+498 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 8], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+499 in ctrl 6 row 8 side 1
+501 in data 3 ok true
+501 Tx(Data { record: 3, frame: <1427 bytes e4446eb1>, lead: 25, side: 0 })
+501 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 3], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+502 in ctrl 4 row 22 side 1
+502 Tx(Ctrl { code: 4, lead: 28, side: 0 })
+502 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+503 in data 2 ok true
+503 Tx(Data { record: 2, frame: <709 bytes d279aaeb>, lead: 25, side: 0 })
+503 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 2], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+504 in ctrl 14 row 24 side 1
+505 in ctrl 8 row 7 side 0
+505 Tx(Ctrl { code: 8, lead: 20, side: 1 })
+505 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 5], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+506 in ctrl 12 row 22 side 0
+506 Tx(Ctrl { code: 12, lead: 20, side: 1 })
+506 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+507 in ctrl 2 row 21 side 0
+507 Tx(Ctrl { code: 2, lead: 20, side: 1 })
+507 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+508 in ctrl 9 row 1 side 0
+508 Tx(Ctrl { code: 9, lead: 20, side: 1 })
+508 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 8], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+509 in ctrl 6 row 16 side 1
+511 in data 9 ok true
+511 Tx(Data { record: 9, frame: <5740 bytes 7053c17c>, lead: 25, side: 0 })
+511 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+512 in ctrl 11 row 16 side 1
+513 in data 10 ok true
+513 Tx(Data { record: 10, frame: <6697 bytes 6617123a>, lead: 25, side: 0 })
+513 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+514 in data 7 ok true
+514 Tx(Data { record: 7, frame: <4252 bytes ccbb3515>, lead: 25, side: 0 })
+514 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+515 in ctrl 1 row 19 side 0
+515 Tx(Ctrl { code: 1, lead: 20, side: 1 })
+515 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+516 in ctrl 11 row 24 side 0
+516 Tx(Ctrl { code: 11, lead: 20, side: 1 })
+516 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+519 in ctrl 23 row 1 side 1
+519 Tx(Ctrl { code: 23, lead: 28, side: 0 })
+519 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+520 in data 8 ok true
+520 Tx(Data { record: 8, frame: <5103 bytes 7f65f87e>, lead: 25, side: 0 })
+520 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 8], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+521 in data 15 ok true
+521 Tx(Data { record: 15, frame: <16 bytes f9ce9fed>, lead: 25, side: 0 })
+521 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+522 in data 7 ok true
+522 Tx(Data { record: 7, frame: <4252 bytes 5b176283>, lead: 25, side: 0 })
+522 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+523 in data 11 ok true
+523 Tx(Data { record: 11, frame: <7306 bytes 193aae46>, lead: 25, side: 0 })
+523 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 11], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+524 in data 1 ok true
+524 Tx(Data { record: 1, frame: <338 bytes a49b22d2>, lead: 25, side: 0 })
+524 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+525 in data 11 ok true
+525 Tx(Data { record: 11, frame: <7306 bytes 3eda614d>, lead: 25, side: 0 })
+525 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 11], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+526 in data 1 ok true
+526 Tx(Data { record: 1, frame: <338 bytes a69d88e5>, lead: 25, side: 0 })
+526 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+527 in data 11 ok true
+527 Tx(Data { record: 11, frame: <7306 bytes 08e37102>, lead: 25, side: 0 })
+527 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 11], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+529 in data 4 ok true
+529 Tx(Data { record: 4, frame: <1903 bytes d40e64c0>, lead: 25, side: 0 })
+529 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 4], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+530 in ctrl 21 row 14 side 1
+530 Tx(Ctrl { code: 21, lead: 28, side: 0 })
+530 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+533 in ctrl 9 row 5 side 0
+533 Tx(Ctrl { code: 9, lead: 20, side: 1 })
+533 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+534 in ctrl 12 row 0 side 1
+534 Tx(Ctrl { code: 12, lead: 28, side: 0 })
+534 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+536 in data 3 ok false
+536 Host(Log("rec3 from side 1 failed: relay failed"))
+536 Tx(Ctrl { code: 22, lead: 28, side: 0 })
+538 in data 8 ok true
+538 Tx(Data { record: 8, frame: <5103 bytes 81863f68>, lead: 25, side: 0 })
+538 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 8], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+539 in data 14 ok true
+539 Tx(Data { record: 14, frame: <134 bytes 567f5786>, lead: 25, side: 0 })
+539 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+540 in data 1 ok true
+540 Tx(Data { record: 1, frame: <338 bytes 748d85df>, lead: 25, side: 0 })
+540 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+541 in data 7 ok true
+541 Tx(Data { record: 7, frame: <4252 bytes 6c913fc0>, lead: 25, side: 0 })
+541 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+542 in ctrl 4 row 27 side 0
+542 Tx(Ctrl { code: 4, lead: 20, side: 1 })
+542 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0], ctrl: [(14175493, 14214996, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+543 in record0 false
+544 in data 10 ok true
+544 Tx(Data { record: 10, frame: <6697 bytes 970a2278>, lead: 18, side: 1 })
+544 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 10], ctrl: [(14175493, 14214996, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+545 in ctrl 9 row 1 side 0
+546 in data 11 ok true
+546 Tx(Data { record: 11, frame: <7306 bytes db315b72>, lead: 18, side: 1 })
+546 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 11], ctrl: [(14175493, 14214996, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+547 in ctrl 6 row 26 side 0
+549 in ctrl 21 row 19 side 1
+549 Tx(Ctrl { code: 21, lead: 4, side: 0 })
+549 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0], ctrl: [(14175493, 14214996, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+550 in data 10 ok true
+550 Tx(Data { record: 10, frame: <6697 bytes fa710263>, lead: 18, side: 1 })
+550 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 10], ctrl: [(14175493, 14214996, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+551 in ctrl 14 row 10 side 0
+552 in data 9 ok true
+552 Tx(Data { record: 9, frame: <5740 bytes 88439a79>, lead: 18, side: 1 })
+552 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 9], ctrl: [(14175493, 14214996, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+553 in ctrl 5 row 0 side 1
+553 Tx(Ctrl { code: 5, lead: 4, side: 0 })
+553 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 11], ctrl: [(14175493, 14214996, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+554 in ctrl 2 row 25 side 0
+556 in data 10 ok false
+556 Host(Log("rec10 from side 0 failed: relay failed"))
+556 Tx(Ctrl { code: 22, lead: 20, side: 1 })
+557 in ctrl 11 row 1 side 1
+557 Tx(Ctrl { code: 11, lead: 4, side: 0 })
+557 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0], ctrl: [(14175493, 14214996, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+558 in data 15 ok false
+558 Host(Log("rec15 from side 0 failed: relay failed"))
+558 Tx(Ctrl { code: 22, lead: 20, side: 1 })
+559 in data 1 ok true
+559 Tx(Data { record: 1, frame: <338 bytes e2eef2e1>, lead: 18, side: 1 })
+559 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 1, 14], ctrl: [(14175493, 14214996, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+560 in ctrl 10 row 14 side 0
+561 in ctrl 14 row 25 side 1
+561 Tx(Ctrl { code: 14, lead: 4, side: 0 })
+561 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 15], ctrl: [(14175493, 14214996, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+562 in data 15 ok true
+562 Tx(Data { record: 15, frame: <16 bytes 974a162d>, lead: 18, side: 1 })
+562 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0, 1, 14], ctrl: [(14175493, 14214996, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+564 in ctrl 4 row 16 side 1
+564 Tx(Ctrl { code: 4, lead: 4, side: 0 })
+564 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+567 in data 14 ok true
+567 Tx(Data { record: 14, frame: <134 bytes 4d9f65fe>, lead: 4, side: 0 })
+567 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+570 in ctrl 10 row 5 side 1
+571 in data 14 ok true
+571 Tx(Data { record: 14, frame: <134 bytes 8c2dac7f>, lead: 4, side: 0 })
+571 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+572 in ctrl 14 row 4 side 1
+573 in data 1 ok true
+573 Tx(Data { record: 1, frame: <338 bytes c88a5c8c>, lead: 4, side: 0 })
+573 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+574 in data 9 ok false
+574 Host(Log("rec9 from side 1 failed: relay failed"))
+574 Tx(Ctrl { code: 22, lead: 4, side: 0 })
+575 in ctrl 23 row 16 side 1
+575 Tx(Ctrl { code: 23, lead: 4, side: 0 })
+575 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+576 in data 1 ok true
+576 Tx(Data { record: 1, frame: <338 bytes 9e1affed>, lead: 4, side: 0 })
+576 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+577 in data 5 ok false
+577 Host(Log("rec5 from side 1 failed: relay failed"))
+577 Tx(Ctrl { code: 22, lead: 4, side: 0 })
+578 in ctrl 9 row 27 side 1
+579 in data 7 ok true
+579 Tx(Data { record: 7, frame: <4252 bytes 053c58cc>, lead: 4, side: 0 })
+579 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+580 in ctrl 7 row 7 side 0
+580 Tx(Ctrl { code: 7, lead: 20, side: 1 })
+580 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 8], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+581 in ctrl 24 row 22 side 0
+582 in ctrl 24 row 23 side 0
+583 in data 3 ok true
+583 Tx(Data { record: 3, frame: <1427 bytes 8dd3ad8b>, lead: 4, side: 0 })
+583 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 3], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+585 in data 14 ok true
+585 Tx(Data { record: 14, frame: <134 bytes 760fa03a>, lead: 4, side: 0 })
+585 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+587 in data 9 ok true
+587 Tx(Data { record: 9, frame: <5740 bytes 60b9561b>, lead: 4, side: 0 })
+587 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+588 in data 7 ok true
+588 Tx(Data { record: 7, frame: <4252 bytes 8194f458>, lead: 4, side: 0 })
+588 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+589 in ctrl 24 row 29 side 0
+590 in data 4 ok true
+590 Tx(Data { record: 4, frame: <1903 bytes 4481dde7>, lead: 4, side: 0 })
+590 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 4], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+591 in data 3 ok true
+591 Tx(Data { record: 3, frame: <1427 bytes 6d3b6dc5>, lead: 4, side: 0 })
+591 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 3], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+592 in data 10 ok true
+592 Tx(Data { record: 10, frame: <6697 bytes ec178377>, lead: 4, side: 0 })
+592 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+593 in data 9 ok true
+593 Tx(Data { record: 9, frame: <5740 bytes 6ccf54d7>, lead: 4, side: 0 })
+593 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+594 in data 7 ok true
+594 Tx(Data { record: 7, frame: <4252 bytes 1946c8dc>, lead: 4, side: 0 })
+594 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+596 in data 11 ok true
+596 Tx(Data { record: 11, frame: <7306 bytes eda48a9a>, lead: 4, side: 0 })
+596 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 11], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+597 in ctrl 6 row 2 side 0
+597 Tx(Ctrl { code: 6, lead: 20, side: 1 })
+597 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+598 in data 6 ok true
+598 Tx(Data { record: 6, frame: <3401 bytes 66f8ecd7>, lead: 4, side: 0 })
+598 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 6], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+599 in data 1 ok true
+599 Tx(Data { record: 1, frame: <338 bytes 0bf17b04>, lead: 4, side: 0 })
+599 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+600 in data 2 ok true
+600 Tx(Data { record: 2, frame: <709 bytes c895fc7e>, lead: 4, side: 0 })
+600 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 2], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+602 in ctrl 7 row 7 side 1
+604 in ctrl 22 row 5 side 0
+604 Tx(Ctrl { code: 22, lead: 20, side: 1 })
+604 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+606 in data 10 ok true
+606 Tx(Data { record: 10, frame: <6697 bytes afcad5b1>, lead: 4, side: 0 })
+606 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+607 in ctrl 10 row 20 side 0
+607 Tx(Ctrl { code: 10, lead: 20, side: 1 })
+607 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+608 in ctrl 22 row 27 side 0
+608 Tx(Ctrl { code: 22, lead: 20, side: 1 })
+608 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+609 in ctrl 9 row 24 side 1
+610 in data 9 ok true
+610 Tx(Data { record: 9, frame: <5740 bytes e94b9205>, lead: 4, side: 0 })
+610 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+614 in data 3 ok true
+614 Tx(Data { record: 3, frame: <1427 bytes ceea0fd7>, lead: 4, side: 0 })
+614 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 3], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+615 in data 1 ok true
+615 Tx(Data { record: 1, frame: <338 bytes 2fc6b25b>, lead: 4, side: 0 })
+615 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+616 in data 6 ok true
+616 Tx(Data { record: 6, frame: <3401 bytes 9fe8ac41>, lead: 4, side: 0 })
+616 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 6], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+617 in data 14 ok true
+617 Tx(Data { record: 14, frame: <134 bytes 76a18589>, lead: 4, side: 0 })
+617 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+618 in ctrl 4 row 16 side 1
+618 Tx(Ctrl { code: 4, lead: 4, side: 0 })
+618 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+621 in ctrl 6 row 12 side 0
+621 Tx(Ctrl { code: 6, lead: 20, side: 1 })
+621 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+622 in ctrl 4 row 17 side 0
+622 Tx(Ctrl { code: 4, lead: 20, side: 1 })
+622 Listen(DigiListen { bw: Narrow, data_key: 14175493, records: [0], ctrl: [(14175493, 14214996, [3, 4, 12, 13, 20, 21, 22]), (14197719, 14175493, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22])] })
+623 in record0 true
+623 Tx(Data { record: 0, frame: <39 bytes c4f67228>, lead: 21, side: 1 })
+623 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+624 in ctrl 21 row 28 side 1
+624 Tx(Ctrl { code: 21, lead: 4, side: 0 })
+624 Listen(DigiListen { bw: Narrow, data_key: 14214996, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14214996, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+626 in record0 true
+626 Tx(Data { record: 0, frame: <39 bytes 2c47aab4>, lead: 21, side: 1 })
+626 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+627 in ctrl 10 row 22 side 0
+627 Tx(Ctrl { code: 10, lead: 20, side: 1 })
+627 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+628 in data 9 ok true
+628 Tx(Data { record: 9, frame: <5740 bytes 841f6dfa>, lead: 4, side: 0 })
+628 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+629 in ctrl 4 row 2 side 1
+629 Tx(Ctrl { code: 4, lead: 4, side: 0 })
+629 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+631 in ctrl 12 row 26 side 0
+631 Tx(Ctrl { code: 12, lead: 20, side: 1 })
+631 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+632 in data 10 ok true
+632 Tx(Data { record: 10, frame: <6697 bytes 79484108>, lead: 4, side: 0 })
+632 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+634 in data 15 ok true
+634 Tx(Data { record: 15, frame: <16 bytes 148e15c6>, lead: 4, side: 0 })
+634 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+635 in data 5 ok true
+635 Tx(Data { record: 5, frame: <2551 bytes 73e6a6a2>, lead: 4, side: 0 })
+635 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 5], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+636 in data 2 ok true
+636 Tx(Data { record: 2, frame: <709 bytes 43c26df6>, lead: 4, side: 0 })
+636 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 2], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+637 in ctrl 2 row 26 side 1
+639 in data 11 ok true
+639 Tx(Data { record: 11, frame: <7306 bytes 8c1b677a>, lead: 4, side: 0 })
+639 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 11], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+640 in data 15 ok true
+640 Tx(Data { record: 15, frame: <16 bytes 68a690b7>, lead: 4, side: 0 })
+640 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+642 in ctrl 7 row 18 side 0
+642 Tx(Ctrl { code: 7, lead: 20, side: 1 })
+642 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 2], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+643 in ctrl 6 row 3 side 1
+644 in data 14 ok true
+644 Tx(Data { record: 14, frame: <134 bytes d4e88582>, lead: 4, side: 0 })
+644 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+645 in ctrl 1 row 6 side 0
+645 Tx(Ctrl { code: 1, lead: 20, side: 1 })
+645 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+646 in data 11 ok true
+646 Tx(Data { record: 11, frame: <7306 bytes 8e75a3ac>, lead: 4, side: 0 })
+646 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 11], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+647 in data 7 ok true
+647 Tx(Data { record: 7, frame: <4252 bytes 9c91e187>, lead: 4, side: 0 })
+647 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+648 in data 7 ok true
+648 Tx(Data { record: 7, frame: <4252 bytes 275b52ee>, lead: 4, side: 0 })
+648 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+649 in ctrl 8 row 26 side 0
+649 Tx(Ctrl { code: 8, lead: 20, side: 1 })
+649 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+650 in data 3 ok false
+650 Host(Log("rec3 from side 1 failed: relay failed"))
+650 Tx(Ctrl { code: 22, lead: 4, side: 0 })
+651 in data 4 ok false
+651 Host(Log("rec4 from side 1 failed: relay failed"))
+651 Tx(Ctrl { code: 22, lead: 4, side: 0 })
+652 in data 5 ok true
+652 Tx(Data { record: 5, frame: <2551 bytes af38c7b5>, lead: 4, side: 0 })
+652 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 5], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+653 in data 4 ok true
+653 Tx(Data { record: 4, frame: <1903 bytes ed6cde00>, lead: 4, side: 0 })
+653 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 4], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+654 in data 11 ok true
+654 Tx(Data { record: 11, frame: <7306 bytes fde9aef8>, lead: 4, side: 0 })
+654 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 11], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+655 in data 10 ok true
+655 Tx(Data { record: 10, frame: <6697 bytes 5324f9e2>, lead: 4, side: 0 })
+655 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+658 in ctrl 8 row 19 side 1
+659 in ctrl 13 row 25 side 0
+659 Tx(Ctrl { code: 13, lead: 20, side: 1 })
+659 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+661 in ctrl 13 row 1 side 1
+661 Tx(Ctrl { code: 13, lead: 4, side: 0 })
+661 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+662 in data 9 ok true
+662 Tx(Data { record: 9, frame: <5740 bytes 57c902ab>, lead: 4, side: 0 })
+662 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+664 in data 9 ok true
+664 Tx(Data { record: 9, frame: <5740 bytes 79aacda3>, lead: 4, side: 0 })
+664 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 9], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+665 in data 14 ok false
+665 Host(Log("rec14 from side 1 failed: relay failed"))
+665 Tx(Ctrl { code: 22, lead: 4, side: 0 })
+666 in ctrl 20 row 27 side 0
+666 Tx(Ctrl { code: 20, lead: 20, side: 1 })
+666 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14214996, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+667 in record0 true
+667 Tx(Data { record: 0, frame: <39 bytes 4237fc26>, lead: 21, side: 1 })
+667 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+668 in data 10 ok true
+668 Tx(Data { record: 10, frame: <6697 bytes c92ef338>, lead: 4, side: 0 })
+668 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+669 in ctrl 2 row 18 side 1
+670 in ctrl 12 row 0 side 0
+670 Tx(Ctrl { code: 12, lead: 20, side: 1 })
+670 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+671 in ctrl 23 row 21 side 1
+671 Tx(Ctrl { code: 23, lead: 4, side: 0 })
+671 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+672 in ctrl 24 row 25 side 0
+673 in ctrl 1 row 18 side 0
+673 Tx(Ctrl { code: 1, lead: 20, side: 1 })
+673 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+675 in ctrl 7 row 15 side 1
+676 in data 14 ok true
+676 Tx(Data { record: 14, frame: <134 bytes eeb9dbcd>, lead: 4, side: 0 })
+676 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+677 in ctrl 22 row 18 side 0
+677 Tx(Ctrl { code: 22, lead: 20, side: 1 })
+677 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+678 in data 2 ok false
+678 Host(Log("rec2 from side 1 failed: relay failed"))
+678 Tx(Ctrl { code: 22, lead: 4, side: 0 })
+679 in ctrl 5 row 8 side 0
+679 Tx(Ctrl { code: 5, lead: 20, side: 1 })
+679 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 3], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+680 in data 4 ok true
+680 Tx(Data { record: 4, frame: <1903 bytes 589bacfd>, lead: 4, side: 0 })
+680 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 4], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+681 in ctrl 6 row 22 side 1
+684 in ctrl 12 row 27 side 1
+684 Tx(Ctrl { code: 12, lead: 4, side: 0 })
+684 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+685 in record0 false
+688 in ctrl 10 row 19 side 0
+688 Tx(Ctrl { code: 10, lead: 20, side: 1 })
+688 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+689 in data 14 ok true
+689 Tx(Data { record: 14, frame: <134 bytes 2ae6ea4d>, lead: 4, side: 0 })
+689 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 1, 14], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+690 in ctrl 1 row 25 side 1
+691 in ctrl 21 row 5 side 1
+691 Tx(Ctrl { code: 21, lead: 4, side: 0 })
+691 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+692 in data 8 ok true
+692 Tx(Data { record: 8, frame: <5103 bytes a1379697>, lead: 4, side: 0 })
+692 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 8], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+693 in ctrl 5 row 9 side 1
+694 in data 3 ok true
+694 Tx(Data { record: 3, frame: <1427 bytes 0ca7869a>, lead: 4, side: 0 })
+694 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 3], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+695 in ctrl 5 row 18 side 0
+695 Tx(Ctrl { code: 5, lead: 20, side: 1 })
+695 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 5], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+696 in data 7 ok true
+696 Tx(Data { record: 7, frame: <4252 bytes b96eb84d>, lead: 4, side: 0 })
+696 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 7], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+697 in data 10 ok true
+697 Tx(Data { record: 10, frame: <6697 bytes 7dff0fb0>, lead: 4, side: 0 })
+697 Listen(DigiListen { bw: Narrow, data_key: 14197719, records: [0, 10], ctrl: [(14175493, 14158214, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 20, 21, 22]), (14197719, 14175493, [3, 4, 12, 13, 20, 21, 22, 23, 24])] })
+699 Host(Log("Digipeater is disconnected"))
+699 Host(CancelPending)
+699 Done

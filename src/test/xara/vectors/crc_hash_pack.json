@@ -1,0 +1,134 @@
+{
+ "content": {
+  "crc16_genibus": {
+   "empty": {
+    "hex": "",
+    "crc": "0x0000"
+   },
+   "00": {
+    "hex": "00",
+    "crc": "0x1e0f"
+   },
+   "ff": {
+    "hex": "ff",
+    "crc": "0x00ff"
+   },
+   "123456789": {
+    "hex": "313233343536373839",
+    "crc": "0xd64e"
+   },
+   "N0CALL": {
+    "hex": "4e3043414c4c",
+    "crc": "0x0986"
+   },
+   "bytes_0_255": {
+    "hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+    "crc": "0xc042"
+   },
+   "header_L4_body": {
+    "hex": "39b0c130c000008014090000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000482",
+    "crc": "0x3e0b"
+   }
+  },
+  "call_hash": {
+   "N0CALL": {
+    "crc_call": "0x0986",
+    "hash": "0xd80986"
+   },
+   "N1CALL": {
+    "crc_call": "0xa3d7",
+    "hash": "0xd8a3d7"
+   },
+   "N2CALL": {
+    "crc_call": "0x4d05",
+    "hash": "0xd84d05"
+   },
+   "": {
+    "crc_call": "0x0000",
+    "hash": "0x000000"
+   },
+   "A": {
+    "crc_call": "0x46ea",
+    "hash": "0x4646ea"
+   },
+   "AB": {
+    "crc_call": "0xb48b",
+    "hash": "0xb4b48b"
+   },
+   "ABC": {
+    "crc_call": "0x0af7",
+    "hash": "0x0a0af7"
+   },
+   "AA0AAA": {
+    "crc_call": "0x050a",
+    "hash": "0x7f050a"
+   },
+   "ZZ9Z": {
+    "crc_call": "0xbb12",
+    "hash": "0xeebb12"
+   },
+   "W1AW": {
+    "crc_call": "0xb953",
+    "hash": "0xd5b953"
+   },
+   "VE3ABCD": {
+    "crc_call": "0xb594",
+    "hash": "0x10b594"
+   },
+   "ABCDEFGHIJ": {
+    "crc_call": "0x9833",
+    "hash": "0xd99833"
+   },
+   "N0CALL-1": {
+    "crc_call": "0xffee",
+    "hash": "0x0dffee"
+   },
+   "N0CALL/P": {
+    "crc_call": "0xe50b",
+    "hash": "0x17e50b"
+   },
+   "n0call": {
+    "crc_call": "0xaf82",
+    "hash": "0x7caf82"
+   }
+  },
+  "packed_call": {
+   "N0CALL": {
+    "hex": "39b0c130c000"
+   },
+   "N1CALL": {
+    "hex": "39c0c130c000"
+   },
+   "N2CALL": {
+    "hex": "39d0c130c000"
+   },
+   "AA0AAA": {
+    "hex": "0416c1041000"
+   },
+   "ZZ9Z": {
+    "hex": "69a91a000000"
+   },
+   "W1AW": {
+    "hex": "5dc057000000"
+   },
+   "VE3ABCD": {
+    "hex": "585781083100"
+   },
+   "ABCDEFGHIJ": {
+    "hex": "0420c41461c8"
+   },
+   "1": {
+    "hex": "700000000000"
+   },
+   "": {
+    "hex": "000000000000"
+   },
+   "N0CALL-1": {
+    "hex": "39b0c130c001"
+   },
+   "N0CALL/P": {
+    "hex": "39b0c130c010"
+   }
+  }
+ }
+}

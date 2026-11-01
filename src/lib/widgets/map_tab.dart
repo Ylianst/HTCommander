@@ -8,6 +8,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'tab_visibility.dart';
@@ -268,7 +269,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// Public key of the MeshCore node shown in the info bar, or null.
   String? _selectedMeshKey;
 
-  /// When true, offline Winlink 1200-baud packet gateways are drawn on the map
+  /// When true, offline Winlink packet and VARA-FM gateways are drawn on the map
   /// (only once zoomed in enough to keep the marker count reasonable).
   bool _showWinlinkGateways = false;
 
@@ -2282,8 +2283,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
           child: _wrapWinlinkMenu(
             gw,
             Tooltip(
-              message: '${gw.callsign}\n'
-                  '${gw.frequenciesMHz.join(', ')} MHz',
+              message:
+                  '${gw.callsign}\n'
+                  '${gw.channels.map((channel) => '${(channel.frequencyHz / 1e6).toStringAsFixed(3)} MHz (${channel.modeLabel})').join('\n')}',
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -2463,7 +2465,15 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     return null;
   }
 
-  /// Builds a radio channel for a gateway frequency: simplex FM packet named
+  /// True when [gw] offers only VARA FM and this platform can run the XARA
+  /// software modem (it needs the audio channel, unavailable on web and iOS).
+  bool _varaFmOnly(WinlinkGateway gw) =>
+      !kIsWeb &&
+      defaultTargetPlatform != TargetPlatform.iOS &&
+      gw.channels.isNotEmpty &&
+      gw.channels.every((c) => c.supportsVaraFm && !c.supportsPacket);
+
+  /// Builds a radio channel for a gateway frequency: simplex FM named
   /// after the gateway callsign-stationid.
   radio.RadioChannelInfo _winlinkChannel(WinlinkGateway gw, int freqHz) {
     return radio.RadioChannelInfo(
@@ -2481,7 +2491,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// The draggable "channel rectangle" for one gateway frequency. Dragging it
   /// onto a radio slot programs the channel; right-click copies its share
   /// string (same as the radio tab).
-  Widget _buildWinlinkChannelTile(WinlinkGateway gw, int freqHz) {
+  Widget _buildWinlinkChannelTile(
+    WinlinkGateway gw,
+    WinlinkGatewayChannel gatewayChannel,
+  ) {
+    final freqHz = gatewayChannel.frequencyHz;
     final channel = _winlinkChannel(gw, freqHz);
     final palette = ChannelPalette.of(context);
     Widget tile({bool dragging = false}) {
@@ -2511,6 +2525,10 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             ),
             Text(
               '${(freqHz / 1000000).toStringAsFixed(3)} MHz',
+              style: TextStyle(fontSize: 9, color: palette.onChannelSecondary),
+            ),
+            Text(
+              gatewayChannel.modeLabel,
               style: TextStyle(fontSize: 9, color: palette.onChannelSecondary),
             ),
           ],
@@ -2593,9 +2611,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (int i = 0; i < gw.frequenciesHz.length; i++) ...[
+                      for (int i = 0; i < gw.channels.length; i++) ...[
                         if (i > 0) const SizedBox(height: 4),
-                        _buildWinlinkChannelTile(gw, gw.frequenciesHz[i]),
+                        _buildWinlinkChannelTile(gw, gw.channels[i]),
                       ],
                     ],
                   ),
@@ -2661,11 +2679,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
                         '${l10n.winlinkGatewayFrequencies}: '
-                        '${gw.frequenciesMHz.map((f) => '$f MHz').join(', ')}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: scheme.onSurface,
-                        ),
+                        '${gw.channels.map((channel) => '${(channel.frequencyHz / 1e6).toStringAsFixed(3)} MHz (${channel.modeLabel})').join(', ')}',
+                        style: TextStyle(fontSize: 12, color: scheme.onSurface),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -2680,6 +2695,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                   onPressed: () => _addContactFrom(StationInfo(
                     callsign: gw.callsign,
                     stationType: StationType.winlink,
+                    modem: _varaFmOnly(gw) ? 'XARA' : 'Hardware',
                   )),
                 ),
               IconButton(
@@ -4337,12 +4353,12 @@ class _RectSelectionPainter extends CustomPainter {
 /// station's exact position on the map.
 class _MarkerSpikePainter extends CustomPainter {
   _MarkerSpikePainter(this.color);
-
   final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
+
     final h = size.height;
     final topHalf = w * 0.30;
     final path = ui.Path()
@@ -4364,10 +4380,10 @@ class _MarkerSpikePainter extends CustomPainter {
         ..strokeWidth = 1
         ..strokeJoin = StrokeJoin.round,
     );
+
   }
 
   @override
   bool shouldRepaint(_MarkerSpikePainter oldDelegate) =>
       color != oldDelegate.color;
 }
-

@@ -102,10 +102,10 @@ class _AudioTabState extends State<AudioTab>
   bool _dartAnalysisEnabled = false;
   DartReceptionAnalysis? _dartAnalysis;
 
-  // Whether the general software modem is currently set to DART. The DART
-  // Signal Analysis menu item and the DART Reception Quality section are only
-  // shown in this mode. Tracks device 0 'SoftwareModemMode'.
-  bool _isDartModem = false;
+  // 'DART' or 'XARA' when the general software modem supports signal analysis,
+  // else null. The Signal Analysis menu item and Reception Quality section are
+  // only shown then. Tracks device 0 'SoftwareModemMode'.
+  String? _analysisProtocol;
 
   /// Whether the spectrograph is currently shown (any source other than none).
   bool get _showSpectrogram => _spectrogramSource != SpectrogramSource.none;
@@ -237,7 +237,9 @@ class _AudioTabState extends State<AudioTab>
       name: 'SoftwareModemMode',
       callback: _onSoftwareModemModeChanged,
     );
-    _isDartModem = _readIsDartModem();
+    _analysisProtocol = _analysisProtocolFor(
+      _broker.getValue<String>(0, 'SoftwareModemMode', 'none'),
+    );
 
     // The spectrograph source is a single global setting (device 0). Keep every
     // Audio tab (main + detached) in sync so changing it in one window updates
@@ -726,19 +728,23 @@ class _AudioTabState extends State<AudioTab>
     );
   }
 
-  /// Read whether the general software modem is currently set to DART.
-  bool _readIsDartModem() {
-    final mode =
-        (_broker.getValue<String>(0, 'SoftwareModemMode', 'none') ?? 'none')
-            .toLowerCase();
-    return mode == 'dart';
+  /// The analysis-capable protocol for a 'SoftwareModemMode' value, or null.
+  String? _analysisProtocolFor(Object? mode) {
+    switch ((mode?.toString() ?? 'none').toLowerCase()) {
+      case 'dart':
+        return 'DART';
+      case 'xara':
+        return 'XARA';
+      default:
+        return null;
+    }
   }
 
   void _onSoftwareModemModeChanged(int deviceId, String name, Object? data) {
     if (!mounted) return;
-    final isDart = (data?.toString() ?? 'none').toLowerCase() == 'dart';
-    if (isDart == _isDartModem) return;
-    setState(() => _isDartModem = isDart);
+    final protocol = _analysisProtocolFor(data);
+    if (protocol == _analysisProtocol) return;
+    setState(() => _analysisProtocol = protocol);
   }
 
   // ---------------------------------------------------------------------------
@@ -1402,10 +1408,18 @@ class _AudioTabState extends State<AudioTab>
                         ),
                       ),
                   ],
-                  if (_isDartModem && _dartAnalysisEnabled) ...[
+                  if (_analysisProtocol != null && _dartAnalysisEnabled) ...[
                     const SizedBox(height: 16),
-                    _buildSectionTitle(AppLocalizations.of(context).audioDartQuality),
-                    DartAnalysisSection(analysis: _dartAnalysis),
+                    // Localized titles name DART; reuse them for XARA.
+                    _buildSectionTitle(AppLocalizations.of(context)
+                        .audioDartQuality
+                        .replaceAll('DART', _analysisProtocol!)),
+                    DartAnalysisSection(
+                      analysis: _dartAnalysis?.protocol == _analysisProtocol
+                          ? _dartAnalysis
+                          : null,
+                      protocol: _analysisProtocol!,
+                    ),
                   ],
                 ],
                 // Hosted web build: the desktop audio sections don't apply, but
@@ -1808,14 +1822,16 @@ class _AudioTabState extends State<AudioTab>
               ),
             ),
         ],
-        if (_audioChannelSupported && _isDartModem) ...[
+        if (_audioChannelSupported && _analysisProtocol != null) ...[
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
             value: 'dartAnalysis',
             height: menuItemHeight,
             padding: menuItemPadding,
             child: checkRow(
-              AppLocalizations.of(context).audioDartSignalAnalysis,
+              AppLocalizations.of(context)
+                  .audioDartSignalAnalysis
+                  .replaceAll('DART', _analysisProtocol!),
               _dartAnalysisEnabled,
             ),
           ),

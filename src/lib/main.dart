@@ -1100,6 +1100,7 @@ class _MainFormState extends State<MainForm>
   bool _softwareModemFec = true; // FX.25 FEC on transmit (software modem)
   bool _hostAudioEnabled = false; // Hosted web: play the host's mirrored audio
   String _dartTxLevel = '0'; // DART transmit level ('0'..'5' or 'F')
+  bool _xaraWide = false; // XARA FM bandwidth: wide (true) or narrow
   String _aprsModemMode = 'none'; // APRS modem mode ('none' or 'afsk1200')
   bool _aprsModemFec = true; // FX.25 FEC on transmit (APRS modem)
   int _regionCount =
@@ -1500,6 +1501,13 @@ class _MainFormState extends State<MainForm>
     // Load initial value
     _dartTxLevel = (_broker.getValue<String>(0, 'DartTxMode', '0') ?? '0')
         .toUpperCase();
+
+    _broker.subscribe(
+      deviceId: 0,
+      name: 'XaraWide',
+      callback: _onXaraWideChanged,
+    );
+    _xaraWide = _broker.getValue<bool>(0, 'XaraWide', false) ?? false;
 
     // Subscribe to the independent APRS modem mode / FEC changes
     _broker.subscribe(
@@ -2087,6 +2095,10 @@ class _MainFormState extends State<MainForm>
     }
   }
 
+  void _onXaraWideChanged(int deviceId, String name, Object? data) {
+    if (data is bool) setState(() => _xaraWide = data);
+  }
+
   /// Handle APRS modem mode changes from the DataBroker.
   void _onAprsModemModeChanged(int deviceId, String name, Object? data) {
     if (data is String) {
@@ -2317,6 +2329,15 @@ class _MainFormState extends State<MainForm>
       command: 'SetDartTxMode',
       setting: 'DartTxMode',
       value: level,
+    );
+  }
+
+  /// Select narrow or wide XARA FM via the DataBroker.
+  void _setXaraWide(bool wide) {
+    _dispatchModemControl(
+      command: 'SetXaraWide',
+      setting: 'XaraWide',
+      value: wide,
     );
   }
 
@@ -3659,6 +3680,11 @@ class _MainFormState extends State<MainForm>
                   onPressed: () => _setSoftwareModemMode('DART'),
                   checked: _softwareModemMode == 'dart',
                 ),
+                AppMenuAction(
+                  label: 'XARA FM',
+                  onPressed: () => _setSoftwareModemMode('XARA'),
+                  checked: _softwareModemMode == 'xara',
+                ),
                 const AppMenuDivider(),
                 AppMenuAction(
                   label: 'FX.25 FEC',
@@ -3707,6 +3733,22 @@ class _MainFormState extends State<MainForm>
                     label: l10n.menuDartLevelF,
                     onPressed: () => _setDartTxLevel('F'),
                     checked: _dartTxLevel == 'F',
+                  ),
+                ],
+              ),
+            if (_softwareModemMode == 'xara')
+              AppSubmenu(
+                label: 'XARA FM',
+                children: [
+                  AppMenuAction(
+                    label: 'Narrow',
+                    onPressed: () => _setXaraWide(false),
+                    checked: !_xaraWide,
+                  ),
+                  AppMenuAction(
+                    label: 'Wide',
+                    onPressed: () => _setXaraWide(true),
+                    checked: _xaraWide,
                   ),
                 ],
               ),

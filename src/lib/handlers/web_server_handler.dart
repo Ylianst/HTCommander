@@ -481,6 +481,7 @@ class WebServerHandler {
     'SoftwareModemMode': 'SetSoftwareModemMode',
     'SoftwareModemFec': 'SetSoftwareModemFec',
     'DartTxMode': 'SetDartTxMode',
+    'XaraWide': 'SetXaraWide',
     'AprsSoftwareModemMode': 'SetAprsSoftwareModemMode',
     'AprsSoftwareModemFec': 'SetAprsSoftwareModemFec',
   };

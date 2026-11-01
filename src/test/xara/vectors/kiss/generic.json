@@ -1,0 +1,113 @@
+{
+ "cases": [
+  {
+   "name": "short_text_L1",
+   "kiss_tcp_in_hex": "c00248656c6c6fc0",
+   "data_hex": "48656c6c6f",
+   "vara_kiss_buffer_hex": "21919766cde0",
+   "level": 1,
+   "announce_code": 45,
+   "fragments": 1,
+   "frames": [
+    {
+     "field_hex": "21919766cde0",
+     "frame_hex": "21919766cde014000008c1d2",
+     "control_byte": 8,
+     "coded_tx_bits_hex": "b2c050586c32f29491bec3d0129a87361fb5b2874127998ea67e7e56b78954b8359208e83ad0",
+     "coded_tx_bits": 300
+    }
+   ],
+   "receiver_kiss_tcp_out_hex": "c00248656c6c6fc0"
+  },
+  {
+   "name": "binary_20_L2",
+   "kiss_tcp_in_hex": "c002808182838485868788898a8b8c8d8e8f90919293c0",
+   "data_hex": "808182838485868788898a8b8c8d8e8f90919293",
+   "vara_kiss_buffer_hex": "20808182838485868788898a8b8c8d8e8f90919293",
+   "level": 2,
+   "announce_code": 47,
+   "fragments": 1,
+   "frames": [
+    {
+     "field_hex": "20808182838485868788898a8b8c8d8e8f90919293",
+     "frame_hex": "20808182838485868788898a8b8c8d8e8f90919293140035a7",
+     "control_byte": 0,
+     "coded_tx_bits_hex": "ede4a3ee4b0177510c90b0b88b40bacf0319452c148d249bf67a29e7c5dec796ff0fadb80d8104bc46f381253bf11b44885884a0d7d9db7f0c6895672a036faa53b91d26ce50dc02d1ef27f810",
+     "coded_tx_bits": 612
+    }
+   ],
+   "receiver_kiss_tcp_out_hex": "c002808182838485868788898a8b8c8d8e8f90919293c0"
+  },
+  {
+   "name": "text_full_field_L1",
+   "kiss_tcp_in_hex": "c002435120435120444521c0",
+   "data_hex": "435120435120444521",
+   "vara_kiss_buffer_hex": "218745043a28224542",
+   "level": 1,
+   "announce_code": 45,
+   "fragments": 1,
+   "frames": [
+    {
+     "field_hex": "218745043a28224542",
+     "frame_hex": "218745043a28224542094cd4",
+     "control_byte": 9,
+     "coded_tx_bits_hex": "c1795fd62b0c698e5cfc515044c91116e74531876514c92e1cd9d71fea6f3efa9df43fb952e0",
+     "coded_tx_bits": 300
+    }
+   ],
+   "receiver_kiss_tcp_out_hex": "c002435120435120444521c0"
+  },
+  {
+   "name": "text_100_L4_3frag",
+   "kiss_tcp_in_hex": "c00256415241204b4953532062726f616463617374207465737420303132333435363738392056415241204b4953532062726f616463617374207465737420303132333435363738392056415241204b4953532062726f616463617374207465737420303132c0",
+   "data_hex": "56415241204b4953532062726f616463617374207465737420303132333435363738392056415241204b4953532062726f616463617374207465737420303132333435363738392056415241204b4953532062726f616463617374207465737420303132",
+   "vara_kiss_buffer_hex": "21ad06941412e4d3a683172df87263c3cfa20e9979f440c18b266d1ab66ee1ca0ad06941412e4d3a683172df87263c3cfa20e9979f440c18b266d1ab66ee1ca0ad06941412e4d3a683172df87263c3cfa20e9979f440c18b2f",
+   "level": 4,
+   "announce_code": 58,
+   "fragments": 3,
+   "frames": [
+    {
+     "field_hex": "a191ad06941412e4d3a683172df87263c3cfa20e9979f440c18b266d1ab66ee1ca0ad06941412e4d3a6831",
+     "frame_hex": "a191ad06941412e4d3a683172df87263c3cfa20e9979f440c18b266d1ab66ee1ca0ad06941412e4d3a683101fe58",
+     "control_byte": 1,
+     "coded_tx_bits_hex": "5fb440a90085cb1736997545a99c3b754ba932abf811e430c1fb8b60c9ee15a669078a81ff186a12b8c15fb0dc2283f7e743d43f108aff227937620692b34d29a558aa9c10066b6588108326f27e82343c542869a11739d58c820424d780",
+     "coded_tx_bits": 748
+    },
+    {
+     "field_hex": "a172df87263c3cfa20e9979f440c18b266d1ab66ee1ca0ad06941412e4d3a683172df87263c3cfa20e9979",
+     "frame_hex": "a172df87263c3cfa20e9979f440c18b266d1ab66ee1ca0ad06941412e4d3a683172df87263c3cfa20e99790173c9",
+     "control_byte": 1,
+     "coded_tx_bits_hex": "17db3e550212b8714112bb196f5e323289d456101768c282056bff41dd9d037aa9c6d5a469c5af2aaeaade0525d92fb2919b2c8a6cab9cb84cb46d131d064d8c8bd05f9df34d1c6d6a38235207b0f420a93720cf73ca8768d91ee3efde90",
+     "coded_tx_bits": 748
+    },
+    {
+     "field_hex": "21f440c18b2f",
+     "frame_hex": "21f440c18b2f14000000000000000000000000000000000000000000000000000000000000000000000000009303",
+     "control_byte": 0,
+     "coded_tx_bits_hex": "ff48c2c64d72c732a9583d19591ab4c04f0de0c2806bd8f20177ff5fca59a7473dbab9a23848a8e4e473dd7a5435871eaf89e1ce7deabe71816bdf2242374426e9f744bc81e9ffd7555ea701936d067f9d1563d32d5b70a937d2679cdfc0",
+     "coded_tx_bits": 748
+    }
+   ],
+   "receiver_kiss_tcp_out_hex": "c00256415241204b4953532062726f616463617374207465737420303132333435363738392056415241204b4953532062726f616463617374207465737420303132333435363738392056415241204b4953532062726f616463617374207465737420303132c0"
+  },
+  {
+   "name": "binary_with_fend_L1",
+   "kiss_tcp_in_hex": "c002dbdcdbdd1400ff8041c0",
+   "data_hex": "c0db1400ff8041",
+   "vara_kiss_buffer_hex": "20c0db1400ff8041",
+   "level": 1,
+   "announce_code": 45,
+   "fragments": 1,
+   "frames": [
+    {
+     "field_hex": "20c0db1400ff8041",
+     "frame_hex": "20c0db1400ff8041140832e2",
+     "control_byte": 8,
+     "coded_tx_bits_hex": "7fec395bfdd4d6929170afdc3b938d25c7bfbe9b518dbd5e18eb27d6daf32638992a6dd9feb0",
+     "coded_tx_bits": 300
+    }
+   ],
+   "receiver_kiss_tcp_out_hex": "c002dbdcdbdd1400ff8041c0"
+  }
+ ]
+}

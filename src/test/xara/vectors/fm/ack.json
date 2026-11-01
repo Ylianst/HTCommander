@@ -1,0 +1,772 @@
+{
+ "sequences": [
+  {
+   "name": "clean registered NARROW climb",
+   "mode": "NARROW",
+   "registered": true,
+   "steps": [
+    {
+     "level": 15,
+     "snr": 35,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 35,
+     "m0": 33.9,
+     "m1": 30.7,
+     "m2": 27.4,
+     "m3": 24.4,
+     "m6": 15.8,
+     "ratio": 100.0,
+     "code": 9,
+     "next_level": 7,
+     "explicit_stay_reset": true
+    },
+    {
+     "level": 7,
+     "snr": 35,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 35,
+     "m0": 18.8,
+     "m1": 16.6,
+     "m2": 14.5,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 5,
+     "next_level": 9,
+     "explicit_stay_reset": true
+    },
+    {
+     "level": 9,
+     "snr": 35,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 35,
+     "m0": 15.5,
+     "m1": 12.7,
+     "m2": 0.0,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 7,
+     "next_level": 10,
+     "explicit_stay_reset": true
+    },
+    {
+     "level": 10,
+     "snr": 35,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 35,
+     "m0": 12.7,
+     "m1": 10.5,
+     "m2": 0.0,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 7,
+     "next_level": 11,
+     "explicit_stay_reset": true
+    },
+    {
+     "level": 11,
+     "snr": 35,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 35,
+     "m0": 10.5,
+     "m1": 0.0,
+     "m2": 0.0,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 1,
+     "next_level": 11,
+     "explicit_stay_reset": false
+    },
+    {
+     "level": 11,
+     "snr": 35,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 35,
+     "m0": 10.5,
+     "m1": 0.0,
+     "m2": 0.0,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 1,
+     "next_level": 11,
+     "explicit_stay_reset": false
+    },
+    {
+     "level": 11,
+     "snr": 35,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 35,
+     "m0": 10.5,
+     "m1": 0.0,
+     "m2": 0.0,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 1,
+     "next_level": 11,
+     "explicit_stay_reset": false
+    },
+    {
+     "level": 11,
+     "snr": 35,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 35,
+     "m0": 10.5,
+     "m1": 0.0,
+     "m2": 0.0,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 1,
+     "next_level": 11,
+     "explicit_stay_reset": false
+    }
+   ]
+  },
+  {
+   "name": "unregistered link is capped at L2",
+   "mode": "NARROW",
+   "registered": false,
+   "steps": [
+    {
+     "level": 15,
+     "snr": 35,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 35,
+     "m0": 33.9,
+     "m1": 30.7,
+     "m2": 27.4,
+     "m3": 24.4,
+     "m6": 15.8,
+     "ratio": 100.0,
+     "code": 7,
+     "next_level": 2,
+     "explicit_stay_reset": true
+    },
+    {
+     "level": 2,
+     "snr": 35,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 35,
+     "m0": 31.2,
+     "m1": 28.4,
+     "m2": 25.9,
+     "m3": 22.7,
+     "m6": 14.1,
+     "ratio": 100.0,
+     "code": 1,
+     "next_level": 2,
+     "explicit_stay_reset": false
+    },
+    {
+     "level": 2,
+     "snr": 35,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 35,
+     "m0": 31.7,
+     "m1": 28.9,
+     "m2": 26.4,
+     "m3": 23.2,
+     "m6": 14.6,
+     "ratio": 100.0,
+     "code": 1,
+     "next_level": 2,
+     "explicit_stay_reset": false
+    },
+    {
+     "level": 2,
+     "snr": 35,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 35,
+     "m0": 31.7,
+     "m1": 28.9,
+     "m2": 26.4,
+     "m3": 23.2,
+     "m6": 14.6,
+     "ratio": 100.0,
+     "code": 1,
+     "next_level": 2,
+     "explicit_stay_reset": false
+    }
+   ]
+  },
+  {
+   "name": "held minimum of 4 S/N values",
+   "mode": "NARROW",
+   "registered": true,
+   "steps": [
+    {
+     "level": 15,
+     "snr": 30,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 30,
+     "m0": 28.9,
+     "m1": 25.7,
+     "m2": 22.4,
+     "m3": 19.4,
+     "m6": 10.8,
+     "ratio": 100.0,
+     "code": 9,
+     "next_level": 7,
+     "explicit_stay_reset": true
+    },
+    {
+     "level": 7,
+     "snr": 8,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 8,
+     "m0": -8.2,
+     "m1": -10.4,
+     "m2": -12.5,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 6,
+     "next_level": 6,
+     "explicit_stay_reset": false
+    },
+    {
+     "level": 6,
+     "snr": 30,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 8,
+     "m0": -4.3,
+     "m1": -7.7,
+     "m2": -10.4,
+     "m3": -13.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 6,
+     "next_level": 5,
+     "explicit_stay_reset": false
+    },
+    {
+     "level": 5,
+     "snr": 30,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 8,
+     "m0": -2.3,
+     "m1": -4.3,
+     "m2": -8.2,
+     "m3": -11.4,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 6,
+     "next_level": 4,
+     "explicit_stay_reset": false
+    },
+    {
+     "level": 4,
+     "snr": 30,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 8,
+     "m0": -0.1,
+     "m1": -2.3,
+     "m2": -4.8,
+     "m3": -9.2,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 6,
+     "next_level": 3,
+     "explicit_stay_reset": false
+    },
+    {
+     "level": 3,
+     "snr": 30,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 30,
+     "m0": 23.9,
+     "m1": 21.9,
+     "m2": 19.2,
+     "m3": 16.2,
+     "m6": 8.0,
+     "ratio": 100.0,
+     "code": 9,
+     "next_level": 9,
+     "explicit_stay_reset": true
+    }
+   ]
+  },
+  {
+   "name": "a lost frame blocks +2/+3/+6 for the session",
+   "mode": "WIDE",
+   "registered": true,
+   "steps": [
+    {
+     "level": 15,
+     "snr": 40,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 40,
+     "m0": 38.9,
+     "m1": 35.7,
+     "m2": 32.4,
+     "m3": 29.6,
+     "m6": 21.8,
+     "ratio": 100.0,
+     "code": 9,
+     "next_level": 7,
+     "explicit_stay_reset": true
+    },
+    {
+     "event": "frame lost (no decode)"
+    },
+    {
+     "level": 6,
+     "snr": 40,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 40,
+     "m0": 27.0,
+     "m1": 0.0,
+     "m2": 0.0,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 2.0,
+     "code": 1,
+     "next_level": 6,
+     "explicit_stay_reset": false
+    },
+    {
+     "level": 6,
+     "snr": 40,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 40,
+     "m0": 27.5,
+     "m1": 0.0,
+     "m2": 0.0,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 3.0,
+     "code": 1,
+     "next_level": 6,
+     "explicit_stay_reset": false
+    },
+    {
+     "level": 6,
+     "snr": 40,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 40,
+     "m0": 27.5,
+     "m1": 0.0,
+     "m2": 0.0,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 4.0,
+     "code": 1,
+     "next_level": 6,
+     "explicit_stay_reset": false
+    },
+    {
+     "level": 6,
+     "snr": 40,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 40,
+     "m0": 27.5,
+     "m1": 0.0,
+     "m2": 0.0,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 5.0,
+     "code": 1,
+     "next_level": 6,
+     "explicit_stay_reset": false
+    }
+   ]
+  },
+  {
+   "name": "hint 2 / 0 / 1",
+   "mode": "NARROW",
+   "registered": true,
+   "steps": [
+    {
+     "level": 15,
+     "snr": 20,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 20,
+     "m0": 18.9,
+     "m1": 15.7,
+     "m2": 12.4,
+     "m3": 9.4,
+     "m6": 0.8,
+     "ratio": 100.0,
+     "code": 9,
+     "next_level": 7,
+     "explicit_stay_reset": true
+    },
+    {
+     "level": 7,
+     "snr": 20,
+     "hint": 2,
+     "complete": true,
+     "held_snr": 20,
+     "m0": 3.8,
+     "m1": 1.6,
+     "m2": -0.5,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 1,
+     "next_level": 7,
+     "explicit_stay_reset": true
+    },
+    {
+     "level": 7,
+     "snr": 20,
+     "hint": 0,
+     "complete": true,
+     "held_snr": 20,
+     "m0": 4.3,
+     "m1": 2.1,
+     "m2": 0.0,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 6,
+     "next_level": 6,
+     "explicit_stay_reset": true
+    },
+    {
+     "level": 6,
+     "snr": 20,
+     "hint": 1,
+     "complete": true,
+     "held_snr": 20,
+     "m0": 7.7,
+     "m1": 4.3,
+     "m2": 1.6,
+     "m3": -1.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 6,
+     "next_level": 5,
+     "explicit_stay_reset": false
+    },
+    {
+     "level": 5,
+     "snr": 20,
+     "hint": 3,
+     "complete": true,
+     "held_snr": 20,
+     "m0": 9.7,
+     "m1": 7.7,
+     "m2": 3.8,
+     "m3": 0.6,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 1,
+     "next_level": 5,
+     "explicit_stay_reset": false
+    }
+   ]
+  },
+  {
+   "name": "frame 1 of a double lost",
+   "mode": "NARROW",
+   "registered": true,
+   "steps": [
+    {
+     "level": 15,
+     "snr": 20,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 20,
+     "m0": 18.9,
+     "m1": 15.7,
+     "m2": 12.4,
+     "m3": 9.4,
+     "m6": 0.8,
+     "ratio": 100.0,
+     "code": 9,
+     "next_level": 7,
+     "explicit_stay_reset": true
+    },
+    {
+     "level": 7,
+     "snr": 20,
+     "hint": 7,
+     "complete": true,
+     "held_snr": 20,
+     "m0": 3.8,
+     "m1": 1.6,
+     "m2": -0.5,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 7,
+     "next_level": 8,
+     "explicit_stay_reset": true
+    },
+    {
+     "level": 8,
+     "snr": 20,
+     "hint": 7,
+     "complete": false,
+     "held_snr": 20,
+     "m0": 2.1,
+     "m1": 0.5,
+     "m2": 0.0,
+     "m3": 0.0,
+     "m6": 0.0,
+     "ratio": 100.0,
+     "code": 10,
+     "next_level": 7,
+     "explicit_stay_reset": false
+    }
+   ]
+  }
+ ],
+ "sender": [
+  {
+   "level": 15,
+   "code": 1,
+   "next_level": 14
+  },
+  {
+   "level": 15,
+   "code": 2,
+   "next_level": 1
+  },
+  {
+   "level": 15,
+   "code": 5,
+   "next_level": 3
+  },
+  {
+   "level": 15,
+   "code": 6,
+   "next_level": 1
+  },
+  {
+   "level": 15,
+   "code": 7,
+   "next_level": 2
+  },
+  {
+   "level": 15,
+   "code": 8,
+   "next_level": 4
+  },
+  {
+   "level": 15,
+   "code": 9,
+   "next_level": 7
+  },
+  {
+   "level": 15,
+   "code": 10,
+   "next_level": 1
+  },
+  {
+   "level": 15,
+   "code": 11,
+   "next_level": 1
+  },
+  {
+   "level": 14,
+   "code": 1,
+   "next_level": 1
+  },
+  {
+   "level": 14,
+   "code": 2,
+   "next_level": 1
+  },
+  {
+   "level": 14,
+   "code": 5,
+   "next_level": 3
+  },
+  {
+   "level": 14,
+   "code": 6,
+   "next_level": 1
+  },
+  {
+   "level": 14,
+   "code": 7,
+   "next_level": 2
+  },
+  {
+   "level": 14,
+   "code": 8,
+   "next_level": 4
+  },
+  {
+   "level": 14,
+   "code": 9,
+   "next_level": 7
+  },
+  {
+   "level": 14,
+   "code": 10,
+   "next_level": 1
+  },
+  {
+   "level": 14,
+   "code": 11,
+   "next_level": 1
+  },
+  {
+   "level": 1,
+   "code": 1,
+   "next_level": 1
+  },
+  {
+   "level": 1,
+   "code": 2,
+   "next_level": 1
+  },
+  {
+   "level": 1,
+   "code": 5,
+   "next_level": 3
+  },
+  {
+   "level": 1,
+   "code": 6,
+   "next_level": 1
+  },
+  {
+   "level": 1,
+   "code": 7,
+   "next_level": 2
+  },
+  {
+   "level": 1,
+   "code": 8,
+   "next_level": 4
+  },
+  {
+   "level": 1,
+   "code": 9,
+   "next_level": 7
+  },
+  {
+   "level": 1,
+   "code": 10,
+   "next_level": 1
+  },
+  {
+   "level": 1,
+   "code": 11,
+   "next_level": 1
+  },
+  {
+   "level": 2,
+   "code": 1,
+   "next_level": 2
+  },
+  {
+   "level": 2,
+   "code": 2,
+   "next_level": 1
+  },
+  {
+   "level": 2,
+   "code": 5,
+   "next_level": 4
+  },
+  {
+   "level": 2,
+   "code": 6,
+   "next_level": 1
+  },
+  {
+   "level": 2,
+   "code": 7,
+   "next_level": 3
+  },
+  {
+   "level": 2,
+   "code": 8,
+   "next_level": 5
+  },
+  {
+   "level": 2,
+   "code": 9,
+   "next_level": 8
+  },
+  {
+   "level": 2,
+   "code": 10,
+   "next_level": 1
+  },
+  {
+   "level": 2,
+   "code": 11,
+   "next_level": 1
+  },
+  {
+   "level": 5,
+   "code": 1,
+   "next_level": 5
+  },
+  {
+   "level": 5,
+   "code": 2,
+   "next_level": 4
+  },
+  {
+   "level": 5,
+   "code": 5,
+   "next_level": 7
+  },
+  {
+   "level": 5,
+   "code": 6,
+   "next_level": 4
+  },
+  {
+   "level": 5,
+   "code": 7,
+   "next_level": 6
+  },
+  {
+   "level": 5,
+   "code": 8,
+   "next_level": 8
+  },
+  {
+   "level": 5,
+   "code": 9,
+   "next_level": 11
+  },
+  {
+   "level": 5,
+   "code": 10,
+   "next_level": 4
+  },
+  {
+   "level": 5,
+   "code": 11,
+   "next_level": 4
+  }
+ ]
+}

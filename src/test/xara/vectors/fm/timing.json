@@ -1,0 +1,336 @@
+{
+ "cases": [
+  {
+   "mode": "NARROW",
+   "vias": 0,
+   "caller_connect_window": 942,
+   "caller_connect_window_activescan": 482,
+   "seed_from_23_24_at_400_ticks": {
+    "ack_window": [650, 672, 698, 719, 774, 809, 867, 904, 939, 1014, 1024],
+    "ctrl_window": 475,
+    "ack_window_rec14_15": [650, 650]
+   },
+   "seed_from_14_at_350_ticks": {
+    "ack_window": [696, 718, 744, 765, 820, 855, 913, 950, 985, 1060, 1070],
+    "ctrl_window": 425
+   },
+   "receiver_sync_window": [
+    {
+     "level": 15,
+     "lo": 113,
+     "hi": 919.5
+    },
+    {
+     "level": 14,
+     "lo": 698,
+     "hi": 1504.5
+    },
+    {
+     "level": 1,
+     "lo": 1751,
+     "hi": 2557.5
+    },
+    {
+     "level": 2,
+     "lo": 1751,
+     "hi": 2557.5
+    },
+    {
+     "level": 11,
+     "lo": 1679,
+     "hi": 2485.5
+    }
+   ],
+   "receiver_sync_window_double": [
+    {
+     "level": 1,
+     "lo": 1751,
+     "hi": 4348.5
+    },
+    {
+     "level": 2,
+     "lo": 1751,
+     "hi": 4348.5
+    },
+    {
+     "level": 11,
+     "lo": 1679,
+     "hi": 4204.5
+    }
+   ]
+  },
+  {
+   "mode": "NARROW",
+   "vias": 1,
+   "caller_connect_window": 1864,
+   "caller_connect_window_activescan": 1404,
+   "seed_from_23_24_at_400_ticks": {
+    "ack_window": [2333, 2377, 2429, 2471, 2590, 2660, 2776, 2850, 2920, 3070, 3009],
+    "ctrl_window": 701,
+    "ack_window_rec14_15": [2333, 2333]
+   },
+   "seed_from_14_at_350_ticks": {
+    "ack_window": [2607, 2651, 2703, 2745, 2864, 2934, 3050, 3124, 3194, 3344, 3283],
+    "ctrl_window": 783
+   },
+   "receiver_sync_window": [
+    {
+     "level": 15,
+     "lo": 266,
+     "hi": 1741.5
+    },
+    {
+     "level": 14,
+     "lo": 1436,
+     "hi": 2911.5
+    },
+    {
+     "level": 1,
+     "lo": 3542,
+     "hi": 5017.5
+    },
+    {
+     "level": 2,
+     "lo": 3542,
+     "hi": 5039.5
+    },
+    {
+     "level": 11,
+     "lo": 3398,
+     "hi": 5247.5
+    }
+   ],
+   "receiver_sync_window_double": null
+  },
+  {
+   "mode": "NARROW",
+   "vias": 2,
+   "caller_connect_window": 2784,
+   "caller_connect_window_activescan": 2324,
+   "seed_from_23_24_at_400_ticks": {
+    "ack_window": [3991, 4057, 4135, 4198, 4381, 4486, 4660, 4771, 4876, 5101, 4969],
+    "ctrl_window": 695,
+    "ack_window_rec14_15": [3991, 3991]
+   },
+   "seed_from_14_at_350_ticks": {
+    "ack_window": [4493, 4559, 4637, 4700, 4883, 4988, 5162, 5273, 5378, 5603, 5471],
+    "ctrl_window": 909
+   },
+   "receiver_sync_window": [
+    {
+     "level": 15,
+     "lo": 419,
+     "hi": 2563.5
+    },
+    {
+     "level": 14,
+     "lo": 2174,
+     "hi": 4318.5
+    },
+    {
+     "level": 1,
+     "lo": 5333,
+     "hi": 7477.5
+    },
+    {
+     "level": 2,
+     "lo": 5333,
+     "hi": 7521.5
+    },
+    {
+     "level": 11,
+     "lo": 5117,
+     "hi": 8009.5
+    }
+   ],
+   "receiver_sync_window_double": null
+  },
+  {
+   "mode": "WIDE",
+   "vias": 0,
+   "caller_connect_window": 942,
+   "caller_connect_window_activescan": 482,
+   "seed_from_23_24_at_400_ticks": {
+    "ack_window": [650, 672, 710, 763, 809, 889, 937, 1000, 1025, 1000, 974, 1002, 994],
+    "ctrl_window": 475,
+    "ack_window_rec14_15": [650, 650]
+   },
+   "seed_from_14_at_350_ticks": {
+    "ack_window": [696, 718, 756, 809, 855, 935, 983, 1046, 1071, 1046, 1020, 1048, 1040],
+    "ctrl_window": 425
+   },
+   "receiver_sync_window": [
+    {
+     "level": 15,
+     "lo": 113,
+     "hi": 919.5
+    },
+    {
+     "level": 14,
+     "lo": 698,
+     "hi": 1504.5
+    },
+    {
+     "level": 1,
+     "lo": 1751,
+     "hi": 2557.5
+    },
+    {
+     "level": 2,
+     "lo": 1751,
+     "hi": 2557.5
+    },
+    {
+     "level": 13,
+     "lo": 788,
+     "hi": 1594.5
+    }
+   ],
+   "receiver_sync_window_double": [
+    {
+     "level": 1,
+     "lo": 1751,
+     "hi": 4348.5
+    },
+    {
+     "level": 2,
+     "lo": 1751,
+     "hi": 4348.5
+    },
+    {
+     "level": 13,
+     "lo": 788,
+     "hi": 2422.5
+    }
+   ]
+  },
+  {
+   "mode": "WIDE",
+   "vias": 1,
+   "caller_connect_window": 1864,
+   "caller_connect_window_activescan": 1404,
+   "seed_from_23_24_at_400_ticks": {
+    "ack_window": [2333, 2377, 2453, 2559, 2651, 2820, 2916, 3042, 2768, 2475, 2261, 2155, 2058],
+    "ctrl_window": 701,
+    "ack_window_rec14_15": [2333, 2333]
+   },
+   "seed_from_14_at_350_ticks": {
+    "ack_window": [2607, 2651, 2727, 2833, 2925, 3094, 3190, 3316, 3042, 2749, 2535, 2429, 2332],
+    "ctrl_window": 783
+   },
+   "receiver_sync_window": [
+    {
+     "level": 15,
+     "lo": 266,
+     "hi": 1741.5
+    },
+    {
+     "level": 14,
+     "lo": 1436,
+     "hi": 2911.5
+    },
+    {
+     "level": 1,
+     "lo": 3542,
+     "hi": 5017.5
+    },
+    {
+     "level": 2,
+     "lo": 3542,
+     "hi": 5039.5
+    },
+    {
+     "level": 13,
+     "lo": 1616,
+     "hi": 3435.5
+    }
+   ],
+   "receiver_sync_window_double": null
+  },
+  {
+   "mode": "WIDE",
+   "vias": 2,
+   "caller_connect_window": 2784,
+   "caller_connect_window_activescan": 2324,
+   "seed_from_23_24_at_400_ticks": {
+    "ack_window": [3991, 4057, 4171, 4330, 4468, 4726, 4870, 5059, 4486, 3925, 3523, 3283, 3097],
+    "ctrl_window": 695,
+    "ack_window_rec14_15": [3991, 3991]
+   },
+   "seed_from_14_at_350_ticks": {
+    "ack_window": [4493, 4559, 4673, 4832, 4970, 5228, 5372, 5561, 4988, 4427, 4025, 3785, 3599],
+    "ctrl_window": 909
+   },
+   "receiver_sync_window": [
+    {
+     "level": 15,
+     "lo": 419,
+     "hi": 2563.5
+    },
+    {
+     "level": 14,
+     "lo": 2174,
+     "hi": 4318.5
+    },
+    {
+     "level": 1,
+     "lo": 5333,
+     "hi": 7477.5
+    },
+    {
+     "level": 2,
+     "lo": 5333,
+     "hi": 7521.5
+    },
+    {
+     "level": 13,
+     "lo": 2444,
+     "hi": 5276.5
+    }
+   ],
+   "receiver_sync_window_double": null
+  }
+ ],
+ "ack_sequence_narrow_direct": [
+  {
+   "ack_ticks": 700,
+   "level": 15,
+   "means": [700, 722, 748, 769, 824, 859, 917, 954, 989, 1064, 1074],
+   "windows": [950, 972, 998, 1019, 1074, 1109, 1167, 1204, 1239, 1314, 1324],
+   "rec14_15": [950, 950],
+   "ctrl_window": 475
+  },
+  {
+   "ack_ticks": 720,
+   "level": 14,
+   "means": [720, 742, 768, 789, 844, 879, 937, 974, 1009, 1084, 1094],
+   "windows": [970, 992, 1018, 1039, 1094, 1129, 1187, 1224, 1259, 1334, 1344],
+   "rec14_15": [970, 950],
+   "ctrl_window": 475
+  },
+  {
+   "ack_ticks": 900,
+   "level": 1,
+   "means": [900, 922, 948, 969, 1024, 1059, 1117, 1154, 1189, 1264, 1274],
+   "windows": [1150, 1172, 1198, 1219, 1274, 1309, 1367, 1404, 1439, 1514, 1524],
+   "rec14_15": [970, 950],
+   "ctrl_window": 475
+  },
+  {
+   "ack_ticks": 950,
+   "level": 1,
+   "means": [925, 947, 973, 994, 1049, 1084, 1142, 1179, 1214, 1289, 1299],
+   "windows": [1175, 1197, 1223, 1244, 1299, 1334, 1392, 1429, 1464, 1539, 1549],
+   "rec14_15": [970, 950],
+   "ctrl_window": 475
+  },
+  {
+   "ack_ticks": 1000,
+   "level": 2,
+   "means": [925, 1000, 1026, 1047, 1102, 1137, 1195, 1232, 1267, 1342, 1352],
+   "windows": [1175, 1250, 1276, 1297, 1352, 1387, 1445, 1482, 1517, 1592, 1602],
+   "rec14_15": [970, 950],
+   "ctrl_window": 475
+  }
+ ]
+}

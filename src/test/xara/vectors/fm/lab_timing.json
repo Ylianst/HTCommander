@@ -1,0 +1,41 @@
+{
+ "events": [
+  {
+   "what": "caller CONNECT retry, direct",
+   "observed_s_after_rec0_end": 2.532
+  },
+  {
+   "what": "caller CONNECT retry, 1 Via"
+  },
+  {
+   "what": "idle poll period (20 -> 20)"
+  },
+  {
+   "what": "Forced QRT"
+  },
+  {
+   "what": "disconnect watchdog, direct",
+   "observed_s": 16.51
+  },
+  {
+   "what": "REQ after a missing ACK / data (W_L = mean[L] + 250 ticks)"
+  },
+  {
+   "what": "ACK window boundary at L2 (relay delay on A's first L2 ACK)",
+   "cases": [
+    {
+     "ack_end_after_data_end_s": 0.971,
+     "accepted": true
+    },
+    {
+     "ack_end_after_data_end_s": 1.037,
+     "accepted": true
+    },
+    {
+     "ack_end_after_data_end_s": 1.102,
+     "accepted": false
+    }
+   ]
+  }
+ ]
+}

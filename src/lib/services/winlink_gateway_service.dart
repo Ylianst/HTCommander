@@ -72,7 +72,7 @@ class WinlinkDbManifest {
 /// Outcome of a [WinlinkGatewayService.update] call.
 enum WinlinkUpdateResult { upToDate, updated }
 
-/// Manages the offline Winlink 1200-baud packet gateway directory: download,
+/// Manages the offline Winlink packet and VARA-FM gateway directory: download,
 /// storage, and geographic/callsign queries. Singleton, initialised once at
 /// startup via [instance].`init()`.
 ///

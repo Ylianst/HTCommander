@@ -2338,6 +2338,8 @@ class Radio implements FirmwareRadio {
         return FragmentEncodingType.softwarePsk2400;
       case 'DART':
         return FragmentEncodingType.softwareDart;
+      case 'XARA':
+        return FragmentEncodingType.softwareXara;
       default:
         return FragmentEncodingType.unknown;
     }
@@ -2351,7 +2353,8 @@ class Radio implements FirmwareRadio {
     fragment.encoding = _softwareEncodingFor(mode);
     // DART carries its own LDPC FEC and CRC; the AFSK/PSK modems apply FX.25
     // (falling back to plain AX.25 for frames too large for any FX.25 block).
-    fragment.frameType = fragment.encoding == FragmentEncodingType.softwareDart
+    fragment.frameType = fragment.encoding == FragmentEncodingType.softwareDart ||
+            fragment.encoding == FragmentEncodingType.softwareXara
         ? FragmentFrameType.ax25
         : FragmentFrameType.fx25;
 

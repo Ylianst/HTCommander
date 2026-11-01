@@ -1,11 +1,8 @@
 name: Deploy Winlink Gateway Database
 
-# Rebuilds the offline Winlink packet-gateway directory from the Winlink CMS
-# gateway-status feed and publishes it. HTCommander only supports 1200-baud
-# VHF/UHF packet, so the builder keeps just the callsign-stationid, location and
-# frequency of each 1200 packet gateway and packs them into a tiny binary
-# (~12 KB compressed). See docs/Winlink-Gateways.md for the format and the
-# compaction strategy.
+# Rebuilds the offline Winlink directory from the PUBLIC packet and VARA-FM
+# feeds. The builder merges channels by callsign/SSID and frequency, retaining
+# location and per-frequency modes. See docs/Winlink-Gateways.md for the format.
 #
 # The binary is uploaded as an asset on a rolling GitHub Release (so it never
 # bloats the git history); only the tiny manifest (which points at that asset)
@@ -14,7 +11,7 @@ name: Deploy Winlink Gateway Database
 # To be gentle on the Winlink servers this runs only twice a week (and on
 # demand), and it skips publishing entirely when the distilled station set is
 # byte-for-byte unchanged (the feed's status timestamps churn constantly, but we
-# only care about callsigns, locations and frequencies).
+# only care about callsigns, locations, frequencies and supported modes).
 
 on:
   schedule:
@@ -80,6 +77,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p docs/winlink
+          python src/tools/test_build_winlink_db.py
           python src/tools/build_winlink_db.py \
             --download \
             --history-hours "$HISTORY_HOURS" \
@@ -136,7 +134,7 @@ jobs:
             gh release create "$RELEASE_TAG" \
               --latest=false \
               --title "Winlink Gateway Database" \
-              --notes "Offline Winlink 1200-baud packet gateway directory. Rolling release; the asset is replaced automatically."
+              --notes "Offline Winlink packet and VARA-FM gateway directory. Rolling release; the asset is replaced automatically."
           fi
           gh release upload "$RELEASE_TAG" "docs/winlink/$ASSET" --clobber
           # Keep the binary out of the committed docs tree / Pages artifact.

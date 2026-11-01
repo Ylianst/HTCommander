@@ -11,6 +11,8 @@
 import json
 import os
 import sys
+import tempfile
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_winlink_db as b  # noqa: E402
@@ -79,7 +81,8 @@ def test_distill_and_roundtrip():
     decoded = b.read_wdb(bytes(header) + payload)
 
     by_call = {}
-    for call, lat, lon, freq in decoded:
+    for call, lat, lon, freq, modes in decoded:
+        _check(modes == b.MODE_PACKET, "packet channel lost its mode")
         by_call.setdefault(call, []).append((lat, lon, freq))
 
     _check("KH6UU" in by_call, "no-SSID callsign lost its bare form")
@@ -100,6 +103,72 @@ def test_band_filter_can_be_disabled():
     # PH3J-10's 101 MHz channel is now kept.
     _check(dropped["band"] == 0, f"band filter should be off: {dropped}")
     _check(gateways == 4, f"expected 4 gateways with filter off, got {gateways}")
+
+
+def test_merge_modes_per_station_and_frequency():
+    feeds = [
+        _gateway("KG4MRA-10", 37.5, -77.4, [
+            ("Packet 1200", "1200", 145030000),
+            ("Packet 9600", "9600", 145050000),
+        ]),
+        _gateway("KG4MRA-10", 37.5001, -77.4001, [
+            ("VARA FM", "0", 145030000),
+            ("VARA FM WIDE", "9600", 145070000),
+            ("VARA-FM", None, 145070000),
+            ("VARA HF", None, 145090000),
+        ]),
+        _gateway("KH6UU", 20.7, -156.4, [("VARAFM", None, 145090000)]),
+    ]
+    records, count, _ = b.distill(feeds + feeds)
+    _check(count == 2 and len(records) == 3, "stations/frequencies not merged")
+    call_key = b._encode_call_key("KG4MRA", 10)
+    station = [row for row in records if row[0] == call_key]
+    _check([row[4] for row in station] == [3, 2], "channel modes not merged")
+    _check(len({row[1:3] for row in station}) == 1, "station locations differ")
+    reversed_records, _, _ = b.distill(list(reversed(feeds)))
+    _check(records == reversed_records, "merge depends on feed ordering")
+
+
+def test_feed_urls_select_both_modes():
+    from urllib.parse import parse_qs, urlparse
+    for mode in ("packet", "varafm"):
+        params = parse_qs(urlparse(b.build_feed_url(168, "test", mode)).query)
+        _check(params["mode"] == [mode], "wrong feed mode")
+        _check(params["serviceCodes"] == ["PUBLIC"], "non-public feed")
+
+
+def test_download_builds_both_feeds_and_mode_roundtrip():
+    vara = {"Gateways": [_gateway("KG4MRA-10", 37.5, -77.4,
+                               [("VARA FM WIDE", "9600", 145030000)])]}
+    with tempfile.TemporaryDirectory() as directory:
+        output = os.path.join(directory, "gateways.wdb")
+        with patch.object(b, "download_feed", side_effect=[json.dumps(SAMPLE), json.dumps(vara)]) as download:
+            result = b.main(["--download", "--out", output, "--compress"])
+        _check(result == 0, "download build failed")
+        _check([call.args[2] for call in download.call_args_list] == ["packet", "varafm"],
+               "did not download both feeds")
+        import lzma
+        with open(output + ".xz", "rb") as stream:
+            decoded = b.read_wdb(lzma.decompress(stream.read()))
+        station = [row for row in decoded if row[0] == "KG4MRA-10"]
+        _check(len(station) == 1 and station[0][4] == 3, "merged modes lost in binary")
+        with open(os.path.join(directory, "winlink_packet_manifest.json")) as stream:
+            manifest = json.load(stream)
+        _check(manifest["gatewayCount"] == 3 and manifest["recordCount"] == 4,
+               "manifest counts include duplicates")
+
+
+def test_empty_second_feed_does_not_write_partial_database():
+    with tempfile.TemporaryDirectory() as directory:
+        output = os.path.join(directory, "gateways.wdb")
+        with patch.object(b, "download_feed", side_effect=[json.dumps(SAMPLE), '{"Gateways":[]}']):
+            try:
+                b.main(["--download", "--out", output])
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("empty VARA-FM feed should abort the build")
+        _check(not os.path.exists(output), "partial packet-only database written")
 
 
 def test_jsonp_wrapper_is_stripped():

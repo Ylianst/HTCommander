@@ -1,0 +1,36 @@
+{
+ "cases": [
+  {
+   "host_cmd": "CQFRAME N0CALL 2300",
+   "payload_hex": "39b0c130c020",
+   "frame_hex": "39b0c130c0208a3c",
+   "coded_tx_bits_hex": "12d28573c46bb4a02f2d0fc1a1c5ed19db138246f5f85c70c6b0",
+   "coded_tx_bits": 204,
+   "receiver_host_line": "CQFRAME N0CALL 2300\r"
+  },
+  {
+   "host_cmd": "CQFRAME N1CALL-5 500",
+   "payload_hex": "39c0c130c015",
+   "frame_hex": "39c0c130c015f14c",
+   "coded_tx_bits_hex": "12da1b3a18db8601adae97e5e8af64bde915a31870f6b59788f0",
+   "coded_tx_bits": 204,
+   "receiver_host_line": "CQFRAME N1CALL-5 500\r"
+  },
+  {
+   "host_cmd": "CQFRAME AB1CDE-15 2750",
+   "payload_hex": "04270310503f",
+   "frame_hex": "04270310503f8992",
+   "coded_tx_bits_hex": "4d5668f7f0bc7c062bae4596574e785999f2ec8a0595d887b270",
+   "coded_tx_bits": 204,
+   "receiver_host_line": "CQFRAME AB1CDE-15 2750\r"
+  },
+  {
+   "host_cmd": "CQFRAME K1A 2300",
+   "payload_hex": "2dc040000020",
+   "frame_hex": "2dc040000020f3e2",
+   "coded_tx_bits_hex": "06767f26d2c98020ae4e80c3117e81bdf453d910e0f284105f30",
+   "coded_tx_bits": 204,
+   "receiver_host_line": "CQFRAME K1A 2300\r"
+  }
+ ]
+}

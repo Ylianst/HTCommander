@@ -157,6 +157,9 @@ const List<_ModemOption> _modemOptions = [
   _ModemOption('DART', 'Software DART'),
 ];
 
+/// VARA FM is a connected-mode modem with its own ARQ, so only Winlink uses it.
+const _ModemOption _xaraOption = _ModemOption('XARA', 'VARA FM (XARA)');
+
 class _StationDialog extends StatefulWidget {
   final StationInfo? existing;
   final StationType? fixedType;
@@ -240,7 +243,8 @@ class _StationDialogState extends State<_StationDialog> {
       _stationType = s.stationType;
       _terminalProtocol = s.terminalProtocol;
       _aprsRoute = s.aprsRoute;
-      _modem = _modemOptions.any((o) => o.value == s.modem)
+      _modem = (_modemOptions.any((o) => o.value == s.modem) ||
+              (s.stationType == StationType.winlink && s.modem == _xaraOption.value))
           ? s.modem
           : 'Hardware';
       _useAuth =
@@ -794,7 +798,7 @@ class _StationDialogState extends State<_StationDialog> {
       authPassword: (_stationType == StationType.aprs && _useAuth)
           ? _authPasswordController.text
           : null,
-      modem: _modem,
+      modem: _modem == _xaraOption.value ? 'Hardware' : _modem,
       avatarIcon: _avatarIcon,
       avatarImage: _avatarImage,
     );
@@ -1119,13 +1123,17 @@ class _StationDialogState extends State<_StationDialog> {
 
   Widget _buildModemDropdown() {
     final l10n = AppLocalizations.of(context);
+    final List<_ModemOption> options = <_ModemOption>[
+      ..._modemOptions,
+      if (_stationType == StationType.winlink) _xaraOption,
+    ];
     final current =
-        _modemOptions.any((o) => o.value == _modem) ? _modem : 'Hardware';
+        options.any((o) => o.value == _modem) ? _modem : 'Hardware';
     return DropdownButtonFormField<String>(
       initialValue: current,
       decoration: _inputDecoration(labelText: l10n.stationModem),
       items: [
-        for (final option in _modemOptions)
+        for (final option in options)
           DropdownMenuItem(value: option.value, child: Text(option.label)),
       ],
       onChanged: (value) {

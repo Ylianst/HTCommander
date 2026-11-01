@@ -46,21 +46,24 @@ void _writeUintBE(BytesBuilder b, int value, int len) {
 Uint8List _buildWdb(
   List<(String, double, double, int)> rows, {
   int sourceDate = 20260916,
+  int version = WinlinkGatewayDatabase.formatVersion,
+  List<int>? modes,
 }) {
   final header = ByteData(WinlinkGatewayDatabase.headerSize);
   header.setUint32(0, WinlinkGatewayDatabase.magic, Endian.little);
-  header.setUint16(4, WinlinkGatewayDatabase.formatVersion, Endian.little);
+  header.setUint16(4, version, Endian.little);
   header.setUint16(6, 0, Endian.little);
   header.setUint32(8, rows.length, Endian.little);
   header.setUint32(12, sourceDate, Endian.little);
   header.setUint32(16, WinlinkGatewayDatabase.headerSize, Endian.little);
 
   final body = BytesBuilder();
-  for (final (call, lat, lon, freq) in rows) {
+  for (final (index, (call, lat, lon, freq)) in rows.indexed) {
     _writeUintBE(body, _encodeCallKey(call), 5);
     _writeUintBE(body, ((lat + 90) * 10000).round(), 3);
     _writeUintBE(body, ((lon + 180) * 10000).round(), 3);
     _writeUintBE(body, (freq / 100).round(), 3);
+    if (version != 1) body.add([modes?[index] ?? 1]);
   }
 
   final out = BytesBuilder();
@@ -108,6 +111,79 @@ void main() {
       expect(near.map((g) => g.callsign).toList(), ['AA1AA-10', 'BB2BB-10']);
     });
 
+    test('preserves packet, VARA-FM and dual-mode channels', () {
+      final db = WinlinkGatewayDatabase.fromBytes(
+        _buildWdb(
+          [
+            ('AA1AA-10', 40.0, -75.0, 145010000),
+            ('AA1AA-10', 40.0, -75.0, 145030000),
+            ('AA1AA-10', 40.0, -75.0, 145050000),
+            ('BB2BB-10', 41.0, -75.0, 145070000),
+          ],
+          modes: [1, 2, 3, 2],
+        ),
+      );
+      expect(db.gatewayCount, 2);
+      final channels = db.gateways.first.channels;
+      expect(channels.map((channel) => channel.supportsPacket), [
+        true,
+        false,
+        true,
+      ]);
+      expect(channels.map((channel) => channel.supportsVaraFm), [
+        false,
+        true,
+        true,
+      ]);
+      expect(channels.map((channel) => channel.modeLabel), [
+        'Packet 1200',
+        'VARA-FM',
+        'Packet 1200 / VARA-FM',
+      ]);
+      expect(db.gateways.last.channels.single.supportsVaraFm, true);
+    });
+
+    test('reads version 1 caches as packet-only', () {
+      final db = WinlinkGatewayDatabase.fromBytes(
+        _buildWdb([
+          ('AA1AA-10', 40.0, -75.0, 145010000),
+          ('AA1AA-10', 40.0, -75.0, 145030000),
+        ], version: 1),
+      );
+      expect(db.gateways.single.frequenciesHz, [145010000, 145030000]);
+      expect(
+        db.gateways.single.channels.every(
+          (channel) => channel.supportsPacket && !channel.supportsVaraFm,
+        ),
+        true,
+      );
+    });
+
+    test('rejects unknown versions, invalid modes and truncated records', () {
+      for (final version in [0, 3]) {
+        expect(
+          () =>
+              WinlinkGatewayDatabase.fromBytes(_buildWdb([], version: version)),
+          throwsA(isA<FormatException>()),
+        );
+      }
+      for (final modes in [0, 4]) {
+        expect(
+          () => WinlinkGatewayDatabase.fromBytes(
+            _buildWdb([('AA1AA-10', 40.0, -75.0, 145010000)], modes: [modes]),
+          ),
+          throwsA(isA<FormatException>()),
+        );
+      }
+      final bytes = _buildWdb([('AA1AA-10', 40.0, -75.0, 145010000)]);
+      expect(
+        () => WinlinkGatewayDatabase.fromBytes(
+          Uint8List.sublistView(bytes, 0, bytes.length - 1),
+        ),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
     test('withinBounds culls to the box', () {
       final bytes = _buildWdb([
         ('AA1AA-10', 40.0, -75.0, 145010000),
@@ -121,8 +197,10 @@ void main() {
     test('rejects a bad magic', () {
       final bytes = _buildWdb([('AA1AA-10', 40.0, -75.0, 145010000)]);
       bytes[0] = 0x00;
-      expect(() => WinlinkGatewayDatabase.fromBytes(bytes),
-          throwsA(isA<FormatException>()));
+      expect(
+        () => WinlinkGatewayDatabase.fromBytes(bytes),
+        throwsA(isA<FormatException>()),
+      );
     });
   });
 }

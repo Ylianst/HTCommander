@@ -258,6 +258,9 @@ class PacketDecoder {
       case FragmentEncodingType.softwareDart:
         encoding = 'Software DART${_dartLevelString(fragment.dartMode)}';
         break;
+      case FragmentEncodingType.softwareXara:
+        encoding = 'Software XARA FM';
+        break;
       case FragmentEncodingType.unknown:
         return '';
     }

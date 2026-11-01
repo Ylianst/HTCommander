@@ -8,10 +8,10 @@ import 'dart:typed_data';
 
 import 'winlink_gateway.dart';
 
-/// Reader for the HTCommander offline Winlink packet-gateway directory (`.wdb`).
+/// Reader for the HTCommander offline Winlink gateway directory (`.wdb`).
 ///
 /// The directory is tiny (~1200 gateways, ~18 KB), so the whole file is parsed
-/// into memory. Each 14-byte record is one gateway-frequency pair; records
+/// into memory. Each 15-byte record is one gateway-frequency pair; records
 /// sharing a callsign key are contiguous and are grouped into a single
 /// [WinlinkGateway] carrying all of that station's frequencies.
 ///
@@ -22,28 +22,29 @@ import 'winlink_gateway.dart';
 /// ```
 /// Header (32 bytes)
 ///   0  u32  magic         = "WLGW" (0x57474C57)
-///   4  u16  formatVersion = 1
+///   4  u16  formatVersion = 2
 ///   6  u16  flags         = 0
 ///   8  u32  recordCount
 ///   12 u32  sourceDate    (YYYYMMDD, UTC)
 ///   16 u32  recordsOffset (= 32)
 ///   20 …    reserved
 ///
-/// Record (14 bytes), sorted ascending:
+/// Record (15 bytes), sorted ascending:
 ///   0  u40 BE  callsignKey = base37(call) * 16 + ssid
 ///   5  u24 BE  latQ        = round((lat + 90)  * 10000)
 ///   8  u24 BE  lonQ        = round((lon + 180) * 10000)
 ///   11 u24 BE  freqQ       = round(freqHz / 100)
+///   14 u8      modes       = 1 (packet), 2 (VARA-FM), 3 (both)
 /// ```
 class WinlinkGatewayDatabase {
   /// File magic: ASCII "WLGW" little-endian.
   static const int magic = 0x57474C57;
 
   /// Current supported format version.
-  static const int formatVersion = 1;
+  static const int formatVersion = 2;
 
   static const int headerSize = 32;
-  static const int recordSize = 14;
+  static const int recordSize = 15;
 
   static const int _coordScale = 10000;
   static const int _latOffset = 90;
@@ -72,13 +73,15 @@ class WinlinkGatewayDatabase {
       throw const FormatException('Not a Winlink gateway database (bad magic)');
     }
     final version = data.getUint16(4, Endian.little);
-    if (version != formatVersion) {
+    if (version != 1 && version != formatVersion) {
       throw FormatException('Unsupported .wdb version $version');
     }
     final count = data.getUint32(8, Endian.little);
     final sourceDate = data.getUint32(12, Endian.little);
     final recordsOffset = data.getUint32(16, Endian.little);
-    if (recordsOffset + count * recordSize > bytes.length) {
+    final rowSize = version == 1 ? 14 : recordSize;
+    if (recordsOffset < headerSize ||
+        recordsOffset + count * rowSize > bytes.length) {
       throw const FormatException('Winlink gateway database is truncated');
     }
 
@@ -87,16 +90,18 @@ class WinlinkGatewayDatabase {
     late String curCall;
     late double curLat;
     late double curLon;
-    List<int> curFreqs = <int>[];
+    List<WinlinkGatewayChannel> curChannels = [];
 
     void flush() {
       if (curKey != null) {
-        gateways.add(WinlinkGateway(
-          callsign: curCall,
-          latitude: curLat,
-          longitude: curLon,
-          frequenciesHz: curFreqs,
-        ));
+        gateways.add(
+          WinlinkGateway(
+            callsign: curCall,
+            latitude: curLat,
+            longitude: curLon,
+            channels: curChannels,
+          ),
+        );
       }
     }
 
@@ -106,18 +111,25 @@ class WinlinkGatewayDatabase {
       final latQ = _readUintBE(bytes, off + 5, 3);
       final lonQ = _readUintBE(bytes, off + 8, 3);
       final freqQ = _readUintBE(bytes, off + 11, 3);
-      off += recordSize;
+      final modes = version == 1
+          ? WinlinkGatewayChannel.packetMode
+          : bytes[off + 14];
+      if (modes == 0 || (modes & ~3) != 0) {
+        throw FormatException('Invalid Winlink channel modes $modes');
+      }
+      off += rowSize;
 
       final freqHz = freqQ * _freqScale;
+      final channel = WinlinkGatewayChannel(frequencyHz: freqHz, modes: modes);
       if (callKey != curKey) {
         flush();
         curKey = callKey;
         curCall = _decodeCallKey(callKey);
         curLat = latQ / _coordScale - _latOffset;
         curLon = lonQ / _coordScale - _lonOffset;
-        curFreqs = <int>[freqHz];
+        curChannels = [channel];
       } else {
-        curFreqs.add(freqHz);
+        curChannels.add(channel);
       }
     }
     flush();
@@ -128,8 +140,9 @@ class WinlinkGatewayDatabase {
   /// The [count] gateways nearest to ([lat], [lon]), closest first.
   List<WinlinkGateway> nearest(double lat, double lon, {int count = 20}) {
     final sorted = List<WinlinkGateway>.of(gateways)
-      ..sort((a, b) =>
-          a.distanceKmTo(lat, lon).compareTo(b.distanceKmTo(lat, lon)));
+      ..sort(
+        (a, b) => a.distanceKmTo(lat, lon).compareTo(b.distanceKmTo(lat, lon)),
+      );
     return sorted.take(count).toList();
   }
 
