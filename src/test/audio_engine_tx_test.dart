@@ -278,6 +278,75 @@ void main() {
       expect(logs.where((String m) => m.startsWith('RX audio loss')), isEmpty);
     });
 
+    test(
+      'received audio resumes after a late transmit echo without an end marker',
+      () async {
+        final packets = await rxPackets(2);
+        final echo = Uint8List.fromList(packets.first)..[1] = 0x09;
+        final events = <Map<String, Object?>>[];
+        final engine = AudioEngine(events.add);
+        await engine.handleCommand(<String, Object?>{
+          'cmd': 'rx',
+          'bytes': echo,
+        });
+        events.clear();
+        await engine.handleCommand(<String, Object?>{
+          'cmd': 'rx',
+          'bytes': packets.last,
+        });
+        expect(
+          events.where((e) => e['evt'] == 'audioEnd').map((e) => e['transmit']),
+          <bool>[true],
+        );
+        expect(
+          events.where(
+            (e) => e['evt'] == 'audioData' && e['transmit'] == false,
+          ),
+          isNotEmpty,
+        );
+      },
+    );
+
+    test(
+      'received audio stays suppressed while local transmission is pending',
+      () async {
+        final packet = (await rxPackets(1)).single;
+        final release = Completer<void>();
+        final done = Completer<void>();
+        final events = <Map<String, Object?>>[];
+        final engine = AudioEngine(
+          (event) {
+            events.add(event);
+            if (event['evt'] == 'txState' && event['transmitting'] == false) {
+              done.complete();
+            }
+          },
+          btSend: (packet) async {
+            if (packet[1] == 0) await release.future;
+          },
+        );
+        final pcm = Uint8List(6 * 256);
+        engine.transmitVoice(pcm, 0, pcm.length, false);
+        try {
+          events.clear();
+          await engine.handleCommand(<String, Object?>{
+            'cmd': 'rx',
+            'bytes': packet,
+          });
+          expect(
+            events.where(
+              (e) => e['evt'] == 'audioData' && e['transmit'] == false,
+            ),
+            isEmpty,
+          );
+          expect(events.where((e) => e['evt'] == 'audioEnd'), isEmpty);
+        } finally {
+          release.complete();
+          await done.future.timeout(const Duration(seconds: 5));
+        }
+      },
+    );
+
     for (final bool transmitting in <bool>[false, true]) {
       test('opposite-direction audio does not strand the end marker '
           'during ${transmitting ? "TX" : "RX"}', () async {
@@ -303,7 +372,7 @@ void main() {
         });
         expect(
           events.where((e) => e['evt'] == 'audioEnd').map((e) => e['transmit']),
-          <bool>[transmitting],
+          transmitting ? <bool>[true, false] : <bool>[false],
         );
         expect(
           events.where(

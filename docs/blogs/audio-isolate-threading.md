@@ -21,7 +21,11 @@ read when it skips audio from the opposite direction. An end-of-audio marker and
 the next received burst can be coalesced in that same read. Returning early leaves
 those frames queued and can prevent the software modem from hearing a reply.
 Regression tests cover both receive-to-transmit and transmit-to-receive overlap;
-overlapping audio remains ignored, but subsequent end markers and audio are processed.
+overlapping audio remains ignored while transmitting, but subsequent end markers
+and audio are processed. After local transmission finishes, a received-audio frame
+also closes a lingering transmit-echo run if its end marker was missing or arrived
+before a late echo. This recovery is logged; it prevents that stale run from
+suppressing every subsequent received burst.
 
 ---
 

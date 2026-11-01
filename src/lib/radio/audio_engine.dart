@@ -450,8 +450,13 @@ class AudioEngine {
       switch (uframe[0]) {
         case 0x00: // Received audio (odd)
         case 0x03: // Received audio
-          // Ignore overlapping audio, but still drain end markers and later frames.
-          if (_inAudioRun && _inAudioRunIsTransmit) continue;
+          if (_inAudioRun && _inAudioRunIsTransmit) {
+            if (_isTransmitting) continue;
+            // A late TX echo can outlive its end marker; RX identifies the new run.
+            _log('RX audio resumed after transmit echo without an end marker.');
+            _dispatchAudioDataEnd();
+            _inAudioRun = false;
+          }
           final int nowMs = _clockMs();
           if (!_inAudioRun) {
             _inAudioRun = true;
