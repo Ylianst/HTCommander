@@ -450,7 +450,8 @@ class AudioEngine {
       switch (uframe[0]) {
         case 0x00: // Received audio (odd)
         case 0x03: // Received audio
-          if (_inAudioRun && _inAudioRunIsTransmit) return;
+          // Ignore overlapping audio, but still drain end markers and later frames.
+          if (_inAudioRun && _inAudioRunIsTransmit) continue;
           final int nowMs = _clockMs();
           if (!_inAudioRun) {
             _inAudioRun = true;
@@ -485,7 +486,7 @@ class AudioEngine {
         case 0x02: // Audio ACK
           break;
         case 0x09: // Transmit audio (echo) - decoded for metering, not played
-          if (_inAudioRun && !_inAudioRunIsTransmit) return;
+          if (_inAudioRun && !_inAudioRunIsTransmit) continue;
           if (!_inAudioRun) {
             _inAudioRun = true;
             _inAudioRunIsTransmit = true;

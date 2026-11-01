@@ -259,5 +259,54 @@ void main() {
           reason: '${p.got[1].length}/${a.length}\n${p.trace()}');
       expect(same(p.got[1], a), isTrue);
     }, timeout: const Timeout(Duration(minutes: 10)));
+
+    test('a short BBS request turns around to a queued reply', () {
+      const int latency = 800 * 48;
+      final RadioPath p = RadioPath(
+        <XaraDriver>[
+          XaraDriver(station('KK7VZT', 3, latency), keyUp: keyUp48),
+          XaraDriver(station('KK7VZT-7', 5, latency), keyUp: keyUp48),
+        ],
+        txLag: 9600,
+        rxLag: 6400,
+        keyUpLoss: keyUpLoss,
+        squelchBurst: squelchBurst,
+        rxGain: rxGain,
+      );
+      final greeting = 'Handy-Talky Commander BBS\r[M] for menu\r>\r'.codeUnits;
+      final menu =
+          'Welcome to our BBS\r[M]ain menu\r[S]oftware information\r'.codeUnits;
+      p.d[1].station.send(greeting);
+      expect(p.d[0].station.connect('KK7VZT', 'KK7VZT-7', const []), isTrue);
+      expect(
+        p.runUntil(60, (p) => p.got[0].length >= greeting.length),
+        isTrue,
+        reason: p.trace(),
+      );
+      expect(p.got[0], greeting);
+      p.d[0].station.send('M\r'.codeUnits);
+      expect(
+        p.runUntil(60, (p) => p.got[1].length >= 2),
+        isTrue,
+        reason: p.trace(),
+      );
+      expect(p.got[1], 'M\r'.codeUnits);
+      p.d[1].station.send(menu);
+      expect(
+        p.runUntil(60, (p) => p.got[0].length >= greeting.length + menu.length),
+        isTrue,
+        reason: p.trace(),
+      );
+      expect(p.got[0], [...greeting, ...menu]);
+      p.d[0].station.disconnect();
+      expect(
+        p.runUntil(
+          30,
+          (p) => p.d.every((d) => d.station.state == FmState.listen),
+        ),
+        isTrue,
+        reason: p.trace(),
+      );
+    }, timeout: const Timeout(Duration(minutes: 10)));
   });
 }

@@ -278,6 +278,42 @@ void main() {
       expect(logs.where((String m) => m.startsWith('RX audio loss')), isEmpty);
     });
 
+    for (final bool transmitting in <bool>[false, true]) {
+      test('opposite-direction audio does not strand the end marker '
+          'during ${transmitting ? "TX" : "RX"}', () async {
+        final packets = await rxPackets(2);
+        final echo = Uint8List.fromList(packets.first)..[1] = 0x09;
+        final events = <Map<String, Object?>>[];
+        final engine = AudioEngine(events.add);
+        await engine.handleCommand(<String, Object?>{
+          'cmd': 'rx',
+          'bytes': transmitting ? echo : packets.first,
+        });
+        events.clear();
+        await engine.handleCommand(<String, Object?>{
+          'cmd': 'rx',
+          'bytes': Uint8List.fromList(<int>[
+            ...(transmitting ? packets.first : echo),
+            0x7e,
+            0x01,
+            0x00,
+            0x7e,
+            ...packets.last,
+          ]),
+        });
+        expect(
+          events.where((e) => e['evt'] == 'audioEnd').map((e) => e['transmit']),
+          <bool>[transmitting],
+        );
+        expect(
+          events.where(
+            (e) => e['evt'] == 'audioData' && e['transmit'] == false,
+          ),
+          isNotEmpty,
+        );
+      });
+    }
+
     test('packets dropped upstream are reported with the stall', () async {
       // 20 consecutive packets (480 ms) never arrive, as during a link stall.
       final List<String> logs = await run(

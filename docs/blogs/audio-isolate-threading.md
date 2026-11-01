@@ -16,6 +16,13 @@ dedicated audio isolate, and the one hard lesson that reshaped the design.*
 > *“The hard lesson”* below). The plan sections are kept as originally written;
 > the findings correct them where reality disagreed.
 
+**Half-duplex turn-around:** the audio frame parser must keep draining a Bluetooth
+read when it skips audio from the opposite direction. An end-of-audio marker and
+the next received burst can be coalesced in that same read. Returning early leaves
+those frames queued and can prevent the software modem from hearing a reply.
+Regression tests cover both receive-to-transmit and transmit-to-receive overlap;
+overlapping audio remains ignored, but subsequent end markers and audio are processed.
+
 ---
 
 ## The symptom: audio that stutters when the UI is busy
