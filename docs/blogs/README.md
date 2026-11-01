@@ -392,6 +392,13 @@ decisions that keep the radio responsive.
    the radio: the host does all the autonomous work while the browser only syncs,
    displays, and forwards the operator's own actions.
 
+3. **[Two Roads to a Remote Radio: The Web Bridge vs. the HTCommander-Remote Fork](remote-control-fork-review.md)**
+   A review of a community fork that lets one native HTCommander operate another
+   over WebSocket — token auth, single-operator lock, two-way audio with remote
+   PTT, and an audit trail — compared point by point with the existing web
+   bridge, plus a phased plan for hardening the web server and adding support
+   for remote HTCommanders.
+
 ---
 
 ## Building & Contributing
