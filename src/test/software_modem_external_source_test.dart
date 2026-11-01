@@ -96,6 +96,88 @@ Uint8List _pcmToBytes(Int16List pcm) {
 }
 
 void main() {
+  for (final scenario in <({String name, String channel, int statusId, bool aprs})>[
+    (name: 'named data audio overrides cached APRS status', channel: 'House', statusId: 29, aprs: false),
+    (name: 'named APRS audio overrides cached data status', channel: 'APRS', statusId: 14, aprs: true),
+    (name: 'unnamed APRS audio falls back to channel id', channel: '', statusId: 29, aprs: true),
+    (name: 'unnamed data audio falls back to channel id', channel: '', statusId: 14, aprs: false),
+  ]) {
+    test(scenario.name, () {
+      const deviceId = 110;
+      final client = DataBrokerClient();
+      client.dispatch(
+        deviceId: deviceId,
+        name: 'Channels',
+        data: <Map<String, dynamic>>[
+          RadioChannelInfo(channelId: 14, name: 'House').toJson(),
+          RadioChannelInfo(channelId: 29, name: 'APRS').toJson(),
+        ],
+      );
+      client.dispatch(
+        deviceId: deviceId,
+        name: 'HtStatus',
+        data: <String, Object?>{'currChId': scenario.statusId, 'currRegion': 0},
+      );
+      final modem = SoftwareModem();
+      modem.init();
+      modem.setMode(SoftwareModemMode.psk2400, persist: false);
+      modem.setAprsMode(SoftwareModemMode.afsk1200, persist: false);
+      final frames = <TncDataFragment>[];
+      client.subscribe(
+        deviceId: DataBroker.allDevices,
+        name: 'DataFrame',
+        callback: (d, n, data) {
+          if (data is TncDataFragment && data.radioDeviceId == deviceId) {
+            frames.add(data);
+          }
+        },
+      );
+      final frame = Uint8List.fromList(
+        List<int>.generate(20, (i) => (i * 7 + 3) & 0xff),
+      );
+      final pcm = scenario.aprs ? _encodeAfsk1200(frame) : _encodePsk2400(frame);
+      try {
+        if (scenario.channel.isEmpty) {
+          client.dispatch(
+            deviceId: deviceId,
+            name: 'AudioDataAvailable',
+            data: <String, Object?>{
+              'data': Uint8List(640),
+              'offset': 0,
+              'length': 640,
+              'channelName': scenario.aprs ? 'House' : 'APRS',
+              'transmit': false,
+            },
+            store: false,
+          );
+        }
+        client.dispatch(
+          deviceId: deviceId,
+          name: 'AudioDataAvailable',
+          data: <String, Object?>{
+            'data': pcm,
+            'offset': 0,
+            'length': pcm.length,
+            'channelName': scenario.channel,
+            'transmit': false,
+          },
+          store: false,
+        );
+        expect(frames, isNotEmpty);
+        expect(frames.first.data, frame);
+        expect(
+          frames.first.encoding,
+          scenario.aprs
+              ? FragmentEncodingType.softwareAfsk1200
+              : FragmentEncodingType.softwarePsk2400,
+        );
+      } finally {
+        modem.dispose();
+        client.dispose();
+      }
+    });
+  }
+
   test('external AFSK source decodes and dispatches an attributed DataFrame',
       () {
     final SoftwareModem modem = SoftwareModem();

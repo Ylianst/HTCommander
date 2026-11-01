@@ -41,6 +41,12 @@ their reason; valid decoded prefixes retain their existing delivery behavior.
 Decoded duration uses each frame's advertised sample rate. These diagnostics do
 not establish whether a transport gap originated at the radio, Bluetooth, or host.
 
+**APRS/data routing:** a received PCM packet's non-empty channel name selects the
+modem pipeline. A packet tagged `House` must reach the general modem even if a
+later status notification reports the APRS channel; a packet tagged `APRS` still
+goes only to the APRS modem. Cached status is used only when the packet has no
+channel tag. This prevents late APRS telemetry from swallowing XARA replies.
+
 ---
 
 ## The symptom: audio that stutters when the UI is busy

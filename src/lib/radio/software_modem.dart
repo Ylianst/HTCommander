@@ -1064,20 +1064,17 @@ class SoftwareModem {
       state.currentChannelName = channelName;
     }
 
-    // Route the audio to the correct pipeline: the dedicated APRS modem when the
-    // radio is currently on the APRS channel, otherwise the general modem. On
-    // the APRS channel only the AFSK 1200 APRS modem runs; elsewhere only the
-    // general modem runs.
-    final _ModemInstance? rx =
-        _isAprsChannel(state) ? state.aprsModem : state.generalModem;
+    // The stream tag is authoritative; late APRS status can otherwise divert
+    // data-channel audio to the APRS modem during a half-duplex turn-around.
+    final _ModemInstance? rx = _isAprsChannel(state, channelName)
+        ? state.aprsModem
+        : state.generalModem;
     rx?.processSamples(data, offset, length);
   }
 
-  /// Whether [state]'s radio is currently tuned to the APRS channel. The audio
-  /// stream's channel name (set from the radio's current channel) is the primary
-  /// signal, reinforced by the cached APRS channel id.
-  bool _isAprsChannel(_RadioModemState state) {
-    if (state.currentChannelName == 'APRS') return true;
+  /// Prefer this packet's channel tag, falling back to status only if unnamed.
+  bool _isAprsChannel(_RadioModemState state, String channelName) {
+    if (channelName.isNotEmpty) return channelName == 'APRS';
     return state.aprsChannelId >= 0 &&
         state.currentChannelId == state.aprsChannelId;
   }

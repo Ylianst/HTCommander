@@ -10,12 +10,14 @@ http://www.apache.org/licenses/LICENSE-2.0
 // simulated radio. Transmit PCM from 'TransmitVoicePCM' is played to the peer
 // in real time after a key-up latency, and the peer's audio comes back as
 // 'AudioDataAvailable' runs, exactly as the Bluetooth audio path delivers it.
+// Cached status reports APRS while the PCM stream is tagged as the data channel.
 //
 
 import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:htcommander/radio/radio_models.dart';
 import 'package:htcommander/radio/software_modem.dart';
 import 'package:htcommander/radio/tnc_data_fragment.dart';
 import 'package:htcommander/radio/xara_modem.dart';
@@ -94,6 +96,19 @@ void main() {
           name: 'LockState',
           data: null,
           store: true,
+        );
+        client.dispatch(
+          deviceId: radio,
+          name: 'Channels',
+          data: <Map<String, dynamic>>[
+            RadioChannelInfo(channelId: 14, name: 'Data').toJson(),
+            RadioChannelInfo(channelId: 29, name: 'APRS').toJson(),
+          ],
+        );
+        client.dispatch(
+          deviceId: radio,
+          name: 'HtStatus',
+          data: <String, Object?>{'currChId': 29, 'currRegion': 0},
         );
 
         final SoftwareModem modem = SoftwareModem();
