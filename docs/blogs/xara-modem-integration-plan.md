@@ -55,6 +55,11 @@ continuous 48 kHz timeline with sample-accurate transmit timing. A small driver
   XARA as its transmit latency (500 ms by default, setting `XaraTxLatencyMs`).
   This is the same compensation XARA's own tests show is needed beyond about
   half a second of PTT lead.
+- The radio keys up on the arriving audio, so the start of every burst is lost
+  while it keys and the far squelch opens (about 240 ms was measured, followed
+  by a loud squelch-open noise burst). The driver therefore leads each burst
+  with silence (300 ms by default, setting `XaraTxKeyUpMs`) so that loss and
+  noise fall before XARA's own lead-in instead of on the frame.
 
 **Two data paths.**
 

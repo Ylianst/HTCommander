@@ -1258,6 +1258,8 @@ class SoftwareModem {
           wide: _broker.getValue<bool>(0, 'XaraWide', false) ?? false,
           registered: _broker.getValue<bool>(0, 'XaraRegistered', false) ?? false,
           txLatencyMs: _broker.getValue<int>(0, 'XaraTxLatencyMs', 500) ?? 500,
+          txKeyUpMs: _broker.getValue<int>(0, 'XaraTxKeyUpMs', XaraModemConfig.defaultTxKeyUpMs) ??
+              XaraModemConfig.defaultTxKeyUpMs,
           sampleRate: sampleRate,
           analysis: _dartAnalysisEnabled,
         ),

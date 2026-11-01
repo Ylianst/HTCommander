@@ -8,7 +8,7 @@ squelch-gated runs at the host sample rate and transmits whole PCM buffers, whil
 the station expects a continuous 48 kHz timeline with sample-accurate transmit
 timing. The driver keeps the station clock a fixed jitter delay behind the wall
 clock, fills silent gaps with zeros, and renders each transmission ahead of time
-as one PCM burst.
+as one PCM burst, preceded by an optional key-up pre-roll of silence.
 */
 
 import 'dart:math' as math;
@@ -34,6 +34,12 @@ class XaraDriver {
   final int runGap;
 
   final int block;
+
+  /// Silence (48 kHz samples) prepended to every transmission. The radio keys up
+  /// on the arriving audio, so the first part of each burst is lost to key-up and
+  /// the far end's squelch opening (whose noise burst would otherwise land on the
+  /// frame); this pre-roll absorbs that ahead of the protocol's own lead-in.
+  final int keyUp;
   final Resampler _in;
   final List<double> _rx = <double>[];
   int _rxHead = 0;
@@ -46,6 +52,7 @@ class XaraDriver {
     this.maxWait = 24000,
     this.runGap = 9600,
     this.block = 480,
+    this.keyUp = 0,
   }) : _in = Resampler(hostRate.toDouble(), stationRate.toDouble());
 
   int get _queued => _rx.length - _rxHead;
@@ -85,7 +92,7 @@ class XaraDriver {
 
   /// Runs the station ahead until the burst that started in [first] is done.
   Int16List _render(List<double> first) {
-    final List<double> burst = <double>[];
+    final List<double> burst = List<double>.filled(keyUp, 0.0, growable: true);
     List<double> out = first;
     int from = station.keyedFirst;
     while (true) {

@@ -29,10 +29,15 @@ import '../hamlib/xara/xara_driver.dart';
 
 /// Configuration for one XARA modem instance.
 class XaraModemConfig {
+  /// Default silence sent before each burst so the radio can key up and the far
+  /// squelch can open before the XARA lead-in starts (~240 ms was measured lost).
+  static const int defaultTxKeyUpMs = 300;
+
   final String callsign;
   final bool wide;
   final bool registered;
   final int txLatencyMs;
+  final int txKeyUpMs;
   final double driveDb;
   final int sampleRate;
   final bool analysis;
@@ -42,6 +47,7 @@ class XaraModemConfig {
     this.wide = false,
     this.registered = false,
     this.txLatencyMs = 500,
+    this.txKeyUpMs = defaultTxKeyUpMs,
     this.driveDb = defaultDriveDb,
     this.sampleRate = 32000,
     this.analysis = false,
@@ -52,6 +58,7 @@ class XaraModemConfig {
         'wide': wide,
         'registered': registered,
         'txLatencyMs': txLatencyMs,
+        'txKeyUpMs': txKeyUpMs,
         'driveDb': driveDb,
         'sampleRate': sampleRate,
         'analysis': analysis,
@@ -62,6 +69,7 @@ class XaraModemConfig {
         wide: (m['wide'] as bool?) ?? false,
         registered: (m['registered'] as bool?) ?? false,
         txLatencyMs: (m['txLatencyMs'] as int?) ?? 500,
+        txKeyUpMs: (m['txKeyUpMs'] as int?) ?? defaultTxKeyUpMs,
         driveDb: (m['driveDb'] as num?)?.toDouble() ?? defaultDriveDb,
         sampleRate: (m['sampleRate'] as int?) ?? 32000,
         analysis: (m['analysis'] as bool?) ?? false,
@@ -258,7 +266,8 @@ Future<void> _xaraIsolateEntry(List<Object?> args) async {
     fc,
     StationOptions(driveDb: cfg.driveDb, txLatency: cfg.txLatencyMs * stationRate ~/ 1000),
   );
-  final XaraDriver driver = XaraDriver(station, hostRate: cfg.sampleRate);
+  final XaraDriver driver = XaraDriver(station,
+      hostRate: cfg.sampleRate, keyUp: math.max(0, cfg.txKeyUpMs) * stationRate ~/ 1000);
   station.setKissRx(true);
   station.captureSymbols = cfg.analysis;
   final Stopwatch clock = Stopwatch()..start();
