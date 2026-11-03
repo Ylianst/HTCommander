@@ -384,7 +384,10 @@ class _TerminalTabState extends State<TerminalTab>
       TerminalNotices.invalidCallsignDest => l10n.terminalInvalidCallsignDest,
       TerminalNotices.invalidCallsign => l10n.terminalInvalidCallsign,
       TerminalNotices.brotli => l10n.terminalBrotli,
-      TerminalNotices.error => l10n.terminalError(_errorText(arg('error'))),
+      TerminalNotices.error => l10n.terminalError(
+        '${_errorText(arg('error'))}'
+        '${data['details'] is String ? ' [${arg('details')}]' : ''}',
+      ),
       TerminalNotices.transferInProgress => l10n.terminalTransferInProgress,
       TerminalNotices.sendingFile => l10n.terminalSendingFile(arg('filename')),
       TerminalNotices.fileSent => l10n.terminalFileSent(arg('filename')),

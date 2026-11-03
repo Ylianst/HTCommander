@@ -100,6 +100,7 @@ class AX25Session {
   final DataBrokerClient _broker = DataBrokerClient();
   final int _radioDeviceId;
   bool _disposed = false;
+  FragmentEncodingType _replyEncoding = FragmentEncodingType.unknown;
 
   /// PID value used for connected-mode segmentation fragments (AX.25 v2.2).
   static const int _pidSegmentationFragment = 0x08;
@@ -355,7 +356,7 @@ class AX25Session {
 
     final packet = AX25Packet.decode(data);
     if (packet == null) return;
-    receive(packet);
+    receive(packet, encoding: data.encoding);
   }
 
   /// Transmits an AX.25 packet via the DataBroker to the associated radio. This
@@ -372,7 +373,12 @@ class AX25Session {
     _broker.dispatch(
       deviceId: _radioDeviceId,
       name: 'TransmitDataFrame',
-      data: TransmitDataFrameData(packet: packet, channelId: -1, regionId: -1),
+      data: TransmitDataFrameData(
+        packet: packet,
+        channelId: -1,
+        regionId: -1,
+        encoding: _replyEncoding,
+      ),
       store: false,
     );
   }
@@ -980,6 +986,7 @@ class AX25Session {
     if (currentState != AX25ConnectionState.disconnected) return false;
     if (addrs.length < 2) return false;
 
+    _replyEncoding = FragmentEncodingType.unknown;
     addresses = addrs;
     _resetLinkVariables();
     _initT1vSrt();
@@ -1261,7 +1268,12 @@ class AX25Session {
   /// Processes a received AX.25 [packet]. Called internally when
   /// `UniqueDataFrame` events arrive, but may also be called directly. Returns
   /// `true` if the packet belonged to this session, `false` otherwise.
-  bool receive(AX25Packet packet) {
+  /// Incoming links retain [encoding] for all replies; unknown uses the
+  /// radio's normal modem selection.
+  bool receive(
+    AX25Packet packet, {
+    FragmentEncodingType encoding = FragmentEncodingType.unknown,
+  }) {
     if (_disposed) return false;
     if (packet.addresses.length < 2) return false;
     _trace('Receive ${packet.frameTypeName}');
@@ -1283,6 +1295,9 @@ class AX25Session {
 
     // No active link yet.
     if (addrs == null) {
+      // Pin the caller's modem before emitting even the first UA/DM. Keep it
+      // for queued data, retries and disconnects, not just immediate replies.
+      _replyEncoding = encoding;
       // Always acknowledge a DISC with a UA -- even for an outgoing-only
       // session that has already torn its link down. The UA is the terminating
       // handshake the disconnecting peer is waiting for; answering every

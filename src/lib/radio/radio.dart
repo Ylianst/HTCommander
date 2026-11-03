@@ -84,11 +84,15 @@ class TransmitDataFrameData {
   final int channelId;
   final int regionId;
 
+  /// A session's reply encoding; unknown uses the normal modem selection.
+  final FragmentEncodingType encoding;
+
   TransmitDataFrameData({
     this.packet,
     this.bssPacket,
     this.channelId = -1,
     this.regionId = -1,
+    this.encoding = FragmentEncodingType.unknown,
   });
 }
 
@@ -773,6 +777,7 @@ class Radio implements FirmwareRadio {
         regionId: txData.regionId,
         tag: packet.tag,
         deadline: packet.deadline,
+        encoding: txData.encoding,
       );
     } else if (txData.bssPacket != null) {
       // BSS packets carry no channel name; an empty name plus channelId -1
@@ -811,7 +816,18 @@ class Radio implements FirmwareRadio {
   void _onSetLockEvent(int devId, String name, dynamic data) {
     if (devId != deviceId) return;
     if (data is! SetLockData) return;
-    if (_lockState != null || settings == null || htStatus == null) return;
+    if (_lockState != null || settings == null || htStatus == null) {
+      _broker.logError(
+        '[Radio $deviceId] SetLock rejected: requestedUsage=${data.usage} '
+        'lockOwner=${_lockState?.usage} '
+        'settingsAvailable=${settings != null} '
+        'statusAvailable=${htStatus != null} '
+        'requestedRegion=${data.regionId} requestedChannel=${data.channelId} '
+        'reportedRegion=${htStatus?.currRegion} '
+        'reportedChannel=${htStatus?.currChId}',
+      );
+      return;
+    }
 
     final lockData = data;
 
@@ -1028,6 +1044,7 @@ class Radio implements FirmwareRadio {
         secondsToNextPass: data.secondsToNextPass,
       ),
     );
+    if (_broker.getValue<bool>(0, 'DebugDisableFreqModeSetPar') ?? false) return;
     // The high flags byte 0x0A switches the radio to its satellite (VFO)
     // tracking screen. The manufacturer app sends 0x0A03 on the first couple of
     // updates, then settles to 0x0A00 — replicated here so the radio enters and
@@ -1914,6 +1931,7 @@ class Radio implements FirmwareRadio {
   /// satellite Doppler tracking: send it ~once a second with freshly
   /// Doppler-corrected frequencies for the length of a pass.
   void freqModeSetPar(RadioFreqModePar par) {
+    if (_broker.getValue<bool>(0, 'DebugDisableFreqModeSetPar') ?? false) return;
     _sendCommand(
       RadioCommandGroup.basic,
       RadioBasicCommand.freqModeSetPar,
@@ -1932,6 +1950,7 @@ class Radio implements FirmwareRadio {
   /// screen (SET_SATELLITE_INFO, 77). Sent immediately before each
   /// [freqModeSetPar] update during a pass.
   void setSatelliteInfo(RadioSatelliteInfo info) {
+    if (_broker.getValue<bool>(0, 'DebugDisableSetSatelliteInfo') ?? false) return;
     _sendCommand(
       RadioCommandGroup.basic,
       RadioBasicCommand.setSatelliteInfo,
@@ -2187,6 +2206,7 @@ class Radio implements FirmwareRadio {
     int regionId = -1,
     String? tag,
     DateTime? deadline,
+    FragmentEncodingType encoding = FragmentEncodingType.unknown,
   }) {
     if (!_allowTransmit) return 0;
 
@@ -2222,8 +2242,17 @@ class Radio implements FirmwareRadio {
       t,
       fragmentChannelName,
     );
+    fragment.encoding = encoding;
 
     final String softwareMode = _activeSoftwareModemModeFor(fragment);
+    if (!_loopbackMode &&
+        softwareMode.isNotEmpty &&
+        !(_broker.getValue<bool>(deviceId, 'AudioState', false) ?? false)) {
+      _broker.logError(
+        '[Radio $deviceId] Cannot transmit $softwareMode reply: audio is disabled',
+      );
+      return 0;
+    }
 
     if (_loopbackMode) {
       _transmitLoopback(
@@ -2285,6 +2314,24 @@ class Radio implements FirmwareRadio {
   /// the wrong frequency, so we fall back to the hardware TNC, which targets the
   /// correct channel.
   String _activeSoftwareModemModeFor(TncDataFragment fragment) {
+    // Connected-mode replies must not be re-encoded by a different modem just
+    // because it is selected globally (e.g. hardware AX.25 while XARA is on).
+    switch (fragment.encoding) {
+      case FragmentEncodingType.hardwareAfsk1200:
+        return '';
+      case FragmentEncodingType.softwareAfsk1200:
+        return 'AFSK1200';
+      case FragmentEncodingType.softwarePsk2400:
+        return 'PSK2400';
+      case FragmentEncodingType.softwareDart:
+        return 'DART';
+      case FragmentEncodingType.softwareXara:
+        return 'XARA';
+      case FragmentEncodingType.unknown:
+      case FragmentEncodingType.loopback:
+        break;
+    }
+
     // A per-usage lock (Terminal / Winlink) may carry a modem override that
     // applies for the duration of the lock without changing the user's global
     // setting. 'Hardware' forces the radio's built-in TNC (software modem off);

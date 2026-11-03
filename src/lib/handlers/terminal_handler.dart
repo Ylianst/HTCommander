@@ -234,7 +234,8 @@ class TerminalHandler {
         'radioId': _radioId > 0 ? _radioId : activeRadioId,
         'station': station?.toJson(),
         'remote': station?.callsign ?? _remote,
-        'protocol': station?.terminalProtocol.name ??
+        'protocol':
+            station?.terminalProtocol.name ??
             (_session != null ? TerminalProtocol.x25Session.name : null),
         'canSend': _canSend,
         'canSendFile': _canSendFile,
@@ -709,32 +710,75 @@ class TerminalHandler {
   // XARA
   // ---------------------------------------------------------------------------
 
-  void _xaraError(String kind) {
-    _broker.logError('[Terminal] XARA: $kind');
-    _notice(TerminalNotices.error, {'error': kind});
+  void _xaraError(String kind, {String? details}) {
+    _broker.logError(
+      '[Terminal] XARA: $kind${details == null ? '' : ' ($details)'}',
+    );
+    _notice(TerminalNotices.error, {'error': kind, 'details': ?details});
+  }
+
+  ({bool ready, String details}) _xaraLockReadiness(
+    int radioId,
+    StationInfo station,
+  ) {
+    final lock = _lockStates[radioId];
+    final resolution = resolveStationChannel(_broker, radioId, station);
+    final ht = _broker.getValueDynamic(radioId, 'HtStatus');
+    final region = ht is Map ? ht['currRegion'] : null;
+    final channel = ht is Map ? ht['currChId'] : null;
+    final reason = lock?.isLocked != true
+        ? 'lockNotHeld'
+        : lock?.usage != 'Terminal'
+        ? 'lockOwnedByOtherUsage'
+        : resolution.status != StationChannelStatus.ok
+        ? 'channelResolutionPending'
+        : ht is! Map
+        ? 'statusUnavailable'
+        : region != resolution.regionId
+        ? 'regionMismatch'
+        : resolution.channelId >= 0 && channel != resolution.channelId
+        ? 'channelMismatch'
+        : 'ready';
+    return (
+      ready: reason == 'ready',
+      details:
+          'radio=$radioId reason=$reason '
+          'lockOwner=${lock?.usage} locked=${lock?.isLocked} '
+          'expectedRegion=${resolution.regionId} '
+          'expectedChannel=${resolution.channelId} '
+          'reportedRegion=$region reportedChannel=$channel '
+          'resolution=${resolution.status.name} '
+          'contactRegion=${jsonEncode(station.channelRegion)} '
+          'contactChannel=${jsonEncode(station.channel)} '
+          'scan=${ht is Map ? ht['isScan'] : null} '
+          'dualWatch=${ht is Map ? ht['doubleChannel'] : null}',
+    );
   }
 
   void _startXara(int radioId, StationInfo station) {
     if (_xaraState != _XaraState.waitingForLock) return;
     _notice(TerminalNotices.connecting, {'callsign': station.callsign});
+    var lastDetails = _xaraLockReadiness(radioId, station).details;
+    _broker.logInfo('[Terminal] XARA lock wait (15s): $lastDetails');
     _xaraTimer = Timer(const Duration(seconds: 15), () {
-      _xaraError(TerminalNotices.xaraLockTimeout);
+      _xaraError(
+        TerminalNotices.xaraLockTimeout,
+        details: _xaraLockReadiness(radioId, station).details,
+      );
       _finishXara(abort: true);
     });
     _xaraLockPollTimer = Timer.periodic(const Duration(milliseconds: 200), (
       timer,
     ) {
-      final lock = _lockStates[radioId];
-      final resolution = resolveStationChannel(_broker, radioId, station);
-      final ht = _broker.getValueDynamic(radioId, 'HtStatus');
-      final tuned =
-          ht is Map &&
-          ht['currRegion'] == resolution.regionId &&
-          (resolution.channelId < 0 || ht['currChId'] == resolution.channelId);
-      if (lock?.isLocked == true &&
-          lock?.usage == 'Terminal' &&
-          resolution.status == StationChannelStatus.ok &&
-          tuned) {
+      final readiness = _xaraLockReadiness(radioId, station);
+      if (readiness.details != lastDetails) {
+        lastDetails = readiness.details;
+        _broker.logInfo('[Terminal] XARA lock wait changed: $lastDetails');
+      }
+      if (readiness.ready) {
+        _broker.logInfo(
+          '[Terminal] XARA lock confirmed; starting connection: $lastDetails',
+        );
         timer.cancel();
         _xaraTimer?.cancel();
         _xaraState = _XaraState.connecting;
@@ -924,7 +968,9 @@ class TerminalHandler {
     _remote = null;
     _pendingDisconnect = false;
 
-    _broker.logInfo('[Terminal] Waiting for incoming connection on radio $radioId');
+    _broker.logInfo(
+      '[Terminal] Waiting for incoming connection on radio $radioId',
+    );
     _notice(TerminalNotices.waiting);
     _publish();
   }
@@ -941,7 +987,9 @@ class TerminalHandler {
               : 'UNKNOWN';
           _waiting = false;
           _remote = remote;
-          _broker.logInfo('[Terminal] Incoming connection established from $remote');
+          _broker.logInfo(
+            '[Terminal] Incoming connection established from $remote',
+          );
           _notice(TerminalNotices.connectedFrom, {'callsign': remote});
         } else {
           _notice(TerminalNotices.connected);

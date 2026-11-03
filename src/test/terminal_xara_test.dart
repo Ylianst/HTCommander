@@ -24,6 +24,7 @@ Widget app(Widget child) => MaterialApp(
 class TerminalRadio {
   final broker = DataBrokerClient();
   final commands = <String>[];
+  final logs = <String>[];
   final sent = <int>[];
   SetLockData? lock;
   Map? connect;
@@ -31,6 +32,11 @@ class TerminalRadio {
   bool answerDisconnect = true;
 
   TerminalRadio(StationInfo station) {
+    broker.subscribeMultiple(
+      deviceId: 1,
+      names: const ['LogInfo', 'LogError'],
+      callback: (_, _, data) => logs.add(data as String),
+    );
     broker.dispatch(deviceId: 0, name: 'CallSign', data: 'N0CALL');
     broker.dispatch(deviceId: 0, name: 'XaraWide', data: false);
     broker.dispatch(deviceId: 0, name: 'Stations', data: [station.toJson()]);
@@ -429,6 +435,113 @@ void main() {
     await tester.pump(const Duration(seconds: 121));
     expect(find.textContaining('failed or timed out'), findsOneWidget);
     expect(radio.commands, containsAllInOrder(['XaraAbort', 'SetUnlock']));
+    await finish(tester);
+  });
+
+  for (final reason in [
+    'lockNotHeld',
+    'lockOwnedByOtherUsage',
+    'channelMismatch',
+    'statusUnavailable',
+  ]) {
+    testWidgets('XARA lock timeout reports $reason with radio diagnostics', (
+      tester,
+    ) async {
+      final radio = TerminalRadio(contact(TerminalProtocol.xaraNarrow));
+      addTearDown(radio.dispose);
+      if (reason == 'lockNotHeld' || reason == 'lockOwnedByOtherUsage') {
+        radio.applyLock = false;
+      }
+      if (reason == 'lockOwnedByOtherUsage') {
+        radio.broker.dispatch(
+          deviceId: radioId,
+          name: 'LockState',
+          data: {'isLocked': true, 'usage': 'Winlink'},
+        );
+      }
+      if (reason == 'channelMismatch' || reason == 'statusUnavailable') {
+        radio.broker.dispatch(
+          deviceId: radioId,
+          name: 'HtStatus',
+          data: reason == 'statusUnavailable'
+              ? null
+              : {'currRegion': 0, 'currChId': 4},
+        );
+      }
+      if (reason == 'lockOwnedByOtherUsage') {
+        await tester.pumpWidget(app(const TerminalTab()));
+        handler.connect(radioId, contact(TerminalProtocol.xaraNarrow));
+        await tester.pump(const Duration(milliseconds: 250));
+      } else {
+        await connect(tester);
+      }
+      await tester.pump(const Duration(seconds: 16));
+      expect(find.textContaining('Could not lock and tune'), findsOneWidget);
+      expect(find.textContaining('reason=$reason'), findsOneWidget);
+      expect(find.textContaining('expectedChannel=3'), findsOneWidget);
+      if (reason == 'lockOwnedByOtherUsage') {
+        expect(find.textContaining('lockOwner=Winlink'), findsOneWidget);
+        expect(radio.commands, isNot(contains('SetUnlock')));
+      }
+      if (reason == 'channelMismatch') {
+        expect(find.textContaining('reportedChannel=4'), findsOneWidget);
+      }
+      expect(
+        radio.logs.where(
+          (line) =>
+              line.contains('xaraLockTimeout') &&
+              line.contains('radio=$radioId') &&
+              line.contains('reason=$reason') &&
+              line.contains('expectedRegion=0') &&
+              line.contains('expectedChannel=3'),
+        ),
+        hasLength(1),
+      );
+      expect(radio.commands, isNot(contains('XaraConnect')));
+      expect(radio.commands, contains('XaraAbort'));
+      await finish(tester);
+    });
+  }
+
+  testWidgets('XARA logs readiness changes without repeating unchanged polls', (
+    tester,
+  ) async {
+    final radio = TerminalRadio(contact(TerminalProtocol.xaraNarrow));
+    addTearDown(radio.dispose);
+    radio.broker.dispatch(
+      deviceId: radioId,
+      name: 'HtStatus',
+      data: {'currRegion': 0, 'currChId': 4},
+    );
+    await connect(tester);
+    expect(
+      radio.logs.where((line) => line.contains('XARA lock wait (15s)')),
+      hasLength(1),
+    );
+    final logCount = radio.logs.length;
+    await tester.pump(const Duration(seconds: 1));
+    expect(radio.logs, hasLength(logCount));
+    radio.broker.dispatch(
+      deviceId: radioId,
+      name: 'HtStatus',
+      data: {'currRegion': 0, 'currChId': 3},
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(radio.commands, ['SetLock', 'XaraConnect']);
+    expect(
+      radio.logs.where(
+        (line) =>
+            line.contains('XARA lock wait changed') &&
+            line.contains('reason=ready'),
+      ),
+      hasLength(1),
+    );
+    expect(
+      radio.logs.where((line) => line.contains('XARA lock confirmed')),
+      hasLength(1),
+    );
+    await tester.pump(const Duration(seconds: 16));
+    expect(find.textContaining('Could not lock and tune'), findsNothing);
     await finish(tester);
   });
 

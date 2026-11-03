@@ -508,6 +508,10 @@ class _DebugTabState extends State<DebugTab>
     // The experimental Radio Settings dialog is only available when the
     // preferred radio is a connected Bluetooth radio (never EchoLink).
     final bool radioSettingsEnabled = _radioSettingsTargetId() >= 0;
+    final disableSatelliteInfo =
+        _broker.getValue<bool>(0, 'DebugDisableSetSatelliteInfo') ?? false;
+    final disableFreqMode =
+        _broker.getValue<bool>(0, 'DebugDisableFreqModeSetPar') ?? false;
 
     showMenu<String>(
       context: context,
@@ -566,6 +570,21 @@ class _DebugTabState extends State<DebugTab>
               Text(l10n.debugLoopbackMode),
             ],
           ),
+        ),
+        const PopupMenuDivider(height: 8),
+        CheckedPopupMenuItem<String>(
+          value: 'disableSatelliteInfo',
+          checked: disableSatelliteInfo,
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: const Text('Disable SET_SATELLITE_INFO'),
+        ),
+        CheckedPopupMenuItem<String>(
+          value: 'disableFreqMode',
+          checked: disableFreqMode,
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: const Text('Disable FREQ_MODE_SET_PAR'),
         ),
         const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
@@ -698,6 +717,28 @@ class _DebugTabState extends State<DebugTab>
           break;
         case 'loopbackMode':
           setState(() => _loopbackMode = !_loopbackMode);
+          break;
+        case 'disableSatelliteInfo':
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'DebugDisableSetSatelliteInfo',
+            data: !disableSatelliteInfo,
+            store: true,
+          );
+          _broker.logInfo(
+            'SET_SATELLITE_INFO ${disableSatelliteInfo ? 'enabled' : 'disabled'}',
+          );
+          break;
+        case 'disableFreqMode':
+          _broker.dispatch(
+            deviceId: 0,
+            name: 'DebugDisableFreqModeSetPar',
+            data: !disableFreqMode,
+            store: true,
+          );
+          _broker.logInfo(
+            'FREQ_MODE_SET_PAR ${disableFreqMode ? 'enabled' : 'disabled'}',
+          );
           break;
         case 'queryDeviceNames':
           _onQueryDeviceNames();

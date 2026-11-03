@@ -1890,12 +1890,20 @@ class SoftwareModem {
     // Route to the APRS instance for APRS-channel frames, else the general one.
     final bool isAprs = fragment.channelName == 'APRS' ||
         (state.aprsChannelId >= 0 && fragment.channelId == state.aprsChannelId);
-    final _ModemInstance? target =
+    _ModemInstance? target =
         isAprs ? state.aprsModem : state.generalModem;
+    if (fragment.encoding != FragmentEncodingType.unknown &&
+        target?.encoding != fragment.encoding) {
+      target = state.generalModem?.encoding == fragment.encoding
+          ? state.generalModem
+          : state.aprsModem?.encoding == fragment.encoding
+          ? state.aprsModem
+          : null;
+    }
     if (target == null) {
       _debug(
         'TransmitPacket: no ${isAprs ? "APRS" : "general"} modem instance for '
-        'device $deviceId - dropping frame',
+        'device $deviceId matching ${fragment.encoding.name} - dropping frame',
       );
       return;
     }

@@ -639,6 +639,13 @@ the pass (see `RadioFreqModePar` / `RadioSatelliteInfo` in
 [radio_models.dart](../../src/lib/radio/radio_models.dart) and
 `Radio._onSatelliteTrackUpdate` in [radio.dart](../../src/lib/radio/radio.dart)).
 
+For reception diagnostics, the **Debug** tab menu has independent **Disable
+SET_SATELLITE_INFO** and **Disable FREQ_MODE_SET_PAR** toggles. Both default to
+off, apply immediately to all radios, and persist across launches. Disable a
+command after tuning to isolate whether its periodic updates interrupt received
+audio. Disabling `FREQ_MODE_SET_PAR` also suppresses the stop-tracking command:
+re-enable it before leaving satellite mode so the radio can exit VFO mode.
+
 #### FREQ_MODE_SET_PAR (35) — the Doppler-steered VFO
 
 This is the important one: it puts the radio into "frequency mode" (a free-tuned
