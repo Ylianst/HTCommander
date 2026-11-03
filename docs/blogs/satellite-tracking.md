@@ -208,7 +208,7 @@ continuous reception while updating the tuning.
 
 **Manual testing on 2026-11-02 confirmed that `FREQ_MODE_SET_PAR` causes the
 received Bluetooth audio breaks; `SET_SATELLITE_INFO` does not in the tested
-setup.** Independent Debug-tab toggles let each command be disabled separately.
+setup.** Temporary independent Debug-tab toggles let each command be disabled separately.
 With frequency updates sent every second, an ongoing transmission is split into
 many roughly one-second recordings instead of one continuous clip.
 
@@ -219,13 +219,9 @@ firmware mechanism and whether audio samples are lost or only stream boundaries
 are introduced remain unverified. Behavior with unchanged frequencies also
 remains unverified.
 
-For a diagnostic comparison, enter satellite mode and tune first, then use
-**Debug > Disable FREQ_MODE_SET_PAR**, leaving **Disable SET_SATELLITE_INFO**
-unchecked. The satellite display can continue updating without further tuning
-commands, but **the radio stays on its last frequencies and no longer follows
-Doppler**. Both toggles default to unchecked and persist across launches.
-Re-enable `FREQ_MODE_SET_PAR` before leaving satellite mode: the toggle also
-blocks the command used to exit VFO mode.
+Those diagnostic toggles have now been removed. Both commands are always
+enabled, regardless of previously saved toggle values. Use the Doppler settings
+below to reduce retunes or hold tuning during reception.
 
 ### Mitigation: fewer retunes, or hold tuning during RX
 

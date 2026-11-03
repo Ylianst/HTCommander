@@ -325,14 +325,17 @@ class _DebugTabState extends State<DebugTab>
       pos += 8 + size + (size & 1);
     }
     if (dataOffset < 0 || audioFormat != 1) return null;
-    if (dataOffset + dataLen > bytes.length) dataLen = bytes.length - dataOffset;
+    if (dataOffset + dataLen > bytes.length)
+      dataLen = bytes.length - dataOffset;
     final pcm = Uint8List.sublistView(bytes, dataOffset, dataOffset + dataLen);
     return (pcm: pcm, sampleRate: sampleRate, channels: channels, bits: bits);
   }
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// Opens the raw command test dialog for the currently connected radio.
@@ -508,10 +511,6 @@ class _DebugTabState extends State<DebugTab>
     // The experimental Radio Settings dialog is only available when the
     // preferred radio is a connected Bluetooth radio (never EchoLink).
     final bool radioSettingsEnabled = _radioSettingsTargetId() >= 0;
-    final disableSatelliteInfo =
-        _broker.getValue<bool>(0, 'DebugDisableSetSatelliteInfo') ?? false;
-    final disableFreqMode =
-        _broker.getValue<bool>(0, 'DebugDisableFreqModeSetPar') ?? false;
 
     showMenu<String>(
       context: context,
@@ -572,27 +571,15 @@ class _DebugTabState extends State<DebugTab>
           ),
         ),
         const PopupMenuDivider(height: 8),
-        CheckedPopupMenuItem<String>(
-          value: 'disableSatelliteInfo',
-          checked: disableSatelliteInfo,
-          height: menuItemHeight,
-          padding: menuItemPadding,
-          child: const Text('Disable SET_SATELLITE_INFO'),
-        ),
-        CheckedPopupMenuItem<String>(
-          value: 'disableFreqMode',
-          checked: disableFreqMode,
-          height: menuItemHeight,
-          padding: menuItemPadding,
-          child: const Text('Disable FREQ_MODE_SET_PAR'),
-        ),
-        const PopupMenuDivider(height: 8),
         PopupMenuItem<String>(
           value: 'queryDeviceNames',
           height: menuItemHeight,
           padding: menuItemPadding,
           child: Row(
-            children: [const SizedBox(width: 20), Text(l10n.debugQueryDeviceNames)],
+            children: [
+              const SizedBox(width: 20),
+              Text(l10n.debugQueryDeviceNames),
+            ],
           ),
         ),
         PopupMenuItem<String>(
@@ -660,7 +647,9 @@ class _DebugTabState extends State<DebugTab>
           value: 'clear',
           height: menuItemHeight,
           padding: menuItemPadding,
-          child: Row(children: [const SizedBox(width: 20), Text(l10n.tabClear)]),
+          child: Row(
+            children: [const SizedBox(width: 20), Text(l10n.tabClear)],
+          ),
         ),
         // macOS-only option to show built-in menus (skip on web)
         if (!kIsWeb && Platform.isMacOS) ...[
@@ -717,28 +706,6 @@ class _DebugTabState extends State<DebugTab>
           break;
         case 'loopbackMode':
           setState(() => _loopbackMode = !_loopbackMode);
-          break;
-        case 'disableSatelliteInfo':
-          _broker.dispatch(
-            deviceId: 0,
-            name: 'DebugDisableSetSatelliteInfo',
-            data: !disableSatelliteInfo,
-            store: true,
-          );
-          _broker.logInfo(
-            'SET_SATELLITE_INFO ${disableSatelliteInfo ? 'enabled' : 'disabled'}',
-          );
-          break;
-        case 'disableFreqMode':
-          _broker.dispatch(
-            deviceId: 0,
-            name: 'DebugDisableFreqModeSetPar',
-            data: !disableFreqMode,
-            store: true,
-          );
-          _broker.logInfo(
-            'FREQ_MODE_SET_PAR ${disableFreqMode ? 'enabled' : 'disabled'}',
-          );
           break;
         case 'queryDeviceNames':
           _onQueryDeviceNames();

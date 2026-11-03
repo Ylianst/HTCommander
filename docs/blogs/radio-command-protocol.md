@@ -640,12 +640,10 @@ reduce receive interruptions (see the mitigation below and
 [radio_models.dart](../../src/lib/radio/radio_models.dart) and
 `Radio._onSatelliteTrackUpdate` in [radio.dart](../../src/lib/radio/radio.dart)).
 
-For reception diagnostics, the **Debug** tab menu has independent **Disable
-SET_SATELLITE_INFO** and **Disable FREQ_MODE_SET_PAR** toggles. Both default to
-off, apply immediately to all radios, and persist across launches. Disable a
-command after tuning to isolate whether its periodic updates interrupt received
-audio. Disabling `FREQ_MODE_SET_PAR` also suppresses the stop-tracking command:
-re-enable it before leaving satellite mode so the radio can exit VFO mode.
+Both commands are always enabled. The temporary **Debug** tab disable toggles
+used for reception diagnostics have been removed, and their previously saved
+values are ignored. Frequency updates still respect the Doppler retune
+threshold and optional receive-audio hold.
 
 #### Confirmed reception interruption (2026-11-02)
 
@@ -808,12 +806,20 @@ The whole ISS session in the capture unfolds like this:
    followed by `FREQ_MODE_SET_PAR` (Doppler-corrected RX/TX), and the radio
    ACKs each with `[0x00]`. This repeats for the whole pass — 25+ update pairs in
    the capture.
-3. **Teardown** — to stop tracking, the app sends a single `FREQ_MODE_SET_PAR`
-   with an **all-zero 16-byte payload**. That drops the radio out of frequency
-   (VFO) mode, and the radio responds with a burst of `htSettingsChanged`
-   (`EVENT_NOTIFICATION` type 6) events as it restores its normal channel state.
-   No "stop" `SET_SATELLITE_INFO` is sent — clearing the VFO is what ends the
-   session.
+3. **Teardown** — to stop tracking, the app sends `FREQ_MODE_SET_PAR` with an
+   **all-zero 16-byte payload twice**, about 180 ms apart. After the first one
+   the radio still reports frequency mode active (`freqModeStatusChanged`
+   flags low byte `0x40`); only the second drops it out of frequency (VFO)
+   mode. The radio then responds with a burst of `htSettingsChanged`
+   (`EVENT_NOTIFICATION` type 6) events and a final `freqModeStatusChanged`
+   with flags low byte `0x00` as it restores its normal channel state. Sending
+   only one stop leaves the radio stuck in VFO mode. No "stop"
+   `SET_SATELLITE_INFO` is sent — clearing the VFO is what ends the session.
+   While in satellite/VFO mode the HT status reports channel id **254**, and
+   after teardown the radio does **not** push `htStatusChanged` (only
+   `htSettingsChanged` as channels change) until it next receives a signal.
+   HTCommander therefore substitutes settings channel A for that stale id
+   until the radio reports a real channel.
 
 ```mermaid
 sequenceDiagram
@@ -828,7 +834,11 @@ sequenceDiagram
     end
     A->>R: FREQ_MODE_SET_PAR (16 zero bytes)  %% stop tracking
     R-->>A: 0x00
+    R-->>A: EVENT_NOTIFICATION freqModeStatusChanged (still 0x40)
+    A->>R: FREQ_MODE_SET_PAR (16 zero bytes, ~180 ms later)
+    R-->>A: 0x00
     R-->>A: EVENT_NOTIFICATION htSettingsChanged (×N)
+    R-->>A: EVENT_NOTIFICATION freqModeStatusChanged (0x00, channel mode)
 ```
 
 ---

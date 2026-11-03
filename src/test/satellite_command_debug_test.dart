@@ -98,8 +98,6 @@ void main() {
 
   setUp(() async {
     broker = DataBrokerClient();
-    disable('DebugDisableSetSatelliteInfo', false);
-    disable('DebugDisableFreqModeSetPar', false);
     transport = _RecordingTransport();
     radio = Radio(deviceId: 9300, macAddress: 'test');
     await radio.connect(transport);
@@ -124,7 +122,7 @@ void main() {
   for (final disableInfo in [false, true]) {
     for (final disableFreq in [false, true]) {
       test(
-        'independent command gates: info=$disableInfo freq=$disableFreq',
+        'legacy debug settings cannot suppress commands: info=$disableInfo freq=$disableFreq',
         () {
           disable('DebugDisableSetSatelliteInfo', disableInfo);
           disable('DebugDisableFreqModeSetPar', disableFreq);
@@ -133,23 +131,16 @@ void main() {
           // Classic GAIA frames carry the command ID at bytes 6 and 7.
           expect(
             transport.sent.map((frame) => (frame[6] << 8) | frame[7]).toList(),
-            [if (!disableInfo) 77, if (!disableFreq) 35],
+            [77, 35],
           );
         },
       );
     }
   }
 
-  test('toggles take effect without reconnecting and gate teardown', () {
+  test('legacy debug settings cannot suppress teardown', () {
     disable('DebugDisableSetSatelliteInfo', true);
     disable('DebugDisableFreqModeSetPar', true);
-    radio.setSatelliteInfo(info);
-    radio.freqModeSetPar(tuning);
-    radio.stopFreqMode();
-    expect(transport.sent, isEmpty);
-
-    disable('DebugDisableSetSatelliteInfo', false);
-    disable('DebugDisableFreqModeSetPar', false);
     radio.setSatelliteInfo(info);
     radio.freqModeSetPar(tuning);
     radio.stopFreqMode();
@@ -161,7 +152,77 @@ void main() {
     expect(transport.sent.last.sublist(8), everyElement(0));
   });
 
-  test('disabled tracking updates do not consume initial mode flags', () {
+  test('teardown repeats the all-zero stop like the manufacturer app', () async {
+    radio.freqModeSetPar(tuning);
+    radio.stopFreqMode();
+    expect(transport.sent.length, 2);
+    await Future<void>.delayed(
+      Radio.freqModeStopRepeatDelay + const Duration(milliseconds: 50),
+    );
+    expect(transport.sent.map((frame) => (frame[6] << 8) | frame[7]).toList(), [
+      35,
+      35,
+      35,
+    ]);
+    expect(transport.sent[1].sublist(8), everyElement(0));
+    expect(transport.sent[2].sublist(8), everyElement(0));
+  });
+
+  test('a new tuning cancels the pending teardown repeat', () async {
+    radio.stopFreqMode();
+    radio.freqModeSetPar(tuning);
+    await Future<void>.delayed(
+      Radio.freqModeStopRepeatDelay + const Duration(milliseconds: 50),
+    );
+    expect(transport.sent.length, 2);
+    expect(transport.sent.last.sublist(8), isNot(everyElement(0)));
+  });
+
+  test('leaving satellite mode replaces the stale VFO channel id', () async {
+    Uint8List hex(String s) => Uint8List.fromList([
+      for (var i = 0; i < s.length; i += 2)
+        int.parse(s.substring(i, i + 2), radix: 16),
+    ]);
+    Future<void> rx(String s) async {
+      transport.simulateReceive(hex(s));
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    // Settings (channel A from the user's debug log) and the satellite-mode HT
+    // status from the manufacturer capture, which reports channel id 254.
+    await rx(
+      'FF01001700020009060F01A6061A103CA0A100000000000078000000000000',
+    );
+    await rx('FF01000500020009' '01c4e3003c');
+    expect(radio.htStatus!.currChId, 254);
+    await rx('FF01000F00020009' '0e1a18364708b3a8c400001a2c8a40');
+
+    radio.stopFreqMode();
+    await rx('FF01000F00020009' '0e081b320000000000000000008000');
+    final channelA = radio.settings!.channelA;
+    expect(channelA, lessThan(254));
+    expect(radio.htStatus!.currChId, channelA);
+
+    // Changing channel on the radio only pushes htSettingsChanged.
+    await rx(
+      'FF0100170002000906FF01A6061A103CA0A100000000000078000000000000',
+    );
+    expect(radio.settings!.channelA, isNot(channelA));
+    expect(radio.htStatus!.currChId, radio.settings!.channelA);
+
+    // A stale GET_HT_STATUS reply is corrected too.
+    await rx('FF01000500028014' '00c4e3003c');
+    expect(radio.htStatus!.currChId, radio.settings!.channelA);
+
+    // A real channel report ends the correction, so a later 254+ (e.g. NOAA
+    // weather) is passed through untouched.
+    await rx('FF01000500020009' '01c4330000');
+    expect(radio.htStatus!.currChId, 3);
+    await rx('FF01000500020009' '01c4e3003c');
+    expect(radio.htStatus!.currChId, 254);
+  });
+
+  test('legacy debug settings cannot suppress tracking or entry flags', () {
     radio.settings = RadioSettings.fromBytes(Uint8List(64));
     radio.htStatus = RadioHtStatus.fromBytes(Uint8List(9));
     broker.dispatch(
@@ -185,22 +246,21 @@ void main() {
       ),
     );
 
+    disable('DebugDisableSetSatelliteInfo', true);
     disable('DebugDisableFreqModeSetPar', true);
     update();
     update();
     update();
-    expect(transport.sent.length, 3);
-    expect(transport.sent.every((frame) => frame[7] == 77), isTrue);
-    transport.sent.clear();
-    disable('DebugDisableSetSatelliteInfo', true);
-    disable('DebugDisableFreqModeSetPar', false);
-    update();
-    update();
-    update();
-    expect(transport.sent.length, 3);
-    expect(transport.sent.every((frame) => frame[7] == 35), isTrue);
+    expect(transport.sent.map((frame) => frame[7]).toList(), [
+      77,
+      35,
+      77,
+      35,
+      77,
+      35,
+    ]);
     expect(
-      transport.sent.map((frame) => (frame[20] << 8) | frame[21]).toList(),
+      tuningFrames().map((frame) => (frame[20] << 8) | frame[21]).toList(),
       [0x0A03, 0x0A03, 0x0A00],
     );
   });
@@ -425,18 +485,6 @@ void main() {
     expect(tuningFrames().single.sublist(20, 22), [0x0A, 0x03]);
   });
 
-  test('debug suppression cannot advance tuning snapshot or entry flags', () {
-    lock();
-    disable('DebugDisableFreqModeSetPar', true);
-    update(rx: 145801000);
-    update(rx: 145805000);
-    expect(tuningFrames(), isEmpty);
-    disable('DebugDisableFreqModeSetPar', false);
-    update(rx: 145805000);
-    expect(tuningFrames().length, 1);
-    expect(tuningFrames().single.sublist(20, 22), [0x0A, 0x03]);
-  });
-
   testWidgets('satellite Doppler settings save, reload and cancel', (
     tester,
   ) async {
@@ -499,7 +547,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('Debug menu independently toggles and restores command gates', (
+  testWidgets('Debug menu has no satellite command disable switches', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -521,39 +569,10 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    for (final (label, setting) in [
-      ('Disable SET_SATELLITE_INFO', 'DebugDisableSetSatelliteInfo'),
-      ('Disable FREQ_MODE_SET_PAR', 'DebugDisableFreqModeSetPar'),
-    ]) {
-      await openMenu();
-      expect(
-        tester
-            .widget<CheckedPopupMenuItem<String>>(
-              find.widgetWithText(CheckedPopupMenuItem<String>, label),
-            )
-            .checked,
-        isFalse,
-      );
-      await tester.tap(
-        find.widgetWithText(CheckedPopupMenuItem<String>, label),
-      );
-      await tester.pumpAndSettle();
-      expect(broker.getValue<bool>(0, setting), isTrue);
-      await openMenu();
-      expect(
-        tester
-            .widget<CheckedPopupMenuItem<String>>(
-              find.widgetWithText(CheckedPopupMenuItem<String>, label),
-            )
-            .checked,
-        isTrue,
-      );
-      await tester.tap(
-        find.widgetWithText(CheckedPopupMenuItem<String>, label),
-      );
-      await tester.pumpAndSettle();
-      expect(broker.getValue<bool>(0, setting), isFalse);
-    }
+    await openMenu();
+    expect(find.text('Disable SET_SATELLITE_INFO'), findsNothing);
+    expect(find.text('Disable FREQ_MODE_SET_PAR'), findsNothing);
+    expect(find.text('Radio Settings...'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 }

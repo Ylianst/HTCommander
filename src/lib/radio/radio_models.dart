@@ -667,7 +667,7 @@ class RadioFreqModePar {
 
   /// The teardown payload: an all-zero FREQ_MODE_SET_PAR drops the radio out of
   /// frequency (VFO) mode and restores its normal channel state, ending a
-  /// tracking session.
+  /// tracking session. The radio needs it sent twice (see Radio.stopFreqMode).
   const RadioFreqModePar.stop()
     : rxFreq = 0,
       txFreq = 0,
