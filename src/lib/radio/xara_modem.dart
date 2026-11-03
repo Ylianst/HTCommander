@@ -163,6 +163,10 @@ class XaraModem {
 
   void setListen(bool on) => _send(<String, Object?>{'cmd': 'listen', 'on': on});
 
+  /// Tells the modem whether the radio is receiving (streaming RX audio). While
+  /// on, XARA holds back the start of any transmission.
+  void setRadioReceiving(bool on) => _send(<String, Object?>{'cmd': 'carrier', 'on': on});
+
   /// Turns per-frame constellation capture ('analysis' events) on or off.
   void setAnalysis(bool on) => _send(<String, Object?>{'cmd': 'analysis', 'on': on});
 
@@ -377,6 +381,8 @@ Future<void> _xaraIsolateEntry(List<Object?> args) async {
         station.cqFrame(message['call'] as String, null);
       case 'listen':
         station.setListen(message['on'] as bool);
+      case 'carrier':
+        station.txBlocked = message['on'] as bool;
       case 'analysis':
         station.captureSymbols = message['on'] as bool;
       case 'shutdown':

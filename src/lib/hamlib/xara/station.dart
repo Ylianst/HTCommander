@@ -229,6 +229,10 @@ class TxScheduler {
   List<double>? _tune;
   int _tunePos = 0;
 
+  /// While true no new burst starts; one already playing runs to its end. Set
+  /// by the host while the radio is receiving, so we never key over a signal.
+  bool blocked = false;
+
   TxScheduler(this._latency, this._lag);
 
   int get latency => _latency;
@@ -310,7 +314,7 @@ class TxScheduler {
 
   TxNext next(int t, List<Report> reports) {
     final _Burst? f = _bursts.isEmpty ? null : _bursts.first;
-    if (f == null || !(f.pos > 0 || t >= f.earliest)) {
+    if (f == null || !(f.pos > 0 || (t >= f.earliest && !blocked))) {
       final _Unkey? u = _unkey;
       if (u != null && t >= u.at) {
         _unkey = null;

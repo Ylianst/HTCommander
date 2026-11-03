@@ -29,6 +29,92 @@ The source review used XARA 0.1.3, commit
 `09a9201381b00499ada9d9c816bd05bb8f175705`. Compatibility claims below are
 upstream claims, not results from an HTCommander interoperability test.
 
+## Progress update: no transmitting while the radio receives
+
+Software modems used the radio's RSSI to decide whether the channel was clear.
+RSSI ignores the radio's squelch setting, so the user had no way to tune it. They
+now use the Bluetooth audio stream instead: the radio counts as **receiving**
+from a received-audio `AudioDataStart` until its `AudioDataEnd` (the echo of our
+own transmit audio is ignored), which follows the squelch exactly. No software
+modem keys up while that flag is set:
+
+- **AFSK/PSK packet and DART** treat the channel as clear only when the radio is
+  neither receiving nor transmitting, then run the usual p-persistent slot
+  timing. If reception starts while a bundle is still being modulated off the
+  UI isolate, the encoded audio is held (DART sequence numbers are already
+  assigned) and sent once the channel clears.
+- **XARA** gets the flag in its isolate. While it is set, the transmit scheduler
+  starts no new burst of any kind (session data, ACK/control replies, connect
+  requests, digipeats or broadcasts); a burst already playing finishes. XARA
+  times its reply windows from when a burst actually ends, so a deferred burst
+  stays valid on our side.
+
+The radio's hardware TNC path still uses RSSI, because it can run with Bluetooth
+audio off. A test checks each modem holds a frame while the radio receives
+(with a non-zero RSSI) and sends it once reception ends.
+
+### Improvements to look at next
+
+Recorded from a review after the receive gate landed, most impactful first.
+None of these has been tested on air yet.
+
+**High priority**
+
+1. **Warn when the squelch is fully open (level 0).** At level 0 the radio
+   streams receive audio continuously, so the new gate blocks XARA forever and
+   links time out. The XARA and lock flows should warn about this, or require a
+   squelch of at least 1.
+2. **Use real PTT timing from the radio.** XARA estimates its transmit timing
+   from fixed settings (800 ms latency plus 300 ms key-up). The radio echoes our
+   transmit audio over Bluetooth and reports when it is actually transmitting,
+   which gives the real start and end of each burst. Feeding the real end time to
+   XARA would replace guesswork with measurement and avoid dropped ACKs on
+   radios slower than the defaults.
+3. **Auto-calibrate latency from the capture.** Every received control code is
+   already logged with its delay, reply window and verdict. If replies keep
+   arriving late, the app could suggest a better `XaraTxLatencyMs`, or adjust it
+   within limits. This is a lighter alternative to item 2.
+4. **Shorten the squelch tail before our ACKs.** Our ACKs now wait for the
+   squelch to close, so a long squelch tail delays every reply and can push it
+   past the far station's window. The radio's `tailElim` setting could be
+   enabled while a XARA channel is locked, just as the lock already turns off
+   scan and dual-watch.
+
+**Medium priority**
+
+5. **Make drive level adjustable.** `driveDb` is fixed in code. HTs vary a lot
+   in deviation, and clipping hurts the fastest speed levels most. A drive
+   setting plus a calibration tone (the station already supports `tune`) would
+   help.
+6. **Require the channel lock for XARA, or warn without it.** The lock is what
+   disables scan and dual-watch. Without it the radio can switch to the other
+   watched channel, feed that audio to the decoder and block transmit through
+   the gate.
+7. **Close the last ~10 ms race.** The receiving flag reaches the XARA isolate
+   asynchronously, so a burst prepared just before reception starts can still
+   go out. XARA could tag each burst with the moment it was prepared so the host
+   can skip and resend it if reception began after that.
+8. **Protect the start of incoming frames.** Our squelch opening and the
+   Bluetooth audio startup clip the start of the far station's signal, and real
+   VARA stations do not add our key-up pre-roll. If logs show failures
+   concentrated at frame starts, try a lower squelch or the radio's squelch
+   delay options.
+
+**Lower priority**
+
+9. **Check wide mode on HTs.** It is not yet confirmed that the radio's audio
+   filtering and the SBC codec pass the 2750 Hz wide waveform cleanly. Compare
+   error rates per speed level, narrow versus wide, on air.
+10. **Add a watchdog for the receiving flag.** If the radio ever missed its
+    end-of-audio marker, transmit would stay blocked. A fallback could clear the
+    flag after a few seconds with no audio frames.
+11. **Test against real VARA FM stations.** Current tests run XARA against
+    itself. A few captured sessions with real VARA FM stations, kept as
+    regression tests, would catch timing differences between implementations.
+
+The suggested order is items 1 and 4 first (quick safety fixes for the gate),
+then item 2, the biggest gain this closer radio integration makes possible.
+
 ## Progress update: XARA FM is wired into HTCommander
 
 XARA FM is now a software modem mode beside DART. Choose **Software Modem >

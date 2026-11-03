@@ -119,6 +119,13 @@ class _RadioModemState {
   bool waitingForChannel = false;
   bool channelIsClear = false;
 
+  /// An already-modulated bundle held back because the radio started receiving
+  /// while it was being encoded; sent as soon as the channel is clear again.
+  Uint8List? heldPcm;
+  DateTime? heldPcmDeadline;
+
+  bool get hasPendingTx => transmitQueue.isNotEmpty || heldPcm != null;
+
   /// True while a bundled transmission is being modulated off-isolate. Prevents
   /// a concurrent channel-access slot from starting a second overlapping keyup
   /// during the (now asynchronous) encode.
@@ -134,6 +141,8 @@ class _RadioModemState {
     channelWaitTimer?.cancel();
     channelWaitTimer = null;
     transmitQueue.clear();
+    heldPcm = null;
+    heldPcmDeadline = null;
     waitingForChannel = false;
     generalModem?.dispose();
     generalModem = null;
@@ -473,6 +482,11 @@ class SoftwareModem {
   final DataBrokerClient _broker = DataBrokerClient();
   final Map<int, _RadioModemState> _radioModems = {};
 
+  /// Radios currently streaming received audio frames over Bluetooth (between
+  /// a receive AudioDataStart and its AudioDataEnd). This reflects the radio's
+  /// squelch, unlike RSSI, and no software modem transmits while it is set.
+  final Set<int> _radioReceiving = <int>{};
+
   /// Receive-only external audio sources (Audio Receive Devices) keyed by their
   /// own source id. Each holds one decode pipeline fed from a sound-card input
   /// instead of a radio's Bluetooth audio. Kept separate from [_radioModems] so
@@ -614,6 +628,24 @@ class SoftwareModem {
       deviceId: DataBroker.allDevices,
       name: 'ChannelClear',
       callback: _onChannelClear,
+    );
+
+    // Received audio runs mark the radio as receiving (squelch open), which
+    // blocks every software modem transmission until the run ends.
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AudioDataStart',
+      callback: _onRadioAudioStart,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AudioDataEnd',
+      callback: _onRadioAudioEnd,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'AudioState',
+      callback: _onRadioAudioState,
     );
 
     // XARA (VARA FM compatible) connected-mode link control, per radio.
@@ -1312,6 +1344,9 @@ class SoftwareModem {
         },
         onEvent: (Map<String, Object?> e) => _onXaraEvent(state, instance, e),
       );
+      if (_radioReceiving.contains(state.deviceId)) {
+        instance.xara!.setRadioReceiving(true);
+      }
       _debug('Built XARA modem instance for device ${state.deviceId}');
       return instance;
     }
@@ -1696,12 +1731,13 @@ class SoftwareModem {
       state.currentRegionId =
           _readInt(data['currRegion'] ?? data['curr_region'] ?? data['CurrRegion']) ?? state.currentRegionId;
 
-      // Track whether the channel is currently clear
-      final int rssi = _readInt(data['rssi'] ?? data['Rssi']) ?? 1;
+      // Track whether the channel is currently clear. RSSI is ignored: it does
+      // not honour the radio's squelch. Receive activity comes from Bluetooth
+      // audio runs instead (see _onRadioAudioStart / _onRadioAudioEnd).
       final bool isInTx =
           (data['isInTx'] ?? data['is_in_tx'] ?? data['IsInTx']) as bool? ??
               false;
-      final bool isClear = rssi == 0 && !isInTx;
+      final bool isClear = _channelClearFor(state, isInTx);
       final bool wasClear = state.channelIsClear;
       state.channelIsClear = isClear;
 
@@ -1710,10 +1746,56 @@ class SoftwareModem {
       if (isClear &&
           !wasClear &&
           state.waitingForChannel &&
-          state.transmitQueue.isNotEmpty) {
+          state.hasPendingTx) {
         _beginChannelAccess(state);
       }
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Receive-activity tracking (Bluetooth audio runs)
+  // ---------------------------------------------------------------------------
+
+  /// True when [state]'s radio is neither receiving audio nor transmitting.
+  bool _channelClearFor(_RadioModemState state, bool isInTx) =>
+      !_radioReceiving.contains(state.deviceId) && !isInTx;
+
+  void _onRadioAudioStart(int deviceId, String name, Object? data) {
+    if (_disposed || deviceId <= 0 || data is! Map) return;
+    if ((data['transmit'] ?? data['Transmit']) as bool? ?? false) return;
+    _setRadioReceiving(deviceId, true);
+  }
+
+  void _onRadioAudioEnd(int deviceId, String name, Object? data) {
+    if (_disposed || deviceId <= 0 || data is! Map) return;
+    if ((data['transmit'] ?? data['Transmit']) as bool? ?? false) return;
+    _setRadioReceiving(deviceId, false);
+  }
+
+  /// Audio turned off (or the radio disconnected) ends any receive run.
+  void _onRadioAudioState(int deviceId, String name, Object? data) {
+    if (_disposed || deviceId <= 0 || data == true) return;
+    _setRadioReceiving(deviceId, false);
+  }
+
+  void _setRadioReceiving(int deviceId, bool on) {
+    final bool changed =
+        on ? _radioReceiving.add(deviceId) : _radioReceiving.remove(deviceId);
+    if (!changed) return;
+    final _RadioModemState? state = _radioModems[deviceId];
+    if (state == null) return;
+    for (final _ModemInstance? m in <_ModemInstance?>[
+      state.generalModem,
+      state.aprsModem,
+    ]) {
+      m?.xara?.setRadioReceiving(on);
+    }
+    if (on) {
+      state.channelIsClear = false;
+      return;
+    }
+    _refreshChannelClear(state);
+    if (state.channelIsClear && state.hasPendingTx) _beginChannelAccess(state);
   }
 
   // ---------------------------------------------------------------------------
@@ -1819,8 +1901,8 @@ class SoftwareModem {
     }
 
     if (target.xara != null) {
-      // XARA schedules its own unconnected (record 16) transmissions and waits
-      // for a clear channel itself.
+      // XARA schedules its own unconnected (record 16) transmissions, waits for
+      // a clear channel itself and holds every burst while the radio receives.
       target.xara!.kiss(Uint8List.fromList(fragment.data));
       return;
     }
@@ -1853,7 +1935,8 @@ class SoftwareModem {
 
     final state = _radioModems[deviceId];
     if (state == null) return;
-    if (!state.waitingForChannel || state.transmitQueue.isEmpty) return;
+    if (!state.waitingForChannel || !state.hasPendingTx) return;
+    if (_radioReceiving.contains(deviceId)) return;
 
     state.channelIsClear = true;
     _beginChannelAccess(state);
@@ -1862,7 +1945,8 @@ class SoftwareModem {
   // ---------------------------------------------------------------------------
   // Channel access - p-persistent CSMA (matches Direwolf's wait_for_clear_channel)
   //
-  // After the channel is sensed clear (RSSI == 0 and we are not transmitting),
+  // After the channel is sensed clear (the radio is not streaming received
+  // audio, i.e. its squelch is closed, and we are not transmitting),
   // wait one "slot time" then transmit with probability persist/256; otherwise
   // wait another slot and try again. Re-checking the channel on every slot and
   // only transmitting probabilistically spreads out stations that were all
@@ -1878,7 +1962,7 @@ class SoftwareModem {
     if (_disposed) return;
 
     _dropExpired(state);
-    if (state.transmitQueue.isEmpty) {
+    if (!state.hasPendingTx) {
       state.waitingForChannel = false;
       return;
     }
@@ -1909,14 +1993,14 @@ class SoftwareModem {
     if (_disposed) return;
 
     _dropExpired(state);
-    if (state.transmitQueue.isEmpty) {
+    if (!state.hasPendingTx) {
       state.waitingForChannel = false;
       return;
     }
 
-    // Re-sense the channel each slot from the latest HtStatus (Direwolf checks
-    // the channel on every slot). Someone else may have started transmitting
-    // during the slot - if so, go back to waiting for the channel to clear.
+    // Re-sense the channel each slot (Direwolf checks the channel on every
+    // slot). Someone else may have started transmitting during the slot - if
+    // so, go back to waiting for the channel to clear.
     _refreshChannelClear(state);
     if (!state.channelIsClear) {
       state.waitingForChannel = true;
@@ -1933,22 +2017,27 @@ class SoftwareModem {
     }
   }
 
-  /// Sense the current channel state from the radio's latest HtStatus and
-  /// update [state.channelIsClear]. HtStatus is only dispatched on change, so a
-  /// steadily-free channel would otherwise leave the cached flag stale.
+  /// Sense the current channel state and update [state.channelIsClear]: busy
+  /// while the radio streams received audio or reports it is transmitting.
+  /// HtStatus is only dispatched on change, so the latest stored value is read.
   void _refreshChannelClear(_RadioModemState state) {
     final Object? ht =
         _broker.getValue<Object>(state.deviceId, 'HtStatus', null);
-    if (ht is Map) {
-      final int rssi = _readInt(ht['rssi'] ?? ht['Rssi']) ?? 1;
-      final bool isInTx =
-          (ht['isInTx'] ?? ht['is_in_tx'] ?? ht['IsInTx']) as bool? ?? false;
-      state.channelIsClear = rssi == 0 && !isInTx;
-    }
+    final bool isInTx = ht is Map &&
+        ((ht['isInTx'] ?? ht['is_in_tx'] ?? ht['IsInTx']) as bool? ?? false);
+    state.channelIsClear = _channelClearFor(state, isInTx);
   }
 
   void _dropExpired(_RadioModemState state) {
     final now = DateTime.now();
+    final DateTime? heldDeadline = state.heldPcmDeadline;
+    if (state.heldPcm != null &&
+        heldDeadline != null &&
+        now.isAfter(heldDeadline)) {
+      state.heldPcm = null;
+      state.heldPcmDeadline = null;
+      _debug('Dropped expired held transmission on device ${state.deviceId}');
+    }
     while (state.transmitQueue.isNotEmpty &&
         now.isAfter(state.transmitQueue.first.deadline)) {
       state.transmitQueue.removeAt(0);
@@ -1963,13 +2052,14 @@ class SoftwareModem {
     state.channelWaitTimer = null;
 
     _dropExpired(state);
-    if (state.transmitQueue.isEmpty) {
+    if (!state.hasPendingTx) {
       state.waitingForChannel = false;
       return;
     }
 
     // If the channel went busy again, wait for it to clear.
-    if (!state.channelIsClear) {
+    if (!state.channelIsClear || _radioReceiving.contains(state.deviceId)) {
+      state.channelIsClear = false;
       state.waitingForChannel = true;
       return;
     }
@@ -1980,6 +2070,22 @@ class SoftwareModem {
     // finishes and keys up.
     if (state.encoding) {
       state.waitingForChannel = true;
+      return;
+    }
+
+    // A bundle that was held back because reception started during its encode
+    // goes out first, unchanged (DART sequence numbers are already assigned).
+    final Uint8List? held = state.heldPcm;
+    if (held != null) {
+      state.heldPcm = null;
+      state.heldPcmDeadline = null;
+      state.channelIsClear = false;
+      state.waitingForChannel = state.transmitQueue.isNotEmpty;
+      _dispatchDataPcm(state, held);
+      _debug(
+        'Transmitted held bundle, ${held.length ~/ 2} samples on device '
+        '${state.deviceId}',
+      );
       return;
     }
 
@@ -2020,16 +2126,37 @@ class SoftwareModem {
       return;
     }
 
-    _broker.dispatch(
-      deviceId: state.deviceId,
-      name: 'TransmitVoicePCM',
-      data: {'Data': pcmData, 'PlayLocally': false, 'IsDataFrame': true},
-      store: false,
-    );
+    // Reception may have started while the bundle was being modulated: never
+    // key up over it. Hold the encoded audio and send it once the radio stops
+    // receiving.
+    if (_radioReceiving.contains(state.deviceId)) {
+      state.heldPcm = pcmData;
+      state.heldPcmDeadline = bundle
+          .map((p) => p.deadline)
+          .reduce((a, b) => a.isBefore(b) ? a : b);
+      state.channelIsClear = false;
+      state.waitingForChannel = true;
+      _debug(
+        'Radio started receiving during encode; holding ${bundle.length} '
+        'packet(s) on device ${state.deviceId}',
+      );
+      return;
+    }
+
+    _dispatchDataPcm(state, pcmData);
     _debug(
       'Transmitted ${bundle.length} bundled packet(s), '
       '${pcmData.length ~/ 2} samples on device ${state.deviceId}'
       '${moreQueued ? " (${state.transmitQueue.length} still queued)" : ""}',
+    );
+  }
+
+  void _dispatchDataPcm(_RadioModemState state, Uint8List pcm) {
+    _broker.dispatch(
+      deviceId: state.deviceId,
+      name: 'TransmitVoicePCM',
+      data: {'Data': pcm, 'PlayLocally': false, 'IsDataFrame': true},
+      store: false,
     );
   }
 

@@ -280,6 +280,12 @@ class FmStation {
   /// True while transmit audio is queued or being played.
   bool get transmitting => _tx.hasBursts;
 
+  /// Holds back the start of every transmission (session, digipeater and
+  /// broadcast) while the host reports the radio is receiving. Reply windows
+  /// are timed from when a burst actually ends, so a deferred burst stays valid.
+  bool get txBlocked => _tx.blocked;
+  set txBlocked(bool on) => _tx.blocked = on;
+
   /// Index range of transmit (non-idle) samples in the last [process] output, or -1.
   int keyedFirst = -1;
   int keyedLast = -1;
