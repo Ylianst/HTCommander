@@ -186,56 +186,75 @@ Heavens-Above.
 
 ---
 
-## What's left: let the radio do it
+## Driving the radio: decoded, with a reception caveat
 
-Here's the honest part. Everything above is the "*which bird, when, and where*"
-layer, and it's done. The remaining piece is **tuning the radio through the
-pass** — and this is where a course-correction happened.
+The original plan was to hand the satellite to the radio and let its firmware
+compute the Doppler correction. Captures of the manufacturer app instead
+revealed two complementary commands, now decoded and implemented:
 
-The obvious approach is to have the app stream Doppler-corrected frequencies to
-the radio a couple of times a second (rewriting a channel, or driving the VFO
-directly). But it turns out **the radio's own firmware already has satellite
-support** — the same feature the manufacturer's app exposes. Studying the Benshi
-GAIA protocol (with thanks to the reverse-engineering in the
-[benlink](https://github.com/khusmann/benlink) project), the firmware's basic
-command set was recently found to include:
+- **`SET_SATELLITE_INFO` (77)** carries the satellite name and live look-angle
+  metadata for the radio's display, not orbital elements or a Doppler schedule.
+- **`FREQ_MODE_SET_PAR` (35)** sets the actual RX/TX frequencies, sub-audio and
+  mode flags. HTCommander computes the Doppler correction and sends this command
+  alongside the display update during tracking, subject to the retune mitigation
+  below.
 
-```
-GET_POSITION        = 76
-SET_SATELLITE_INFO  = 77   ← the native satellite command
-```
+The payload layouts and captured examples are documented in
+[the radio command protocol blog](radio-command-protocol.md#satellite-tracking-set_satellite_info-77--freq_mode_set_par-35).
+The remaining problem is no longer decoding the commands: it is preserving
+continuous reception while updating the tuning.
 
-So the right design is **not** to build our own Doppler loop — it's to hand the
-bird to the radio via `SET_SATELLITE_INFO` and let the firmware track it. We've
-added the opcode to HTCommander's protocol enum so the app *recognises* it.
+### Confirmed: frequency updates break received audio
 
-**The blocker:** only the **opcode name** is known publicly. Nobody has decoded
-the **payload** — the actual byte layout of what `SET_SATELLITE_INFO` carries
-(almost certainly the up/downlink frequencies and tone, and very likely the
-orbital elements or a Doppler schedule, implying the radio does the tracking
-itself). There's no captured example to work from yet, and guessing the layout
-is exactly the "make our own" trap we want to avoid.
+**Manual testing on 2026-11-02 confirmed that `FREQ_MODE_SET_PAR` causes the
+received Bluetooth audio breaks; `SET_SATELLITE_INFO` does not in the tested
+setup.** Independent Debug-tab toggles let each command be disabled separately.
+With frequency updates sent every second, an ongoing transmission is split into
+many roughly one-second recordings instead of one continuous clip.
 
-### The options from here
+This matters especially for **SSTV**, which needs a continuous receive stream:
+HTCommander closes the current recording and finalizes active SSTV decoding
+when the audio run ends. The command-level trigger is confirmed, but the precise
+firmware mechanism and whether audio samples are lost or only stream boundaries
+are introduced remain unverified. Behavior with unchanged frequencies also
+remains unverified.
 
-1. **Capture and decode (preferred).** Record the manufacturer app's Bluetooth
-   traffic while it configures a satellite (an Android `btsnoop_hci.log`), decode
-   the opcode-77 frames, and implement the exact message plus a "send to radio"
-   button. This gets a correct, native integration — the radio does Doppler in
-   hardware and the app just picks the bird.
+For a diagnostic comparison, enter satellite mode and tune first, then use
+**Debug > Disable FREQ_MODE_SET_PAR**, leaving **Disable SET_SATELLITE_INFO**
+unchecked. The satellite display can continue updating without further tuning
+commands, but **the radio stays on its last frequencies and no longer follows
+Doppler**. Both toggles default to unchecked and persist across launches.
+Re-enable `FREQ_MODE_SET_PAR` before leaving satellite mode: the toggle also
+blocks the command used to exit VFO mode.
 
-2. **Scaffold now, fill in later.** Wire up the method and the UI button with the
-   byte layout left as a clearly-marked TODO. Nothing is transmitted to the radio
-   until the layout is verified against a capture.
+### Mitigation: fewer retunes, or hold tuning during RX
 
-3. **App-side Doppler as a fallback.** If some radio or firmware lacks opcode 77,
-   fall back to the app pushing frequency updates through the existing channel /
-   VFO commands. We keep the Doppler helpers around for exactly this reason (and
-   for the on-screen display), but it's the backup plan, not the headline.
+Open **Satellite > Doppler settings...** to control the mitigation:
 
-Until we have a capture, HTCommander is a capable **satellite tracker and pass
-predictor** that tells you precisely what to dial in — and it's one decoded
-message away from letting the radio do the rest.
+- **Retune threshold** defaults to **1000 Hz**. Once the three initial
+  entry/settling frames have been sent, HTCommander sends a new tuning command
+  only when RX or TX has drifted at least that far from the last sent frequency.
+  Small per-second changes accumulate until the threshold is reached. Choose
+  any frequency change, 500 Hz, 1000 Hz, or 2000 Hz. Unchanged tuning is skipped;
+  satellite display metadata continues updating every second.
+- **Hold Doppler updates while receiving** is **off by default**. When enabled,
+  Bluetooth receive-audio activity defers periodic retunes until reception ends.
+  Only the latest desired correction is considered then, subject to the
+  threshold. Initial tuning and explicit satellite/usage, tone, or RX/TX
+  availability changes still apply; remaining entry frames can wait until RX
+  ends.
+
+These settings apply globally, persist across launches, and take effect on the
+next tracking tick. Deferred work is discarded when tracking stops, satellite
+support is disabled, the radio unlocks, or it disconnects. The normal
+stop-tracking command remains immediate unless disabled by the Debug toggle.
+
+This is a mitigation, **not seamless retuning**: every tuning command can still
+interrupt audio. The 1 kHz default is an experimental FM compromise that needs
+hardware testing, not a guaranteed safe frequency error. Holding during a long
+SSTV or voice transmission can let the satellite drift off frequency, especially
+on UHF. Further work must establish how to update tuning without interrupting
+continuous audio; simply joining recordings would not restore missing samples.
 
 ---
 

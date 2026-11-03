@@ -169,6 +169,7 @@ class Radio implements FirmwareRadio {
   // Transmit queue
   final List<_FragmentInQueue> _tncFragmentQueue = [];
   bool _tncFragmentInFlight = false;
+  bool _tncFragmentInFlightCancelled = false;
 
   // Clear channel timer
   Timer? _clearChannelTimer;
@@ -240,6 +241,11 @@ class Radio implements FirmwareRadio {
   // Counts satellite-tracking updates sent since the current Satellite lock, so
   // the first couple carry the 0x0A03 mode-entry flags (then 0x0A00).
   int _satTrackCount = 0;
+  static const int defaultSatelliteDopplerThresholdHz = 1000;
+  RadioFreqModePar? _lastSatelliteTuning;
+  SatelliteTrackParams? _latestSatelliteTrack;
+  (int?, int, String)? _satelliteTarget;
+  bool _satelliteRxActive = false;
 
   // Tracks the FM broadcast (is_radio) state so we request the FM frequency once
   // when the radio enters FM broadcast mode.
@@ -368,6 +374,11 @@ class Radio implements FirmwareRadio {
       name: 'TransmitDataFrame',
       callback: _onTransmitDataFrameEvent,
     );
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'CancelDataTransmit',
+      callback: _onCancelDataTransmit,
+    );
 
     // PCM sent to this radio for transmission (e.g. the software modem after
     // winning channel access) means the radio is keying up.
@@ -431,6 +442,16 @@ class Radio implements FirmwareRadio {
       deviceId: deviceId,
       name: 'SatelliteTrackUpdate',
       callback: _onSatelliteTrackUpdate,
+    );
+    _broker.subscribeMultiple(
+      deviceId: deviceId,
+      names: ['AudioDataStart', 'AudioDataEnd', 'AudioState'],
+      callback: _onSatelliteAudioActivity,
+    );
+    _broker.subscribeMultiple(
+      deviceId: 0,
+      names: ['SatelliteTrackTarget', 'SatelliteSupport'],
+      callback: _onSatelliteTrackingChanged,
     );
 
     // Subscribe to volume events
@@ -760,6 +781,13 @@ class Radio implements FirmwareRadio {
     if (data is String) _liveSoftwareModemMode = data;
   }
 
+  void _onCancelDataTransmit(int devId, String name, Object? data) {
+    _tncFragmentQueue.clear();
+    // Keep an outstanding command's ACK separate from any newly queued data.
+    _tncFragmentInFlightCancelled = _tncFragmentInFlight;
+    _cancelTxStallWatchdog();
+  }
+
   void _onTransmitDataFrameEvent(int devId, String name, dynamic data) {
     if (devId != deviceId) return;
     if (data is! TransmitDataFrameData) return;
@@ -850,7 +878,7 @@ class Radio implements FirmwareRadio {
         modem: lockData.modem,
         xaraWide: lockData.xaraWide,
       );
-      _satTrackCount = 0;
+      _resetSatelliteTuning();
       _dispatch('LockState', _lockState!.toJson());
       _debug("Radio locked for '${lockData.usage}' tracking");
       return;
@@ -1034,6 +1062,12 @@ class Radio implements FirmwareRadio {
     if (data is! SatelliteTrackParams) return;
     if (!kSatelliteLockUsages.contains(_lockState?.usage)) return;
 
+    final target = (data.noradId, data.usageIndex, data.name);
+    if (_satelliteTarget != target) {
+      _resetSatelliteTuning();
+      _satelliteTarget = target;
+    }
+    _latestSatelliteTrack = data;
     setSatelliteInfo(
       RadioSatelliteInfo(
         name: data.name,
@@ -1044,23 +1078,79 @@ class Radio implements FirmwareRadio {
         secondsToNextPass: data.secondsToNextPass,
       ),
     );
+    _applySatelliteTuning();
+  }
+
+  void _resetSatelliteTuning() {
+    _satTrackCount = 0;
+    _lastSatelliteTuning = null;
+    _latestSatelliteTrack = null;
+    _satelliteTarget = null;
+  }
+
+  void _onSatelliteTrackingChanged(int devId, String name, Object? data) {
+    if (name == 'SatelliteSupport') {
+      if (data != 1) _resetSatelliteTuning();
+    } else if (data is! Map || data['radioDeviceId'] != deviceId) {
+      _resetSatelliteTuning();
+    }
+  }
+
+  void _onSatelliteAudioActivity(int devId, String name, Object? data) {
+    if (name == 'AudioState') {
+      if (data != false) return;
+      _satelliteRxActive = false;
+    } else {
+      if (data is! Map || data['transmit'] != false) return;
+      _satelliteRxActive = name == 'AudioDataStart';
+    }
+    if (!_satelliteRxActive) _applySatelliteTuning();
+  }
+
+  void _applySatelliteTuning() {
+    final data = _latestSatelliteTrack;
+    if (data == null || _transport == null) return;
+    if (!kSatelliteLockUsages.contains(_lockState?.usage)) return;
     if (_broker.getValue<bool>(0, 'DebugDisableFreqModeSetPar') ?? false) return;
+    final last = _lastSatelliteTuning;
     // The high flags byte 0x0A switches the radio to its satellite (VFO)
     // tracking screen. The manufacturer app sends 0x0A03 on the first couple of
     // updates, then settles to 0x0A00 — replicated here so the radio enters and
     // stays in satellite mode.
     final flags = _satTrackCount < 2 ? 0x0A03 : 0x0A00;
-    _satTrackCount++;
-    freqModeSetPar(
-      RadioFreqModePar(
-        rxFreq: data.rxFreqHz,
-        txFreq: data.txFreqHz,
-        txSubAudio: data.txCtcssHz == null
-            ? 0
-            : (data.txCtcssHz! * 100).round(),
-        flags: flags,
-      ),
+    final par = RadioFreqModePar(
+      rxFreq: data.rxFreqHz,
+      txFreq: data.txFreqHz,
+      txSubAudio: data.txCtcssHz == null
+          ? 0
+          : (data.txCtcssHz! * 100).round(),
+      flags: flags,
     );
+    final configurationChanged =
+        last == null ||
+        par.txSubAudio != last.txSubAudio ||
+        (par.rxFreq == 0) != (last.rxFreq == 0) ||
+        (par.txFreq == 0) != (last.txFreq == 0);
+    // Initial tuning and explicit configuration changes override the RX hold.
+    if (!configurationChanged &&
+        _satelliteRxActive &&
+        (_broker.getValue<bool>(0, 'SatelliteHoldDopplerDuringRx') ?? false)) {
+      return;
+    }
+    final threshold =
+        _broker.getValue<int>(0, 'SatelliteDopplerThresholdHz') ??
+        defaultSatelliteDopplerThresholdHz;
+    final rxDelta = last == null ? 0 : (par.rxFreq - last.rxFreq).abs();
+    final txDelta = last == null ? 0 : (par.txFreq - last.txFreq).abs();
+    if (!configurationChanged &&
+        _satTrackCount >= 3 &&
+        !(rxDelta > 0 && rxDelta >= threshold) &&
+        !(txDelta > 0 && txDelta >= threshold)) {
+      return;
+    }
+    freqModeSetPar(par);
+    _lastSatelliteTuning = par;
+    _satTrackCount++;
   }
 
   void _onSetVolumeLevelEvent(int devId, String name, dynamic data) {
@@ -1491,7 +1581,10 @@ class Radio implements FirmwareRadio {
     _frameAccumulator = null;
     _tncFragmentQueue.clear();
     _tncFragmentInFlight = false;
+    _tncFragmentInFlightCancelled = false;
     _lockState = null;
+    _resetSatelliteTuning();
+    _satelliteRxActive = false;
     _gpsEnabled = false;
     _positionNotifyRegistered = false;
     _cancelPendingChannelReads();
@@ -1928,8 +2021,8 @@ class Radio implements FirmwareRadio {
 
   /// Tunes the VFO to explicit RX/TX frequencies (FREQ_MODE_SET_PAR, 35),
   /// putting the radio into frequency (VFO) mode. This is the workhorse of
-  /// satellite Doppler tracking: send it ~once a second with freshly
-  /// Doppler-corrected frequencies for the length of a pass.
+  /// satellite Doppler tracking; the tracking path limits these commands by
+  /// frequency drift and the optional receive-audio hold.
   void freqModeSetPar(RadioFreqModePar par) {
     if (_broker.getValue<bool>(0, 'DebugDisableFreqModeSetPar') ?? false) return;
     _sendCommand(
@@ -1943,12 +2036,13 @@ class Radio implements FirmwareRadio {
   /// with an all-zero payload, ending a satellite tracking session and
   /// restoring the radio's normal channel state.
   void stopFreqMode() {
+    _resetSatelliteTuning();
     freqModeSetPar(const RadioFreqModePar.stop());
   }
 
   /// Sets the satellite name and live look-angle shown on the radio's own
-  /// screen (SET_SATELLITE_INFO, 77). Sent immediately before each
-  /// [freqModeSetPar] update during a pass.
+  /// screen (SET_SATELLITE_INFO, 77). Updated every tracking tick even when
+  /// [freqModeSetPar] is deferred or skipped.
   void setSatelliteInfo(RadioSatelliteInfo info) {
     if (_broker.getValue<bool>(0, 'DebugDisableSetSatelliteInfo') ?? false) return;
     _sendCommand(
@@ -3364,18 +3458,12 @@ class Radio implements FirmwareRadio {
   ///                A zero edge terminates the list (trailing bytes are padding).
   ///
   /// Example body `40 6C 40 88 80 88 00 AE 01 2C 02 26 81 90 02 08 40 00 00 00`
-  /// decodes to 108-136, 136-174, 300-550 and 400-520 MHz. The raw bytes are
-  /// logged and the parsed bands dispatched as `FreqRanges` (a list of
+  /// decodes to 108-136, 136-174, 300-550 and 400-520 MHz. The parsed bands
+  /// are dispatched as `FreqRanges` (a list of
   /// `{lowHz, highHz, mod}` maps, `mod`: FM=0, AM=1, DMR=2); the raw reply is
   /// dispatched as `FreqRangesRaw`.
   void _handleReadFreqRange(Uint8List data) {
     if (data.length < 5 || data[4] != 0) return;
-    final body = Uint8List.fromList(data.sublist(5));
-    _broker.logInfo(
-      '[Radio $deviceId] READ_FREQ_RANGE reply (${body.length} bytes): '
-      '${RadioUtils.bytesToHex(body)}',
-    );
-
     final ranges = <List<int>>[];
     for (int p = 5; p + 3 < data.length; p += 4) {
       final lowRaw = RadioUtils.getShort(data, p);
@@ -3640,10 +3728,11 @@ class Radio implements FirmwareRadio {
 
   void _handleHtSendData(Uint8List data) {
     // Fragment sent successfully
-    if (_tncFragmentQueue.isNotEmpty) {
+    if (!_tncFragmentInFlightCancelled && _tncFragmentQueue.isNotEmpty) {
       _tncFragmentQueue.removeAt(0);
     }
     _tncFragmentInFlight = false;
+    _tncFragmentInFlightCancelled = false;
     _clearTransmitQueue();
     _trySendNextFragment();
   }

@@ -32,6 +32,7 @@ class WinlinkGatewayRelay {
   final bool useTls;
 
   Socket? _socket;
+  ConnectionTask<Socket>? _connectionTask;
   StreamSubscription<Uint8List>? _subscription;
   bool _tcpRunning = false;
   bool _disposed = false;
@@ -71,20 +72,32 @@ class WinlinkGatewayRelay {
     String stationCallsign, {
     int timeoutMs = 15000,
   }) async {
+    if (_disposed) return false;
     try {
       _broker.logInfo(
         '[BBS/$_deviceId/Relay] Connecting to CMS gateway $server:$port for station $stationCallsign',
       );
 
       final timeout = Duration(milliseconds: timeoutMs);
+      final task = useTls
+          ? await SecureSocket.startConnect(server, port)
+          : await Socket.startConnect(server, port);
+      _connectionTask = task;
+      if (_disposed) task.cancel();
       try {
-        _socket = useTls
-            ? await SecureSocket.connect(server, port).timeout(timeout)
-            : await Socket.connect(server, port).timeout(timeout);
+        final socket = await task.socket.timeout(timeout);
+        if (_disposed) {
+          socket.destroy();
+          return false;
+        }
+        _socket = socket;
       } on TimeoutException {
+        task.cancel();
         _broker.logError('[BBS/$_deviceId/Relay] Connection timed out');
         _cleanupTcp();
         return false;
+      } finally {
+        _connectionTask = null;
       }
 
       _tcpRunning = true;
@@ -110,6 +123,7 @@ class WinlinkGatewayRelay {
         onTimeout: () => false,
       );
       _handshaking = false;
+      if (_disposed) return false;
 
       if (!handshakeOk) {
         _broker.logError('[BBS/$_deviceId/Relay] Handshake failed');
@@ -122,6 +136,7 @@ class WinlinkGatewayRelay {
       );
       return true;
     } catch (ex) {
+      if (_disposed) return false;
       _broker.logError('[BBS/$_deviceId/Relay] Connection failed: $ex');
       _cleanupTcp();
       return false;
@@ -272,14 +287,15 @@ class WinlinkGatewayRelay {
   }
 
   void _cleanupTcp() {
-    try {
-      _subscription?.cancel();
-      _subscription = null;
-      _socket?.destroy();
-      _socket = null;
-    } catch (_) {
-      // Ignore cleanup errors.
+    _connectionTask?.cancel();
+    _connectionTask = null;
+    if (_handshakeCompleter != null && !_handshakeCompleter!.isCompleted) {
+      _handshakeCompleter!.complete(false);
     }
+    _subscription?.cancel();
+    _subscription = null;
+    _socket?.destroy();
+    _socket = null;
   }
 
   void dispose() {

@@ -622,6 +622,16 @@ class SoftwareModem {
       name: 'SoftModemTransmitPacket',
       callback: _onTransmitPacketRequested,
     );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'CancelDataTransmit',
+      callback: _onCancelDataTransmit,
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'BbsEnabled',
+      callback: _onBbsEnabled,
+    );
 
     // Subscribe to channel-clear notifications from all radios
     _broker.subscribe(
@@ -1344,6 +1354,9 @@ class SoftwareModem {
         },
         onEvent: (Map<String, Object?> e) => _onXaraEvent(state, instance, e),
       );
+      instance.xara!.setListen(
+        _broker.getValue<bool>(state.deviceId, 'BbsEnabled', true) ?? true,
+      );
       if (_radioReceiving.contains(state.deviceId)) {
         instance.xara!.setRadioReceiving(true);
       }
@@ -1859,6 +1872,16 @@ class SoftwareModem {
   // Packet transmission
   // ---------------------------------------------------------------------------
 
+  void _onCancelDataTransmit(int deviceId, String name, Object? data) {
+    if (_disposed) return;
+    _radioModems.remove(deviceId)?.dispose();
+  }
+
+  void _onBbsEnabled(int deviceId, String name, Object? data) {
+    if (_disposed || data is! bool) return;
+    _radioModems[deviceId]?.generalModem?.xara?.setListen(data);
+  }
+
   void _onTransmitPacketRequested(int deviceId, String name, Object? data) {
     if (_disposed || deviceId <= 0) return;
     if (!_softwareActiveForDevice(deviceId)) return;
@@ -2124,7 +2147,7 @@ class SoftwareModem {
       state.encoding = false;
     }
 
-    if (_disposed) return;
+    if (_disposed || !identical(_radioModems[state.deviceId], state)) return;
 
     final bool moreQueued = state.transmitQueue.isNotEmpty;
     state.waitingForChannel = moreQueued;

@@ -30,8 +30,8 @@ import '../hamlib/xara/xara_driver.dart';
 /// Configuration for one XARA modem instance.
 class XaraModemConfig {
   /// Default silence sent before each burst so the radio can key up and the far
-  /// squelch can open before the XARA lead-in starts (~240 ms was measured lost).
-  static const int defaultTxKeyUpMs = 300;
+  /// squelch can open before the XARA lead-in starts. Slower radios may need more.
+  static const int defaultTxKeyUpMs = 100;
 
   /// Default delay from PCM handed to the radio until the far station hears it,
   /// on top of [defaultTxKeyUpMs] (which the modem adds itself). Over-estimating
@@ -96,6 +96,7 @@ class XaraModem {
 
   SendPort? _port;
   ReceivePort? _receive;
+  Isolate? _isolate;
   final List<Map<String, Object?>> _backlog = <Map<String, Object?>>[];
   bool _disposed = false;
 
@@ -107,7 +108,16 @@ class XaraModem {
     final ReceivePort rp = ReceivePort();
     _receive = rp;
     rp.listen(_onMessage);
-    await Isolate.spawn(_xaraIsolateEntry, <Object?>[rp.sendPort, config.toMap()], debugName: 'xara-modem');
+    final isolate = await Isolate.spawn(
+      _xaraIsolateEntry,
+      <Object?>[rp.sendPort, config.toMap()],
+      debugName: 'xara-modem',
+    );
+    if (_disposed) {
+      isolate.kill(priority: Isolate.immediate);
+    } else {
+      _isolate = isolate;
+    }
   }
 
   void _onMessage(Object? message) {
@@ -172,8 +182,11 @@ class XaraModem {
 
   void dispose() {
     if (_disposed) return;
-    _send(<String, Object?>{'cmd': 'shutdown'});
     _disposed = true;
+    _isolate?.kill(priority: Isolate.immediate);
+    _isolate = null;
+    _port = null;
+    _backlog.clear();
     _receive?.close();
     _receive = null;
   }

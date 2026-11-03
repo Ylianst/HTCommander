@@ -345,7 +345,7 @@ class Bbs {
   final int regionId;
   final DataBrokerClient _broker = DataBrokerClient();
   AX25Session? _session;
-  late final _Ax25BbsLink _ax25Link;
+  late _Ax25BbsLink _ax25Link;
   _XaraBbsLink? _xaraLink;
 
   /// The client currently being served, if any.
@@ -357,8 +357,49 @@ class Bbs {
   static WinlinkGatewayRelay Function(int deviceId, DataBrokerClient broker)
   relayFactory = WinlinkGatewayRelay.new;
 
-  /// Whether this BBS handler is enabled. When disabled, packets are ignored.
-  bool enabled = false;
+  bool _enabled = false;
+
+  /// Disabling immediately drops links and cancels this radio's transmissions.
+  bool get enabled => _enabled;
+
+  set enabled(bool value) {
+    if (_disposed || _enabled == value) return;
+    _enabled = value;
+    if (value) {
+      final session = AX25Session(_deviceId);
+      session.onStateChanged = _onSessionStateChanged;
+      session.onDataReceived = _onSessionDataReceived;
+      session.onUiDataReceived = _onSessionUiDataReceived;
+      session.onError = _onSessionError;
+      _session = session;
+      _ax25Link = _Ax25BbsLink(session);
+    } else {
+      final hadLink = _activeLink != null;
+      _xaraLink?.connected = false;
+      _xaraLink?.sessionState.clear();
+      _xaraLink = null;
+      _activeLink = null;
+      _session?.dispose();
+      _session = null;
+      _cleanupCmsRelay();
+      if (hadLink) _dispatchControl('Disconnected');
+    }
+
+    _broker.dispatch(
+      deviceId: _deviceId,
+      name: 'BbsEnabled',
+      data: value,
+      store: true,
+    );
+    if (!value) {
+      _broker.dispatch(
+        deviceId: _deviceId,
+        name: 'CancelDataTransmit',
+        data: null,
+        store: false,
+      );
+    }
+  }
 
   /// Statistics for stations that have connected to this BBS.
   final Map<String, StationStats> stats = {};
@@ -370,14 +411,6 @@ class Bbs {
   BbsLink? get activeLink => _activeLink;
 
   Bbs(this._deviceId, {this.channelId = -1, this.regionId = -1}) {
-    final session = AX25Session(_deviceId);
-    session.onStateChanged = _onSessionStateChanged;
-    session.onDataReceived = _onSessionDataReceived;
-    session.onUiDataReceived = _onSessionUiDataReceived;
-    session.onError = _onSessionError;
-    _session = session;
-    _ax25Link = _Ax25BbsLink(session);
-
     // XARA links are only reported when XARA is this radio's software modem.
     _broker.subscribe(
       deviceId: _deviceId,
@@ -624,20 +657,25 @@ class Bbs {
     BbsLink session,
     String stationCallsign,
   ) async {
+    if (!enabled || _disposed || !identical(_activeLink, session)) return;
+    WinlinkGatewayRelay? relay;
     try {
+      relay = relayFactory(_deviceId, _broker);
+      _cmsRelay = relay;
       _broker.logInfo(
         '[BBS/$_deviceId] Attempting CMS relay connection for $stationCallsign',
       );
       _dispatchControl('Connecting to Winlink gateway...');
 
-      final relay = relayFactory(_deviceId, _broker);
       final connected = await relay.connectAsync(
         stationCallsign,
         timeoutMs: 15000,
       );
 
       // The client may have left while the gateway was being reached.
-      if (_disposed ||
+      if (!enabled ||
+          _disposed ||
+          !identical(_cmsRelay, relay) ||
           !identical(_activeLink, session) ||
           !session.isConnected) {
         relay.dispose();
@@ -650,7 +688,6 @@ class Bbs {
         );
         _dispatchControl('Winlink gateway connected (relay mode)');
 
-        _cmsRelay = relay;
         session.sessionState['wlRelayMode'] = true;
 
         relay.lineReceived = (line) => _onCmsRelayLineReceived(session, line);
@@ -675,12 +712,20 @@ class Bbs {
           '[BBS/$_deviceId] CMS relay failed, falling back to local mode',
         );
         _dispatchControl('Winlink gateway unavailable (local mode)');
-        relay.dispose();
+        _cleanupCmsRelay();
         _sendLocalBanner(session);
       }
     } catch (ex) {
+      if (!enabled ||
+          _disposed ||
+          !identical(_cmsRelay, relay) ||
+          !identical(_activeLink, session)) {
+        relay?.dispose();
+        return;
+      }
       _broker.logError('[BBS/$_deviceId] CMS relay connect error: $ex');
       _dispatchControl('Winlink gateway error (local mode)');
+      _cleanupCmsRelay();
       _sendLocalBanner(session);
     }
   }
@@ -747,7 +792,7 @@ class Bbs {
   }
 
   void _onCmsRelayDisconnected(BbsLink session) {
-    if (_disposed) return;
+    if (!enabled || _disposed || !identical(_activeLink, session)) return;
     _broker.logInfo('[BBS/$_deviceId] CMS relay disconnected');
     _dispatchControl('Winlink gateway disconnected');
 
@@ -759,12 +804,12 @@ class Bbs {
 
   void _cleanupCmsRelay() {
     final relay = _cmsRelay;
+    _cmsRelay = null;
     if (relay != null) {
-      try {
-        relay.disconnect();
-        relay.dispose();
-      } catch (_) {}
-      _cmsRelay = null;
+      relay.lineReceived = null;
+      relay.binaryDataReceived = null;
+      relay.disconnected = null;
+      relay.dispose();
     }
   }
 
@@ -1294,24 +1339,9 @@ class Bbs {
   /// Disposes this BBS instance, tearing down the session and any relay.
   void dispose() {
     if (_disposed) return;
+    enabled = false;
     _disposed = true;
     _broker.logInfo('[BBS/$_deviceId] BBS handler disposing');
-
-    _cleanupCmsRelay();
-    final xara = _xaraLink;
-    if (xara != null && identical(_activeLink, xara)) xara.disconnect();
-    _xaraLink = null;
-    _activeLink = null;
-
-    final session = _session;
-    if (session != null) {
-      session.onStateChanged = null;
-      session.onDataReceived = null;
-      session.onUiDataReceived = null;
-      session.onError = null;
-      session.dispose();
-      _session = null;
-    }
 
     _broker.dispose();
   }

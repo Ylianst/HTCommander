@@ -452,6 +452,10 @@ class SatellitePass {
 /// Doppler-corrected frequencies and look-angle each second; the radio turns
 /// this into the native SET_SATELLITE_INFO + FREQ_MODE_SET_PAR command pair.
 class SatelliteTrackParams {
+  /// Target identity, used to distinguish explicit target changes from Doppler drift.
+  final int? noradId;
+  final int usageIndex;
+
   /// Satellite name shown on the radio's own tracker screen.
   final String name;
 
@@ -481,6 +485,8 @@ class SatelliteTrackParams {
   final int secondsToNextPass;
 
   const SatelliteTrackParams({
+    this.noradId,
+    this.usageIndex = 0,
     required this.name,
     required this.rxFreqHz,
     required this.txFreqHz,

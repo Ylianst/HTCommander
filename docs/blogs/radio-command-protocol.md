@@ -632,10 +632,11 @@ downlink **437.800 MHz**). The two commands are always sent **as a pair**, once
 per update (roughly once a second), and each gets a one-byte `[0x00]` success
 reply.
 
-HTCommander implements this same flow: a **Satellite** usage lock puts the radio
-into tracking mode, and the satellite handler pushes a fresh
-`SET_SATELLITE_INFO` + `FREQ_MODE_SET_PAR` pair every second for the length of
-the pass (see `RadioFreqModePar` / `RadioSatelliteInfo` in
+HTCommander uses a **Satellite** usage lock to put the radio into tracking mode.
+The satellite handler computes fresh display metadata and desired frequencies
+every second, but the radio layer now limits `FREQ_MODE_SET_PAR` updates to
+reduce receive interruptions (see the mitigation below and
+`RadioFreqModePar` / `RadioSatelliteInfo` in
 [radio_models.dart](../../src/lib/radio/radio_models.dart) and
 `Radio._onSatelliteTrackUpdate` in [radio.dart](../../src/lib/radio/radio.dart)).
 
@@ -645,6 +646,62 @@ off, apply immediately to all radios, and persist across launches. Disable a
 command after tuning to isolate whether its periodic updates interrupt received
 audio. Disabling `FREQ_MODE_SET_PAR` also suppresses the stop-tracking command:
 re-enable it before leaving satellite mode so the radio can exit VFO mode.
+
+#### Confirmed reception interruption (2026-11-02)
+
+Manual testing with the independent Debug toggles isolated the command that
+breaks received Bluetooth audio:
+
+- **`SET_SATELLITE_INFO` (77) is safe in the tested setup:** its periodic
+  satellite-display updates do not cause the audio breaks.
+- **`FREQ_MODE_SET_PAR` (35) causes the audio breaks.** Sending it every second
+  for Doppler correction interrupts an otherwise continuous reception, producing
+  many roughly one-second recordings instead of one long clip.
+
+This affects continuous reception such as SSTV as well as voice recording.
+HTCommander's receive pipeline treats an audio-end event as the end of a
+recording and also finalizes active SSTV decoding. The test identifies the
+triggering command, but does not establish whether the radio loses audio samples,
+merely splits the stream, or which payload field or firmware operation causes
+the interruption. It also does not establish whether an unchanged-frequency
+payload behaves differently.
+
+For comparison testing, tune first, then disable `FREQ_MODE_SET_PAR` while
+leaving `SET_SATELLITE_INFO` enabled. This holds the last tuned frequencies:
+**Doppler correction stops**, so this is a diagnostic workaround, not a fix.
+Re-enable the command before leaving satellite mode, as noted above.
+
+#### Mitigation: threshold retuning and an optional RX hold
+
+The **Satellite** tab menu now offers **Doppler settings...**:
+
+- **Retune threshold:** defaults to **1000 Hz**. After the three mode-entry/
+  settling frames (`0x0A03`, `0x0A03`, `0x0A00`), a tuning command is sent only
+  when the desired RX or TX frequency differs from the last sent frequency by
+  at least the threshold. Drift accumulates against the last sent values, not
+  the preceding one-second calculation. The choices are any frequency change,
+  500 Hz, 1000 Hz, and 2000 Hz; identical frequencies are skipped even with
+  "Any frequency change". `SET_SATELLITE_INFO` still updates every second.
+- **Hold Doppler updates while receiving:** optional and **off by default**.
+  Uses Bluetooth RX audio-run start/end events, not RSSI or recording state.
+  While reception is active, periodic tuning is deferred; only the latest
+  desired correction is considered when reception ends, still subject to the
+  threshold. Initial tuning and explicit target, tone, or RX/TX availability
+  changes bypass the hold. Remaining entry/settling frames can wait for RX to
+  end.
+
+Both settings persist globally across launches and apply to all radios.
+Changes take effect on the next tracking tick. Stopping tracking, disabling
+satellite support, unlocking, or disconnecting discards deferred corrections;
+switching satellites or usages starts fresh. Stop-tracking commands are not
+subject to the mitigation (the separate Debug disable toggle still blocks them).
+
+This reduces the number of disruptive commands; it does not make retuning
+seamless. The threshold is an experimental FM compromise, not a verified
+receiver tolerance. Holding throughout a long transmission can let Doppler drift
+outside the receiver's useful bandwidth, especially on UHF. Actual hardware
+reception with these mitigations still needs testing; no alternative
+interruption-free tuning command has been established.
 
 #### FREQ_MODE_SET_PAR (35) — the Doppler-steered VFO
 

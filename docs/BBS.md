@@ -10,6 +10,8 @@ Right now, the BBS acts as a private Winlink email gateway and has as support fo
 
 The BBS tab will show statistics in real-time on what stations are using the BBS and how many bytes and packets have been sent and received.
 
+Disabling the BBS immediately drops its AX.25/XARA sessions and Winlink gateway connections, clears queued transmissions for that radio, and cancels active audio transmission. No disconnect handshake or final BBS message is sent. Incoming packets cannot restart the disabled BBS; enabling it again starts fresh sessions. Data already handed to the radio or transmitted over the air cannot be recalled.
+
 ## XARA (VARA FM compatible) sessions
 
 When **XARA** is selected as the software modem (and the radio audio is enabled), the BBS also answers incoming XARA connections, so stations running VARA FM can use the menu and exchange Winlink mail just like over an AX.25 session (including relay to the Winlink CMS gateway). XARA stations can connect to your callsign with or without your station ID as the SSID (e.g. `N0CALL` or `N0CALL-1`). AX.25 packets carried by XARA are delivered to the BBS as usual. The BBS serves one connected station at a time; a second station connecting over AX.25 or XARA while another session is active is told the BBS is busy and disconnected. XARA connections show as "XARA" in the statistics.

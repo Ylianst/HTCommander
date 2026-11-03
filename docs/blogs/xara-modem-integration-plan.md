@@ -65,7 +65,7 @@ None of these has been tested on air yet.
    links time out. The XARA and lock flows should warn about this, or require a
    squelch of at least 1.
 2. **Use real PTT timing from the radio.** XARA estimates its transmit timing
-   from fixed settings (800 ms latency plus 300 ms key-up). The radio echoes our
+   from fixed settings (800 ms latency plus 100 ms key-up by default). The radio echoes our
    transmit audio over Bluetooth and reports when it is actually transmitting,
    which gives the real start and end of each burst. Feeding the real end time to
    XARA would replace guesswork with measurement and avoid dropped ACKs on
@@ -122,7 +122,7 @@ XARA FM** (with a **Narrow/Wide** bandwidth submenu), and the radio's audio is
 handled by the Dart port of XARA instead of DART.
 
 The **XARA FM** submenu also has **Settings...** below a separator after
-**Narrow/Wide**. This dialog edits the global key-up pre-roll (default **300 ms**)
+**Narrow/Wide**. This dialog edits the global key-up pre-roll (default **100 ms**)
 and transmit latency (default **800 ms**, excluding the pre-roll) in whole
 milliseconds from **0 to 5000**. Each field shows its default; **Restore Defaults**
 resets both fields, and **Save** applies and persists the changes. **Cancel**
@@ -160,8 +160,9 @@ continuous 48 kHz timeline with sample-accurate transmit timing. A small driver
 - The radio keys up on the arriving audio, so the start of every burst is lost
   while it keys and the far squelch opens (about 240 ms was measured, followed
   by a loud squelch-open noise burst). The driver therefore leads each burst
-  with silence (300 ms by default, setting `XaraTxKeyUpMs`) so that loss and
-  noise fall before XARA's own lead-in instead of on the frame.
+  with silence (100 ms by default, setting `XaraTxKeyUpMs`) to protect the
+  lead-in. Increase this on slower radios; a path losing 240 ms needs a longer
+  pre-roll, such as 300 ms, to keep that loss and noise ahead of the lead-in.
 
 **Bluetooth transmit continuity.** XARA already hands the audio engine a complete
 burst, tagged as data, so it uses the existing 10-second transmit pacing lead.

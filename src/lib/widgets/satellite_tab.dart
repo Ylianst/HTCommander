@@ -10,7 +10,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Radio;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -653,6 +653,88 @@ class _SatelliteTabState extends State<SatelliteTab> {
     );
   }
 
+  Future<void> _showDopplerSettings() async {
+    var threshold =
+        _broker.getValue<int>(_deviceId, 'SatelliteDopplerThresholdHz') ??
+        Radio.defaultSatelliteDopplerThresholdHz;
+    var holdDuringRx =
+        _broker.getValue<bool>(_deviceId, 'SatelliteHoldDopplerDuringRx') ?? false;
+    final thresholds = <int>{0, 500, 1000, 2000, threshold}.toList()..sort();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Doppler settings'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Retune only when RX or TX differs from the last sent '
+                    'frequency by at least:',
+                  ),
+                  DropdownButton<int>(
+                    value: threshold,
+                    isExpanded: true,
+                    items: [
+                      for (final hz in thresholds)
+                        DropdownMenuItem(
+                          value: hz,
+                          child: Text(hz == 0 ? 'Any frequency change' : '$hz Hz'),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => threshold = value);
+                      }
+                    },
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Hold Doppler updates while receiving'),
+                    value: holdDuringRx,
+                    onChanged: (value) =>
+                        setDialogState(() => holdDuringRx = value),
+                  ),
+                  const Text(
+                    'Holding avoids periodic retunes during Bluetooth RX audio, '
+                    'but long transmissions can drift off frequency. The latest '
+                    'correction is considered when reception ends. Initial '
+                    'tuning and explicit target or tone changes still apply.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true || !mounted) return;
+    _broker.dispatch(
+      deviceId: _deviceId,
+      name: 'SatelliteDopplerThresholdHz',
+      data: threshold,
+    );
+    _broker.dispatch(
+      deviceId: _deviceId,
+      name: 'SatelliteHoldDopplerDuringRx',
+      data: holdDuringRx,
+    );
+  }
+
   void _showMenu(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final RenderBox button = context.findRenderObject() as RenderBox;
@@ -675,6 +757,15 @@ class _SatelliteTabState extends State<SatelliteTab> {
           height: menuItemHeight,
           padding: menuItemPadding,
           child: Row(children: [SizedBox(width: 20), Text('Refresh')]),
+        ),
+        const PopupMenuDivider(height: 8),
+        const PopupMenuItem<String>(
+          value: 'dopplerSettings',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [SizedBox(width: 20), Text('Doppler settings...')],
+          ),
         ),
         const PopupMenuDivider(height: 8),
         const PopupMenuItem<String>(
@@ -716,6 +807,9 @@ class _SatelliteTabState extends State<SatelliteTab> {
       switch (value) {
         case 'refresh':
           _requestRefresh();
+          break;
+        case 'dopplerSettings':
+          _showDopplerSettings();
           break;
         case 'add':
           _addSatellite();

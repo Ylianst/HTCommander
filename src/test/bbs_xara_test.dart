@@ -43,8 +43,14 @@ class FakeXara {
   final b = DataBrokerClient();
   final sent = <int>[];
   int disconnects = 0;
+  int cancellations = 0;
 
   FakeXara(this.id) {
+    b.subscribe(
+      deviceId: id,
+      name: 'CancelDataTransmit',
+      callback: (_, _, _) => cancellations++,
+    );
     b.subscribe(
       deviceId: id,
       name: 'XaraSend',
@@ -221,7 +227,7 @@ void main() {
     }
   });
 
-  test('link timeout ends the session; disposing hangs up', () async {
+  test('link timeout ends the session; disposing cancels without a handshake', () async {
     final xara = FakeXara(406);
     var bbs = Bbs(406)..enabled = true;
     try {
@@ -234,7 +240,8 @@ void main() {
       xara.connectFrom('N1ABC');
       expect(await waitFor(() => xara.text.contains('[M] for menu')), isTrue);
       bbs.dispose();
-      expect(xara.disconnects, 1);
+      expect(xara.disconnects, 0);
+      expect(xara.cancellations, 1);
     } finally {
       bbs.dispose();
       xara.dispose();
@@ -262,6 +269,18 @@ void main() {
     ),
     timeout: const Timeout(Duration(minutes: 4)),
   );
+
+  test(
+    'disabling a real XARA BBS stops replies and automatic reconnect responses',
+    () => runOverTheAir(
+      radio: 421,
+      peerCall: 'N1ABC',
+      target: 'N0CALL',
+      stationId: 0,
+      disableWhileConnected: true,
+    ),
+    timeout: const Timeout(Duration(minutes: 4)),
+  );
 }
 
 /// Runs a real XARA peer modem against SoftwareModem (XARA mode) hosting a BBS
@@ -272,6 +291,7 @@ Future<void> runOverTheAir({
   required String peerCall,
   required String target,
   required int stationId,
+  bool disableWhileConnected = false,
 }) async {
   final client = DataBrokerClient();
   client.dispatch(deviceId: 0, name: 'XaraTxLatencyMs', data: 400, store: true);
@@ -325,10 +345,14 @@ Future<void> runOverTheAir({
       store: false,
     ),
   );
+  var transmissions = 0;
   client.subscribe(
     deviceId: radio,
     name: 'TransmitVoicePCM',
-    callback: (_, _, d) => toPeer.add((d! as Map)['Data'] as Uint8List),
+    callback: (_, _, d) {
+      transmissions++;
+      toPeer.add((d! as Map)['Data'] as Uint8List);
+    },
   );
   final clock = Timer.periodic(const Duration(milliseconds: 20), (_) {
     toPeer.tick();
@@ -357,6 +381,35 @@ Future<void> runOverTheAir({
       ),
       isTrue,
     );
+
+    if (disableWhileConnected) {
+      bbs.enabled = false;
+      final before = transmissions;
+      expect(bbs.activeLink, isNull);
+      expect(bbs.session, isNull);
+      peer.send(Uint8List.fromList(utf8.encode('M\r')));
+      await Future<void>.delayed(const Duration(seconds: 5));
+      expect(transmissions, before, reason: 'disabled BBS answered the old link');
+
+      final attempted = Completer<void>();
+      final newcomer = XaraModem(
+        config: XaraModemConfig(callsign: 'N2ABC', txLatencyMs: 400),
+        onTransmit: (pcm) {
+          toRadio.add(pcm);
+          if (!attempted.isCompleted) attempted.complete();
+        },
+        onEvent: (_) {},
+      );
+      try {
+        newcomer.connect(target, const []);
+        await attempted.future.timeout(const Duration(seconds: 10));
+        await Future<void>.delayed(const Duration(seconds: 5));
+        expect(transmissions, before, reason: 'disabled BBS answered a new caller');
+      } finally {
+        newcomer.dispose();
+      }
+      return;
+    }
 
     peer.send(Uint8List.fromList(utf8.encode('D\r')));
     expect(

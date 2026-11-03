@@ -2085,6 +2085,8 @@ class AX25Session {
     _raData = null;
     addresses = null;
     sessionState.clear();
+    _state = _DlState.disconnected;
+    _lastPublic = AX25ConnectionState.disconnected;
     _disposed = true;
     _broker.dispose();
   }

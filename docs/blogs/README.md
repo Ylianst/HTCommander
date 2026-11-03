@@ -300,9 +300,11 @@ Working amateur radio satellites with a handheld — tracking, passes, and Doppl
    How HTCommander tracks the FM "easy sats" — SGP4 orbit propagation via the
    `satellite_observer` package, orbital elements from CelesTrak and transponder
    frequencies from SatNOGS (with a bundled offline seed), the tab and map ground
-   track/footprint overlay, Doppler-corrected up/downlink from range-rate — and
-   the honest ledger of what's left: driving the radio's own native
-   `SET_SATELLITE_INFO` command, whose payload isn't decoded yet.
+   track/footprint overlay, and Doppler-corrected up/downlink from range-rate.
+   Covers the decoded satellite display/tuning commands and the confirmed
+   reception caveat: `FREQ_MODE_SET_PAR` interrupts Bluetooth audio, while
+   `SET_SATELLITE_INFO` does not in the tested setup. Includes threshold-based
+   retuning and the optional hold-during-reception mitigation.
 
 2. **[Bring Your Own Birds: Editing, Importing and Exporting Satellite Data](editing-satellite-data.md)**
    Adding, editing and deleting satellites and their frequencies from the tab —

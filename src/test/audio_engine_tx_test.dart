@@ -120,6 +120,39 @@ Uint8List _pcm(List<double> samples) {
 }
 
 void main() {
+  test('cancelling data audio drops queued PCM and ends the current run', () async {
+    final firstWrite = Completer<void>();
+    final releaseWrite = Completer<void>();
+    final stopped = Completer<void>();
+    var payloadWrites = 0;
+    var endWrites = 0;
+    final engine = AudioEngine(
+      (event) {
+        if (event['evt'] == 'txState' && event['transmitting'] == false) {
+          stopped.complete();
+        }
+      },
+      btSend: (write) async {
+        if (write[1] == 0) {
+          payloadWrites++;
+          if (!firstWrite.isCompleted) firstWrite.complete();
+          await releaseWrite.future;
+        } else {
+          endWrites++;
+        }
+      },
+    );
+    final pcm = Uint8List(20 * 32000 * 2);
+    engine.transmitVoice(pcm, 0, pcm.length, false, isDataFrame: true);
+    engine.transmitVoice(pcm, 0, pcm.length, false, isDataFrame: true);
+    await firstWrite.future;
+    engine.cancelVoiceTransmit();
+    expect(endWrites, greaterThan(0));
+    releaseWrite.complete();
+    await stopped.future.timeout(const Duration(seconds: 1));
+    expect(payloadWrites, 1, reason: 'cancelled PCM continued transmitting');
+  });
+
   for (final bool data in <bool>[false, true]) {
     test(
       'stock bitrate and bounded complete packets for ${data ? "data" : "voice"}',

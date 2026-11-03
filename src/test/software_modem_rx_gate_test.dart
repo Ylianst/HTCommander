@@ -50,6 +50,104 @@ Future<bool> waitFor(bool Function() done, Duration limit) async {
 }
 
 void main() {
+  test('cancelled queued packets do not resume when RX ends', () async {
+    final client = DataBrokerClient();
+    final modem = SoftwareModem()..init();
+    modem.setMode(SoftwareModemMode.afsk1200, persist: false);
+    addTearDown(() {
+      modem.dispose();
+      client.dispose();
+    });
+    var transmissions = 0;
+    client.subscribe(
+      deviceId: radio,
+      name: 'TransmitVoicePCM',
+      callback: (_, _, _) => transmissions++,
+    );
+    client.dispatch(
+      deviceId: radio,
+      name: 'AudioDataStart',
+      data: {'transmit': false},
+      store: false,
+    );
+    modem.transmitPacket(
+      radio,
+      TncDataFragment(
+        finalFragment: true,
+        fragmentId: 0,
+        data: uiFrame(),
+        channelId: 14,
+        regionId: 0,
+      ),
+    );
+    client.dispatch(
+      deviceId: radio,
+      name: 'CancelDataTransmit',
+      data: null,
+      store: false,
+    );
+    client.dispatch(
+      deviceId: radio,
+      name: 'AudioDataEnd',
+      data: {'transmit': false},
+      store: false,
+    );
+    await Future<void>.delayed(const Duration(seconds: 2));
+    expect(transmissions, 0);
+  });
+
+  test('an encode completing after cancellation cannot transmit', () async {
+    final client = DataBrokerClient();
+    final modem = SoftwareModem()..init();
+    modem.setMode(SoftwareModemMode.dart, persist: false);
+    addTearDown(() {
+      modem.dispose();
+      client.dispose();
+    });
+    final cancelled = Completer<void>();
+    var transmissions = 0;
+    client.subscribe(
+      deviceId: radio,
+      name: 'TransmitVoicePCM',
+      callback: (_, _, _) => transmissions++,
+    );
+    // Cancel at the encoder's completion, before its awaiting flush resumes.
+    client.subscribe(
+      deviceId: 1,
+      name: 'LogInfo',
+      callback: (_, _, data) {
+        if (cancelled.isCompleted || data is! String || !data.contains('TX DART:')) {
+          return;
+        }
+        client.dispatch(
+          deviceId: radio,
+          name: 'CancelDataTransmit',
+          data: null,
+          store: false,
+        );
+        cancelled.complete();
+      },
+    );
+    TncDataFragment frame() => TncDataFragment(
+      finalFragment: true,
+      fragmentId: 0,
+      data: uiFrame(),
+      channelId: 14,
+      regionId: 0,
+    );
+    modem.transmitPacket(radio, frame());
+    await cancelled.future.timeout(const Duration(seconds: 15));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(transmissions, 0);
+
+    modem.transmitPacket(radio, frame());
+    expect(
+      await waitFor(() => transmissions == 1, const Duration(seconds: 15)),
+      isTrue,
+      reason: 'a fresh modem should still be able to transmit',
+    );
+  });
+
   for (final String mode in <String>['AFSK1200', 'DART', 'XARA']) {
     test('$mode does not transmit while the radio is receiving audio', () async {
       final DataBrokerClient client = DataBrokerClient();

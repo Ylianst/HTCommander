@@ -133,6 +133,11 @@ class RadioAudio {
       name: 'CancelVoiceTransmit',
       callback: _onCancelVoiceTransmit,
     );
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'CancelDataTransmit',
+      callback: _onCancelVoiceTransmit,
+    );
     // Track radio status so the engine can tag audio with the current channel
     // and honor the muted-channel state without reaching into [radio].
     _broker.subscribe(

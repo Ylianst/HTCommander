@@ -656,6 +656,8 @@ class SatelliteHandler {
         deviceId: radioId,
         name: 'SatelliteTrackUpdate',
         data: SatelliteTrackParams(
+          noradId: norad,
+          usageIndex: _trackUsageIndex,
           name: info.name,
           rxFreqHz: rx,
           txFreqHz: usage.uplinkHz ?? 0,
@@ -715,6 +717,8 @@ class SatelliteHandler {
       deviceId: radioId,
       name: 'SatelliteTrackUpdate',
       data: SatelliteTrackParams(
+        noradId: norad,
+        usageIndex: _trackUsageIndex,
         name: info.name,
         rxFreqHz: rx,
         txFreqHz: tx,

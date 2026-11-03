@@ -5,9 +5,9 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 //
-// XARA over an HT-like radio path: two XARA modems with the app's default
-// latency and key-up settings, linked through a path that delays each burst
-// and loses its first 240 ms to key-up (as measured on Bluetooth HTs). The
+// XARA over an HT-like radio path: two XARA modems linked through a path that
+// delays each burst and loses its beginning to key-up. Slower paths use an
+// explicit 300 ms pre-roll to cover 240 ms of key-up loss. The
 // station must count its key-up pre-roll in its latency, or replies land
 // outside the ARQ windows and control codes are dropped.
 //
@@ -57,9 +57,9 @@ class RadioPath {
   }
 }
 
-/// Runs a caller and an answerer with the app's default latency settings over
-/// [lagMs] radio paths, sends 400 bytes to the caller, and returns the link
-/// events and the verdict of every received control code.
+/// Runs a caller and an answerer with the app's default transmit latency over
+/// [lagMs] radio paths with [lossMs] key-up loss and [txKeyUpMs] pre-roll, sends
+/// 400 bytes to the caller, and returns link events and control code verdicts.
 Future<
   ({
     int received,
@@ -67,14 +67,18 @@ Future<
     Map<String, List<String>> verdicts,
   })
 >
-runLink(int lagMs) async {
+runLink(
+  int lagMs, {
+  int lossMs = 80,
+  int txKeyUpMs = XaraModemConfig.defaultTxKeyUpMs,
+}) async {
   final verdicts = {'caller': <String>[], 'answerer': <String>[]};
   final events = {'caller': <String>[], 'answerer': <String>[]};
   var received = 0;
   late final RadioPath toAnswerer, toCaller;
   XaraModem modem(String call, String who, void Function(Uint8List) tx) =>
       XaraModem(
-        config: XaraModemConfig(callsign: call),
+        config: XaraModemConfig(callsign: call, txKeyUpMs: txKeyUpMs),
         onTransmit: tx,
         onEvent: (e) {
           switch (e['evt']) {
@@ -98,8 +102,8 @@ runLink(int lagMs) async {
       );
   final caller = modem('N1ABC', 'caller', (p) => toAnswerer.add(p));
   final answerer = modem('N0CALL', 'answerer', (p) => toCaller.add(p));
-  toAnswerer = RadioPath(lagMs, 240, (c) => answerer.pushRx(c, 0, c.length));
-  toCaller = RadioPath(lagMs, 240, (c) => caller.pushRx(c, 0, c.length));
+  toAnswerer = RadioPath(lagMs, lossMs, (c) => answerer.pushRx(c, 0, c.length));
+  toCaller = RadioPath(lagMs, lossMs, (c) => caller.pushRx(c, 0, c.length));
   final clock = Timer.periodic(const Duration(milliseconds: 20), (_) {
     toAnswerer.tick();
     toCaller.tick();
@@ -122,10 +126,18 @@ runLink(int lagMs) async {
 }
 
 void main() {
+  test('default 100 ms pre-roll connects and delivers with key-up loss', () async {
+    expect(XaraModemConfig.defaultTxKeyUpMs, 100);
+    final r = await runLink(750);
+    expect(r.received, 400, reason: '${r.events} ${r.verdicts}');
+    expect(r.events['caller'], ['connected']);
+    expect(r.events['answerer'], ['connected']);
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
   test(
     'a link with 750 ms radio lag and key-up loss keeps its control codes',
     () async {
-      final r = await runLink(750);
+      final r = await runLink(750, lossMs: 240, txKeyUpMs: 300);
       expect(r.received, 400, reason: '${r.events} ${r.verdicts}');
       expect(r.events['caller'], ['connected']);
       expect(r.events['answerer'], ['connected']);
@@ -145,7 +157,7 @@ void main() {
   );
 
   test('a link with 1 s radio lag still connects and delivers', () async {
-    final r = await runLink(1000);
+    final r = await runLink(1000, lossMs: 240, txKeyUpMs: 300);
     expect(r.received, 400, reason: '${r.events} ${r.verdicts}');
     expect(r.events['caller'], ['connected']);
     expect(r.events['answerer'], ['connected']);
