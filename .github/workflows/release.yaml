@@ -261,13 +261,13 @@ jobs:
           if (Test-Path $srcZip) { Move-Item -Force $srcZip $dstZip }
 
       - name: Upload MSI
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows-msi-${{ matrix.arch }}
           path: HTCommander-${{ matrix.arch }}.msi
 
       - name: Upload update package
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows-update-${{ matrix.arch }}
           path: src/dist/desktop_updater/releases/
@@ -521,7 +521,7 @@ jobs:
           ARCH=${{ matrix.appimagetool_arch }} ./appimagetool --no-appstream "$APPDIR" "htcommander-linux-${{ matrix.arch }}.AppImage"
 
       - name: Upload Linux packages
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: linux-packages-${{ matrix.arch }}
           path: |
@@ -557,7 +557,7 @@ jobs:
           if [ -f "$SRC_ZIP" ]; then mv -f "$SRC_ZIP" "$DST_ZIP"; fi
 
       - name: Upload update package
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: linux-update-${{ matrix.arch }}
           path: src/dist/desktop_updater/releases/
@@ -848,13 +848,13 @@ jobs:
           if [ -n "$SRC_ZIP" ] && [ -f "$SRC_ZIP" ]; then mv -f "$SRC_ZIP" "$DST_ZIP"; fi
 
       - name: Upload DMG
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: macos-dmg
           path: HTCommander.dmg
 
       - name: Upload update package
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: macos-update
           path: src/dist/desktop_updater/releases/
@@ -924,13 +924,13 @@ jobs:
         run: rm -f key.properties app/upload-keystore.jks
 
       - name: Upload Android APK
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: android-apk
           path: HTCommander.apk
 
       - name: Upload Android AAB
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: android-aab
           path: htcommander-*.aab
@@ -953,7 +953,7 @@ jobs:
         run: flutter build web --release --base-href "/HTCommanderWeb/"
 
       - name: Upload Web artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: web-build
           path: src/build/web/

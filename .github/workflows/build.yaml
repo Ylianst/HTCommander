@@ -211,7 +211,7 @@ jobs:
           timestamp-digest: SHA256
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows-build-${{ matrix.arch }}
           path: HTCommander-${{ matrix.arch }}.msi
@@ -335,13 +335,13 @@ jobs:
           ARCH=${{ matrix.appimagetool_arch }} ./appimagetool --no-appstream "$APPDIR" "htcommander-linux-${{ matrix.arch }}.AppImage"
 
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: linux-build-${{ matrix.arch }}
           path: src/build/linux/${{ matrix.arch }}/release/bundle/
 
       - name: Upload AppImage
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: linux-appimage-${{ matrix.arch }}
           path: htcommander-linux-${{ matrix.arch }}.AppImage
@@ -602,7 +602,7 @@ jobs:
           xcrun stapler staple HTCommander.dmg
 
       - name: Upload macOS artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: macos-build
           path: HTCommander.dmg
@@ -625,7 +625,7 @@ jobs:
         run: flutter build ios --release --no-codesign
 
       - name: Upload iOS artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ios-build
           path: src/build/ios/iphoneos/Runner.app
@@ -653,7 +653,7 @@ jobs:
         run: flutter build apk --release
 
       - name: Upload Android artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: android-build
           path: src/build/app/outputs/flutter-apk/app-release.apk
@@ -676,7 +676,7 @@ jobs:
         run: flutter build web --release
 
       - name: Upload Web artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: web-build
           path: src/build/web/
