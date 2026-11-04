@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
@@ -81,6 +82,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   // bird name and its Doppler-corrected downlink frequency.
   String _satelliteName = '';
   int _satelliteRxFreqHz = 0;
+  // Latest full track update, shown in place of the channel grid while in
+  // satellite mode.
+  SatelliteTrackParams? _satelliteTrack;
 
   // EchoLink (device 200) state, used when this panel displays EchoLink.
   // Whether EchoLink is currently online (connected as a radio). Tracked with an
@@ -147,6 +151,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   static const double _kDisplayHeight = 189 / 848;
   static const double _kFriendlyNameTop = 106 / 848; // above the display
   static const double _kFixedImageWidth = 280.0; // fixed radio width
+  // Row height of the satellite tracking panel (matches the channel tile cap).
+  static const double _kSatelliteRowHeight = 50.0;
   static const double _kDisplayLeftOffset = -8.0; // fine-tuning
   static const double _kFriendlyNameTopOffset = 8.0; // fine-tuning
 
@@ -634,6 +640,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     _lockState = null;
     _satelliteName = '';
     _satelliteRxFreqHz = 0;
+    _satelliteTrack = null;
     _echoLinkState = null;
     _echoLinkStations = const [];
     _echoLinkConnected = null;
@@ -996,12 +1003,14 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         case 'LockState':
           if (data is Map<String, dynamic>) {
             _lockState = RadioLockState.fromJson(data);
+            if (!_isSatelliteMode) _satelliteTrack = null;
           }
           break;
         case 'SatelliteTrackUpdate':
           if (data is SatelliteTrackParams) {
             _satelliteName = data.name;
             _satelliteRxFreqHz = data.rxFreqHz;
+            _satelliteTrack = data;
           }
           break;
       }
@@ -2883,7 +2892,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     required double topCrop,
     required double rssiTop,
   }) {
-    final bool hasChannels = _isConnected && _hasVisibleChannels;
+    final bool satellitePanel = _isConnected && _isSatelliteMode;
+    final bool hasChannels =
+        satellitePanel || (_isConnected && _hasVisibleChannels);
     final bool showChannels = hasChannels && _compactShowChannels;
 
     return Stack(
@@ -2891,10 +2902,15 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       children: [
         if (showChannels)
           Positioned.fill(
-            child: _buildChannelsGridFull(
-              constraints.maxWidth,
-              constraints.maxHeight,
-            ),
+            child: satellitePanel
+                ? _buildSatellitePanel(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  )
+                : _buildChannelsGridFull(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  ),
           )
         else ...[
           ..._buildRadioLayers(
@@ -2973,7 +2989,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         child: Padding(
           padding: const EdgeInsets.all(6),
           child: Icon(
-            _compactShowChannels ? Icons.radio : Icons.list,
+            _compactShowChannels
+                ? Icons.radio
+                : (_isSatelliteMode ? Icons.satellite_alt : Icons.list),
             size: 18,
             color: Colors.white,
           ),
@@ -3260,6 +3278,19 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
   Widget _buildBottomPanel(double panelWidth, double maxHeight) {
     if (_isConnected) {
+      // While tracking a satellite the channel grid is replaced by the live
+      // pass countdown and look-angle.
+      if (_isSatelliteMode) {
+        // One full-width row per item when there is room for six, otherwise
+        // two rows of three.
+        final sixRows = maxHeight >= _kSatelliteRowHeight * 6;
+        return _buildSatellitePanel(
+          panelWidth,
+          sixRows
+              ? _kSatelliteRowHeight * 6
+              : math.min(maxHeight, _kSatelliteRowHeight * 2),
+        );
+      }
       // Show channels panel when connected
       return _buildChannelsPanel(panelWidth, maxHeight);
     } else {
@@ -3291,6 +3322,157 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         ),
       ),
     );
+  }
+
+  /// Live satellite tracking info shown instead of the channel grid while the
+  /// radio is in satellite mode: pass countdown, azimuth, elevation, range,
+  /// altitude and uplink, as six full-width rows when [height] allows or two
+  /// rows of three otherwise. Uses the channel palette.
+  Widget _buildSatellitePanel(double panelWidth, double height) {
+    final palette = ChannelPalette.of(context);
+    final t = _satelliteTrack;
+
+    final String countdownLabel;
+    final String countdownValue;
+    if (t == null) {
+      countdownLabel = 'Next pass';
+      countdownValue = '—';
+    } else if (t.elevationDeg > 0) {
+      countdownLabel = 'In view · sets in';
+      countdownValue =
+          t.secondsToLos > 0 ? _formatCountdown(t.secondsToLos) : 'Now';
+    } else {
+      countdownLabel = 'Next pass in';
+      countdownValue = t.secondsToNextPass > 0
+          ? _formatCountdown(t.secondsToNextPass)
+          : '—';
+    }
+
+    String uplinkLabel = 'Uplink';
+    String uplinkValue = '—';
+    if (t != null) {
+      if (t.txFreqHz > 0) {
+        uplinkValue = '${(t.txFreqHz / 1000000).toStringAsFixed(3)} MHz';
+        final tone = t.txCtcssHz;
+        if (tone != null && tone > 0) {
+          uplinkLabel = 'Uplink · ${tone.toStringAsFixed(1)} Hz';
+        }
+      } else {
+        uplinkValue = 'RX only';
+      }
+    }
+
+    Widget row(List<Widget> tiles) => Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [for (final tile in tiles) Expanded(child: tile)],
+          ),
+        );
+
+    final tiles = [
+      _buildSatelliteTile(countdownLabel, countdownValue, palette.selected),
+      _buildSatelliteTile(
+        'Azimuth',
+        t == null
+            ? '—'
+            : '${t.azimuthDeg.round() % 360}° ${_compassPoint(t.azimuthDeg)}',
+        palette.channelB,
+      ),
+      _buildSatelliteTile(
+        'Elevation',
+        t == null ? '—' : '${t.elevationDeg.toStringAsFixed(1)}°',
+        palette.channelB,
+      ),
+      _buildSatelliteTile(
+        'Range',
+        t == null ? '—' : '${t.rangeKm.round()} km',
+        palette.base,
+      ),
+      _buildSatelliteTile(
+        'Altitude',
+        t == null ? '—' : '${t.altitudeKm.round()} km',
+        palette.base,
+      ),
+      _buildSatelliteTile(uplinkLabel, uplinkValue, palette.base),
+    ];
+
+    // Six full-width rows when tall enough, otherwise two rows of three.
+    final singleColumn = height >= _kSatelliteRowHeight * 6;
+
+    return Container(
+      key: const ValueKey('radioSatellitePanel'),
+      width: panelWidth,
+      height: height,
+      color: palette.base,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: singleColumn
+            ? [for (final tile in tiles) row([tile])]
+            : [row(tiles.sublist(0, 3)), row(tiles.sublist(3))],
+      ),
+    );
+  }
+
+  Widget _buildSatelliteTile(String label, String value, Color bgColor) {
+    final palette = ChannelPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: palette.border, width: 0.5),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final valueSize = (constraints.maxHeight * 0.42).clamp(10.0, 28.0);
+          final showLabel = constraints.maxHeight >= 28;
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (showLabel)
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: palette.onChannelSecondary,
+                  ),
+                ),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: valueSize,
+                      fontWeight: FontWeight.bold,
+                      color: palette.onChannel,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  static String _formatCountdown(int seconds) {
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    final ss = s.toString().padLeft(2, '0');
+    if (h > 0) return '$h:${m.toString().padLeft(2, '0')}:$ss';
+    return '$m:$ss';
+  }
+
+  static String _compassPoint(double azimuthDeg) {
+    const points = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    final i = (((azimuthDeg % 360) + 22.5) ~/ 45) % 8;
+    return points[i];
   }
 
   /// Channels visible given the current `_showAllChannels` setting.

@@ -35,6 +35,12 @@ it can actually help you work: FM cross-band "repeater" birds like **SO-50**, th
   recenter. Coastlines come
   from Natural Earth (public domain).
 
+While a radio is tracking a satellite, the **Radio** tab swaps its channel grid
+for a tracking panel in the same channel colors: a countdown to the next pass
+(or, during a pass, until the bird sets), the live azimuth and elevation, plus
+range, altitude and the Doppler-corrected uplink. Leaving satellite mode brings
+the channels back.
+
 Flip over to the **Map** tab and turn on *Show Satellites*: each bird is drawn at
 its sub-point with its radio-horizon **footprint circle**, and the selected
 satellite gets its **ground track** — the path it traces over the Earth for the

@@ -78,6 +78,10 @@ class SatelliteHandler {
   // not run an SGP4 pass search every tick. Recomputed once it elapses.
   DateTime? _trackNextAosUtc;
 
+  // Cached end of the in-progress pass (LOS) for the tracked bird; cleared
+  // once the bird drops below the horizon.
+  DateTime? _trackLosUtc;
+
   // Latest valid GPS fix reported by each connected radio (device id > 0).
   final Map<int, RadioPosition> _radioFixes = {};
 
@@ -243,12 +247,14 @@ class SatelliteHandler {
       _trackNoradId = norad;
       _trackUsageIndex = (data['usageIndex'] as num?)?.toInt() ?? 0;
       _trackNextAosUtc = null; // force a fresh next-pass computation
+      _trackLosUtc = null;
       _sendTrackUpdate(); // push immediately so the radio tunes without delay
     } else {
       _trackRadioDeviceId = null;
       _trackNoradId = null;
       _trackUsageIndex = 0;
       _trackNextAosUtc = null;
+      _trackLosUtc = null;
     }
   }
 
@@ -694,10 +700,18 @@ class SatelliteHandler {
     // app sends 0, so match that; otherwise count down to the next AOS. The AOS
     // instant is cached and only re-searched once it has elapsed.
     int secondsToNextPass;
+    var secondsToLos = 0;
     if (look.elevationDeg > 0) {
       secondsToNextPass = 0;
       _trackNextAosUtc = null; // recompute after the pass ends
+      if (_trackLosUtc == null || !now.isBefore(_trackLosUtc!)) {
+        _trackLosUtc = _findLos(observer, now);
+      }
+      final los = _trackLosUtc;
+      secondsToLos =
+          los == null ? 0 : los.difference(now).inSeconds.clamp(0, 0xFFFF);
     } else {
+      _trackLosUtc = null;
       if (_trackNextAosUtc == null || !now.isBefore(_trackNextAosUtc!)) {
         try {
           _trackNextAosUtc = observer
@@ -728,9 +742,40 @@ class SatelliteHandler {
         rangeKm: look.rangeKm,
         altitudeKm: altitudeKm,
         secondsToNextPass: secondsToNextPass,
+        secondsToLos: secondsToLos,
       ),
       store: false,
     );
+  }
+
+  /// Finds when a bird currently above the horizon sets (elevation reaches 0),
+  /// to about a second. Coarse 15 s steps (up to 12 h for high orbits), then
+  /// bisection. Runs once per pass; the result is cached by the caller.
+  static DateTime? _findLos(so.SatelliteObserver observer, DateTime now) {
+    const step = Duration(seconds: 15);
+    var lo = now;
+    try {
+      for (var i = 0; i < 2880; i++) {
+        final hi = lo.add(step);
+        if (observer.lookAngleAt(hi).elevationDeg <= 0) {
+          var a = lo;
+          var b = hi;
+          while (b.difference(a).inMilliseconds > 1000) {
+            final mid = a.add(
+              Duration(milliseconds: b.difference(a).inMilliseconds ~/ 2),
+            );
+            if (observer.lookAngleAt(mid).elevationDeg > 0) {
+              a = mid;
+            } else {
+              b = mid;
+            }
+          }
+          return b;
+        }
+        lo = hi;
+      }
+    } catch (_) {}
+    return null;
   }
 
   void _recomputePasses() {

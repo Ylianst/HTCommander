@@ -484,6 +484,10 @@ class SatelliteTrackParams {
   /// countdown. 0 when unknown.
   final int secondsToNextPass;
 
+  /// While the bird is above the horizon, seconds until it sets (LOS);
+  /// 0 when not in a pass or unknown.
+  final int secondsToLos;
+
   const SatelliteTrackParams({
     this.noradId,
     this.usageIndex = 0,
@@ -496,5 +500,6 @@ class SatelliteTrackParams {
     required this.rangeKm,
     required this.altitudeKm,
     required this.secondsToNextPass,
+    this.secondsToLos = 0,
   });
 }
