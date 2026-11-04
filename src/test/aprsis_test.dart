@@ -334,5 +334,27 @@ void main() {
       final aprs = _parseTnc2('W1AW>APRS,TCPIP*:!4737.14N/12220.09W>Hi');
       expect(AprsIsClient.shouldGateToRf(aprs, {'W1AW'}), isFalse);
     });
+
+    test('wraps a gated-down message in a third-party header', () {
+      final aprs = _parseTnc2('WXBOT>APRS,TCPIP*,qAC,T2X::K9BDH    :Sunny{7');
+      final payload = AprsIsClient.buildGateDownPayload(aprs, 'K9BDH-10');
+      expect(payload, '}WXBOT>APRS,TCPIP,K9BDH-10*::K9BDH    :Sunny{7');
+
+      // Heard back on RF (e.g. via a digipeater), the frame's AX.25 source is
+      // the IGate, so the internet sender is never mistaken as locally heard,
+      // and the third-party frame is never gated back up.
+      final echo = _parseTnc2('K9BDH-10>APRS,WIDE1-1*:$payload');
+      expect(echo.packet!.addresses[1].toString(), 'K9BDH-10');
+      expect(echo.sourceCallsignWithId, 'WXBOT');
+      expect(echo.messageData.addressee.trim(), 'K9BDH');
+      expect(AprsIsClient.shouldGateToInternet(echo), isFalse);
+    });
+
+    test('identifies own-station transmissions by base callsign', () {
+      expect(AprsIsClient.isOwnStation('K9BDH-7', 'K9BDH'), isTrue);
+      expect(AprsIsClient.isOwnStation('k9bdh', 'K9BDH-10'), isTrue);
+      expect(AprsIsClient.isOwnStation('WXBOT', 'K9BDH'), isFalse);
+      expect(AprsIsClient.isOwnStation('K9BDH', ''), isFalse);
+    });
   });
 }

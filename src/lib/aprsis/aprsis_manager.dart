@@ -917,16 +917,20 @@ class AprsIsManager {
     final aprsChannelId = _aprsChannelId(radioDeviceId);
     if (aprsChannelId < 0) return;
 
-    // Transmit the message on RF with the original source callsign and a
-    // minimal WIDE1-1 path, per IGate convention.
-    final src = packet.addresses[1];
+    final igateCall = _readCallsignWithId();
+    final payload = AprsIsClient.buildGateDownPayload(aprs, igateCall);
+    if (payload == null) return;
+
+    // Transmit under our own callsign with the internet packet wrapped in a
+    // third-party header and a minimal WIDE1-1 path, per IGate convention.
+    final src = AX25Address.parse(igateCall);
     final dest = AX25Address.parse('APRS');
     final wide = AX25Address.parse('WIDE1-1');
-    if (dest == null || wide == null) return;
+    if (src == null || dest == null || wide == null) return;
 
     final txPacket = AX25Packet(
       addresses: [dest, src, wide],
-      dataStr: packet.dataStr,
+      dataStr: payload,
       type: FrameType.uFrameUi,
       command: true,
       time: DateTime.now(),
@@ -962,7 +966,20 @@ class AprsIsManager {
     // Ignore the internet packets we ourselves re-dispatched.
     if (aprs.fromAprsIs) return;
 
-    _recordHeard(aprs);
+    final igateCall = _readCallsignWithId();
+    if (data.ax25Packet.incoming) {
+      _recordHeard(aprs);
+    } else if (!AprsIsClient.isOwnStation(
+      data.ax25Packet.addresses.length >= 2
+          ? data.ax25Packet.addresses[1].callSignWithId
+          : '',
+      igateCall,
+    )) {
+      // Our own transmission of someone else's packet (e.g. an internet
+      // message gated to RF). It was never heard on RF, so it must neither
+      // mark its source as locally heard nor be gated back to the internet.
+      return;
+    }
 
     final client = _client;
     if (client == null) return;
@@ -970,7 +987,6 @@ class AprsIsManager {
     if (!client.canTransmit || !client.isVerified) return;
     if (!AprsIsClient.shouldGateToInternet(aprs)) return;
 
-    final igateCall = _readCallsignWithId();
     if (igateCall.isEmpty) return;
     final line = AprsIsClient.buildGateUpLine(aprs, igateCall);
     if (line == null) return;

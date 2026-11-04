@@ -282,4 +282,35 @@ class AprsIsClient {
     if (addressee.isEmpty) return false;
     return heardCallsigns.contains(addressee);
   }
+
+  /// Builds the RF information field for an APRS-IS packet gated down to RF,
+  /// wrapped in the third-party format required by the APRS-IS IGate rules:
+  /// `}SRC>DEST,TCPIP,IGATECALL*:data`. The AX.25 source of the RF frame is
+  /// then the IGate itself, so a digipeated echo is never mistaken for the
+  /// internet station being heard on RF. Returns null when the packet cannot
+  /// be wrapped.
+  static String? buildGateDownPayload(AprsPacket aprsPacket, String igateCall) {
+    final packet = aprsPacket.packet;
+    if (packet == null || packet.addresses.length < 2) return null;
+    final dataStr = packet.dataStr;
+    if (dataStr == null || dataStr.isEmpty) return null;
+    if (igateCall.isEmpty) return null;
+    final src = packet.addresses[1].toString();
+    final dest = packet.addresses[0].toString();
+    return '}$src>$dest,TCPIP,$igateCall*:$dataStr';
+  }
+
+  /// True when [sourceCallsign] is this station (any SSID of [localCallsign]).
+  /// Used to tell locally-originated transmissions (which must still be
+  /// up-gated) from frames relayed onto RF on behalf of internet stations.
+  static bool isOwnStation(String sourceCallsign, String localCallsign) {
+    String base(String c) {
+      final s = c.trim().toUpperCase();
+      final dash = s.indexOf('-');
+      return dash < 0 ? s : s.substring(0, dash);
+    }
+
+    final local = base(localCallsign);
+    return local.isNotEmpty && base(sourceCallsign) == local;
+  }
 }
