@@ -359,6 +359,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get statusBluetoothNotAvailable => 'Bluetooth non disponibile';
 
   @override
+  String get statusBluetoothNotAuthorized => 'Autorizzazione Bluetooth negata';
+
+  @override
   String get statusScanningForRadios => 'Ricerca di radio...';
 
   @override
@@ -1332,6 +1335,10 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get connectBluetoothOffBody =>
       'Il Bluetooth non è disponibile o è disattivato.\n\nAbilita il Bluetooth nelle impostazioni del dispositivo e riprova.';
+
+  @override
+  String get connectBluetoothUnauthorizedBody =>
+      'HTCommander non ha l\'autorizzazione per usare il Bluetooth.\n\nApri Impostazioni, seleziona HTCommander, consenti l\'accesso al Bluetooth e riprova.';
 
   @override
   String get radioConnectionTitle => 'Connessione radio';

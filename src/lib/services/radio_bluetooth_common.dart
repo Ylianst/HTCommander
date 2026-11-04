@@ -1,48 +1,45 @@
 part of 'bluetooth_service.dart';
 
-Future<bool> _checkBluetoothBleAdapter() async {
+/// Probes the FlutterBluePlus adapter (Android / iOS).
+///
+/// The adapter starts out `unknown` and only settles once the OS reports its
+/// real state. On iOS that does not happen until the user has answered the
+/// first-run Bluetooth permission prompt, so wait up to [settleTimeout] for a
+/// settled state instead of reading the cached (possibly still `unknown`) one.
+Future<BluetoothAvailability> _checkBluetoothBleAdapter({
+  required Duration settleTimeout,
+}) async {
+  BluetoothAvailability fromState(BluetoothAdapterState state) {
+    switch (state) {
+      case BluetoothAdapterState.on:
+        return BluetoothAvailability.available;
+      case BluetoothAdapterState.unauthorized:
+        return BluetoothAvailability.unauthorized;
+      case BluetoothAdapterState.unavailable:
+        return BluetoothAvailability.unsupported;
+      default:
+        return BluetoothAvailability.off;
+    }
+  }
+
+  bool isSettled(BluetoothAdapterState state) =>
+      state == BluetoothAdapterState.on ||
+      state == BluetoothAdapterState.off ||
+      state == BluetoothAdapterState.unauthorized ||
+      state == BluetoothAdapterState.unavailable;
+
   try {
-    final isSupported = await FlutterBluePlus.isSupported;
-    if (!isSupported) return false;
-
-    if (!BluetoothService._bluetoothInitialized) {
-      BluetoothService._bluetoothInitialized = true;
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!await FlutterBluePlus.isSupported) {
+      return BluetoothAvailability.unsupported;
     }
-
-    for (int attempt = 0; attempt < 3; attempt++) {
-      try {
-        final state = await FlutterBluePlus.adapterState.first.timeout(
-          const Duration(seconds: 2),
-        );
-
-        if (state == BluetoothAdapterState.on) {
-          return true;
-        } else if (state == BluetoothAdapterState.off ||
-            state == BluetoothAdapterState.unauthorized) {
-          return false;
-        }
-
-        if (attempt < 2) {
-          await Future<void>.delayed(const Duration(milliseconds: 500));
-        }
-      } catch (_) {
-        if (attempt < 2) {
-          await Future<void>.delayed(const Duration(milliseconds: 300));
-        }
-      }
-    }
-
-    try {
-      final finalState = await FlutterBluePlus.adapterState.first.timeout(
-        const Duration(seconds: 1),
-      );
-      return finalState == BluetoothAdapterState.on;
-    } catch (_) {
-      return false;
-    }
+    final state = await FlutterBluePlus.adapterState
+        .firstWhere(isSettled)
+        .timeout(settleTimeout);
+    return fromState(state);
+  } on TimeoutException {
+    return fromState(FlutterBluePlus.adapterStateNow);
   } catch (_) {
-    return false;
+    return BluetoothAvailability.off;
   }
 }
 

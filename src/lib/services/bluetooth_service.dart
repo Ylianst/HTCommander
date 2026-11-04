@@ -37,6 +37,20 @@ part 'radio_bluetooth_linux.dart';
 part 'radio_bluetooth_windows.dart';
 part 'radio_bluetooth_macos.dart';
 
+/// Result of [BluetoothService.getBluetoothAvailability].
+enum BluetoothAvailability {
+  available,
+
+  /// Turned off, or its state could not be determined.
+  off,
+
+  /// The user denied this app Bluetooth access (iOS / Android).
+  unauthorized,
+
+  /// This device has no usable Bluetooth adapter.
+  unsupported,
+}
+
 /// BLE GATT service UUIDs the radio control channel may expose.
 ///
 /// On the web (Web Bluetooth API) the set of GATT services an application is
@@ -113,21 +127,26 @@ class BluetoothService {
   /// DataBroker key (device 0, persisted) holding the list of MAC addresses of
   /// radios the user connected to. Used to auto-reconnect on the next launch.
   /// MAC addresses are stored upper-cased.
-  static const String previouslyConnectedRadiosKey = 'PreviouslyConnectedRadios';
-
-  // Track if Bluetooth has been initialized
-  static bool _bluetoothInitialized = false;
+  static const String previouslyConnectedRadiosKey =
+      'PreviouslyConnectedRadios';
 
   /// Check if Bluetooth is available on this platform
   /// On first call, waits for adapter to initialize
-  static Future<bool> checkBluetooth() async {
-    if (kIsWeb) return _checkBluetoothWeb();
-    if (Platform.isWindows) return _checkBluetoothWindows();
-    if (Platform.isMacOS) return _checkBluetoothMacos();
+  static Future<bool> checkBluetooth() async =>
+      await getBluetoothAvailability() == BluetoothAvailability.available;
+
+  /// Like [checkBluetooth], but reports why Bluetooth is unusable so the UI
+  /// can tell a turned-off adapter apart from a denied app permission.
+  static Future<BluetoothAvailability> getBluetoothAvailability() async {
+    BluetoothAvailability fromBool(bool ok) =>
+        ok ? BluetoothAvailability.available : BluetoothAvailability.off;
+    if (kIsWeb) return fromBool(await _checkBluetoothWeb());
+    if (Platform.isWindows) return fromBool(await _checkBluetoothWindows());
+    if (Platform.isMacOS) return fromBool(await _checkBluetoothMacos());
     if (Platform.isAndroid) return _checkBluetoothAndroid();
     if (Platform.isIOS) return _checkBluetoothIos();
-    if (Platform.isLinux) return _checkBluetoothLinux();
-    return false;
+    if (Platform.isLinux) return fromBool(await _checkBluetoothLinux());
+    return BluetoothAvailability.unsupported;
   }
 
   /// Check if Bluetooth adapter is turned on
@@ -209,7 +228,10 @@ class BluetoothService {
   /// Connect to a radio by MAC address
   /// Returns the device ID if successful, or null if failed
   Future<int?> connectToRadio(String macAddress, String friendlyName) async {
-    final int? deviceId = await _connectToRadioPlatform(macAddress, friendlyName);
+    final int? deviceId = await _connectToRadioPlatform(
+      macAddress,
+      friendlyName,
+    );
     if (deviceId != null) {
       // Remember this radio so it can be auto-reconnected on the next launch.
       _rememberConnectedRadio(macAddress);
@@ -261,8 +283,10 @@ class BluetoothService {
       // Apply the browser's own (local) output volume to mirrored playback and
       // track changes; it is independent of the host's output volume.
       _hostAudio.volume =
-          (_broker.getValue<double>(0, 'OutputVolume', 1.0) ?? 1.0)
-              .clamp(0.0, 1.0);
+          (_broker.getValue<double>(0, 'OutputVolume', 1.0) ?? 1.0).clamp(
+            0.0,
+            1.0,
+          );
       _broker.subscribe(
         deviceId: 0,
         name: 'OutputVolume',
@@ -613,9 +637,7 @@ class BluetoothService {
     }
     final station = data['Station'];
     if (station is StationInfo) {
-      transport.sendWinlinkSync(<String, Object?>{
-        'Station': station.toJson(),
-      });
+      transport.sendWinlinkSync(<String, Object?>{'Station': station.toJson()});
     }
   }
 
@@ -861,8 +883,9 @@ class BluetoothService {
       if (newId != null) {
         final radio = _radioInstances[newId];
         if (radio != null) {
-          final connectDeadline =
-              DateTime.now().add(const Duration(seconds: 15));
+          final connectDeadline = DateTime.now().add(
+            const Duration(seconds: 15),
+          );
           while (DateTime.now().isBefore(connectDeadline)) {
             if (radio.state == RadioState.connected) return radio;
             await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -951,7 +974,11 @@ class BluetoothService {
 
   /// The upper-cased list of MAC addresses of previously connected radios.
   List<String> previouslyConnectedRadioMacs() {
-    final stored = _broker.getValueDynamic(0, previouslyConnectedRadiosKey, null);
+    final stored = _broker.getValueDynamic(
+      0,
+      previouslyConnectedRadiosKey,
+      null,
+    );
     final result = <String>[];
     if (stored is List) {
       for (final m in stored) {

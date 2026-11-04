@@ -164,6 +164,7 @@
   "statusBattery": "バッテリー: {percent} %",
   "statusCheckingBluetooth": "Bluetooth を確認中...",
   "statusBluetoothNotAvailable": "Bluetooth を利用できません",
+  "statusBluetoothNotAuthorized": "Bluetooth ?????????",
   "statusScanningForRadios": "無線機を検索中...",
   "statusErrorScanning": "無線機の検索中にエラーが発生しました",
   "statusNoCompatibleRadios": "対応する無線機が見つかりません",
@@ -446,6 +447,7 @@
   "connectAllConnectedBody": "検出されたすべての無線機デバイスは既に接続されています。",
   "connectBluetoothOffTitle": "Bluetooth を利用できません",
   "connectBluetoothOffBody": "Bluetooth を利用できないか、無効になっています。\n\nデバイスの設定で Bluetooth を有効にしてから再試行してください。",
+  "connectBluetoothUnauthorizedBody": "HTCommander ?? Bluetooth ??????????????\n\n??????HTCommander ????? Bluetooth ???????????????????????",
 
   "radioConnectionTitle": "無線機の接続",
   "radioConnectionEmpty": "対応する無線機が見つかりません。\n無線機の電源が入っていて、Bluetooth が有効になっていることを確認してください。",

@@ -164,6 +164,7 @@
   "statusBattery": "Batería: {percent} %",
   "statusCheckingBluetooth": "Comprobando Bluetooth...",
   "statusBluetoothNotAvailable": "Bluetooth no disponible",
+  "statusBluetoothNotAuthorized": "Permiso de Bluetooth denegado",
   "statusScanningForRadios": "Buscando radios...",
   "statusErrorScanning": "Error al buscar radios",
   "statusNoCompatibleRadios": "No se encontraron radios compatibles",
@@ -446,6 +447,7 @@
   "connectAllConnectedBody": "Todos los dispositivos de radio detectados ya están conectados.",
   "connectBluetoothOffTitle": "Bluetooth no disponible",
   "connectBluetoothOffBody": "El Bluetooth no está disponible o está desactivado.\n\nActive el Bluetooth en la configuración de su dispositivo e inténtelo de nuevo.",
+  "connectBluetoothUnauthorizedBody": "HTCommander no tiene permiso para usar el Bluetooth.\n\nAbra Ajustes, seleccione HTCommander, permita el acceso a Bluetooth e int?ntelo de nuevo.",
 
   "radioConnectionTitle": "Conexión de radio",
   "radioConnectionEmpty": "No se encontraron radios compatibles.\nAsegúrese de que su radio esté encendida y que el Bluetooth esté activado.",

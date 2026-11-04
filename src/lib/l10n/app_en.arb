@@ -414,6 +414,7 @@
     "description": "Status message shown while verifying Bluetooth availability."
   },
   "statusBluetoothNotAvailable": "Bluetooth not available",
+  "statusBluetoothNotAuthorized": "Bluetooth permission denied",
   "@statusBluetoothNotAvailable": {
     "description": "Status message when Bluetooth is unavailable."
   },
@@ -984,6 +985,7 @@
   "connectAllConnectedBody": "All detected radio devices are already connected.",
   "connectBluetoothOffTitle": "Bluetooth Not Available",
   "connectBluetoothOffBody": "Bluetooth is not available or is turned off.\n\nPlease enable Bluetooth in your device settings and try again.",
+  "connectBluetoothUnauthorizedBody": "HTCommander does not have permission to use Bluetooth.\n\nOpen Settings, select HTCommander and allow Bluetooth access, then try again.",
 
   "radioConnectionTitle": "Radio Connection",
   "radioConnectionEmpty": "No compatible radios found.\nMake sure your radio is powered on and Bluetooth is enabled.",

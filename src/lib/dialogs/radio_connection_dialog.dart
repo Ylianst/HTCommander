@@ -6,6 +6,8 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart'
+    show openAppSettings;
 import 'dialog_utils.dart';
 import '../l10n/app_localizations.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
@@ -43,7 +45,7 @@ class CompatibleDevice {
 }
 
 /// Outcome of a background radio scan run by [RadioConnectionDialog].
-enum RadioScanOutcome { completed, bluetoothUnavailable }
+enum RadioScanOutcome { completed, bluetoothUnavailable, bluetoothUnauthorized }
 
 /// Scans for radios while the connection dialog is open. Must call [onFound]
 /// once per radio as it is discovered and complete when the scan is over.
@@ -53,7 +55,14 @@ typedef RadioScanner =
       void Function(CompatibleDevice device) onFound,
     );
 
-enum _ScanState { idle, scanning, done, bluetoothUnavailable, error }
+enum _ScanState {
+  idle,
+  scanning,
+  done,
+  bluetoothUnavailable,
+  bluetoothUnauthorized,
+  error,
+}
 
 /// Dialog for connecting to Bluetooth radios
 class RadioConnectionDialog extends StatefulWidget {
@@ -157,6 +166,12 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
   _ScanState _scanState = _ScanState.idle;
   String _scanError = '';
 
+  // Only the mobile OSes grant Bluetooth access per app.
+  static bool get _canOpenAppSettings =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.android);
+
   @override
   void initState() {
     super.initState();
@@ -200,9 +215,13 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
     _ScanState result;
     try {
       final outcome = await scanner(_onDeviceFound);
-      result = outcome == RadioScanOutcome.bluetoothUnavailable
-          ? _ScanState.bluetoothUnavailable
-          : _ScanState.done;
+      result = switch (outcome) {
+        RadioScanOutcome.bluetoothUnavailable =>
+          _ScanState.bluetoothUnavailable,
+        RadioScanOutcome.bluetoothUnauthorized =>
+          _ScanState.bluetoothUnauthorized,
+        RadioScanOutcome.completed => _ScanState.done,
+      };
     } catch (e) {
       _scanError = e.toString();
       result = _ScanState.error;
@@ -722,6 +741,15 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
                     : _buildScanStatus(l10n, scheme),
               ),
               const SizedBox(width: 12),
+              if (_scanState == _ScanState.bluetoothUnauthorized &&
+                  _canOpenAppSettings) ...[
+                OutlinedButton.icon(
+                  onPressed: () => openAppSettings(),
+                  icon: const Icon(Icons.settings, size: 18),
+                  label: Text(l10n.settingsLocationPhoneOpenSettings),
+                ),
+                const SizedBox(width: 8),
+              ],
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: DialogStyles.primaryButtonStyle(context),
@@ -739,6 +767,8 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
     switch (_scanState) {
       case _ScanState.bluetoothUnavailable:
         return l10n.connectBluetoothOffBody;
+      case _ScanState.bluetoothUnauthorized:
+        return l10n.connectBluetoothUnauthorizedBody;
       case _ScanState.error:
         return l10n.connectScanError(_scanError);
       default:
@@ -781,6 +811,15 @@ class _RadioConnectionDialogState extends State<RadioConnectionDialog> {
           Icons.bluetooth_disabled,
           l10n.statusBluetoothNotAvailable,
           scheme.error,
+        );
+      case _ScanState.bluetoothUnauthorized:
+        return Tooltip(
+          message: l10n.connectBluetoothUnauthorizedBody,
+          child: _buildScanMessage(
+            Icons.bluetooth_disabled,
+            l10n.statusBluetoothNotAuthorized,
+            scheme.error,
+          ),
         );
       case _ScanState.error:
         return Tooltip(

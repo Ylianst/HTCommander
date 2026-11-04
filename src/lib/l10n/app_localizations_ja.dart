@@ -359,6 +359,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get statusBluetoothNotAvailable => 'Bluetooth を利用できません';
 
   @override
+  String get statusBluetoothNotAuthorized => 'Bluetooth ?????????';
+
+  @override
   String get statusScanningForRadios => '無線機を検索中...';
 
   @override
@@ -1287,6 +1290,10 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get connectBluetoothOffBody =>
       'Bluetooth を利用できないか、無効になっています。\n\nデバイスの設定で Bluetooth を有効にしてから再試行してください。';
+
+  @override
+  String get connectBluetoothUnauthorizedBody =>
+      'HTCommander ?? Bluetooth ??????????????\n\n??????HTCommander ????? Bluetooth ???????????????????????';
 
   @override
   String get radioConnectionTitle => '無線機の接続';

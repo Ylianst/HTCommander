@@ -778,6 +778,12 @@ abstract class AppLocalizations {
   /// **'Bluetooth not available'**
   String get statusBluetoothNotAvailable;
 
+  /// No description provided for @statusBluetoothNotAuthorized.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth permission denied'**
+  String get statusBluetoothNotAuthorized;
+
   /// Status message shown while scanning for radios.
   ///
   /// In en, this message translates to:
@@ -2427,6 +2433,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bluetooth is not available or is turned off.\n\nPlease enable Bluetooth in your device settings and try again.'**
   String get connectBluetoothOffBody;
+
+  /// No description provided for @connectBluetoothUnauthorizedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'HTCommander does not have permission to use Bluetooth.\n\nOpen Settings, select HTCommander and allow Bluetooth access, then try again.'**
+  String get connectBluetoothUnauthorizedBody;
 
   /// No description provided for @radioConnectionTitle.
   ///

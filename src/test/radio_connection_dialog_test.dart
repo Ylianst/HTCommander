@@ -121,6 +121,24 @@ void main() {
     expect(find.text('Bluetooth not available'), findsOneWidget);
   });
 
+  testWidgets('dialog explains a denied Bluetooth permission', (tester) async {
+    await tester.pumpWidget(
+      _launcher(
+        const [],
+        scanner: (_) async => RadioScanOutcome.bluetoothUnauthorized,
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.textContaining('does not have permission to use Bluetooth'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('dialog shows no radios found when the scan finds none', (
     tester,
   ) async {

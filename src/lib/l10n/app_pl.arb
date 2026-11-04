@@ -164,6 +164,7 @@
   "statusBattery": "Bateria: {percent}%",
   "statusCheckingBluetooth": "Sprawdzanie Bluetooth...",
   "statusBluetoothNotAvailable": "Bluetooth niedostępny",
+  "statusBluetoothNotAuthorized": "Odmowa uprawnie? Bluetooth",
   "statusScanningForRadios": "Wyszukiwanie radiotelefonów...",
   "statusErrorScanning": "Błąd wyszukiwania radiotelefonów",
   "statusNoCompatibleRadios": "Nie znaleziono zgodnych radiotelefonów",
@@ -446,6 +447,7 @@
   "connectAllConnectedBody": "Wszystkie wykryte radiotelefony są już połączone.",
   "connectBluetoothOffTitle": "Bluetooth niedostępny",
   "connectBluetoothOffBody": "Bluetooth jest niedostępny lub wyłączony.\n\nWłącz Bluetooth w ustawieniach urządzenia i spróbuj ponownie.",
+  "connectBluetoothUnauthorizedBody": "HTCommander nie ma uprawnie? do korzystania z Bluetooth.\n\nOtw?rz Ustawienia, wybierz HTCommander, zezw?l na dost?p do Bluetooth i spr?buj ponownie.",
 
   "radioConnectionTitle": "Połączenie radiotelefonu",
   "radioConnectionEmpty": "Nie znaleziono zgodnych radiotelefonów.\nUpewnij się, że radiotelefon jest włączony, a Bluetooth aktywny.",

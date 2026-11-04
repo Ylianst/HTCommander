@@ -1,7 +1,9 @@
 part of 'bluetooth_service.dart';
 
-Future<bool> _checkBluetoothIos() async {
-  return _checkBluetoothBleAdapter();
+Future<BluetoothAvailability> _checkBluetoothIos() async {
+  // CoreBluetooth stays `unknown` while the first-run permission prompt is
+  // shown, so give the user time to answer it.
+  return _checkBluetoothBleAdapter(settleTimeout: const Duration(seconds: 30));
 }
 
 Future<bool> _isBluetoothOnIos() async {

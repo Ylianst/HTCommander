@@ -1,7 +1,9 @@
 part of 'bluetooth_service.dart';
 
-Future<bool> _checkBluetoothAndroid() async {
-  return _checkBluetoothBleAdapter();
+Future<BluetoothAvailability> _checkBluetoothAndroid() async {
+  // Android reports a definite state right away (and may stay `unknown`
+  // forever if the state cannot be read), so only wait briefly.
+  return _checkBluetoothBleAdapter(settleTimeout: const Duration(seconds: 3));
 }
 
 Future<bool> _isBluetoothOnAndroid() async {
@@ -35,10 +37,7 @@ Future<List<DiscoveredDevice>> _findCompatibleDevicesAndroid(
 /// resulting (possibly empty) device list.
 Future<void> _ensureAndroidBluetoothPermissions() async {
   try {
-    await [
-      Permission.bluetoothConnect,
-      Permission.bluetoothScan,
-    ].request();
+    await [Permission.bluetoothConnect, Permission.bluetoothScan].request();
   } catch (_) {
     // Ignore; the native plugin requests permissions as a fallback.
   }

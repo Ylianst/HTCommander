@@ -355,6 +355,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statusBluetoothNotAvailable => '蓝牙不可用';
 
   @override
+  String get statusBluetoothNotAuthorized => '???????';
+
+  @override
   String get statusScanningForRadios => '正在搜索电台...';
 
   @override
@@ -1270,6 +1273,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get connectBluetoothOffBody => '蓝牙不可用或已禁用。\n\n请在设备设置中启用蓝牙后重试。';
+
+  @override
+  String get connectBluetoothUnauthorizedBody =>
+      'HTCommander ??????????\n\n???????? HTCommander ?????????????';
 
   @override
   String get radioConnectionTitle => '电台连接';

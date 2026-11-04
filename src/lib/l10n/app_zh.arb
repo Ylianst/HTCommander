@@ -164,6 +164,7 @@
   "statusBattery": "电量：{percent} %",
   "statusCheckingBluetooth": "正在检查蓝牙...",
   "statusBluetoothNotAvailable": "蓝牙不可用",
+  "statusBluetoothNotAuthorized": "???????",
   "statusScanningForRadios": "正在搜索电台...",
   "statusErrorScanning": "搜索电台时出错",
   "statusNoCompatibleRadios": "未找到兼容的电台",
@@ -446,6 +447,7 @@
   "connectAllConnectedBody": "所有检测到的电台设备均已连接。",
   "connectBluetoothOffTitle": "蓝牙不可用",
   "connectBluetoothOffBody": "蓝牙不可用或已禁用。\n\n请在设备设置中启用蓝牙后重试。",
+  "connectBluetoothUnauthorizedBody": "HTCommander ??????????\n\n???????? HTCommander ?????????????",
 
   "radioConnectionTitle": "电台连接",
   "radioConnectionEmpty": "未找到兼容的电台。\n请确保您的电台已开机且蓝牙已启用。",

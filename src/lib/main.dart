@@ -4801,9 +4801,13 @@ class _MainFormState extends State<MainForm>
 
   Future<RadioScanOutcome> _runRadioScan() async {
     _broker.logInfo('Connect requested - checking Bluetooth...');
-    final bluetoothAvailable = await BluetoothService.checkBluetooth();
-    if (!bluetoothAvailable) {
-      _broker.logError('Bluetooth not available');
+    final availability = await BluetoothService.getBluetoothAvailability();
+    if (availability == BluetoothAvailability.unauthorized) {
+      _broker.logError('Bluetooth permission denied for this app');
+      return RadioScanOutcome.bluetoothUnauthorized;
+    }
+    if (availability != BluetoothAvailability.available) {
+      _broker.logError('Bluetooth not available (${availability.name})');
       return RadioScanOutcome.bluetoothUnavailable;
     }
 

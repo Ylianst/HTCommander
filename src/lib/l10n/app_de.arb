@@ -164,6 +164,7 @@
   "statusBattery": "Akku: {percent} %",
   "statusCheckingBluetooth": "Bluetooth wird geprüft...",
   "statusBluetoothNotAvailable": "Bluetooth nicht verfügbar",
+  "statusBluetoothNotAuthorized": "Bluetooth-Berechtigung verweigert",
   "statusScanningForRadios": "Suche nach Funkgeräten...",
   "statusErrorScanning": "Fehler bei der Suche nach Funkgeräten",
   "statusNoCompatibleRadios": "Keine kompatiblen Funkgeräte gefunden",
@@ -446,6 +447,7 @@
   "connectAllConnectedBody": "Alle erkannten Funkgeräte sind bereits verbunden.",
   "connectBluetoothOffTitle": "Bluetooth nicht verfügbar",
   "connectBluetoothOffBody": "Bluetooth ist nicht verfügbar oder deaktiviert.\n\nBitte aktivieren Sie Bluetooth in den Einstellungen Ihres Geräts und versuchen Sie es erneut.",
+  "connectBluetoothUnauthorizedBody": "HTCommander hat keine Berechtigung, Bluetooth zu verwenden.\n\n?ffnen Sie die Einstellungen, w?hlen Sie HTCommander aus, erlauben Sie den Bluetooth-Zugriff und versuchen Sie es erneut.",
 
   "radioConnectionTitle": "Funkgerät-Verbindung",
   "radioConnectionEmpty": "Keine kompatiblen Funkgeräte gefunden.\nStellen Sie sicher, dass Ihr Funkgerät eingeschaltet und Bluetooth aktiviert ist.",
