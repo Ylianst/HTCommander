@@ -55,6 +55,11 @@ class TerminalRadio {
     );
     broker.dispatch(
       deviceId: radioId,
+      name: 'Settings',
+      data: {'channelA': 3, 'scan': false, 'doubleChannel': 0},
+    );
+    broker.dispatch(
+      deviceId: radioId,
       name: 'Channels',
       data: [
         {'name': 'BBS', 'channelId': 3},
@@ -353,7 +358,12 @@ void main() {
     radio.broker.dispatch(
       deviceId: radioId,
       name: 'HtStatus',
-      data: {'currRegion': 1, 'currChId': 5},
+      data: {'currRegion': 1, 'currChId': 0},
+    );
+    radio.broker.dispatch(
+      deviceId: radioId,
+      name: 'Settings',
+      data: {'channelA': 5},
     );
     radio.broker.dispatch(
       deviceId: radioId,
@@ -459,13 +469,18 @@ void main() {
           data: {'isLocked': true, 'usage': 'Winlink'},
         );
       }
-      if (reason == 'channelMismatch' || reason == 'statusUnavailable') {
+      if (reason == 'channelMismatch') {
+        radio.broker.dispatch(
+          deviceId: radioId,
+          name: 'Settings',
+          data: {'channelA': 4},
+        );
+      }
+      if (reason == 'statusUnavailable') {
         radio.broker.dispatch(
           deviceId: radioId,
           name: 'HtStatus',
-          data: reason == 'statusUnavailable'
-              ? null
-              : {'currRegion': 0, 'currChId': 4},
+          data: null,
         );
       }
       if (reason == 'lockOwnedByOtherUsage') {
@@ -484,7 +499,7 @@ void main() {
         expect(radio.commands, isNot(contains('SetUnlock')));
       }
       if (reason == 'channelMismatch') {
-        expect(find.textContaining('reportedChannel=4'), findsOneWidget);
+        expect(find.textContaining('selectedChannel=4'), findsOneWidget);
       }
       expect(
         radio.logs.where(
@@ -510,8 +525,8 @@ void main() {
     addTearDown(radio.dispose);
     radio.broker.dispatch(
       deviceId: radioId,
-      name: 'HtStatus',
-      data: {'currRegion': 0, 'currChId': 4},
+      name: 'Settings',
+      data: {'channelA': 4},
     );
     await connect(tester);
     expect(
@@ -523,8 +538,8 @@ void main() {
     expect(radio.logs, hasLength(logCount));
     radio.broker.dispatch(
       deviceId: radioId,
-      name: 'HtStatus',
-      data: {'currRegion': 0, 'currChId': 3},
+      name: 'Settings',
+      data: {'channelA': 3},
     );
     await tester.pump(const Duration(milliseconds: 250));
     expect(radio.commands, ['SetLock', 'XaraConnect']);

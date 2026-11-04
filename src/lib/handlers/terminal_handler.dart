@@ -724,15 +724,18 @@ class TerminalHandler {
     final lock = _lockStates[radioId];
     final resolution = resolveStationChannel(_broker, radioId, station);
     final ht = _broker.getValueDynamic(radioId, 'HtStatus');
+    final settings = _broker.getValueDynamic(radioId, 'Settings');
     final region = ht is Map ? ht['currRegion'] : null;
-    final channel = ht is Map ? ht['currChId'] : null;
+    // HtStatus.currChId is the channel of the last reception, not the
+    // selected one; the selected channel is settings channel A.
+    final channel = settings is Map ? settings['channelA'] : null;
     final reason = lock?.isLocked != true
         ? 'lockNotHeld'
         : lock?.usage != 'Terminal'
         ? 'lockOwnedByOtherUsage'
         : resolution.status != StationChannelStatus.ok
         ? 'channelResolutionPending'
-        : ht is! Map
+        : ht is! Map || settings is! Map
         ? 'statusUnavailable'
         : region != resolution.regionId
         ? 'regionMismatch'
@@ -746,12 +749,13 @@ class TerminalHandler {
           'lockOwner=${lock?.usage} locked=${lock?.isLocked} '
           'expectedRegion=${resolution.regionId} '
           'expectedChannel=${resolution.channelId} '
-          'reportedRegion=$region reportedChannel=$channel '
+          'reportedRegion=$region selectedChannel=$channel '
+          'lastRxChannel=${ht is Map ? ht['currChId'] : null} '
           'resolution=${resolution.status.name} '
           'contactRegion=${jsonEncode(station.channelRegion)} '
           'contactChannel=${jsonEncode(station.channel)} '
-          'scan=${ht is Map ? ht['isScan'] : null} '
-          'dualWatch=${ht is Map ? ht['doubleChannel'] : null}',
+          'scan=${settings is Map ? settings['scan'] : null} '
+          'dualWatch=${settings is Map ? settings['doubleChannel'] : null}',
     );
   }
 
