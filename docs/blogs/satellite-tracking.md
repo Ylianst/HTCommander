@@ -22,7 +22,18 @@ it can actually help you work: FM cross-band "repeater" birds like **SO-50**, th
   range, the sub-satellite point, altitude, and the **Doppler-corrected uplink
   and downlink frequencies** (plus the CTCSS tone needed to open the repeater);
 - an **upcoming-passes** list with rise/set times, peak elevation, and the
-  azimuths the satellite tracks across.
+  azimuths the satellite tracks across;
+- a **3D globe** under the list (toggle it with *Show globe* in the tab menu, or
+  use the globe button in the tab's title bar to let it fill the whole tab;
+  while the radio is in Satellite mode only the tracked bird is drawn)
+  showing your location, every bird with its current orbit, and a translucent
+  **visibility cone** rising from your position at the minimum pass elevation
+  (default 10°). Satellites inside the cone, and their orbits, turn **bold
+  green**. Drag to rotate, scroll or pinch to zoom, click a satellite to select
+  it (in the compact single-column layout, double-click it to open its
+  details), and double-click empty space (or use the locate button) to
+  recenter. Coastlines come
+  from Natural Earth (public domain).
 
 Flip over to the **Map** tab and turn on *Show Satellites*: each bird is drawn at
 its sub-point with its radio-horizon **footprint circle**, and the selected
