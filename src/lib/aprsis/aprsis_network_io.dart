@@ -45,6 +45,14 @@ class DartIoAprsIsNetwork implements AprsIsNetwork {
       onDone: () => _onDone(null),
       cancelOnError: true,
     );
+    // Write failures (e.g. ECONNABORTED when Android drops the connection) are
+    // reported on the sink's done future; observe it so they are not uncaught.
+    unawaited(
+      socket.done.then<void>(
+        (_) => _onDone(null),
+        onError: (Object e) => _onDone(e),
+      ),
+    );
   }
 
   void _onData(List<int> data) {
@@ -62,7 +70,12 @@ class DartIoAprsIsNetwork implements AprsIsNetwork {
   void sendLine(String line) {
     final socket = _socket;
     if (socket == null) return;
-    socket.write('$line\r\n');
+    try {
+      socket.write('$line\r\n');
+    } catch (e) {
+      // The socket is already closed or failed; the session will reconnect.
+      _onDone(e);
+    }
   }
 
   @override

@@ -1712,6 +1712,7 @@
   "aprsSoftwareBeaconSendNow": "Send Beacon Now",
   "aprsSoftwareBeaconSent": "Beacon sent.",
   "aprsSoftwareBeaconNotSent": "Beacon not sent. Set your callsign and include your location or a message.",
+  "aprsSoftwareBeaconNoLocation": "Beacon not sent. No location fix is available yet. Set a location source (manual, device, GPS or radio GPS) or add a beacon message.",
   "softwareBeaconSmartHint": "Sends an extra beacon when you move a significant distance or change direction, between interval beacons.",
   "aprsDigipeaterMenu": "Digipeater...",
   "digipeaterTitle": "APRS Digipeater",

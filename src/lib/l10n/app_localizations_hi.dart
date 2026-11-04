@@ -2786,6 +2786,10 @@ class AppLocalizationsHi extends AppLocalizations {
       'बीकन नहीं भेजा गया। अपना कॉलसाइन सेट करें और अपना स्थान या संदेश शामिल करें।';
 
   @override
+  String get aprsSoftwareBeaconNoLocation =>
+      'बीकन नहीं भेजा गया। अभी तक कोई स्थान उपलब्ध नहीं है। एक स्थान स्रोत सेट करें (मैनुअल, डिवाइस, GPS या रेडियो GPS) या बीकन संदेश जोड़ें।';
+
+  @override
   String get softwareBeaconSmartHint =>
       'जब आप काफी दूरी तय करते हैं या दिशा बदलते हैं, तो अंतराल बीकन के बीच एक अतिरिक्त बीकन भेजता है।';
 

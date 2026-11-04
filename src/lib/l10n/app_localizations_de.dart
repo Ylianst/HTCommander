@@ -2811,6 +2811,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Bake nicht gesendet. Legen Sie Ihr Rufzeichen fest und fügen Sie Ihren Standort oder eine Nachricht hinzu.';
 
   @override
+  String get aprsSoftwareBeaconNoLocation =>
+      'Bake nicht gesendet. Es ist noch keine Standortbestimmung verfügbar. Legen Sie eine Standortquelle fest (manuell, Gerät, GPS oder Funkgerät-GPS) oder fügen Sie eine Baken-Nachricht hinzu.';
+
+  @override
   String get softwareBeaconSmartHint =>
       'Sendet zwischen den Intervall-Baken eine zusätzliche Bake, wenn Sie sich deutlich bewegen oder die Richtung ändern.';
 

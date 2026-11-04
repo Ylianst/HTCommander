@@ -2734,6 +2734,10 @@ class AppLocalizationsJa extends AppLocalizations {
       'ビーコンを送信できませんでした。コールサインを設定し、位置情報またはメッセージを含めてください。';
 
   @override
+  String get aprsSoftwareBeaconNoLocation =>
+      'ビーコンを送信できませんでした。位置情報がまだ取得できていません。位置情報ソース（手動、デバイス、GPS、または無線機のGPS）を設定するか、ビーコンメッセージを追加してください。';
+
+  @override
   String get softwareBeaconSmartHint =>
       '一定の距離を移動したり方向を変えたりすると、インターバルビーコンの間に追加のビーコンを送信します。';
 

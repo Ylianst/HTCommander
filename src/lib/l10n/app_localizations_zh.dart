@@ -2709,6 +2709,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aprsSoftwareBeaconNotSent => '信标未发送。请设置您的呼号，并包含您的位置或消息。';
 
   @override
+  String get aprsSoftwareBeaconNoLocation =>
+      '信标未发送。尚未获取到位置。请设置位置来源（手动、设备、GPS 或电台 GPS），或添加信标消息。';
+
+  @override
   String get softwareBeaconSmartHint => '在间隔信标之间，当您移动较远距离或改变方向时发送额外的信标。';
 
   @override

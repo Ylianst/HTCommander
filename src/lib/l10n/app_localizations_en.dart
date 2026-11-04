@@ -2771,6 +2771,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Beacon not sent. Set your callsign and include your location or a message.';
 
   @override
+  String get aprsSoftwareBeaconNoLocation =>
+      'Beacon not sent. No location fix is available yet. Set a location source (manual, device, GPS or radio GPS) or add a beacon message.';
+
+  @override
   String get softwareBeaconSmartHint =>
       'Sends an extra beacon when you move a significant distance or change direction, between interval beacons.';
 

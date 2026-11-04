@@ -5080,6 +5080,12 @@ abstract class AppLocalizations {
   /// **'Beacon not sent. Set your callsign and include your location or a message.'**
   String get aprsSoftwareBeaconNotSent;
 
+  /// No description provided for @aprsSoftwareBeaconNoLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Beacon not sent. No location fix is available yet. Set a location source (manual, device, GPS or radio GPS) or add a beacon message.'**
+  String get aprsSoftwareBeaconNoLocation;
+
   /// No description provided for @softwareBeaconSmartHint.
   ///
   /// In en, this message translates to:

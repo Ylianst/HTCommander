@@ -2806,6 +2806,10 @@ class AppLocalizationsIt extends AppLocalizations {
       'Beacon non inviato. Imposta il tuo nominativo e includi la tua posizione o un messaggio.';
 
   @override
+  String get aprsSoftwareBeaconNoLocation =>
+      'Beacon non inviato. Nessuna posizione ancora disponibile. Imposta una fonte di posizione (manuale, dispositivo, GPS o GPS della radio) o aggiungi un messaggio beacon.';
+
+  @override
   String get softwareBeaconSmartHint =>
       'Invia un beacon aggiuntivo tra i beacon a intervallo quando ti sposti di una distanza significativa o cambi direzione.';
 

@@ -92,15 +92,24 @@ class SoftwareBeaconHandler {
     if (_config.enabled) _sendBeacon();
   }
 
+  /// `SoftwareBeaconSent` failure reason: location is enabled but no fix is
+  /// available and there is no message to send as a status report instead.
+  static const String failNoLocation = 'NoLocation';
+
+  /// `SoftwareBeaconSent` failure reason for any other problem (beacon off,
+  /// missing/invalid callsign or nothing to send).
+  static const String failNotConfigured = 'NotConfigured';
+
   /// Sends a one-time beacon on user request and reports the outcome on the
-  /// `SoftwareBeaconSent` event (data: bool) so the UI can give feedback.
+  /// `SoftwareBeaconSent` event (data: `true`, or a failure reason string) so
+  /// the UI can give feedback.
   void _onSendRequested(int deviceId, String name, Object? data) {
     if (_disposed) return;
-    final sent = _sendBeacon();
+    final failure = _sendBeacon();
     _broker.dispatch(
       deviceId: 0,
       name: 'SoftwareBeaconSent',
-      data: sent,
+      data: failure ?? true,
       store: false,
     );
   }
@@ -149,21 +158,24 @@ class SoftwareBeaconHandler {
   }
 
   /// Builds and transmits one beacon over the selected radio (if any) and, via
-  /// the `AprsFrame` echo, to APRS-IS. Returns false when nothing was sent.
-  bool _sendBeacon() {
-    if (_disposed || !_config.isActive) return false;
+  /// the `AprsFrame` echo, to APRS-IS. Returns null when sent, otherwise a
+  /// failure reason ([failNoLocation] or [failNotConfigured]).
+  String? _sendBeacon() {
+    if (_disposed || !_config.isActive) return failNotConfigured;
 
     final callsign = _broker.getValue<String>(0, 'CallSign', '') ?? '';
-    if (callsign.isEmpty) return false;
+    if (callsign.isEmpty) return failNotConfigured;
     final stationId = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
     final srcCallsign = stationId > 0 ? '$callsign-$stationId' : callsign;
 
     final destAddr = AX25Address.parse('APRS');
     final srcAddr = AX25Address.parse(srcCallsign);
-    if (destAddr == null || srcAddr == null) return false;
+    if (destAddr == null || srcAddr == null) return failNotConfigured;
 
     final info = _buildInformationField();
-    if (info == null) return false;
+    if (info == null) {
+      return _config.includeLocation ? failNoLocation : failNotConfigured;
+    }
 
     final now = DateTime.now();
     final packet = AX25Packet(
@@ -216,7 +228,7 @@ class SoftwareBeaconHandler {
     // Measure the configured interval from this beacon so an early SmartBeacon
     // push does not cause an extra beacon right after on the periodic tick.
     _restartTimer();
-    return true;
+    return null;
   }
 
   /// Remembers the time, position and heading of the beacon just sent so the
@@ -317,16 +329,47 @@ class SoftwareBeaconHandler {
     return '>$message';
   }
 
-  /// Returns the current GPS/manual fix (device 1 `GpsData`) when valid.
+  /// Returns the current GPS/manual/phone fix (device 1 `GpsData`) when valid,
+  /// otherwise the built-in GPS position of a connected radio.
   GpsData? _currentFix() {
-    final gps = _broker.getJsonValue<GpsData>(
-      1,
-      'GpsData',
-      (json) => GpsData.fromJson(json),
-    );
-    if (gps == null || !gps.isFixed) return null;
-    if (gps.latitude == 0 && gps.longitude == 0) return null;
-    return gps;
+    // In-process producers store a GpsData object; mirrored values are JSON.
+    final raw = _broker.getValueDynamic(1, 'GpsData', null);
+    final GpsData? gps = raw is GpsData
+        ? raw
+        : raw is Map
+        ? GpsData.fromJson(Map<String, dynamic>.from(raw))
+        : null;
+    if (gps != null &&
+        gps.isFixed &&
+        !(gps.latitude == 0 && gps.longitude == 0)) {
+      return gps;
+    }
+    return _radioFix();
+  }
+
+  /// Locked GPS position reported by a connected radio (the preferred radio
+  /// first). Speed/heading are left at zero because the radio's units differ
+  /// from [GpsData]'s knots, so they must not drive SmartBeaconing.
+  GpsData? _radioFix() {
+    final ids = _connectedRadioIds();
+    final preferred = _config.radioDeviceId;
+    if (ids.remove(preferred)) ids.insert(0, preferred);
+    for (final id in ids) {
+      final raw = _broker.getValueDynamic(id, 'Position', null);
+      if (raw is! Map) continue;
+      final pos = RadioPosition.fromJson(Map<String, dynamic>.from(raw));
+      if (!pos.locked) continue;
+      if (pos.latitude == 0 && pos.longitude == 0) continue;
+      return GpsData(
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        altitude: pos.altitude,
+        fixQuality: 1,
+        isFixed: true,
+        gpsTime: pos.timestamp ?? DateTime.now().toUtc(),
+      );
+    }
+    return null;
   }
 
   int _resolveTxRadio() {

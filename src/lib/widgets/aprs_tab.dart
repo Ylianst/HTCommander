@@ -17,6 +17,7 @@ import '../dialogs/aprs_location_dialog.dart';
 import '../dialogs/edit_beacon_settings_dialog.dart';
 import '../dialogs/software_beacon_dialog.dart';
 import '../handlers/software_beacon_config.dart';
+import '../handlers/software_beacon_handler.dart';
 import '../dialogs/digipeater_dialog.dart';
 import '../dialogs/add_station_dialog.dart';
 import '../dialogs/callsign_lookup_dialog.dart';
@@ -1503,6 +1504,8 @@ class _AprsTabState extends State<AprsTab>
         content: Text(
           data == true
               ? l10n.aprsSoftwareBeaconSent
+              : data == SoftwareBeaconHandler.failNoLocation
+              ? l10n.aprsSoftwareBeaconNoLocation
               : l10n.aprsSoftwareBeaconNotSent,
         ),
         duration: const Duration(seconds: 2),

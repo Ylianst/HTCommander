@@ -892,6 +892,7 @@
   "aprsSoftwareBeaconSendNow": "Invia beacon ora",
   "aprsSoftwareBeaconSent": "Beacon inviato.",
   "aprsSoftwareBeaconNotSent": "Beacon non inviato. Imposta il tuo nominativo e includi la tua posizione o un messaggio.",
+  "aprsSoftwareBeaconNoLocation": "Beacon non inviato. Nessuna posizione ancora disponibile. Imposta una fonte di posizione (manuale, dispositivo, GPS o GPS della radio) o aggiungi un messaggio beacon.",
   "softwareBeaconSmartHint": "Invia un beacon aggiuntivo tra i beacon a intervallo quando ti sposti di una distanza significativa o cambi direzione.",
   "aprsSendSms": "Invia messaggio SMS...",
   "aprsWeatherReport": "Bollettino meteo...",

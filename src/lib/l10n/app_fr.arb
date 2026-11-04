@@ -900,6 +900,7 @@
   "aprsSoftwareBeaconSendNow": "Envoyer la balise maintenant",
   "aprsSoftwareBeaconSent": "Balise envoyée.",
   "aprsSoftwareBeaconNotSent": "Balise non envoyée. Définissez votre indicatif et incluez votre position ou un message.",
+  "aprsSoftwareBeaconNoLocation": "Balise non envoyée. Aucune position n'est encore disponible. Définissez une source de position (manuelle, appareil, GPS ou GPS de la radio) ou ajoutez un message de balise.",
   "softwareBeaconSmartHint": "Envoie une balise supplémentaire entre les balises d'intervalle lorsque vous vous déplacez de manière significative ou changez de direction.",
   "aprsSendSms": "Envoyer un message SMS...",
   "aprsWeatherReport": "Rapport météo...",

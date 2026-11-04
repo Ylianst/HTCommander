@@ -2804,6 +2804,10 @@ class AppLocalizationsPl extends AppLocalizations {
       'Beacon nie został wysłany. Ustaw swój znak wywoławczy i dołącz swoją lokalizację lub wiadomość.';
 
   @override
+  String get aprsSoftwareBeaconNoLocation =>
+      'Beacon nie został wysłany. Pozycja nie jest jeszcze dostępna. Ustaw źródło lokalizacji (ręczne, urządzenie, GPS lub GPS radia) albo dodaj wiadomość beaconu.';
+
+  @override
   String get softwareBeaconSmartHint =>
       'Wysyła dodatkowy beacon między beaconami interwałowymi, gdy przemieścisz się na znaczną odległość lub zmienisz kierunek.';
 

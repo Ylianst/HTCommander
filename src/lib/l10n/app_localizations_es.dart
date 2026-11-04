@@ -2806,6 +2806,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'Baliza no enviada. Configura tu indicativo e incluye tu ubicación o un mensaje.';
 
   @override
+  String get aprsSoftwareBeaconNoLocation =>
+      'Baliza no enviada. Aún no hay una posición disponible. Configura una fuente de ubicación (manual, dispositivo, GPS o GPS de la radio) o añade un mensaje de baliza.';
+
+  @override
   String get softwareBeaconSmartHint =>
       'Envía una baliza adicional entre las balizas por intervalo cuando te mueves una distancia significativa o cambias de dirección.';
 

@@ -900,6 +900,7 @@
   "aprsSoftwareBeaconSendNow": "Wyślij beacon teraz",
   "aprsSoftwareBeaconSent": "Beacon wysłany.",
   "aprsSoftwareBeaconNotSent": "Beacon nie został wysłany. Ustaw swój znak wywoławczy i dołącz swoją lokalizację lub wiadomość.",
+  "aprsSoftwareBeaconNoLocation": "Beacon nie został wysłany. Pozycja nie jest jeszcze dostępna. Ustaw źródło lokalizacji (ręczne, urządzenie, GPS lub GPS radia) albo dodaj wiadomość beaconu.",
   "softwareBeaconSmartHint": "Wysyła dodatkowy beacon między beaconami interwałowymi, gdy przemieścisz się na znaczną odległość lub zmienisz kierunek.",
   "aprsSendSms": "Wyślij wiadomość SMS...",
   "aprsWeatherReport": "Raport pogodowy...",
