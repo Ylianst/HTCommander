@@ -5362,6 +5362,12 @@ abstract class AppLocalizations {
   /// **'Transmit is disabled while VFO A is set to the APRS channel.'**
   String get commsTransmitDisabledAprs;
 
+  /// No description provided for @commsAprsSatelliteUseAprsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracking an APRS satellite. Use the APRS tab to transmit.'**
+  String get commsAprsSatelliteUseAprsTab;
+
   /// No description provided for @commsWaitTransmission.
   ///
   /// In en, this message translates to:

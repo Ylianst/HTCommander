@@ -325,8 +325,9 @@ class _DebugTabState extends State<DebugTab>
       pos += 8 + size + (size & 1);
     }
     if (dataOffset < 0 || audioFormat != 1) return null;
-    if (dataOffset + dataLen > bytes.length)
+    if (dataOffset + dataLen > bytes.length) {
       dataLen = bytes.length - dataOffset;
+    }
     final pcm = Uint8List.sublistView(bytes, dataOffset, dataOffset + dataLen);
     return (pcm: pcm, sampleRate: sampleRate, channels: channels, bits: bits);
   }

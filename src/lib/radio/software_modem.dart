@@ -1108,11 +1108,19 @@ class SoftwareModem {
 
     // The stream tag is authoritative; late APRS status can otherwise divert
     // data-channel audio to the APRS modem during a half-duplex turn-around.
-    final _ModemInstance? rx = _isAprsChannel(state, channelName)
+    // In APRSSat mode the stale channel tag is ignored and all audio is APRS;
+    // fall back to the general modem if no APRS modem is enabled.
+    final _ModemInstance? rx = _isAprsSat(state)
+        ? (state.aprsModem ?? state.generalModem)
+        : _isAprsChannel(state, channelName)
         ? state.aprsModem
         : state.generalModem;
     rx?.processSamples(data, offset, length);
   }
+
+  /// Whether the radio is locked tracking an APRS satellite via VFO A.
+  bool _isAprsSat(_RadioModemState state) =>
+      state.lockIsLocked && state.lockUsage == radio.kAprsSatLockUsage;
 
   /// Prefer this packet's channel tag, falling back to status only if unnamed.
   bool _isAprsChannel(_RadioModemState state, String channelName) {
@@ -2280,6 +2288,9 @@ class SoftwareModem {
         (fragment.channelId == state.lockChannelId ||
             state.lockUsage == radio.kAprsSatLockUsage)) {
       fragment.usage = state.lockUsage;
+      if (state.lockUsage == radio.kAprsSatLockUsage) {
+        fragment.channelName = 'APRS';
+      }
     }
     // Record which radio this frame arrived on so the packet capture can show
     // it. Mirrors Radio._emitDataFrame for the hardware modem path.

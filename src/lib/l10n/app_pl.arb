@@ -937,6 +937,7 @@
   "commsExportTxt": "Zapisz jako TXT...",
   "commsNoMessagesToSave": "Brak wiadomości do zapisania",
   "commsTransmitDisabledAprs": "Transmisja jest wyłączona, gdy VFO A jest ustawione na kanał APRS.",
+  "commsAprsSatelliteUseAprsTab": "Śledzenie satelity APRS. Do nadawania użyj karty APRS.",
   "commsWaitTransmission": "Poczekaj na zakończenie bieżącej transmisji.",
   "commsConnectRadioChat": "Połącz radiotelefon przed wysłaniem wiadomości czatu.",
   "commsEnableAudioMode": "Włącz dźwięk (przycisk Włącz) przed nadawaniem w tym trybie.",

@@ -2870,6 +2870,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commsTransmitDisabledAprs => '当 VFO A 设置为 APRS 信道时，发射被禁用。';
 
   @override
+  String get commsAprsSatelliteUseAprsTab => '正在跟踪 APRS 卫星。请使用 APRS 选项卡进行发射。';
+
+  @override
   String get commsWaitTransmission => '请等待当前发送完成。';
 
   @override

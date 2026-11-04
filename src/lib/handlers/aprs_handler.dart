@@ -470,7 +470,8 @@ class AprsHandler {
     final frame = data;
     // Normally only frames from the "APRS" channel are APRS. In APRSSat mode the
     // radio is tuned to an APRS satellite via VFO A (no APRS channel), so every
-    // frame it receives is tagged 'APRSSat' and is treated as APRS here.
+    // frame it receives is tagged 'APRSSat' (and named 'APRS') and is treated
+    // as APRS here.
     if (frame.channelName != 'APRS' && frame.usage != 'APRSSat') return;
 
     final ax25Packet = AX25Packet.decode(frame);
@@ -607,7 +608,11 @@ class AprsHandler {
     final senderCallsign = aprsPacket.sourceCallsignWithId;
     if (senderCallsign.isEmpty) return;
 
-    final aprsChannelId = _getAprsChannelId(radioDeviceId);
+    // In APRSSat mode ACK through the satellite on VFO A, like outgoing
+    // messages (see _onSendAprsMessage).
+    final aprsChannelId = _isRadioInAprsSatMode(radioDeviceId)
+        ? 0
+        : _getAprsChannelId(radioDeviceId);
     if (aprsChannelId < 0) return;
 
     final ackMessage = 'ack${aprsPacket.messageData.seqId}';

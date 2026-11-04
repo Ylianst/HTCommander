@@ -944,6 +944,7 @@
   "commsExportTxt": "Salva come TXT...",
   "commsNoMessagesToSave": "Non ci sono messaggi da salvare",
   "commsTransmitDisabledAprs": "La trasmissione è disabilitata mentre il VFO A è impostato sul canale APRS.",
+  "commsAprsSatelliteUseAprsTab": "Tracciamento di un satellite APRS. Usa la scheda APRS per trasmettere.",
   "commsWaitTransmission": "Attendi il completamento della trasmissione corrente.",
   "commsConnectRadioChat": "Connetti una radio prima di inviare un messaggio in chat.",
   "commsEnableAudioMode": "Abilita l'audio (il pulsante Abilita) prima di inviare in questa modalità.",

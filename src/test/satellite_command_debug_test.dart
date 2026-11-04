@@ -6,6 +6,7 @@ import 'package:htcommander/l10n/app_localizations.dart';
 import 'package:htcommander/radio/radio.dart';
 import 'package:htcommander/radio/radio_models.dart';
 import 'package:htcommander/radio/radio_transport.dart';
+import 'package:htcommander/radio/tnc_data_fragment.dart';
 import 'package:htcommander/satellite/satellite_models.dart';
 import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/services/data_broker_client.dart';
@@ -484,6 +485,38 @@ void main() {
     expect(tuningFrames().length, 1);
     expect(tuningFrames().single.sublist(20, 22), [0x0A, 0x03]);
   });
+
+  for (final usage in ['APRSSat', 'Satellite']) {
+    test('$usage hardware TNC frames ${usage == 'APRSSat' ? 'are' : 'are not'} '
+        'routed as APRS', () async {
+      final frames = <TncDataFragment>[];
+      broker.subscribe(
+        deviceId: radio.deviceId,
+        name: 'DataFrame',
+        callback: (_, _, data) {
+          if (data is TncDataFragment) frames.add(data);
+        },
+      );
+      lock(usage: usage);
+      // Event notification dataRxd (2): final fragment 0 with channel id 3.
+      const payload = [0x02, 0xC0, 0x41, 0x42, 0x43, 0x03];
+      transport.simulateReceive(
+        Uint8List.fromList([
+          0xFF, 0x01, 0x00, payload.length, 0x00, 0x02, 0x00, 0x09, ...payload,
+        ]),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(frames, hasLength(1));
+      if (usage == 'APRSSat') {
+        expect(frames.single.usage, 'APRSSat');
+        expect(frames.single.channelName, 'APRS');
+      } else {
+        expect(frames.single.usage, isNull);
+        expect(frames.single.channelName, isNot('APRS'));
+      }
+    });
+  }
 
   testWidgets('satellite Doppler settings save, reload and cancel', (
     tester,

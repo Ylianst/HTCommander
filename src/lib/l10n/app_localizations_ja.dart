@@ -2899,6 +2899,10 @@ class AppLocalizationsJa extends AppLocalizations {
       'VFO A が APRS チャンネルに設定されている場合、送信は無効になります。';
 
   @override
+  String get commsAprsSatelliteUseAprsTab =>
+      'APRS 衛星を追跡中です。送信には APRS タブを使用してください。';
+
+  @override
   String get commsWaitTransmission => '現在の送信が完了するまでお待ちください。';
 
   @override

@@ -1001,6 +1001,14 @@ class _CommsTabState extends State<CommsTab>
     return ls != null && ls.isLocked && ls.usage != 'Satellite';
   }
 
+  /// Whether the current radio is tracking an APRS satellite usage, in which
+  /// case all transmit goes through the APRS tab.
+  bool get _isAprsSatellite {
+    if (_currentRadioDeviceId <= 0) return false;
+    final ls = _lockStates[_currentRadioDeviceId];
+    return ls != null && ls.isLocked && ls.usage == radio.kAprsSatLockUsage;
+  }
+
   /// Whether to show the de-emphasis warning banner: a software modem
   /// (AFSK/PSK/DART) is enabled, the tab is in data "Chat" mode, and VFO A of
   /// the current radio has FM de-emphasis turned on (which degrades data).
@@ -1728,7 +1736,9 @@ class _CommsTabState extends State<CommsTab>
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
     final String message;
-    if (_isVfoAAprs) {
+    if (_isAprsSatellite) {
+      message = l10n.commsAprsSatelliteUseAprsTab;
+    } else if (_isVfoAAprs) {
       message = l10n.commsTransmitDisabledAprs;
     } else if (_isTransmitting) {
       message = l10n.commsWaitTransmission;
@@ -2036,7 +2046,9 @@ class _CommsTabState extends State<CommsTab>
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
     final String message;
-    if (_isVfoAAprs) {
+    if (_isAprsSatellite) {
+      message = l10n.commsAprsSatelliteUseAprsTab;
+    } else if (_isVfoAAprs) {
       message = l10n.commsTransmitDisabledAprs;
     } else if (!MicrophoneCapture.isSupported) {
       message = l10n.commsMicNotSupported;
@@ -2982,7 +2994,9 @@ class _CommsTabState extends State<CommsTab>
         children: [
           _buildHeader(),
           if (_isMuted && _sstvAutoMuted) _buildMuteBanner(),
-          if (_showDeemphasisWarning) _buildDeemphasisBanner(),
+          if (_isAprsSatellite) _buildAprsSatelliteBanner(),
+          if (_showDeemphasisWarning && !_isAprsSatellite)
+            _buildDeemphasisBanner(),
           Expanded(
             child: DragTarget<radio.RadioChannelInfo>(
               onWillAcceptWithDetails: (_) => true,
@@ -3038,15 +3052,17 @@ class _CommsTabState extends State<CommsTab>
               },
             ),
           ),
-          if (_allowTransmit && _currentMode == VoiceTransmitMode.ptt)
-            _buildPttPanel()
-          else if (_allowTransmit &&
-              _currentMode == VoiceTransmitMode.morseKey)
-            _buildMorseKeyPanel()
-          else if (_allowTransmit &&
-              _currentMode != VoiceTransmitMode.none &&
-              !_isTransmitting)
-            _buildInputPanel(),
+          _grayOutForAprsSatellite(
+            _allowTransmit && _currentMode == VoiceTransmitMode.ptt
+                ? _buildPttPanel()
+                : _allowTransmit && _currentMode == VoiceTransmitMode.morseKey
+                ? _buildMorseKeyPanel()
+                : _allowTransmit &&
+                      _currentMode != VoiceTransmitMode.none &&
+                      !_isTransmitting
+                ? _buildInputPanel()
+                : null,
+          ),
           if (_isTransmitting &&
               _currentMode != VoiceTransmitMode.ptt &&
               _currentMode != VoiceTransmitMode.morseKey &&
@@ -3084,6 +3100,43 @@ class _CommsTabState extends State<CommsTab>
                 textStyle: const TextStyle(fontSize: 12),
               ),
               child: Text(AppLocalizations.of(context).commsUnmute),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Grays out and disables the bottom transmit [panel] while tracking an APRS
+  /// satellite (transmit happens from the APRS tab).
+  Widget _grayOutForAprsSatellite(Widget? panel) {
+    if (panel == null) return const SizedBox.shrink();
+    if (!_isAprsSatellite) return panel;
+    return IgnorePointer(child: Opacity(opacity: 0.4, child: panel));
+  }
+
+  /// Banner shown above the chat while tracking an APRS satellite, pointing the
+  /// user to the APRS tab for transmitting.
+  Widget _buildAprsSatelliteBanner() {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      color: scheme.secondaryContainer,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          Icon(
+            Icons.satellite_alt,
+            size: 18,
+            color: scheme.onSecondaryContainer,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              AppLocalizations.of(context).commsAprsSatelliteUseAprsTab,
+              style: TextStyle(
+                fontSize: 14,
+                color: scheme.onSecondaryContainer,
+              ),
             ),
           ),
         ],

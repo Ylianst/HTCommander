@@ -202,6 +202,8 @@ class DigipeaterHandler {
     if (data is! TncDataFragment) return;
     final frame = data;
     if (frame.channelName != 'APRS') return;
+    // Never digipeat traffic heard via an APRS satellite.
+    if (frame.usage == 'APRSSat') return;
 
     final radioDeviceId = frame.radioDeviceId ?? deviceId;
     final targetRadioId = _resolveRadioId(_config);

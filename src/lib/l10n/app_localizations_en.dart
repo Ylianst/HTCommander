@@ -2941,6 +2941,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Transmit is disabled while VFO A is set to the APRS channel.';
 
   @override
+  String get commsAprsSatelliteUseAprsTab =>
+      'Tracking an APRS satellite. Use the APRS tab to transmit.';
+
+  @override
   String get commsWaitTransmission =>
       'Please wait for the current transmission to finish.';
 

@@ -3791,13 +3791,18 @@ class Radio implements FirmwareRadio {
       //
       // APRSSat is VFO-driven (no stored channel, so lock.channelId is -1 and
       // never matches): while it holds the lock every received frame is treated
-      // as APRS, so tag all traffic with the usage regardless of channel.
+      // as APRS, so tag all traffic with the usage regardless of channel and
+      // name it 'APRS' (the stored channel name is stale) so it is routed to,
+      // persisted for and reloaded into the APRS tab.
       final lock = _lockState;
       if (lock != null &&
           lock.isLocked &&
           (_frameAccumulator!.channelId == lock.channelId ||
               lock.usage == kAprsSatLockUsage)) {
         _frameAccumulator!.usage = lock.usage;
+        if (lock.usage == kAprsSatLockUsage) {
+          _frameAccumulator!.channelName = 'APRS';
+        }
         if (_packetTrace) {
           _debug(
             "DataFrame usage set to '${lock.usage}' (channel ${lock.channelId})",

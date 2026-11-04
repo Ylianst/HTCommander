@@ -937,6 +937,7 @@
   "commsExportTxt": "另存为TXT...",
   "commsNoMessagesToSave": "没有可保存的消息",
   "commsTransmitDisabledAprs": "当 VFO A 设置为 APRS 信道时，发射被禁用。",
+  "commsAprsSatelliteUseAprsTab": "正在跟踪 APRS 卫星。请使用 APRS 选项卡进行发射。",
   "commsWaitTransmission": "请等待当前发送完成。",
   "commsConnectRadioChat": "发送聊天消息前请连接电台。",
   "commsEnableAudioMode": "在此模式下发送前请启用音频（“启用”按钮）。",

@@ -2974,6 +2974,10 @@ class AppLocalizationsPl extends AppLocalizations {
       'Transmisja jest wyłączona, gdy VFO A jest ustawione na kanał APRS.';
 
   @override
+  String get commsAprsSatelliteUseAprsTab =>
+      'Śledzenie satelity APRS. Do nadawania użyj karty APRS.';
+
+  @override
   String get commsWaitTransmission =>
       'Poczekaj na zakończenie bieżącej transmisji.';
 

@@ -1800,6 +1800,7 @@
   "commsExportTxt": "Save as TXT...",
   "commsNoMessagesToSave": "There are no messages to save",
   "commsTransmitDisabledAprs": "Transmit is disabled while VFO A is set to the APRS channel.",
+  "commsAprsSatelliteUseAprsTab": "Tracking an APRS satellite. Use the APRS tab to transmit.",
   "commsWaitTransmission": "Please wait for the current transmission to finish.",
   "commsConnectRadioChat": "Connect a radio before sending a chat message.",
   "commsEnableAudioMode": "Enable audio (the Enable button) before sending in this mode.",

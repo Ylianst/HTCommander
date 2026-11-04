@@ -937,6 +937,7 @@
   "commsExportTxt": "TXT形式で保存...",
   "commsNoMessagesToSave": "保存するメッセージがありません",
   "commsTransmitDisabledAprs": "VFO A が APRS チャンネルに設定されている場合、送信は無効になります。",
+  "commsAprsSatelliteUseAprsTab": "APRS 衛星を追跡中です。送信には APRS タブを使用してください。",
   "commsWaitTransmission": "現在の送信が完了するまでお待ちください。",
   "commsConnectRadioChat": "チャットメッセージを送信する前に無線機を接続してください。",
   "commsEnableAudioMode": "このモードで送信する前にオーディオ（「有効化」ボタン）を有効にしてください。",

@@ -2956,6 +2956,10 @@ class AppLocalizationsHi extends AppLocalizations {
       'जब VFO A APRS चैनल पर सेट होता है तो ट्रांसमिशन अक्षम रहता है।';
 
   @override
+  String get commsAprsSatelliteUseAprsTab =>
+      'APRS उपग्रह को ट्रैक किया जा रहा है। ट्रांसमिट करने के लिए APRS टैब का उपयोग करें।';
+
+  @override
   String get commsWaitTransmission =>
       'कृपया वर्तमान ट्रांसमिशन पूरा होने की प्रतीक्षा करें।';
 

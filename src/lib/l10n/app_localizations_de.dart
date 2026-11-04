@@ -2981,6 +2981,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Die Übertragung ist deaktiviert, wenn VFO A auf den APRS-Kanal eingestellt ist.';
 
   @override
+  String get commsAprsSatelliteUseAprsTab =>
+      'Ein APRS-Satellit wird verfolgt. Verwenden Sie zum Senden den APRS-Tab.';
+
+  @override
   String get commsWaitTransmission =>
       'Bitte warten Sie, bis die aktuelle Übertragung abgeschlossen ist.';
 
