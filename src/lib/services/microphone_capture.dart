@@ -9,6 +9,24 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 
+/// How a multi-channel capture is reduced to the single mono stream this class
+/// emits. Stereo TNC/audio interfaces often carry the radio's receive audio on
+/// only one channel, so averaging both ([mix]) halves the level and folds in
+/// the unused channel's noise; [auto] tracks and emits the louder channel.
+enum MonoReduction { mix, left, right, auto }
+
+/// Why the most recent [MicrophoneCapture.start] failed (or capture was lost).
+enum MicrophoneFailure {
+  none,
+
+  /// The operating system denied microphone access.
+  permissionDenied,
+
+  /// No input device could be opened (missing, unplugged, in use, or it
+  /// rejected the capture format), or the device went away mid-capture.
+  deviceUnavailable,
+}
+
 /// Captures live microphone audio as a stream of little-endian 16-bit signed
 /// mono PCM samples.
 ///
@@ -16,12 +34,6 @@ import 'package:record/record.dart';
 /// microphone, mirroring the continuous capture the C# RadioAudioForm did with
 /// WASAPI. Capture only runs while [start] has been called and is released by
 /// [stop] / [dispose] so the operating-system microphone indicator turns off
-/// How a multi-channel capture is reduced to the single mono stream this class
-/// emits. Stereo TNC/audio interfaces often carry the radio's receive audio on
-/// only one channel, so averaging both ([mix]) halves the level and folds in
-/// the unused channel's noise; [auto] tracks and emits the louder channel.
-enum MonoReduction { mix, left, right, auto }
-
 /// when the spectrogram no longer needs it.
 class MicrophoneCapture {
   MicrophoneCapture({
@@ -30,7 +42,13 @@ class MicrophoneCapture {
     this.deviceId,
     this.requestedChannels = 1,
     this.monoReduction = MonoReduction.mix,
+    this.fallbackToDefault = false,
   });
+
+  /// Whether [start] may fall back to the OS default input when the selected
+  /// [deviceId] cannot be opened. Leave off for captures bound to a specific
+  /// interface (e.g. a TNC), where another device's audio would be wrong.
+  final bool fallbackToDefault;
 
   /// Requested capture sample rate (Hz). Chosen to match the spectrogram so
   /// frequencies map correctly.
@@ -66,7 +84,30 @@ class MicrophoneCapture {
 
   final AudioRecorder _recorder = AudioRecorder();
   StreamSubscription<Uint8List>? _subscription;
+  StreamSubscription<RecordState>? _stateSubscription;
   bool _starting = false;
+
+  /// Set once the native recorder reports [RecordState.record] for the current
+  /// capture, so a later [RecordState.stop] we did not request is recognised
+  /// as the device going away (e.g. unplugged, or the Windows default device
+  /// switched to a headset) rather than a stale event from an earlier session.
+  bool _sawRecordState = false;
+
+  /// Why the most recent [start] failed, or why capture was lost.
+  MicrophoneFailure lastFailure = MicrophoneFailure.none;
+
+  /// Platform error text for the most recent failure, for diagnostics.
+  String? lastErrorDetail;
+
+  /// The device capture actually opened on (null = OS default). May differ
+  /// from [deviceId] when the requested device could not be opened and a
+  /// fallback was used.
+  String? activeDeviceId;
+
+  /// Invoked when a running capture ends without [stop] being called, e.g.
+  /// because the input device was removed or the OS default device changed.
+  /// [isCapturing] is already false when this runs, so [start] may be called.
+  void Function()? onCaptureLost;
 
   /// Whether microphone capture is supported on the current platform.
   static bool get isSupported {
@@ -102,52 +143,132 @@ class MicrophoneCapture {
   /// Starts microphone capture, invoking [onData] for each chunk of 16-bit PCM.
   ///
   /// Returns true once capture has started, or false if permission was denied
-  /// or capture could not be started. Safe to call repeatedly; subsequent calls
-  /// while already capturing return true without restarting.
+  /// or capture could not be started ([lastFailure] tells which). Safe to call
+  /// repeatedly; subsequent calls while already capturing return true without
+  /// restarting.
+  ///
+  /// When [fallbackToDefault] is set and the selected [deviceId] cannot be
+  /// opened (e.g. it was unplugged), the OS default input is used instead.
   Future<bool> start(void Function(Uint8List pcm16) onData) async {
     if (isCapturing) return true;
     if (_starting) return false;
     _starting = true;
     try {
+      lastFailure = MicrophoneFailure.none;
+      lastErrorDetail = null;
       final hasPermission = await _recorder.hasPermission();
-      if (!hasPermission) return false;
-
-      final String? id = deviceId;
-      final InputDevice? device =
-          (id == null || id.isEmpty) ? null : InputDevice(id: id, label: id);
-
-      // Prefer the requested channel count (so a stereo device exposes both
-      // channels), falling back to mono if the device rejects it.
-      final List<int> attempts =
-          requestedChannels > 1 ? <int>[requestedChannels, 1] : <int>[1];
-      for (final int channels in attempts) {
-        try {
-          final stream = await _recorder.startStream(
-            RecordConfig(
-              encoder: AudioEncoder.pcm16bits,
-              sampleRate: sampleRate,
-              numChannels: channels,
-              device: device,
-            ),
-          );
-          _activeChannels = channels;
-          for (int i = 0; i < _chEnergy.length; i++) {
-            _chEnergy[i] = 0;
-          }
-          _subscription = stream.listen(
-            (chunk) => onData(_applyGain(_reduceToMono(chunk))),
-            onError: (_) {},
-            cancelOnError: false,
-          );
-          return true;
-        } catch (_) {
-          // Try the next channel count.
-        }
+      if (!hasPermission) {
+        lastFailure = MicrophoneFailure.permissionDenied;
+        return false;
       }
+
+      _stateSubscription ??= _recorder.onStateChanged().listen(
+        _onRecorderState,
+        onError: (Object e) => debugPrint('MicrophoneCapture: state error: $e'),
+      );
+
+      final String? requested = (deviceId == null || deviceId!.isEmpty)
+          ? null
+          : deviceId;
+      if (await _tryStartOn(requested, onData)) return true;
+      if (requested != null &&
+          fallbackToDefault &&
+          await _tryStartOn(null, onData)) {
+        return true;
+      }
+
+      lastFailure = MicrophoneFailure.deviceUnavailable;
       return false;
     } finally {
       _starting = false;
     }
+  }
+
+  /// Attempts to start capture on [id] (null = OS default), preferring the
+  /// requested channel count and falling back to mono.
+  Future<bool> _tryStartOn(
+    String? id,
+    void Function(Uint8List pcm16) onData,
+  ) async {
+    final InputDevice? device = id == null
+        ? null
+        : InputDevice(id: id, label: id);
+    final List<int> attempts = requestedChannels > 1
+        ? <int>[requestedChannels, 1]
+        : <int>[1];
+    for (final int channels in attempts) {
+      try {
+        _sawRecordState = false;
+        final stream = await _recorder.startStream(
+          RecordConfig(
+            encoder: AudioEncoder.pcm16bits,
+            sampleRate: sampleRate,
+            numChannels: channels,
+            device: device,
+          ),
+        );
+        _activeChannels = channels;
+        for (int i = 0; i < _chEnergy.length; i++) {
+          _chEnergy[i] = 0;
+        }
+        activeDeviceId = id;
+        late final StreamSubscription<Uint8List> sub;
+        sub = stream.listen(
+          (chunk) => onData(_applyGain(_reduceToMono(chunk))),
+          onError: (Object e) =>
+              debugPrint('MicrophoneCapture: stream error: $e'),
+          // Some platforms close the stream when the device goes away.
+          onDone: () {
+            if (identical(_subscription, sub)) {
+              _handleCaptureLost('stream closed');
+            }
+          },
+          cancelOnError: false,
+        );
+        _subscription = sub;
+        if (id != deviceId && !(id == null && (deviceId ?? '').isEmpty)) {
+          debugPrint(
+            'MicrophoneCapture: requested device unavailable; '
+            'using ${id ?? 'system default'} instead.',
+          );
+        }
+        return true;
+      } catch (e) {
+        lastErrorDetail = e.toString();
+        debugPrint(
+          'MicrophoneCapture: start on ${id ?? 'default device'} '
+          '($channels ch) failed: $e',
+        );
+      }
+    }
+    return false;
+  }
+
+  void _onRecorderState(RecordState state) {
+    if (state == RecordState.record) {
+      if (_starting || _subscription != null) _sawRecordState = true;
+    } else if (state == RecordState.stop) {
+      // Windows (and others) stop the native recorder on a read error, such as
+      // the endpoint being invalidated, without closing the PCM stream.
+      if (_sawRecordState && _subscription != null && !_starting) {
+        _handleCaptureLost('recorder stopped');
+      }
+    }
+  }
+
+  Future<void> _handleCaptureLost(String reason) async {
+    final sub = _subscription;
+    if (sub == null) return;
+    debugPrint('MicrophoneCapture: capture lost ($reason).');
+    _subscription = null;
+    _sawRecordState = false;
+    lastFailure = MicrophoneFailure.deviceUnavailable;
+    lastErrorDetail = reason;
+    await sub.cancel();
+    try {
+      await _recorder.stop();
+    } catch (_) {}
+    onCaptureLost?.call();
   }
 
   /// Collapses an interleaved [_activeChannels]-channel block to mono per
@@ -175,7 +296,10 @@ class MicrophoneCapture {
     final int sel = _selectChannel(src, frames, ch);
     for (int f = 0; f < frames; f++) {
       dst.setInt16(
-          f * 2, src.getInt16((f * ch + sel) * 2, Endian.little), Endian.little);
+        f * 2,
+        src.getInt16((f * ch + sel) * 2, Endian.little),
+        Endian.little,
+      );
     }
     return out;
   }
@@ -228,6 +352,7 @@ class MicrophoneCapture {
 
   /// Stops capture and releases the microphone.
   Future<void> stop() async {
+    _sawRecordState = false;
     await _subscription?.cancel();
     _subscription = null;
     try {
@@ -240,6 +365,8 @@ class MicrophoneCapture {
   /// Stops capture and disposes the underlying recorder.
   Future<void> dispose() async {
     await stop();
+    await _stateSubscription?.cancel();
+    _stateSubscription = null;
     try {
       await _recorder.dispose();
     } catch (_) {}

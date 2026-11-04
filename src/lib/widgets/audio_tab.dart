@@ -949,8 +949,7 @@ class _AudioTabState extends State<AudioTab>
     setState(() {
       _micError = handle != null
           ? null
-          : 'Microphone unavailable. Grant access in System Settings > '
-                'Privacy & Security > Microphone.';
+          : SharedMicrophone.instance.failureMessage;
     });
   }
 

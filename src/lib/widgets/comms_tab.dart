@@ -1939,12 +1939,9 @@ class _CommsTabState extends State<CommsTab>
     }
     if (handle == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Microphone unavailable. Grant access in System Settings > '
-            'Privacy & Security > Microphone.',
-          ),
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: Text(SharedMicrophone.instance.failureMessage),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
