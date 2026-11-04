@@ -37,7 +37,9 @@ import 'xorshift.dart';
 const int _silentTail = 45 * 1152;
 const int _waveoutQueue = 200 * 256;
 const int dataOverhang = _silentTail - _waveoutQueue;
-const int _seedMix = 0x9E3779B97F4A7C15;
+// 0x9E3779B97F4A7C15, built from 32-bit halves because dart2js rejects
+// 64-bit integer literals.
+final int _seedMix = (0x9E3779B9 << 32) | 0x7F4A7C15;
 const int fragmentGap = 480;
 
 ReportBitrate _bitrate(FmBandwidth bw, FmRecord record, bool tx) =>

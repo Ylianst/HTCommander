@@ -207,7 +207,7 @@ double median(List<double> v) {
 int totalCmp(double a, double b) {
   int key(double x) {
     final int bits = f64Bits(x);
-    return bits < 0 ? bits ^ 0x7FFFFFFFFFFFFFFF : bits;
+    return bits < 0 ? bits ^ maxI64 : bits;
   }
 
   final int ka = key(a), kb = key(b);

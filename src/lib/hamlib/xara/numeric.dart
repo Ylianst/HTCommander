@@ -37,10 +37,14 @@ int asU32(double x) {
   return x.truncate();
 }
 
+/// i64::MAX (0x7FFFFFFFFFFFFFFF) on native; computed because dart2js rejects
+/// 64-bit integer literals.
+final int maxI64 = -1 >>> 1;
+
 /// Rust `f as i64`: truncates toward zero, saturates, NaN becomes 0.
 int asI64(double x) {
   if (x.isNaN) return 0;
-  if (x >= 9223372036854775807.0) return 0x7FFFFFFFFFFFFFFF;
+  if (x >= 9223372036854775807.0) return maxI64;
   if (x <= -9223372036854775808.0) return -0x8000000000000000;
   return x.truncate();
 }
