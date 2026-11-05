@@ -60,9 +60,11 @@ class StationInfo {
   /// Modem to use for Terminal / Winlink sessions with this contact.
   ///
   /// `'Hardware'` (the default) uses the radio's built-in AFSK 1200 TNC. The
-  /// other values (`'AFSK1200'`, `'PSK2400'`) select
+  /// other values (`'AFSK1200'`, `'PSK2400'`, `'DART'`) select
   /// one of the software modem modes, which is only available on platforms that
   /// support the audio channel (not web or iOS).
+  /// XARA Narrow / Wide are selected by [terminalProtocol], not this field.
+  /// The legacy Winlink modem value `'XARA'` is accepted for older contacts.
   String modem;
 
   /// Name of a chosen built-in avatar logo (see `contact_avatar.dart`), or null
@@ -210,8 +212,8 @@ class StationInfo {
         json['TerminalProtocol'] ?? json['terminalProtocol'],
       ),
       channel: (json['Channel'] ?? json['channel'] ?? '').toString(),
-      channelRegion:
-          (json['ChannelRegion'] ?? json['channelRegion'] ?? '').toString(),
+      channelRegion: (json['ChannelRegion'] ?? json['channelRegion'] ?? '')
+          .toString(),
       ax25Destination:
           (json['AX25Destination'] ?? json['ax25Destination'] ?? '').toString(),
       ax25Path: (json['AX25Path'] ?? json['ax25Path'] ?? '').toString(),
@@ -240,6 +242,10 @@ class StationInfo {
         return 'AFSK1200';
       case 'PSK2400':
         return 'PSK2400';
+      case 'DART':
+        return 'DART';
+      case 'XARA':
+        return 'XARA';
       default:
         return 'Hardware';
     }

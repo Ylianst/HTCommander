@@ -159,9 +159,6 @@ const List<_ModemOption> _modemOptions = [
   _ModemOption('DART', 'Software DART'),
 ];
 
-/// VARA FM is a connected-mode modem with its own ARQ, so only Winlink uses it.
-const _ModemOption _xaraOption = _ModemOption('XARA', 'VARA FM (XARA)');
-
 class _StationDialog extends StatefulWidget {
   final StationInfo? existing;
   final StationType? fixedType;
@@ -244,9 +241,19 @@ class _StationDialogState extends State<_StationDialog> {
     if (s != null) {
       _stationType = s.stationType;
       _terminalProtocol = s.terminalProtocol;
+      if (s.stationType == StationType.winlink &&
+          !_terminalProtocol.isXara &&
+          s.modem.toUpperCase() == 'XARA') {
+        _terminalProtocol =
+            (_broker.getValue<bool>(0, 'XaraWide', false) ?? false)
+            ? TerminalProtocol.xaraWide
+            : TerminalProtocol.xaraNarrow;
+      }
+      if (_stationType == StationType.winlink && !_terminalProtocol.isXara) {
+        _terminalProtocol = TerminalProtocol.x25Session;
+      }
       _aprsRoute = s.aprsRoute;
-      _modem = (_modemOptions.any((o) => o.value == s.modem) ||
-              (s.stationType == StationType.winlink && s.modem == _xaraOption.value))
+      _modem = _modemOptions.any((o) => o.value == s.modem)
           ? s.modem
           : 'Hardware';
       _useAuth =
@@ -496,7 +503,9 @@ class _StationDialogState extends State<_StationDialog> {
     if (text.isEmpty) return true; // optional
     final path = AX25Address.parsePath(text);
     return path != null &&
-        (!(_stationType == StationType.terminal && _terminalProtocol.isXara) ||
+        (!((_stationType == StationType.terminal ||
+                    _stationType == StationType.winlink) &&
+                _terminalProtocol.isXara) ||
             path.length <= 2);
   }
 
@@ -586,8 +595,7 @@ class _StationDialogState extends State<_StationDialog> {
       clipboardImage = null;
     }
     if (!mounted) return;
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final hasCustom = _avatarIcon != null || _avatarImage != null;
     final selected = await showMenu<String>(
       context: context,
@@ -648,10 +656,7 @@ class _StationDialogState extends State<_StationDialog> {
   Future<void> _chooseImage() async {
     FilePickerResult? result;
     try {
-      result = await FilePicker.pickFiles(
-        type: FileType.image,
-        withData: true,
-      );
+      result = await FilePicker.pickFiles(type: FileType.image, withData: true);
     } catch (_) {
       return;
     }
@@ -778,7 +783,9 @@ class _StationDialogState extends State<_StationDialog> {
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
         stationType: StationType.winlink,
-        terminalProtocol: TerminalProtocol.x25Session,
+        terminalProtocol: _terminalProtocol.isXara
+            ? _terminalProtocol
+            : TerminalProtocol.x25Session,
         channel: _channelController.text.trim(),
         channelRegion: _channelRegion,
         ax25Path: _ax25PathController.text.trim(),
@@ -805,7 +812,7 @@ class _StationDialogState extends State<_StationDialog> {
       authPassword: (_stationType == StationType.aprs && _useAuth)
           ? _authPasswordController.text
           : null,
-      modem: _modem == _xaraOption.value ? 'Hardware' : _modem,
+      modem: _modem,
       avatarIcon: _avatarIcon,
       avatarImage: _avatarImage,
     );
@@ -830,9 +837,7 @@ class _StationDialogState extends State<_StationDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (!_isTypeLocked) ...[
-                _buildTypeDropdown(),
-              ],
+              if (!_isTypeLocked) ...[_buildTypeDropdown()],
               if (_isMeshCore && !_isEditing) ..._buildKnownMeshUsers(l10n),
               _buildCallsignField(),
               const SizedBox(height: 12),
@@ -858,8 +863,9 @@ class _StationDialogState extends State<_StationDialog> {
                         _descriptionController,
                         isName: false,
                       ),
-                  decoration:
-                      _inputDecoration(labelText: l10n.contactsColDescription),
+                  decoration: _inputDecoration(
+                    labelText: l10n.contactsColDescription,
+                  ),
                 ),
               ],
               if (typeFields.isNotEmpty) const SizedBox(height: 12),
@@ -935,8 +941,8 @@ class _StationDialogState extends State<_StationDialog> {
       keyboardType: _stationType == StationType.sms
           ? TextInputType.phone
           : (_stationType == StationType.email
-              ? TextInputType.emailAddress
-              : TextInputType.text),
+                ? TextInputType.emailAddress
+                : TextInputType.text),
       textCapitalization: _isSimpleContact || _isMeshCore
           ? TextCapitalization.none
           : TextCapitalization.characters,
@@ -974,11 +980,19 @@ class _StationDialogState extends State<_StationDialog> {
           for (final option in _typeOptions)
             if (option.type != StationType.meshCore || _meshCoreAvailable)
               DropdownMenuItem(
-                  value: option.type,
-                  child: Text(_typeLabel(option.type, l10n))),
+                value: option.type,
+                child: Text(_typeLabel(option.type, l10n)),
+              ),
         ],
         onChanged: (value) {
-          if (value != null) setState(() => _stationType = value);
+          if (value != null) {
+            setState(() {
+              _stationType = value;
+              if (value == StationType.winlink && !_terminalProtocol.isXara) {
+                _terminalProtocol = TerminalProtocol.x25Session;
+              }
+            });
+          }
         },
       ),
     );
@@ -1038,26 +1052,32 @@ class _StationDialogState extends State<_StationDialog> {
     ];
   }
 
+  Widget _buildProtocolDropdown() {
+    final l10n = AppLocalizations.of(context);
+    return DropdownButtonFormField<TerminalProtocol>(
+      key: ValueKey(_stationType),
+      initialValue: _terminalProtocol,
+      decoration: _inputDecoration(labelText: l10n.stationTerminalProtocol),
+      items: [
+        for (final option in _protocolOptions)
+          if ((_stationType != StationType.winlink ||
+                  option.protocol == TerminalProtocol.x25Session ||
+                  option.protocol.isXara) &&
+              (_audioChannelSupported ||
+                  !option.protocol.isXara ||
+                  option.protocol == _terminalProtocol))
+            DropdownMenuItem(value: option.protocol, child: Text(option.label)),
+      ],
+      onChanged: (value) {
+        if (value != null) setState(() => _terminalProtocol = value);
+      },
+    );
+  }
+
   List<Widget> _buildTerminalFields() {
     final l10n = AppLocalizations.of(context);
     return [
-      DropdownButtonFormField<TerminalProtocol>(
-        initialValue: _terminalProtocol,
-        decoration: _inputDecoration(labelText: l10n.stationTerminalProtocol),
-        items: [
-          for (final option in _protocolOptions)
-            if (_audioChannelSupported ||
-                !option.protocol.isXara ||
-                option.protocol == _terminalProtocol)
-              DropdownMenuItem(
-                value: option.protocol,
-                child: Text(option.label),
-              ),
-        ],
-        onChanged: (value) {
-          if (value != null) setState(() => _terminalProtocol = value);
-        },
-      ),
+      _buildProtocolDropdown(),
       const SizedBox(height: 12),
       _buildChannelField(),
       if (_terminalProtocol == TerminalProtocol.aprs) ...[
@@ -1096,10 +1116,12 @@ class _StationDialogState extends State<_StationDialog> {
 
   List<Widget> _buildWinlinkFields() {
     return [
+      _buildProtocolDropdown(),
+      const SizedBox(height: 12),
       _buildChannelField(),
       const SizedBox(height: 12),
       _buildAx25PathField(),
-      if (_audioChannelSupported) ...[
+      if (_audioChannelSupported && !_terminalProtocol.isXara) ...[
         const SizedBox(height: 12),
         _buildModemDropdown(),
       ],
@@ -1116,7 +1138,7 @@ class _StationDialogState extends State<_StationDialog> {
       decoration: _inputDecoration(
         labelText: l10n.stationAx25Path,
         errorText: _ax25PathController.text.isNotEmpty && !_ax25PathValid
-            ? (_stationType == StationType.terminal && _terminalProtocol.isXara
+            ? (_terminalProtocol.isXara
                   ? l10n.terminalXaraPathInvalid
                   : l10n.stationAx25PathInvalid)
             : null,
@@ -1140,18 +1162,15 @@ class _StationDialogState extends State<_StationDialog> {
 
   Widget _buildModemDropdown() {
     final l10n = AppLocalizations.of(context);
-    final List<_ModemOption> options = <_ModemOption>[
-      ..._modemOptions,
-      if (_stationType == StationType.winlink) _xaraOption,
-    ];
-    final current =
-        options.any((o) => o.value == _modem) ? _modem : 'Hardware';
+    final current = _modemOptions.any((o) => o.value == _modem)
+        ? _modem
+        : 'Hardware';
     return DropdownButtonFormField<String>(
       initialValue: current,
       decoration: _inputDecoration(labelText: l10n.stationModem),
       isExpanded: true,
       items: [
-        for (final option in options)
+        for (final option in _modemOptions)
           DropdownMenuItem(value: option.value, child: Text(option.label)),
       ],
       onChanged: (value) {

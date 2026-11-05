@@ -209,37 +209,40 @@ throughput, and native platform-thread stalls can still delay writes.
 - Calibration of the transmit latency on real radios.
 - The first over-the-air test against VARA FM.
 
-## Progress update: Winlink over VARA FM
+## Progress update: Winlink over XARA
 
 The first user-facing consumer of the connected link is Winlink. A Winlink
-gateway contact now has a **VARA FM (XARA)** choice in its **Modem** list,
-next to the hardware TNC, AFSK 1200, PSK 2400 and DART. When a gateway from the
-map's Winlink directory offers only VARA FM, adding it as a contact preselects
-that modem. The choice is offered only for Winlink contacts, because VARA FM
-carries its own ARQ link and is not an AX.25 connected-mode transport.
+gateway contact has **AX.25 Session**, **XARA Narrow** and **XARA Wide** choices
+in its protocol list, matching the XARA choices for Terminal contacts. AX.25
+sessions retain the hardware TNC, AFSK 1200, PSK 2400 and DART modem choices.
+XARA contacts hide that modem list and store the bandwidth in the contact's
+protocol. Older contacts with the `XARA` modem value still connect using the
+global bandwidth; editing them adopts that bandwidth as an explicit protocol.
 
 Connecting to such a contact works like any radio Winlink session:
 
 1. The radio is locked to the gateway's channel, and the lock's modem override
-   switches that radio to XARA for the duration of the session. The user's
-   global software-modem setting is left alone.
+   switches that radio to XARA with the contact's narrow or wide bandwidth for
+   the duration of the session. The user's global software-modem and bandwidth
+   settings are left alone.
 2. Once the lock is in place, the Winlink client asks XARA to call the gateway,
    passing up to two digipeaters taken from the contact's path.
 3. The B2F exchange is unchanged; only the byte transport differs. The client
-   already had separate AX.25 and Internet transports, and VARA FM is a third
+   already had separate AX.25 and Internet transports, and XARA is a third
    one.
 4. The status line shows XARA's speed level as it climbs or falls. A gateway
    that does not answer, a link that times out, a user cancel and the gateway's
    `FQ` each end the session cleanly and release the radio.
 
-VARA FM needs the radio's audio channel, so the client refuses with a clear
-message when audio is off. The modem choice is not offered on web and iOS,
+XARA needs the radio's audio channel, so the client refuses with a clear
+message when audio is off. New XARA choices are not offered on web and iOS,
 where the software modems cannot run.
 
 Tests drive the Winlink client against a simulated radio that applies the
 lock and plays the gateway over the XARA broker events. They cover a full
-session start and `FQ` close, no answer, cancel while connecting, and audio
-off.
+session start and `FQ` close, no answer, cancel while connecting, audio
+off, per-contact bandwidth, and invalid digipeater paths. Contact editor tests
+cover creating, editing, and round-tripping both bandwidths through persistence.
 
 ## Progress update: a complete FM modem runs in Dart
 

@@ -135,7 +135,7 @@ class WinlinkClient {
   AX25Session? _ax25Session;
   bool _pendingDisconnect = false;
 
-  // VARA FM (XARA) transport: lock wait, connect and disconnect watchdogs.
+  // XARA transport: lock wait, connect and disconnect watchdogs.
   Timer? _xaraTimer;
   Object? _xaraLevel;
   static const Duration _xaraLockWait = Duration(seconds: 15);
@@ -193,6 +193,9 @@ class WinlinkClient {
   /// radio and begins the X25 connection process.
   void _startRadioSync(int radioId, StationInfo station) {
     if (radioId <= 0) return;
+    final useXara =
+        station.terminalProtocol.isXara ||
+        station.modem.toUpperCase() == 'XARA';
 
     // Get the current region from HtStatus
     final htStatusJson = _broker.getValueDynamic(radioId, 'HtStatus');
@@ -265,7 +268,10 @@ class WinlinkClient {
       regionId: targetRegion,
       channelId: channelId,
       channelName: channelName,
-      modem: station.modem,
+      modem: useXara ? 'XARA' : station.modem,
+      xaraWide: station.terminalProtocol.isXara
+          ? station.terminalProtocol == TerminalProtocol.xaraWide
+          : null,
     );
     _broker.dispatch(
       deviceId: radioId,
@@ -282,7 +288,7 @@ class WinlinkClient {
       store: false,
     );
 
-    if (station.modem.toUpperCase() == 'XARA') {
+    if (useXara) {
       _transportType = WinlinkTransportType.xara;
       _startXara(radioId, station);
       return;
@@ -486,7 +492,7 @@ class WinlinkClient {
   }
 
   // ---------------------------------------------------------------------------
-  // VARA FM (XARA) transport
+  // XARA transport
   // ---------------------------------------------------------------------------
 
   /// Connects through the XARA software modem once the radio lock (which forces
@@ -497,19 +503,19 @@ class WinlinkClient {
     _sessionState = <String, Object?>{};
     _remoteAddress = station.callsign.trim().toUpperCase();
     if (!(_broker.getValue<bool>(radioId, 'AudioState', false) ?? false)) {
-      _errorMessage('Enable the radio audio to use VARA FM.');
+      _errorMessage('Enable the radio audio to use XARA.');
       _unlockRadio();
       return;
     }
-    // VARA FM carries at most two digipeaters.
-    final List<String> vias = station.ax25Path
-        .split(',')
-        .map((s) => s.trim().toUpperCase())
-        .where((s) => s.isNotEmpty)
-        .take(2)
-        .toList();
+    final path = AX25Address.parsePath(station.ax25Path);
+    if (path == null || path.length > 2) {
+      _errorMessage('XARA requires a valid path with up to two digipeaters.');
+      _unlockRadio();
+      return;
+    }
+    final vias = path.map((address) => address.toString()).toList();
     _setConnectionState(WinlinkConnectionState.connecting);
-    _stateMessage('Connecting to $_remoteAddress via VARA FM...');
+    _stateMessage('Connecting to $_remoteAddress via XARA...');
 
     final DateTime lockDeadline = DateTime.now().add(_xaraLockWait);
     _xaraTimer?.cancel();
@@ -520,7 +526,9 @@ class WinlinkClient {
       }
       if (_winlinkLockApplied(radioId)) {
         t.cancel();
-        _broker.logInfo('[WinlinkClient] VARA FM connect to $_remoteAddress via radio $radioId');
+        _broker.logInfo(
+          '[WinlinkClient] XARA connect to $_remoteAddress via radio $radioId',
+        );
         _broker.dispatch(
           deviceId: radioId,
           name: 'XaraConnect',
@@ -529,8 +537,13 @@ class WinlinkClient {
         );
         _xaraTimer = Timer(_xaraConnectLimit, () {
           if (_currentState != WinlinkConnectionState.connecting) return;
-          _errorMessage('No answer from $_remoteAddress over VARA FM.');
-          _broker.dispatch(deviceId: radioId, name: 'XaraAbort', data: null, store: false);
+          _errorMessage('No answer from $_remoteAddress over XARA.');
+          _broker.dispatch(
+            deviceId: radioId,
+            name: 'XaraAbort',
+            data: null,
+            store: false,
+          );
           _finishXara();
         });
       } else if (DateTime.now().isAfter(lockDeadline)) {
@@ -544,7 +557,8 @@ class WinlinkClient {
   bool _winlinkLockApplied(int radioId) {
     final Object? lock = _broker.getValue<Object>(radioId, 'LockState', null);
     if (lock is! Map) return false;
-    final bool locked = (lock['isLocked'] ?? lock['IsLocked']) as bool? ?? false;
+    final bool locked =
+        (lock['isLocked'] ?? lock['IsLocked']) as bool? ?? false;
     final Object? usage = lock['usage'] ?? lock['Usage'];
     return locked && usage == 'Winlink';
   }
@@ -560,35 +574,45 @@ class WinlinkClient {
         _setConnectionState(WinlinkConnectionState.connected);
       case 'timedOut':
       case 'unableToConnect':
-        if (_currentState == WinlinkConnectionState.connecting && !_userDisconnect) {
-          _errorMessage('No answer from $_remoteAddress over VARA FM.');
+        if (_currentState == WinlinkConnectionState.connecting &&
+            !_userDisconnect) {
+          _errorMessage('No answer from $_remoteAddress over XARA.');
         } else if (_currentState == WinlinkConnectionState.connected) {
-          _errorMessage('VARA FM link to $_remoteAddress timed out.');
+          _errorMessage('XARA link to $_remoteAddress timed out.');
         }
         _finishXara();
       case 'disconnected':
         _finishXara();
       case 'bitrate':
         final Object? level = data['level'];
-        if (data['tx'] == false && level != _xaraLevel && _currentState == WinlinkConnectionState.connected) {
+        if (data['tx'] == false &&
+            level != _xaraLevel &&
+            _currentState == WinlinkConnectionState.connected) {
           _xaraLevel = level;
-          _stateMessage('VARA FM level $level, ${data['bps']} bps');
+          _stateMessage('XARA level $level, ${data['bps']} bps');
         }
     }
   }
 
   void _onXaraData(int deviceId, String name, Object? data) {
     if (_disposed || _transportType != WinlinkTransportType.xara) return;
-    if (deviceId != _lockedRadioId || data is! Uint8List || data.isEmpty) return;
+    if (deviceId != _lockedRadioId || data is! Uint8List || data.isEmpty)
+      return;
     _processStream(data);
   }
 
   void _sendXaraBytes(Uint8List data) {
-    if (_currentState != WinlinkConnectionState.connected || _lockedRadioId <= 0) {
-      _broker.logError('[WinlinkClient] VARA FM send failed: not connected');
+    if (_currentState != WinlinkConnectionState.connected ||
+        _lockedRadioId <= 0) {
+      _broker.logError('[WinlinkClient] XARA send failed: not connected');
       return;
     }
-    _broker.dispatch(deviceId: _lockedRadioId, name: 'XaraSend', data: data, store: false);
+    _broker.dispatch(
+      deviceId: _lockedRadioId,
+      name: 'XaraSend',
+      data: data,
+      store: false,
+    );
   }
 
   void _disconnectXara() {
@@ -601,10 +625,20 @@ class WinlinkClient {
     }
     _pendingDisconnect = true;
     _setConnectionState(WinlinkConnectionState.disconnecting);
-    _broker.dispatch(deviceId: radioId, name: 'XaraDisconnect', data: null, store: false);
+    _broker.dispatch(
+      deviceId: radioId,
+      name: 'XaraDisconnect',
+      data: null,
+      store: false,
+    );
     _xaraTimer?.cancel();
     _xaraTimer = Timer(_xaraDisconnectLimit, () {
-      _broker.dispatch(deviceId: radioId, name: 'XaraAbort', data: null, store: false);
+      _broker.dispatch(
+        deviceId: radioId,
+        name: 'XaraAbort',
+        data: null,
+        store: false,
+      );
       _finishXara();
     });
   }
@@ -1535,7 +1569,12 @@ class WinlinkClient {
         } else {
           _xaraTimer?.cancel();
           if (_lockedRadioId > 0) {
-            _broker.dispatch(deviceId: _lockedRadioId, name: 'XaraAbort', data: null, store: false);
+            _broker.dispatch(
+              deviceId: _lockedRadioId,
+              name: 'XaraAbort',
+              data: null,
+              store: false,
+            );
           }
         }
       }
