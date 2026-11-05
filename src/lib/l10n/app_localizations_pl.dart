@@ -9,6 +9,28 @@ class AppLocalizationsPl extends AppLocalizations {
   AppLocalizationsPl([String locale = 'pl']) : super(locale);
 
   @override
+  String get settingsCustomMapEnabled => 'Użyj własnego źródła map';
+
+  @override
+  String get settingsCustomMapUrl => 'URL kafelków mapy';
+
+  @override
+  String get settingsCustomMapAttribution =>
+      'Informacja o autorstwie (opcjonalna)';
+
+  @override
+  String get settingsCustomMapHelp =>
+      'Użyj adresu URL rastrowych kafelków XYZ w Web Mercator (PNG, JPEG lub WebP). Przestrzegaj warunków użytkowania i zasad podawania autorstwa dostawcy; pobieraj mapy offline tylko wtedy, gdy jest to dozwolone. W przeglądarce serwer musi zezwalać na CORS, a strony HTTPS wymagają kafelków HTTPS. Własne kafelki zachowują oryginalne kolory w trybie ciemnym.';
+
+  @override
+  String get settingsCustomMapInvalid =>
+      'Wprowadź poprawny adres URL HTTP/HTTPS rastrowych kafelków XYZ zawierający wszystkie trzy symbole współrzędnych z przykładu. Strony HTTPS wymagają kafelków HTTPS.';
+
+  @override
+  String get mapDownloadFailed =>
+      'Pobieranie mapy nie powiodło się. Niektóre kafelki mogą nie być zapisane; sprawdź kartę Debugowanie i spróbuj ponownie.';
+
+  @override
   String get appTitle => 'Handi-Talkie Commander';
 
   @override

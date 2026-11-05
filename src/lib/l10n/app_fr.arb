@@ -1,4 +1,10 @@
 {
+  "settingsCustomMapEnabled": "Utiliser une source de carte personnalisée",
+  "settingsCustomMapUrl": "URL des tuiles de carte",
+  "settingsCustomMapAttribution": "Attribution (facultative)",
+  "settingsCustomMapHelp": "Utilisez une URL de tuiles raster XYZ en Web Mercator (PNG, JPEG ou WebP). Respectez les conditions d’utilisation et d’attribution du fournisseur ; ne téléchargez des cartes hors ligne que si cela est autorisé. Sur le Web, le serveur doit autoriser CORS et les pages HTTPS exigent des tuiles HTTPS. Les tuiles personnalisées conservent leurs couleurs en mode sombre.",
+  "settingsCustomMapInvalid": "Saisissez une URL raster XYZ HTTP/HTTPS valide contenant les trois paramètres de coordonnées de l’exemple. Les pages HTTPS exigent des tuiles HTTPS.",
+  "mapDownloadFailed": "Échec du téléchargement de la carte. Certaines tuiles peuvent manquer du cache ; consultez l’onglet Débogage et réessayez.",
   "@@locale": "fr",
   "settingsEnableAgentApi": "Autoriser les agents de test (API d'automatisation)",
   "agentControlActive": "{count, plural, one{Un agent de test contrôle cette station} other{{count} agents de test contrôlent cette station}}",

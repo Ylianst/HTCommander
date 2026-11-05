@@ -9,6 +9,28 @@ class AppLocalizationsIt extends AppLocalizations {
   AppLocalizationsIt([String locale = 'it']) : super(locale);
 
   @override
+  String get settingsCustomMapEnabled =>
+      'Usa una sorgente di mappe personalizzata';
+
+  @override
+  String get settingsCustomMapUrl => 'URL delle tessere della mappa';
+
+  @override
+  String get settingsCustomMapAttribution => 'Attribuzione (facoltativa)';
+
+  @override
+  String get settingsCustomMapHelp =>
+      'Usa un URL di tessere raster XYZ in Web Mercator (PNG, JPEG o WebP). Rispetta l’attribuzione e le condizioni d’uso del fornitore; scarica mappe offline solo se consentito. Sul Web il server deve consentire CORS e le pagine HTTPS richiedono tessere HTTPS. Le tessere personalizzate mantengono i colori originali in modalità scura.';
+
+  @override
+  String get settingsCustomMapInvalid =>
+      'Inserisci un URL raster XYZ HTTP/HTTPS valido con tutti e tre i segnaposto delle coordinate dell’esempio. Le pagine HTTPS richiedono tessere HTTPS.';
+
+  @override
+  String get mapDownloadFailed =>
+      'Download della mappa non riuscito. Alcune tessere potrebbero non essere nella cache; controlla la scheda Debug e riprova.';
+
+  @override
   String get appTitle => 'Handi-Talkie Commander';
 
   @override

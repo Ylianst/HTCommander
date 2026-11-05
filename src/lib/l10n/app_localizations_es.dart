@@ -9,6 +9,28 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
+  String get settingsCustomMapEnabled =>
+      'Usar una fuente de mapas personalizada';
+
+  @override
+  String get settingsCustomMapUrl => 'URL de las teselas del mapa';
+
+  @override
+  String get settingsCustomMapAttribution => 'Atribución (opcional)';
+
+  @override
+  String get settingsCustomMapHelp =>
+      'Use una URL de teselas ráster XYZ en Web Mercator (PNG, JPEG o WebP). Respete la atribución y las condiciones del proveedor; descargue mapas sin conexión solo si está permitido. En la web, el servidor debe permitir CORS y las páginas HTTPS requieren teselas HTTPS. Las teselas personalizadas conservan sus colores originales en modo oscuro.';
+
+  @override
+  String get settingsCustomMapInvalid =>
+      'Introduzca una URL ráster XYZ HTTP/HTTPS válida con los tres marcadores de coordenadas del ejemplo. Las páginas HTTPS requieren teselas HTTPS.';
+
+  @override
+  String get mapDownloadFailed =>
+      'No se pudo descargar el mapa. Algunas teselas pueden no estar en la caché; consulte la pestaña Depuración e inténtelo de nuevo.';
+
+  @override
   String get appTitle => 'Handi-Talkie Commander';
 
   @override

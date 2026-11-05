@@ -9,6 +9,27 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get settingsCustomMapEnabled => 'カスタム地図ソースを使用';
+
+  @override
+  String get settingsCustomMapUrl => '地図タイルのURL';
+
+  @override
+  String get settingsCustomMapAttribution => '出典表記（任意）';
+
+  @override
+  String get settingsCustomMapHelp =>
+      'Web MercatorのラスターXYZタイルURL（PNG、JPEG、WebP）を使用してください。提供元の出典表記と利用規約に従い、許可されている場合のみオフライン地図をダウンロードしてください。WebではサーバーがCORSを許可する必要があり、HTTPSページにはHTTPSタイルが必要です。カスタムタイルはダークモードでも元の色を保持します。';
+
+  @override
+  String get settingsCustomMapInvalid =>
+      '例に示す3つの座標プレースホルダーをすべて含む有効なHTTP/HTTPSラスターXYZ URLを入力してください。HTTPSページにはHTTPSタイルが必要です。';
+
+  @override
+  String get mapDownloadFailed =>
+      '地図のダウンロードに失敗しました。一部のタイルがキャッシュされていない可能性があります。デバッグタブを確認して再試行してください。';
+
+  @override
   String get appTitle => 'Handi-Talkie Commander';
 
   @override

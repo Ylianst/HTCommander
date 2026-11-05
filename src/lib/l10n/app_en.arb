@@ -1,4 +1,10 @@
 {
+  "settingsCustomMapEnabled": "Use custom map source",
+  "settingsCustomMapUrl": "Map tile URL",
+  "settingsCustomMapAttribution": "Attribution (optional)",
+  "settingsCustomMapHelp": "Use a raster XYZ tile URL in Web Mercator (PNG, JPEG or WebP). Follow the provider's attribution and usage terms; download offline maps only if permitted. On web, the server must allow CORS and HTTPS pages require HTTPS tiles. Custom tiles keep their original colors in dark mode.",
+  "settingsCustomMapInvalid": "Enter a valid HTTP/HTTPS raster XYZ URL containing all three coordinate placeholders shown in the example. HTTPS web pages require HTTPS tiles.",
+  "mapDownloadFailed": "Map download failed. Some tiles may not be cached; check the Debug tab and try again.",
   "@@locale": "en",
 
   "appTitle": "Handi-Talkie Commander",

@@ -9,6 +9,27 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get settingsCustomMapEnabled => 'Use custom map source';
+
+  @override
+  String get settingsCustomMapUrl => 'Map tile URL';
+
+  @override
+  String get settingsCustomMapAttribution => 'Attribution (optional)';
+
+  @override
+  String get settingsCustomMapHelp =>
+      'Use a raster XYZ tile URL in Web Mercator (PNG, JPEG or WebP). Follow the provider\'s attribution and usage terms; download offline maps only if permitted. On web, the server must allow CORS and HTTPS pages require HTTPS tiles. Custom tiles keep their original colors in dark mode.';
+
+  @override
+  String get settingsCustomMapInvalid =>
+      'Enter a valid HTTP/HTTPS raster XYZ URL containing all three coordinate placeholders shown in the example. HTTPS web pages require HTTPS tiles.';
+
+  @override
+  String get mapDownloadFailed =>
+      'Map download failed. Some tiles may not be cached; check the Debug tab and try again.';
+
+  @override
   String get appTitle => 'Handi-Talkie Commander';
 
   @override

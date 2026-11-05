@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'package:flutter_map/flutter_map.dart';
+import 'map_tile_source.dart';
 
 import 'map_tile_provider_stub.dart'
     if (dart.library.io) 'map_tile_provider_io.dart';
@@ -21,5 +22,7 @@ import 'map_tile_provider_stub.dart'
 /// On the web there is no file system, so the standard cancellable network
 /// provider is returned and the browser's own HTTP cache provides offline
 /// tiles.
-TileProvider mapTileProvider({required bool offline}) =>
-    createMapTileProvider(offline: offline);
+TileProvider mapTileProvider({
+  required bool offline,
+  MapTileSource source = const MapTileSource.openStreetMap(),
+}) => createMapTileProvider(offline: offline, source: source);

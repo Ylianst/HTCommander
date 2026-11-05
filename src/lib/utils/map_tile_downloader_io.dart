@@ -8,10 +8,11 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 import 'map_tile_provider_io.dart';
+import 'map_tile_source.dart';
+import '../services/data_broker.dart';
 
 /// Calculates the number of tiles needed to cover a bounding box at the given
 /// zoom levels (from [minZoom] to [maxZoom] inclusive).
@@ -42,11 +43,13 @@ Future<int> downloadTilesInBounds({
   required int maxZoom,
   required void Function(int downloaded, int total) onProgress,
   required ValueNotifier<bool> cancel,
+  MapTileSource source = const MapTileSource.openStreetMap(),
 }) async {
-  final dir = await CachedMapTileProvider.cacheDir();
-  final client = http.Client();
+  final dir = await CachedMapTileProvider.cacheDir(source: source);
+  final provider = CachedMapTileProvider(offline: false, source: source);
   var downloaded = 0;
-  var total = countTilesInBounds(sw, ne, minZoom, maxZoom);
+  var processed = 0;
+  final total = countTilesInBounds(sw, ne, minZoom, maxZoom);
 
   try {
     for (var z = minZoom; z <= maxZoom; z++) {
@@ -62,30 +65,34 @@ Future<int> downloadTilesInBounds({
           if (cancel.value) return downloaded;
 
           final file = File('${dir.path}/${z}_${x}_$y.png');
-          if (await file.exists()) {
+          if (await file.exists() && await file.length() > 0) {
             // Already cached, skip.
             downloaded++;
-            onProgress(downloaded, total);
+            onProgress(++processed, total);
             continue;
           }
 
-          final url = 'https://tile.openstreetmap.org/$z/$x/$y.png';
+          final bytes = await provider.fetchTile(source.tileUrl(z, x, y), {
+            'User-Agent': kOsmTileUserAgent,
+          });
+          if (cancel.value) return downloaded;
+          if (bytes == null) {
+            throw const FileSystemException('Unable to download map tile.');
+          }
           try {
-            final response = await client.get(
-              Uri.parse(url),
-              headers: {
-                'User-Agent': kOsmTileUserAgent,
-              },
+            await file.writeAsBytes(bytes);
+          } on FileSystemException {
+            DataBroker.dispatch(
+              deviceId: 1,
+              name: 'LogError',
+              data: 'Map: unable to save downloaded tiles to the local cache.',
+              store: false,
             );
-            if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
-              await file.writeAsBytes(response.bodyBytes);
-            }
-          } catch (_) {
-            // Skip failed tiles; user can retry later.
+            rethrow;
           }
 
           downloaded++;
-          onProgress(downloaded, total);
+          onProgress(++processed, total);
 
           // Small delay to be nice to the tile server.
           await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -93,7 +100,7 @@ Future<int> downloadTilesInBounds({
       }
     }
   } finally {
-    client.close();
+    provider.dispose();
   }
   return downloaded;
 }
@@ -103,8 +110,11 @@ Future<int> downloadTilesInBounds({
   final n = 1 << zoom;
   final x = ((lng + 180.0) / 360.0 * n).floor().clamp(0, n - 1);
   final latRad = lat * math.pi / 180.0;
-  final y = ((1.0 - math.log(math.tan(latRad) + 1.0 / math.cos(latRad)) / math.pi) / 2.0 * n)
-      .floor()
-      .clamp(0, n - 1);
+  final y =
+      ((1.0 - math.log(math.tan(latRad) + 1.0 / math.cos(latRad)) / math.pi) /
+              2.0 *
+              n)
+          .floor()
+          .clamp(0, n - 1);
   return (x, y);
 }

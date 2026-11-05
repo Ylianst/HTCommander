@@ -1,4 +1,10 @@
 {
+  "settingsCustomMapEnabled": "Usar una fuente de mapas personalizada",
+  "settingsCustomMapUrl": "URL de las teselas del mapa",
+  "settingsCustomMapAttribution": "Atribución (opcional)",
+  "settingsCustomMapHelp": "Use una URL de teselas ráster XYZ en Web Mercator (PNG, JPEG o WebP). Respete la atribución y las condiciones del proveedor; descargue mapas sin conexión solo si está permitido. En la web, el servidor debe permitir CORS y las páginas HTTPS requieren teselas HTTPS. Las teselas personalizadas conservan sus colores originales en modo oscuro.",
+  "settingsCustomMapInvalid": "Introduzca una URL ráster XYZ HTTP/HTTPS válida con los tres marcadores de coordenadas del ejemplo. Las páginas HTTPS requieren teselas HTTPS.",
+  "mapDownloadFailed": "No se pudo descargar el mapa. Algunas teselas pueden no estar en la caché; consulte la pestaña Depuración e inténtelo de nuevo.",
   "@@locale": "es",
   "settingsEnableAgentApi": "Permitir agentes de prueba (API de automatización)",
   "agentControlActive": "{count, plural, one{Un agente de prueba está controlando esta estación} other{{count} agentes de prueba están controlando esta estación}}",

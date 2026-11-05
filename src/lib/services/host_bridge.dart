@@ -56,7 +56,11 @@ class HostBridge {
   /// localStorage) instead of syncing across the bridge, so the host and the
   /// hosted web page keep independent values. `OutputVolume` is the application
   /// output volume: each side controls (and can mute) its own playback.
-  static bool isLocalOnlySetting(String name) => name == 'OutputVolume';
+  static bool isLocalOnlySetting(String name) =>
+      name == 'OutputVolume' ||
+      name == 'MapCustomSourceEnabled' ||
+      name == 'MapCustomSourceUrl' ||
+      name == 'MapCustomSourceAttribution';
 
   static final RegExp _secretName = RegExp(
     'password|token|passcode|apikey|secret',
@@ -67,7 +71,8 @@ class HostBridge {
   /// tokens such as `WinlinkPassword`, `RepeaterBookToken`, `AprsIsPasscode`).
   /// Credentials never leave the host: they are not sent to browsers or agents
   /// and browsers cannot change them.
-  static bool isSecretSetting(String name) => _secretName.hasMatch(name);
+  static bool isSecretSetting(String name) =>
+      name == 'MapCustomSourceUrl' || _secretName.hasMatch(name);
 
   /// Host-published device-0 value listing which credential settings are set
   /// on the host (names only, never values), so the hosted web UI can show

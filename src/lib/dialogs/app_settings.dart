@@ -1,6 +1,7 @@
 import '../services/data_broker.dart';
 import '../services/locale_controller.dart';
 import '../services/theme_controller.dart';
+import '../utils/map_tile_source.dart';
 
 /// Settings data model
 class AppSettings {
@@ -94,6 +95,9 @@ class AppSettings {
   int gpsBaudRate;
   bool shareSerialGpsLocation;
   String airplaneServerUrl;
+  bool customMapSourceEnabled;
+  String customMapSourceUrl;
+  String customMapSourceAttribution;
 
   // Location source (License tab). When [manualLocationEnabled] is true the
   // current location comes from [manualLatitude]/[manualLongitude] instead of
@@ -229,6 +233,9 @@ class AppSettings {
     this.gpsBaudRate = 4800,
     this.shareSerialGpsLocation = false,
     this.airplaneServerUrl = '',
+    this.customMapSourceEnabled = false,
+    this.customMapSourceUrl = '',
+    this.customMapSourceAttribution = '',
     this.manualLocationEnabled = false,
     this.manualLatitude = 0.0,
     this.manualLongitude = 0.0,
@@ -286,6 +293,9 @@ class AppSettings {
     int? gpsBaudRate,
     bool? shareSerialGpsLocation,
     String? airplaneServerUrl,
+    bool? customMapSourceEnabled,
+    String? customMapSourceUrl,
+    String? customMapSourceAttribution,
     bool? manualLocationEnabled,
     double? manualLatitude,
     double? manualLongitude,
@@ -347,6 +357,11 @@ class AppSettings {
       shareSerialGpsLocation:
           shareSerialGpsLocation ?? this.shareSerialGpsLocation,
       airplaneServerUrl: airplaneServerUrl ?? this.airplaneServerUrl,
+      customMapSourceEnabled:
+          customMapSourceEnabled ?? this.customMapSourceEnabled,
+      customMapSourceUrl: customMapSourceUrl ?? this.customMapSourceUrl,
+      customMapSourceAttribution:
+          customMapSourceAttribution ?? this.customMapSourceAttribution,
       manualLocationEnabled:
           manualLocationEnabled ?? this.manualLocationEnabled,
       manualLatitude: manualLatitude ?? this.manualLatitude,
@@ -354,8 +369,7 @@ class AppSettings {
       phoneLocationEnabled: phoneLocationEnabled ?? this.phoneLocationEnabled,
       satelliteSupport: satelliteSupport ?? this.satelliteSupport,
       meshCoreSupport: meshCoreSupport ?? this.meshCoreSupport,
-      messageNotifications:
-          messageNotifications ?? this.messageNotifications,
+      messageNotifications: messageNotifications ?? this.messageNotifications,
       maxAprsMessages: maxAprsMessages ?? this.maxAprsMessages,
       maxPackets: maxPackets ?? this.maxPackets,
       maxSstvImages: maxSstvImages ?? this.maxSstvImages,
@@ -374,34 +388,40 @@ class AppSettings {
       allowTransmit:
           (DataBroker.getValue<int>(0, 'AllowTransmit', 0) ?? 0) == 1,
       avatarIcon: _nonEmptyOrNull(
-          DataBroker.getValue<String>(0, 'AvatarIcon', '') ?? ''),
+        DataBroker.getValue<String>(0, 'AvatarIcon', '') ?? '',
+      ),
       avatarImage: _nonEmptyOrNull(
-          DataBroker.getValue<String>(0, 'AvatarImage', '') ?? ''),
+        DataBroker.getValue<String>(0, 'AvatarImage', '') ?? '',
+      ),
       language:
-          DataBroker.getValue<String>(0, LocaleController.storageKey,
-                  LocaleController.systemTag) ??
-              LocaleController.systemTag,
+          DataBroker.getValue<String>(
+            0,
+            LocaleController.storageKey,
+            LocaleController.systemTag,
+          ) ??
+          LocaleController.systemTag,
       themeMode:
-          DataBroker.getValue<String>(0, ThemeController.storageKey,
-                  ThemeController.systemTag) ??
-              ThemeController.systemTag,
+          DataBroker.getValue<String>(
+            0,
+            ThemeController.storageKey,
+            ThemeController.systemTag,
+          ) ??
+          ThemeController.systemTag,
       aprsRoutes: aprsRoutes,
       aprsIsEnabled:
           (DataBroker.getValue<int>(0, 'AprsIsEnabled', 0) ?? 0) == 1,
       aprsIsServer:
           DataBroker.getValue<String>(0, 'AprsIsServer', 'rotate.aprs2.net') ??
-              'rotate.aprs2.net',
+          'rotate.aprs2.net',
       aprsIsPort: DataBroker.getValue<int>(0, 'AprsIsPort', 14580) ?? 14580,
-      aprsIsRangeKm:
-          DataBroker.getValue<int>(0, 'AprsIsRangeKm', 0) ?? 0,
+      aprsIsRangeKm: DataBroker.getValue<int>(0, 'AprsIsRangeKm', 0) ?? 0,
       aprsIsGateToRf:
           (DataBroker.getValue<int>(0, 'AprsIsGateToRf', 0) ?? 0) == 1,
       aprsIsPasscode:
           DataBroker.getValue<String>(0, 'AprsIsPasscode', '') ?? '',
       aprsCloudNotifications:
           (DataBroker.getValue<int>(0, 'AprsCloudNotifications', 0) ?? 0) == 1,
-      aprsFiApiKey:
-          DataBroker.getValue<String>(0, 'AprsFiApiKey', '') ?? '',
+      aprsFiApiKey: DataBroker.getValue<String>(0, 'AprsFiApiKey', '') ?? '',
       repeaterBookToken:
           DataBroker.getValue<String>(0, 'RepeaterBookToken', '') ?? '',
       voiceLanguage:
@@ -457,6 +477,12 @@ class AppSettings {
           (DataBroker.getValue<int>(0, 'ShareSerialGpsLocation', 0) ?? 0) == 1,
       airplaneServerUrl:
           DataBroker.getValue<String>(0, 'AirplaneServer', '') ?? '',
+      customMapSourceEnabled:
+          (DataBroker.getValue<int>(0, customMapEnabledKey, 0) ?? 0) == 1,
+      customMapSourceUrl:
+          DataBroker.getValue<String>(0, customMapUrlKey, '') ?? '',
+      customMapSourceAttribution:
+          DataBroker.getValue<String>(0, customMapAttributionKey, '') ?? '',
       manualLocationEnabled:
           (DataBroker.getValue<int>(0, 'ManualLocationEnabled', 0) ?? 0) == 1,
       manualLatitude:
@@ -471,8 +497,7 @@ class AppSettings {
           (DataBroker.getValue<int>(0, 'MeshCoreSupport', 0) ?? 0) == 1,
       messageNotifications:
           (DataBroker.getValue<int>(0, 'MessageNotifications', 1) ?? 1) == 1,
-      maxAprsMessages:
-          DataBroker.getValue<int>(0, 'MaxAprsMessages', 0) ?? 0,
+      maxAprsMessages: DataBroker.getValue<int>(0, 'MaxAprsMessages', 0) ?? 0,
       maxPackets: DataBroker.getValue<int>(0, 'MaxPackets', 0) ?? 0,
       maxSstvImages: DataBroker.getValue<int>(0, 'MaxSstvImages', 0) ?? 0,
       maxCommEvents: DataBroker.getValue<int>(0, 'MaxCommEvents', 0) ?? 0,
@@ -530,11 +555,7 @@ class AppSettings {
       name: 'AprsCloudNotifications',
       data: aprsCloudNotifications ? 1 : 0,
     );
-    DataBroker.dispatch(
-      deviceId: 0,
-      name: 'AprsFiApiKey',
-      data: aprsFiApiKey,
-    );
+    DataBroker.dispatch(deviceId: 0, name: 'AprsFiApiKey', data: aprsFiApiKey);
     DataBroker.dispatch(
       deviceId: 0,
       name: 'RepeaterBookToken',
@@ -665,6 +686,21 @@ class AppSettings {
       deviceId: 0,
       name: 'AirplaneServer',
       data: airplaneServerUrl,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: customMapUrlKey,
+      data: customMapSourceUrl,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: customMapAttributionKey,
+      data: customMapSourceAttribution,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: customMapEnabledKey,
+      data: customMapSourceEnabled ? 1 : 0,
     );
     DataBroker.dispatch(
       deviceId: 0,

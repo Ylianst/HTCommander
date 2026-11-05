@@ -17,6 +17,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../services/data_broker.dart';
 import '../services/tls_ca_bundle.dart';
+import 'map_tile_source.dart';
 
 /// Native (desktop/mobile) tile provider that caches OpenStreetMap tiles to
 /// disk so the map keeps working without an internet connection.
@@ -26,8 +27,10 @@ import '../services/tls_ca_bundle.dart';
 ///   * Offline ([offline] == true): the network is never contacted. Tiles
 ///     already in the cache are shown; tiles that were never cached render as a
 ///     transparent image (the map background shows through).
-TileProvider createMapTileProvider({required bool offline}) =>
-    CachedMapTileProvider(offline: offline);
+TileProvider createMapTileProvider({
+  required bool offline,
+  MapTileSource source = const MapTileSource.openStreetMap(),
+}) => CachedMapTileProvider(offline: offline, source: source);
 
 /// User-Agent sent on every OpenStreetMap tile request.
 ///
@@ -39,10 +42,14 @@ const String kOsmTileUserAgent =
 
 /// See [createMapTileProvider].
 class CachedMapTileProvider extends TileProvider {
-  CachedMapTileProvider({required this.offline});
+  CachedMapTileProvider({
+    required this.offline,
+    this.source = const MapTileSource.openStreetMap(),
+  });
 
   /// When true, no network requests are made; only cached tiles are returned.
   final bool offline;
+  final MapTileSource source;
 
   // Primary client uses the operating-system trust store (honoring any
   // corporate/antivirus proxy roots). Created lazily so offline providers,
@@ -57,27 +64,40 @@ class CachedMapTileProvider extends TileProvider {
   // Reports tile-loading health to the Debug tab. Shared across provider
   // instances so toggling offline/online or rebuilding the Map tab does not
   // reset the reported state.
-  static final _TileLoadLogger _logger = _TileLoadLogger();
+  static final _loggers = <String, _TileLoadLogger>{};
+  _TileLoadLogger get _logger => _loggers.putIfAbsent(
+    source.cacheKey,
+    () => _TileLoadLogger(source.label),
+  );
+
+  Object _safeError(Object error) =>
+      source.isCustom ? error.runtimeType.toString() : error;
 
   // Resolved once per process; the cache directory is shared by every provider
   // instance regardless of online/offline state.
   static Future<Directory>? _cacheDirFuture;
 
-  static Future<Directory> cacheDir() {
-    return _cacheDirFuture ??= () async {
+  static Future<Directory> cacheDir({
+    MapTileSource source = const MapTileSource.openStreetMap(),
+  }) async {
+    final baseDir = await (_cacheDirFuture ??= () async {
       final base = await getApplicationSupportDirectory();
       final dir = Directory('${base.path}/map_tile_cache');
       if (!await dir.exists()) {
         await dir.create(recursive: true);
       }
       return dir;
-    }();
+    }());
+    if (source.cacheKey.isEmpty) return baseDir;
+    final dir = Directory('${baseDir.path}/${source.cacheKey}');
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return dir;
   }
 
   @override
   ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
     return _CachedTileImage(
-      url: getTileUrl(coordinates, options),
+      url: source.tileUrl(coordinates.z, coordinates.x, coordinates.y),
       coordinates: coordinates,
       // Force our own identifiable User-Agent (OSM policy §3.1/§3.4), replacing
       // any library-default header flutter_map may have injected.
@@ -110,7 +130,7 @@ class CachedMapTileProvider extends TileProvider {
     } on HandshakeException catch (e) {
       return _fetchViaFallback(url, headers, e);
     } catch (e) {
-      _logger.onNetworkError(e);
+      _logger.onNetworkError(_safeError(e));
       return null;
     }
   }
@@ -125,7 +145,7 @@ class CachedMapTileProvider extends TileProvider {
   ) async {
     final context = await bundledCaRootsContext();
     if (context == null) {
-      _logger.onTlsFailure(cause, bundledRootsAvailable: false);
+      _logger.onTlsFailure(_safeError(cause), bundledRootsAvailable: false);
       return null;
     }
     try {
@@ -141,7 +161,7 @@ class CachedMapTileProvider extends TileProvider {
       _logger.onHttpError(e.statusCode);
       return null;
     } catch (e) {
-      _logger.onTlsFailure(e, bundledRootsAvailable: true);
+      _logger.onTlsFailure(_safeError(e), bundledRootsAvailable: true);
       return null;
     }
   }
@@ -194,7 +214,9 @@ class _CachedTileImage extends ImageProvider<_CachedTileImage> {
   ) => MultiFrameImageStreamCompleter(
     codec: _load(key, decode),
     scale: 1,
-    debugLabel: url,
+    debugLabel:
+        '${provider.source.label} tile '
+        '${coordinates.z}/${coordinates.x}/${coordinates.y}',
   );
 
   Future<Codec> _load(_CachedTileImage key, ImageDecoderCallback decode) async {
@@ -204,7 +226,7 @@ class _CachedTileImage extends ImageProvider<_CachedTileImage> {
   }
 
   Future<Uint8List> _resolveBytes() async {
-    final dir = await CachedMapTileProvider.cacheDir();
+    final dir = await CachedMapTileProvider.cacheDir(source: provider.source);
     final file = File(
       '${dir.path}/${coordinates.z}_${coordinates.x}_${coordinates.y}.png',
     );
@@ -339,6 +361,8 @@ class _TileHttpException implements Exception {
 /// transitions and distinct error conditions are logged rather than one line
 /// per tile. A steady healthy or failing state produces a single entry.
 class _TileLoadLogger {
+  _TileLoadLogger(this.sourceLabel);
+  final String sourceLabel;
   // null = unknown, true = tiles loading, false = tiles failing.
   bool? _healthy;
 
@@ -357,8 +381,8 @@ class _TileLoadLogger {
     _lastErrorSignature = null;
     _log(
       recovering
-          ? 'Map: OpenStreetMap tiles are loading again.'
-          : 'Map: OpenStreetMap tiles are loading normally.',
+          ? 'Map: $sourceLabel tiles are loading again.'
+          : 'Map: $sourceLabel tiles are loading normally.',
       isError: false,
     );
   }
@@ -371,7 +395,7 @@ class _TileLoadLogger {
     if (_fallbackActive) return;
     _fallbackActive = true;
     _log(
-      'Map: the operating system could not verify the OpenStreetMap '
+      'Map: the operating system could not verify the $sourceLabel '
       'certificate; tiles are now loading using the app\'s bundled CA roots.',
       isError: false,
     );
@@ -380,16 +404,16 @@ class _TileLoadLogger {
   void onHttpError(int statusCode) {
     _fail(
       'http:$statusCode',
-      'Map: OpenStreetMap returned HTTP $statusCode for a tile request; '
-      'tiles cannot be shown.',
+      'Map: $sourceLabel returned HTTP $statusCode for a tile request; '
+          'tiles cannot be shown.',
     );
   }
 
   void onNetworkError(Object error) {
     _fail(
       'net:$error',
-      'Map: unable to download OpenStreetMap tiles ($error). Check the '
-      'internet connection or firewall.',
+      'Map: unable to download $sourceLabel tiles ($error). Check the '
+          'internet connection or firewall.',
     );
   }
 
@@ -397,11 +421,11 @@ class _TileLoadLogger {
     _fail(
       'tls:$bundledRootsAvailable',
       bundledRootsAvailable
-          ? 'Map: TLS verification of the OpenStreetMap certificate failed '
-              'even with the bundled CA roots ($cause); tiles cannot be shown.'
-          : 'Map: TLS verification of the OpenStreetMap certificate failed and '
-              'no bundled CA roots are available ($cause); tiles cannot be '
-              'shown.',
+          ? 'Map: TLS verification of the $sourceLabel certificate failed '
+                'even with the bundled CA roots ($cause); tiles cannot be shown.'
+          : 'Map: TLS verification of the $sourceLabel certificate failed and '
+                'no bundled CA roots are available ($cause); tiles cannot be '
+                'shown.',
     );
   }
 

@@ -112,6 +112,42 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @settingsCustomMapEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Use custom map source'**
+  String get settingsCustomMapEnabled;
+
+  /// No description provided for @settingsCustomMapUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Map tile URL'**
+  String get settingsCustomMapUrl;
+
+  /// No description provided for @settingsCustomMapAttribution.
+  ///
+  /// In en, this message translates to:
+  /// **'Attribution (optional)'**
+  String get settingsCustomMapAttribution;
+
+  /// No description provided for @settingsCustomMapHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a raster XYZ tile URL in Web Mercator (PNG, JPEG or WebP). Follow the provider\'s attribution and usage terms; download offline maps only if permitted. On web, the server must allow CORS and HTTPS pages require HTTPS tiles. Custom tiles keep their original colors in dark mode.'**
+  String get settingsCustomMapHelp;
+
+  /// No description provided for @settingsCustomMapInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid HTTP/HTTPS raster XYZ URL containing all three coordinate placeholders shown in the example. HTTPS web pages require HTTPS tiles.'**
+  String get settingsCustomMapInvalid;
+
+  /// No description provided for @mapDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Map download failed. Some tiles may not be cached; check the Debug tab and try again.'**
+  String get mapDownloadFailed;
+
   /// The application product name. Do not translate.
   ///
   /// In en, this message translates to:

@@ -9,6 +9,27 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get settingsCustomMapEnabled => 'Eigene Kartenquelle verwenden';
+
+  @override
+  String get settingsCustomMapUrl => 'URL der Kartenkacheln';
+
+  @override
+  String get settingsCustomMapAttribution => 'Quellenangabe (optional)';
+
+  @override
+  String get settingsCustomMapHelp =>
+      'Verwenden Sie eine Raster-XYZ-Kachel-URL in Web Mercator (PNG, JPEG oder WebP). Beachten Sie die Nutzungsbedingungen und Quellenangaben des Anbieters; laden Sie Offlinekarten nur herunter, wenn dies erlaubt ist. Im Web muss der Server CORS zulassen, und HTTPS-Seiten benötigen HTTPS-Kacheln. Eigene Kacheln behalten im Dunkelmodus ihre Originalfarben.';
+
+  @override
+  String get settingsCustomMapInvalid =>
+      'Geben Sie eine gültige HTTP/HTTPS-Raster-XYZ-URL mit allen drei Koordinatenplatzhaltern aus dem Beispiel ein. HTTPS-Seiten benötigen HTTPS-Kacheln.';
+
+  @override
+  String get mapDownloadFailed =>
+      'Kartendownload fehlgeschlagen. Einige Kacheln sind möglicherweise nicht gespeichert; prüfen Sie den Debug-Tab und versuchen Sie es erneut.';
+
+  @override
   String get appTitle => 'Handi-Talkie Commander';
 
   @override

@@ -9,6 +9,28 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get settingsCustomMapEnabled =>
+      'Utiliser une source de carte personnalisée';
+
+  @override
+  String get settingsCustomMapUrl => 'URL des tuiles de carte';
+
+  @override
+  String get settingsCustomMapAttribution => 'Attribution (facultative)';
+
+  @override
+  String get settingsCustomMapHelp =>
+      'Utilisez une URL de tuiles raster XYZ en Web Mercator (PNG, JPEG ou WebP). Respectez les conditions d’utilisation et d’attribution du fournisseur ; ne téléchargez des cartes hors ligne que si cela est autorisé. Sur le Web, le serveur doit autoriser CORS et les pages HTTPS exigent des tuiles HTTPS. Les tuiles personnalisées conservent leurs couleurs en mode sombre.';
+
+  @override
+  String get settingsCustomMapInvalid =>
+      'Saisissez une URL raster XYZ HTTP/HTTPS valide contenant les trois paramètres de coordonnées de l’exemple. Les pages HTTPS exigent des tuiles HTTPS.';
+
+  @override
+  String get mapDownloadFailed =>
+      'Échec du téléchargement de la carte. Certaines tuiles peuvent manquer du cache ; consultez l’onglet Débogage et réessayez.';
+
+  @override
   String get appTitle => 'Handi-Talkie Commander';
 
   @override

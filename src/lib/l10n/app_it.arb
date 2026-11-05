@@ -1,4 +1,10 @@
 {
+  "settingsCustomMapEnabled": "Usa una sorgente di mappe personalizzata",
+  "settingsCustomMapUrl": "URL delle tessere della mappa",
+  "settingsCustomMapAttribution": "Attribuzione (facoltativa)",
+  "settingsCustomMapHelp": "Usa un URL di tessere raster XYZ in Web Mercator (PNG, JPEG o WebP). Rispetta l’attribuzione e le condizioni d’uso del fornitore; scarica mappe offline solo se consentito. Sul Web il server deve consentire CORS e le pagine HTTPS richiedono tessere HTTPS. Le tessere personalizzate mantengono i colori originali in modalità scura.",
+  "settingsCustomMapInvalid": "Inserisci un URL raster XYZ HTTP/HTTPS valido con tutti e tre i segnaposto delle coordinate dell’esempio. Le pagine HTTPS richiedono tessere HTTPS.",
+  "mapDownloadFailed": "Download della mappa non riuscito. Alcune tessere potrebbero non essere nella cache; controlla la scheda Debug e riprova.",
   "@@locale": "it",
   "settingsEnableAgentApi": "Consenti agenti di test (API di automazione)",
   "agentControlActive": "{count, plural, one{Un agente di test sta controllando questa stazione} other{{count} agenti di test stanno controllando questa stazione}}",

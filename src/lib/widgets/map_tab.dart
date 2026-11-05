@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'dart:async';
+import 'dart:io' show FileSystemException;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -45,6 +46,7 @@ import '../services/winlink_gateway_service.dart';
 import '../winlink/winlink_gateway.dart';
 import '../utils/map_tile_downloader.dart';
 import '../utils/map_tile_provider.dart';
+import '../utils/map_tile_source.dart';
 import '../utils/channel_colors.dart';
 import '../utils/num_parsing.dart';
 import 'radiosonde_marker.dart';
@@ -111,10 +113,11 @@ class _StationMarkerData {
     this.isTest = false,
     String lastMessage = '',
     DateTime? lastMessageTime,
-  })  : lastMessage = lastMessage,
-        lastMessageTime =
-            lastMessage.isNotEmpty ? (lastMessageTime ?? time) : null,
-        track = <LatLng>[position];
+  }) : lastMessage = lastMessage,
+       lastMessageTime = lastMessage.isNotEmpty
+           ? (lastMessageTime ?? time)
+           : null,
+       track = <LatLng>[position];
 
   final String callsign;
   LatLng position;
@@ -145,12 +148,15 @@ class _StationMarkerData {
 
   /// Appends a new point to the track when the position actually changed,
   /// matching the C# `AddMapMarker` route behaviour.
-  void update(LatLng newPosition, DateTime newTime,
-      {bool? fromAprsIs,
-      String? symbolTable,
-      String? symbolCode,
-      bool? isTest,
-      String? lastMessage}) {
+  void update(
+    LatLng newPosition,
+    DateTime newTime, {
+    bool? fromAprsIs,
+    String? symbolTable,
+    String? symbolCode,
+    bool? isTest,
+    String? lastMessage,
+  }) {
     if (lastMessage != null && lastMessage.isNotEmpty) {
       this.lastMessage = lastMessage;
       lastMessageTime = newTime;
@@ -211,7 +217,8 @@ const ColorFilter _darkMapTileFilter = ColorFilter.matrix(<double>[
   0, 0, 0, 1, 0, //
 ]);
 
-class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
+class _MapTabState extends State<MapTab>
+    with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   final MapController _mapController = MapController();
   final DataBrokerClient _broker = DataBrokerClient();
 
@@ -227,6 +234,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 
   /// When true, tracked amateur satellites are drawn on the map.
   bool _showSatellites = false;
+
   /// Mirrors the app-level 'Satellite support' setting; when false the whole
   /// satellite overlay (and its menu item) is hidden.
   bool _satelliteSupport = false;
@@ -295,10 +303,56 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// or null when a pan gesture is moving the map instead of a marker.
   int? _draggingMeasureIndex;
 
-  /// Tile provider for the map. Recreated only when [_isOfflineMode] changes so
+  /// Tile provider for the map. Recreated only when source/offline mode changes so
   /// that normal rebuilds (marker/track updates) don't reset the tile cache or
   /// leak HTTP clients. In offline mode it serves only disk-cached tiles.
-  late TileProvider _tileProvider = mapTileProvider(offline: _isOfflineMode);
+  TileProvider? _tileProvider;
+  MapTileSource? _mapSource;
+  bool _mapSourceUpdatePending = false;
+
+  MapTileSource? _readMapSource() {
+    final enabled =
+        (DataBroker.getValue<int>(0, customMapEnabledKey, 0) ?? 0) == 1;
+    if (!enabled) return const MapTileSource.openStreetMap();
+    final url = DataBroker.getValue<String>(0, customMapUrlKey, '') ?? '';
+    if (!MapTileSource.isValidUrl(
+      url,
+      requireHttps: kIsWeb && Uri.base.scheme == 'https',
+    )) {
+      _broker.dispatch(
+        deviceId: 1,
+        name: 'LogError',
+        data: 'Map: invalid custom raster XYZ URL; update Settings > Map.',
+        store: false,
+      );
+      return null;
+    }
+    return MapTileSource.custom(
+      url,
+      attribution:
+          DataBroker.getValue<String>(0, customMapAttributionKey, '') ?? '',
+    );
+  }
+
+  void _onMapSourceChanged(int deviceId, String name, Object? data) {
+    if (_mapSourceUpdatePending) return;
+    _mapSourceUpdatePending = true;
+    // Settings saves dispatch the URL, attribution and enabled flag together.
+    scheduleMicrotask(() {
+      _mapSourceUpdatePending = false;
+      if (!mounted) return;
+      final source = _readMapSource();
+      setState(() {
+        if (source?.urlTemplate != _mapSource?.urlTemplate ||
+            source?.isCustom != _mapSource?.isCustom) {
+          _tileProvider = source == null
+              ? null
+              : mapTileProvider(offline: _isOfflineMode, source: source);
+        }
+        _mapSource = source;
+      });
+    });
+  }
 
   /// Current aircraft to display, received from the "Airplanes" broker event.
   List<Aircraft> _airplanes = [];
@@ -400,6 +454,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   void initState() {
     super.initState();
     _loadSettings();
+    _broker.subscribeMultiple(
+      deviceId: 0,
+      names: [customMapEnabledKey, customMapUrlKey, customMapAttributionKey],
+      callback: _onMapSourceChanged,
+    );
 
     // Receive aircraft updates from the AirplaneHandler.
     _broker.subscribe(
@@ -921,11 +980,14 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
 
     final existing = _aprsStations[callsign];
     if (existing != null) {
-      existing.update(point, time,
-          fromAprsIs: aprsPacket.fromAprsIs,
-          symbolTable: aprsPacket.symbolTable,
-          symbolCode: aprsPacket.symbol,
-          lastMessage: lastMessage);
+      existing.update(
+        point,
+        time,
+        fromAprsIs: aprsPacket.fromAprsIs,
+        symbolTable: aprsPacket.symbolTable,
+        symbolCode: aprsPacket.symbol,
+        lastMessage: lastMessage,
+      );
     } else {
       _aprsStations[callsign] = _StationMarkerData(
         callsign: callsign,
@@ -967,8 +1029,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// that carry a location. Used at init because broker subscriptions do not
   /// replay the last stored value.
   void _loadInitialDecodedTextHistory() {
-    final data =
-        _broker.getValueDynamic(_aprsDeviceId, 'DecodedTextHistory', null);
+    final data = _broker.getValueDynamic(
+      _aprsDeviceId,
+      'DecodedTextHistory',
+      null,
+    );
     if (data is! List) return;
     for (final entry in data) {
       if (entry is Map) {
@@ -1102,6 +1167,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     if (v is String) return DateTime.tryParse(v) ?? DateTime.now();
     return DateTime.now();
   }
+
   /// Starts or stops the periodic refresh timer depending on whether a time
   /// filter is active. When a filter is set, the timer fires every 60 seconds
   /// to remove markers that have aged past the threshold.
@@ -1109,12 +1175,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     _filterRefreshTimer?.cancel();
     _filterRefreshTimer = null;
     if (_markerTimeFilter > 0 && isTabVisible) {
-      _filterRefreshTimer = Timer.periodic(
-        const Duration(seconds: 60),
-        (_) {
-          if (mounted) setState(() {});
-        },
-      );
+      _filterRefreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+        if (mounted) setState(() {});
+      });
     }
   }
 
@@ -1171,14 +1234,17 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     // Load settings
     _isOfflineMode =
         (DataBroker.getValue<int>(0, 'MapOfflineMode', 0) ?? 0) == 1;
-    _tileProvider = mapTileProvider(offline: _isOfflineMode);
+    _mapSource = _readMapSource();
+    final source = _mapSource;
+    _tileProvider = source == null
+        ? null
+        : mapTileProvider(offline: _isOfflineMode, source: source);
     _showTracks = (DataBroker.getValue<int>(0, 'MapShowTracks', 1) ?? 1) == 1;
     _largeMarkers =
         (DataBroker.getValue<int>(0, 'MapLargeMarkers', 1) ?? 1) == 1;
     _showAprsSymbols =
         (DataBroker.getValue<int>(0, 'MapShowAprsSymbols', 1) ?? 1) == 1;
-    _showAprsIs =
-        (DataBroker.getValue<int>(0, 'AprsShowAprsIs', 1) ?? 1) == 1;
+    _showAprsIs = (DataBroker.getValue<int>(0, 'AprsShowAprsIs', 1) ?? 1) == 1;
     _markerTimeFilter = DataBroker.getValue<int>(0, 'MapTimeFilter', 0) ?? 0;
     _updateFilterRefreshTimer();
     _showAirplanes =
@@ -1514,7 +1580,10 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             height: menuItemHeight,
             padding: menuItemPadding,
             child: Row(
-              children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).tabDetach)],
+              children: [
+                const SizedBox(width: 20),
+                Text(AppLocalizations.of(context).tabDetach),
+              ],
             ),
           ),
         ],
@@ -1528,7 +1597,10 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             // Recreate the tile provider so it stops/starts hitting the
             // network. The keyed TileLayer (see build) disposes the old
             // provider's HTTP client and reloads tiles in the new mode.
-            _tileProvider = mapTileProvider(offline: _isOfflineMode);
+            final source = _mapSource;
+            _tileProvider = source == null
+                ? null
+                : mapTileProvider(offline: _isOfflineMode, source: source);
           });
           _broker.dispatch(
             deviceId: 0,
@@ -1998,23 +2070,21 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// The callsign a MeshCore node's name starts with (e.g. "KK7VZT Base"),
   /// preferring the name the node advertises over the address-book name.
   String? _meshCallsign(_MeshStation s, Map<String, StationInfo> contacts) =>
-      callsignFromName(s.name) ??
-      callsignFromName(contacts[s.key]?.name ?? '');
+      callsignFromName(s.name) ?? callsignFromName(contacts[s.key]?.name ?? '');
 
   /// Only other chat nodes take direct messages and can be contacts.
   bool _meshIsUser(_MeshStation s) =>
       !s.isSelf && s.type == MeshCoreAdvType.chat && s.key.isNotEmpty;
 
-  Future<void> _showMeshActionMenu(Offset globalPosition, _MeshStation s) async {
+  Future<void> _showMeshActionMenu(
+    Offset globalPosition,
+    _MeshStation s,
+  ) async {
     final l10n = AppLocalizations.of(context);
     final contacts = _meshContacts();
     final isContact = contacts.containsKey(s.key);
     Widget item(IconData icon, String text) => Row(
-      children: [
-        Icon(icon, size: 18),
-        const SizedBox(width: 8),
-        Text(text),
-      ],
+      children: [Icon(icon, size: 18), const SizedBox(width: 8), Text(text)],
     );
     final action = await showMenu<String>(
       context: context,
@@ -2627,14 +2697,16 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.cell_tower,
-                            size: 14, color: Color(0xFF6A1B9A)),
+                        const Icon(
+                          Icons.cell_tower,
+                          size: 14,
+                          color: Color(0xFF6A1B9A),
+                        ),
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
                             gw.callsign,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -2658,8 +2730,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                         padding: const EdgeInsets.only(top: 2),
                         child: Row(
                           children: [
-                            Icon(Icons.near_me,
-                                size: 13, color: scheme.onSurfaceVariant),
+                            Icon(
+                              Icons.near_me,
+                              size: 13,
+                              color: scheme.onSurfaceVariant,
+                            ),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
@@ -2692,11 +2767,13 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                 IconButton(
                   tooltip: l10n.mapStationAddWinlink,
                   icon: const Icon(Icons.person_add_alt, size: 20),
-                  onPressed: () => _addContactFrom(StationInfo(
-                    callsign: gw.callsign,
-                    stationType: StationType.winlink,
-                    modem: _varaFmOnly(gw) ? 'XARA' : 'Hardware',
-                  )),
+                  onPressed: () => _addContactFrom(
+                    StationInfo(
+                      callsign: gw.callsign,
+                      stationType: StationType.winlink,
+                      modem: _varaFmOnly(gw) ? 'XARA' : 'Hardware',
+                    ),
+                  ),
                 ),
               IconButton(
                 tooltip: 'Center on map',
@@ -2772,7 +2849,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       // Ground radius of the visibility circle for a satellite at altitude h:
       // R * acos(R / (R + h)).
       final radiusKm =
-          _earthRadiusKm * math.acos(_earthRadiusKm / (_earthRadiusKm + sat.altitudeKm));
+          _earthRadiusKm *
+          math.acos(_earthRadiusKm / (_earthRadiusKm + sat.altitudeKm));
       final color = selected ? Colors.amber : Colors.green;
       circles.add(
         CircleMarker(
@@ -2838,8 +2916,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   List<Marker> _buildStationMarkers() {
     final markers = <Marker>[];
     final double size = _largeMarkers ? 30 : 20;
-    final contactCallsigns =
-        _showContactsOnly ? _getContactCallsigns() : null;
+    final contactCallsigns = _showContactsOnly ? _getContactCallsigns() : null;
 
     // Theme-aware colours for the APRS symbol chips. The symbol itself is drawn
     // in a neutral high-contrast colour (dark on light themes, light on dark
@@ -2932,7 +3009,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
           height: size + spikeHeight,
           alignment: Alignment.topCenter,
           child: Tooltip(
-            message: 'SARSAT ${beacon.callsign}'
+            message:
+                'SARSAT ${beacon.callsign}'
                 '${beacon.isTest ? ' (self-test)' : ''}'
                 '\n${_formatTime(beacon.time)}',
             child: SarsatMarker(
@@ -3062,8 +3140,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     final camera = _mapController.camera;
     final Offset anchorPx = camera.latLngToScreenOffset(anchor);
     const double thresholdPx = 22;
-    final contactCallsigns =
-        _showContactsOnly ? _getContactCallsigns() : null;
+    final contactCallsigns = _showContactsOnly ? _getContactCallsigns() : null;
     final result = <_MapEntity>[];
 
     bool hidden(_StationMarkerData s) =>
@@ -3100,8 +3177,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       if (svc.isAvailable) {
         final b = camera.visibleBounds;
         for (final g in svc.withinBounds(b.south, b.west, b.north, b.east)) {
-          final Offset o =
-              camera.latLngToScreenOffset(LatLng(g.latitude, g.longitude));
+          final Offset o = camera.latLngToScreenOffset(
+            LatLng(g.latitude, g.longitude),
+          );
           if ((o - anchorPx).distance <= thresholdPx) {
             result.add(_MapEntity.gateway(g));
           }
@@ -3126,8 +3204,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   }
 
   RelativeRect _menuPositionAt(Offset globalPosition) {
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     return RelativeRect.fromRect(
       Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
       Offset.zero & overlay.size,
@@ -3163,13 +3240,19 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             child: Row(
               children: [
                 if (e.isGateway) ...[
-                  const Icon(Icons.cell_tower,
-                      size: 14, color: Color(0xFF6A1B9A)),
+                  const Icon(
+                    Icons.cell_tower,
+                    size: 14,
+                    color: Color(0xFF6A1B9A),
+                  ),
                   const SizedBox(width: 6),
                 ],
                 if (e.isMesh) ...[
-                  Icon(_meshTypeIcon(e.mesh!.type),
-                      size: 14, color: _meshColor),
+                  Icon(
+                    _meshTypeIcon(e.mesh!.type),
+                    size: 14,
+                    color: _meshColor,
+                  ),
                   const SizedBox(width: 6),
                 ],
                 Text(
@@ -3318,10 +3401,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// Opens the add-contact dialog pre-filled with [station]'s callsign as a new
   /// APRS contact and persists it to the address book (device 0 `Stations`).
   Future<void> _addStationContact(_StationMarkerData station) =>
-      _addContactFrom(StationInfo(
-        callsign: station.callsign,
-        stationType: StationType.aprs,
-      ));
+      _addContactFrom(
+        StationInfo(callsign: station.callsign, stationType: StationType.aprs),
+      );
 
   /// Opens the add-contact dialog seeded with [seed] and persists the result to
   /// the address book (device 0 `Stations`), replacing any existing entry with
@@ -3415,7 +3497,8 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     final lat2 = to.latitudeInRad;
     final dLon = (to.longitude - from.longitude) * math.pi / 180.0;
     final y = math.sin(dLon) * math.cos(lat2);
-    final x = math.cos(lat1) * math.sin(lat2) -
+    final x =
+        math.cos(lat1) * math.sin(lat2) -
         math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
     return (math.atan2(y, x) * 180.0 / math.pi + 360.0) % 360.0;
   }
@@ -3492,8 +3575,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
     final own = _ownPosition;
     String? relative;
     if (own != null && !station.isSelf) {
-      final meters =
-          const Distance().as(LengthUnit.Meter, own, station.position);
+      final meters = const Distance().as(
+        LengthUnit.Meter,
+        own,
+        station.position,
+      );
       final compass = _compass8(_bearingBetween(own, station.position));
       relative = '$compass  •  ${_formatDistanceShort(meters)}';
     }
@@ -3513,10 +3599,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             children: [
               Padding(
                 padding: const EdgeInsets.only(right: 10),
-                child: _buildStationThumbnail(
-                  station,
-                  _stationColor(station),
-                ),
+                child: _buildStationThumbnail(station, _stationColor(station)),
               ),
               Expanded(
                 child: Column(
@@ -3548,8 +3631,11 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                     if (relative != null)
                       Row(
                         children: [
-                          Icon(Icons.near_me,
-                              size: 13, color: scheme.onSurfaceVariant),
+                          Icon(
+                            Icons.near_me,
+                            size: 13,
+                            color: scheme.onSurfaceVariant,
+                          ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -3673,8 +3759,7 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// Builds the track polylines for stations when "Show Tracks" is enabled.
   List<Polyline> _buildTracks() {
     final polylines = <Polyline>[];
-    final contactCallsigns =
-        _showContactsOnly ? _getContactCallsigns() : null;
+    final contactCallsigns = _showContactsOnly ? _getContactCallsigns() : null;
 
     void addTrack(_StationMarkerData s, Color color) {
       if (s.track.length < 2) return;
@@ -3711,6 +3796,16 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// Finishes the rectangle selection and shows a confirmation dialog before
   /// downloading tiles for the selected region.
   void _finishCacheAreaSelection() {
+    final source = _mapSource;
+    if (source == null) {
+      setState(() => _isSelectingCacheArea = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context).settingsCustomMapInvalid),
+        ),
+      );
+      return;
+    }
     final start = _cacheSelectionStart;
     final end = _cacheSelectionEnd;
     if (start == null || end == null) {
@@ -3738,11 +3833,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       builder: (ctx) => AlertDialog(
         title: Text(AppLocalizations.of(ctx).mapCacheTitle),
         content: Text(
-          AppLocalizations.of(ctx).mapCachePrompt(
-            tileCount,
-            currentZoom,
-            maxZoom,
-          ),
+          AppLocalizations.of(
+            ctx,
+          ).mapCachePrompt(tileCount, currentZoom, maxZoom),
         ),
         actions: [
           TextButton(
@@ -3757,69 +3850,103 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
       ),
     ).then((confirmed) {
       if (confirmed == true && mounted) {
-        _downloadCacheArea(sw, ne, currentZoom, maxZoom);
+        _downloadCacheArea(sw, ne, currentZoom, maxZoom, source);
       }
     });
   }
 
   /// Shows a progress dialog while downloading tiles for the selected region.
-  void _downloadCacheArea(LatLng sw, LatLng ne, int minZoom, int maxZoom) {
+  Future<void> _downloadCacheArea(
+    LatLng sw,
+    LatLng ne,
+    int minZoom,
+    int maxZoom,
+    MapTileSource source,
+  ) async {
     final progressNotifier = ValueNotifier<(int, int)>((0, 0));
     final cancelNotifier = ValueNotifier<bool>(false);
 
-    showDialog<void>(
+    BuildContext? progressContext;
+    final dialog = showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => PopScope(
-        canPop: false,
-        child: AlertDialog(
-          title: Text(AppLocalizations.of(ctx).mapDownloadingTitle),
-          content: ValueListenableBuilder<(int, int)>(
-            valueListenable: progressNotifier,
-            builder: (_, value, child) {
-              final (done, total) = value;
-              final pct = total > 0 ? done / total : 0.0;
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  LinearProgressIndicator(value: pct),
-                  const SizedBox(height: 12),
-                  Text(AppLocalizations.of(ctx).mapTilesProgress(done, total)),
-                ],
-              );
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                cancelNotifier.value = true;
-                Navigator.of(ctx).pop();
+      builder: (ctx) {
+        progressContext = ctx;
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: Text(AppLocalizations.of(ctx).mapDownloadingTitle),
+            content: ValueListenableBuilder<(int, int)>(
+              valueListenable: progressNotifier,
+              builder: (_, value, child) {
+                final (done, total) = value;
+                final pct = total > 0 ? done / total : 0.0;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    LinearProgressIndicator(value: pct),
+                    const SizedBox(height: 12),
+                    Text(
+                      AppLocalizations.of(ctx).mapTilesProgress(done, total),
+                    ),
+                  ],
+                );
               },
-              child: Text(AppLocalizations.of(ctx).commonCancel),
             ),
-          ],
-        ),
-      ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  cancelNotifier.value = true;
+                  Navigator.of(ctx).pop();
+                },
+                child: Text(AppLocalizations.of(ctx).commonCancel),
+              ),
+            ],
+          ),
+        );
+      },
     );
-
-    downloadTilesInBounds(
-      sw: sw,
-      ne: ne,
-      minZoom: minZoom,
-      maxZoom: maxZoom,
-      onProgress: (done, total) => progressNotifier.value = (done, total),
-      cancel: cancelNotifier,
-    ).then((_) {
-      if (mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop(); // dismiss progress dialog
+    await WidgetsBinding.instance.endOfFrame;
+    try {
+      await downloadTilesInBounds(
+        sw: sw,
+        ne: ne,
+        minZoom: minZoom,
+        maxZoom: maxZoom,
+        onProgress: (done, total) => progressNotifier.value = (done, total),
+        cancel: cancelNotifier,
+        source: source,
+      );
+    } on FileSystemException {
+      DataBroker.dispatch(
+        deviceId: 1,
+        name: 'LogError',
+        data: 'Map: area download failed; some tiles may not be cached.',
+        store: false,
+      );
+      if (mounted && !cancelNotifier.value) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context).mapDownloadFailed),
+          ),
+        );
       }
-    });
+    } finally {
+      final ctx = progressContext;
+      if (!cancelNotifier.value && ctx != null && ctx.mounted) {
+        Navigator.of(ctx).pop();
+      }
+      await dialog;
+      progressNotifier.dispose();
+      cancelNotifier.dispose();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     final scheme = Theme.of(context).colorScheme;
+    final source = _mapSource;
     final tracks = _showTracks ? _buildTracks() : const <Polyline>[];
     final stationMarkers = _buildStationMarkers();
     final meshMarkers = _buildMeshCoreMarkers();
@@ -3864,30 +3991,49 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                   },
                 ),
                 children: [
-                  // Map tiles. Online: fetched from OpenStreetMap and cached to
+                  // Map tiles. Online: fetched from the selected source and cached to
                   // disk. Offline: only previously-cached tiles are shown (no
-                  // network access). Keyed by offline state so toggling fully
+                  // network access). Keyed by source/offline state so toggling fully
                   // resets the layer and disposes the old provider. In dark
-                  // mode the light tiles are run through an inverting filter so
+                  // mode the built-in tiles use an inverting filter so
                   // the map matches the theme.
-                  Builder(
-                    builder: (context) {
-                      final Widget tiles = TileLayer(
-                        key: ValueKey(_isOfflineMode),
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.htcommander.app',
-                        tileProvider: _tileProvider,
-                      );
-                      if (Theme.of(context).brightness == Brightness.dark) {
-                        return ColorFiltered(
-                          colorFilter: _darkMapTileFilter,
-                          child: tiles,
+                  if (source != null)
+                    Builder(
+                      builder: (context) {
+                        final Widget tiles = TileLayer(
+                          key: ValueKey((
+                            _isOfflineMode,
+                            source.cacheKey,
+                            source.isCustom,
+                          )),
+                          urlTemplate: source.urlTemplate,
+                          userAgentPackageName: 'com.htcommander.app',
+                          tileProvider: _tileProvider,
                         );
-                      }
-                      return tiles;
-                    },
-                  ),
+                        if (!source.isCustom &&
+                            Theme.of(context).brightness == Brightness.dark) {
+                          return ColorFiltered(
+                            colorFilter: _darkMapTileFilter,
+                            child: tiles,
+                          );
+                        }
+                        return tiles;
+                      },
+                    ),
+                  if (source == null)
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            AppLocalizations.of(
+                              context,
+                            ).settingsCustomMapInvalid,
+                          ),
+                        ),
+                      ),
+                    ),
                   if (tracks.isNotEmpty) PolylineLayer(polylines: tracks),
                   // Winlink gateways and station markers share one layer,
                   // ordered north to south so southern markers draw on top.
@@ -3930,63 +4076,69 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                     ),
                     MarkerLayer(markers: _buildMeasureMarkers()),
                   ],
-                  // Required OpenStreetMap licence attribution (OSM Tile Usage
-                  // Policy §2). Kept always-visible in the bottom-right corner.
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: GestureDetector(
-                          onTap: () => launchUrl(
-                            Uri.parse(
-                              'https://www.openstreetmap.org/copyright',
-                            ),
-                            mode: LaunchMode.externalApplication,
-                          ),
-                          child: Builder(
-                            builder: (context) {
-                              final dark = Theme.of(context).brightness ==
-                                  Brightness.dark;
-                              return Text(
-                                '© OpenStreetMap contributors',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: dark ? Colors.white : Colors.black87,
-                                  shadows: [
-                                    Shadow(
-                                      blurRadius: 2,
-                                      color: dark ? Colors.black : Colors.white,
+                  // Keep source attribution visible, with OSM's copyright link
+                  // only for the built-in map.
+                  if (source != null)
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: MouseRegion(
+                          cursor: source.isCustom
+                              ? MouseCursor.defer
+                              : SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: source.isCustom
+                                ? null
+                                : () => launchUrl(
+                                    Uri.parse(
+                                      'https://www.openstreetmap.org/copyright',
                                     ),
-                                  ],
-                                ),
-                              );
-                            },
+                                    mode: LaunchMode.externalApplication,
+                                  ),
+                            child: Builder(
+                              builder: (context) {
+                                final dark =
+                                    Theme.of(context).brightness ==
+                                    Brightness.dark;
+                                return Text(
+                                  source.attributionText,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: dark ? Colors.white : Colors.black87,
+                                    shadows: [
+                                      Shadow(
+                                        blurRadius: 2,
+                                        color: dark
+                                            ? Colors.black
+                                            : Colors.white,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
               // Measuring tool gesture layer. Placed above the map but below
               // the zoom/measure buttons so those stay clickable. Drags that
               // begin on a marker move that marker; drags that begin elsewhere
               // pan the map manually (flutter_map's own drag is covered here).
-              if (_isMeasuring &&
-                  _measureStart != null &&
-                  _measureEnd != null)
+              if (_isMeasuring && _measureStart != null && _measureEnd != null)
                 Positioned.fill(
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onPanStart: (details) {
                       final camera = _mapController.camera;
                       final p = details.localPosition;
-                      final startOff =
-                          camera.latLngToScreenOffset(_measureStart!);
-                      final endOff =
-                          camera.latLngToScreenOffset(_measureEnd!);
+                      final startOff = camera.latLngToScreenOffset(
+                        _measureStart!,
+                      );
+                      final endOff = camera.latLngToScreenOffset(_measureEnd!);
                       const hitRadius = 30.0;
                       if ((p - startOff).distance <= hitRadius) {
                         _draggingMeasureIndex = 0;
@@ -4001,16 +4153,16 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                       final idx = _draggingMeasureIndex;
                       if (idx == null) {
                         // No marker grabbed: pan the map with the drag.
-                        final centerOff =
-                            camera.latLngToScreenOffset(camera.center);
+                        final centerOff = camera.latLngToScreenOffset(
+                          camera.center,
+                        );
                         final newCenter = camera.screenOffsetToLatLng(
                           centerOff - details.delta,
                         );
                         _mapController.move(newCenter, camera.zoom);
                         return;
                       }
-                      final current =
-                          idx == 0 ? _measureStart! : _measureEnd!;
+                      final current = idx == 0 ? _measureStart! : _measureEnd!;
                       final newOff =
                           camera.latLngToScreenOffset(current) + details.delta;
                       final newLatLng = camera.screenOffsetToLatLng(newOff);
@@ -4051,16 +4203,17 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
               // Rectangle selection overlay for cache area
               if (_isSelectingCacheArea) ...[
                 // Draw the selection rectangle on the map
-                if (_cacheSelectionStart != null &&
-                    _cacheSelectionEnd != null)
+                if (_cacheSelectionStart != null && _cacheSelectionEnd != null)
                   Positioned.fill(
                     child: IgnorePointer(
                       child: CustomPaint(
                         painter: _RectSelectionPainter(
-                          start: _mapController.camera
-                              .latLngToScreenOffset(_cacheSelectionStart!),
-                          end: _mapController.camera
-                              .latLngToScreenOffset(_cacheSelectionEnd!),
+                          start: _mapController.camera.latLngToScreenOffset(
+                            _cacheSelectionStart!,
+                          ),
+                          end: _mapController.camera.latLngToScreenOffset(
+                            _cacheSelectionEnd!,
+                          ),
                         ),
                       ),
                     ),
@@ -4070,22 +4223,22 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onPanStart: (details) {
-                      final latlng = _mapController.camera
-                          .screenOffsetToLatLng(details.localPosition);
+                      final latlng = _mapController.camera.screenOffsetToLatLng(
+                        details.localPosition,
+                      );
                       setState(() {
                         _cacheSelectionStart = latlng;
                         _cacheSelectionEnd = latlng;
                       });
                     },
                     onPanUpdate: (details) {
-                      final latlng = _mapController.camera
-                          .screenOffsetToLatLng(details.localPosition);
+                      final latlng = _mapController.camera.screenOffsetToLatLng(
+                        details.localPosition,
+                      );
                       setState(() => _cacheSelectionEnd = latlng);
                     },
                     onPanEnd: (_) => _finishCacheAreaSelection(),
-                    child: Container(
-                      color: Colors.transparent,
-                    ),
+                    child: Container(color: Colors.transparent),
                   ),
                 ),
                 // Instruction banner
@@ -4108,13 +4261,15 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
                         children: [
                           Text(
                             AppLocalizations.of(context).mapDragToSelect,
-                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           GestureDetector(
-                            onTap: () => setState(
-                              () => _isSelectingCacheArea = false,
-                            ),
+                            onTap: () =>
+                                setState(() => _isSelectingCacheArea = false),
                             child: const Icon(
                               Icons.close,
                               color: Colors.white,
@@ -4243,8 +4398,9 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
             padding: EdgeInsets.zero,
             backgroundColor: active ? scheme.primary : scheme.surface,
             foregroundColor: active ? scheme.onPrimary : scheme.onSurface,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+            ),
           ),
           child: const Icon(Icons.straighten, size: 18),
         ),
@@ -4257,25 +4413,20 @@ class _MapTabState extends State<MapTab> with AutomaticKeepAliveClientMixin, Tab
   /// these are purely visual centered dots.
   List<Marker> _buildMeasureMarkers() {
     Marker dot(LatLng point, Color color) => Marker(
-          point: point,
-          width: 22,
-          height: 22,
-          alignment: Alignment.center,
-          child: Container(
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-              boxShadow: const [
-                BoxShadow(color: Colors.black54, blurRadius: 3),
-              ],
-            ),
-          ),
-        );
-    return [
-      dot(_measureStart!, Colors.green),
-      dot(_measureEnd!, Colors.red),
-    ];
+      point: point,
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      child: Container(
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 2),
+          boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 3)],
+        ),
+      ),
+    );
+    return [dot(_measureStart!, Colors.green), dot(_measureEnd!, Colors.red)];
   }
 
   /// Bottom-right pill showing the distance between the two markers in both
@@ -4324,10 +4475,7 @@ class _RectSelectionPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromPoints(
-      start,
-      end,
-    );
+    final rect = Rect.fromPoints(start, end);
     canvas.drawRect(
       rect,
       Paint()
@@ -4380,7 +4528,6 @@ class _MarkerSpikePainter extends CustomPainter {
         ..strokeWidth = 1
         ..strokeJoin = StrokeJoin.round,
     );
-
   }
 
   @override

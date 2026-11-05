@@ -35,6 +35,17 @@ Handi-Talky Commander has a lot of features. There are the features available on
 - [APRS support](https://ylianst.github.io/HTCommanderSite/features/aprs.html). You can receive and sent APRS messages, set APRS routes, send [SMS message](https://ylianst.github.io/HTCommanderSite/features/aprs.html#sms) to normal phones, request [weather reports](https://ylianst.github.io/HTCommanderSite/features/aprs.html#weather), send [authenticated messages](https://ylianst.github.io/HTCommanderSite/features/aprs.html#authentication), get details on each APRS message.
 - [BSS support](https://ylianst.github.io/HTCommanderSite/features/bss.html). Support for the propriatary short message binary protocol from Baofeng / BTech.
 - [APRS map](https://ylianst.github.io/HTCommanderSite/features/map.html). With Open Street Map support, you can see all the APRS stations at a glance.
+  Settings > Map also offers an optional custom raster XYZ tile source. Enable
+  "Use custom map source", enter an HTTP/HTTPS Web Mercator tile URL such as
+  `https://example.com/{z}/{x}/{y}.png` (query-form placeholders also work), and
+  optionally enter the provider's attribution. The default remains OpenStreetMap;
+  custom tiles retain their original colors in dark mode. Native offline viewing
+  and area downloads use separate caches per source, preserving existing
+  OpenStreetMap downloads. Follow the provider's attribution and usage terms,
+  including permission for offline downloads. Browser settings are independent
+  of the host, use browser-managed caching only, and require a CORS-enabled tile
+  server (HTTPS tiles on HTTPS pages). URLs containing API keys are not shared
+  with connected browsers or agents.
 - [Winlink mail support](https://ylianst.github.io/HTCommanderSite/features/winlink.html). Send and receive email on the [Winlink network](https://winlink.org/), this includes support to attachments.
 - [Address book](https://ylianst.github.io/HTCommanderSite/features/address-book.html). Store your APRS, Winlink and Terminal contacts in the address book to quick access.
 - [Terminal support](https://ylianst.github.io/HTCommanderSite/features/terminal.html). Communicate in packet mode with other stations, users or BBS'es.

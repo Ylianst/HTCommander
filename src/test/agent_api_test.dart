@@ -30,6 +30,7 @@ import 'package:htcommander/radio/xara_capture.dart';
 import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/services/data_broker_client.dart';
 import 'package:htcommander/services/host_bridge.dart';
+import 'package:htcommander/utils/map_tile_source.dart';
 
 const String token = 'test-token-0123456789';
 
@@ -523,6 +524,43 @@ void main() {
     expect(DataBroker.hasValue(0, HostBridge.hostCredentialsValue), isFalse);
     expect(HostBridge.isSecretSetting('AllStarWtToken'), isTrue);
     expect(HostBridge.isSecretSetting('preDeEmphBypass'), isFalse);
+    a.close();
+  });
+
+  test('custom map settings never sync with connected browsers', () async {
+    const url = 'https://example.com/{z}/{x}/{y}.png?key=private-map-key';
+    final values = <String, Object>{
+      customMapEnabledKey: 1,
+      customMapUrlKey: url,
+      customMapAttributionKey: 'Private source',
+    };
+    for (final entry in values.entries) {
+      DataBroker.dispatch(deviceId: 0, name: entry.key, data: entry.value);
+    }
+    final a = await connect();
+    final settings = await waitFor(
+      () => a.other.where((m) => m.startsWith('settings:')).firstOrNull,
+    );
+    final snapshot = jsonDecode(settings.substring('settings:'.length)) as Map;
+    for (final name in values.keys) {
+      expect(snapshot.containsKey(name), isFalse);
+      a.socket.add(
+        'setsetting:${jsonEncode({'name': name, 'value': 'browser-value'})}',
+      );
+    }
+    expect(settings, isNot(contains('private-map-key')));
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    for (final entry in values.entries) {
+      expect(DataBroker.getValueDynamic(0, entry.key), entry.value);
+    }
+    a.other.clear();
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: customMapUrlKey,
+      data: '$url&another-private-key=2',
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    expect(a.other.join(), isNot(contains('another-private-key')));
     a.close();
   });
 

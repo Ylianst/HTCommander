@@ -9,6 +9,26 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get settingsCustomMapEnabled => '使用自定义地图源';
+
+  @override
+  String get settingsCustomMapUrl => '地图瓦片 URL';
+
+  @override
+  String get settingsCustomMapAttribution => '署名信息（可选）';
+
+  @override
+  String get settingsCustomMapHelp =>
+      '使用 Web Mercator 投影的栅格 XYZ 瓦片 URL（PNG、JPEG 或 WebP）。请遵守提供商的署名要求和使用条款，仅在允许时下载离线地图。在网页端，服务器必须允许 CORS，HTTPS 页面需要 HTTPS 瓦片。自定义瓦片在深色模式下保持原始颜色。';
+
+  @override
+  String get settingsCustomMapInvalid =>
+      '请输入有效的 HTTP/HTTPS 栅格 XYZ URL，包含示例中的全部三个坐标占位符。HTTPS 页面需要 HTTPS 瓦片。';
+
+  @override
+  String get mapDownloadFailed => '地图下载失败。部分瓦片可能未缓存；请查看调试选项卡并重试。';
+
+  @override
   String get appTitle => 'Handi-Talkie Commander';
 
   @override

@@ -9,6 +9,27 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get settingsCustomMapEnabled => 'कस्टम मानचित्र स्रोत का उपयोग करें';
+
+  @override
+  String get settingsCustomMapUrl => 'मानचित्र टाइल URL';
+
+  @override
+  String get settingsCustomMapAttribution => 'श्रेय (वैकल्पिक)';
+
+  @override
+  String get settingsCustomMapHelp =>
+      'Web Mercator में रास्टर XYZ टाइल URL का उपयोग करें (PNG, JPEG या WebP)। प्रदाता की श्रेय और उपयोग शर्तों का पालन करें; अनुमति होने पर ही ऑफ़लाइन मानचित्र डाउनलोड करें। वेब पर सर्वर को CORS की अनुमति देनी होगी और HTTPS पृष्ठों के लिए HTTPS टाइलें आवश्यक हैं। कस्टम टाइलें डार्क मोड में अपने मूल रंग बनाए रखती हैं।';
+
+  @override
+  String get settingsCustomMapInvalid =>
+      'उदाहरण में दिखाए गए तीनों निर्देशांक प्लेसहोल्डर वाला मान्य HTTP/HTTPS रास्टर XYZ URL दर्ज करें। HTTPS पृष्ठों के लिए HTTPS टाइलें आवश्यक हैं।';
+
+  @override
+  String get mapDownloadFailed =>
+      'मानचित्र डाउनलोड विफल हुआ। कुछ टाइलें कैश में नहीं होंगी; डीबग टैब देखें और फिर से प्रयास करें।';
+
+  @override
   String get appTitle => 'Handi-Talkie Commander';
 
   @override

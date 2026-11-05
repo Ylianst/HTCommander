@@ -6,6 +6,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+import 'map_tile_source.dart';
 
 /// Web stub: tile downloading is not supported on the web platform.
 int countTilesInBounds(LatLng sw, LatLng ne, int minZoom, int maxZoom) => 0;
@@ -18,4 +19,5 @@ Future<int> downloadTilesInBounds({
   required int maxZoom,
   required void Function(int downloaded, int total) onProgress,
   required ValueNotifier<bool> cancel,
+  MapTileSource source = const MapTileSource.openStreetMap(),
 }) async => 0;
