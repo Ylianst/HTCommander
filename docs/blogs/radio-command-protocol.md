@@ -332,6 +332,12 @@ is what tells the app how many channels and regions to enumerate.
 elsewhere — benlink defines the opcode but never decodes it, and neither did the
 original C# app — so the layout below was reverse-engineered from a live capture.
 
+Every `READ_FREQ_RANGE` reply is logged in the Debug tab as
+`[Radio <id>] READ_FREQ_RANGE (39) reply: <hex>`, even with **Show Bluetooth
+Frames** disabled. The hex includes the command header and reply status, without
+the outer GAIA serial framing, and is logged before parsing so failed or short
+replies are visible too.
+
 The request is sent with no payload (a single trailing `0x00`). The reply body
 starts at offset 5 and is a flat list of big-endian `uint16` **band edges** in
 `(low, high)` pairs. In each 16-bit value the low 14 bits are the edge frequency

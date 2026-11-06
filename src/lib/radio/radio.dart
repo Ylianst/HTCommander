@@ -3490,6 +3490,9 @@ class Radio implements FirmwareRadio {
   /// `{lowHz, highHz, mod}` maps, `mod`: FM=0, AM=1, DMR=2); the raw reply is
   /// dispatched as `FreqRangesRaw`.
   void _handleReadFreqRange(Uint8List data) {
+    _broker.logInfo(
+      '[Radio $deviceId] READ_FREQ_RANGE (39) reply: ${RadioUtils.bytesToHex(data)}',
+    );
     if (data.length < 5 || data[4] != 0) return;
     final ranges = <List<int>>[];
     for (int p = 5; p + 3 < data.length; p += 4) {

@@ -189,6 +189,25 @@ void main() {
     }
   });
 
+  test('a Winlink SID split across XARA frames still reaches the mail server', () async {
+    final xara = FakeXara(409);
+    final bbs = Bbs(409)..enabled = true;
+    try {
+      xara.connectFrom('N1ABC');
+      expect(await waitFor(() => xara.text.endsWith('>\r')), isTrue);
+      xara.sent.clear();
+      xara.receive('[RMS Express');
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(xara.sent, isEmpty);
+      xara.receive('-1.7.28.0-B2F');
+      xara.receive('HM\$]\rFF\r');
+      expect(await waitFor(() => xara.text.contains('FQ\r')), isTrue);
+    } finally {
+      bbs.dispose();
+      xara.dispose();
+    }
+  });
+
   test('our own outgoing XARA connects and other radios are ignored', () async {
     final xara = FakeXara(403);
     final other = FakeXara(404);

@@ -353,6 +353,10 @@ class Bbs {
   WinlinkGatewayRelay? _cmsRelay;
   bool _disposed = false;
 
+  /// Longest unterminated "[..." fragment held back while waiting for the rest
+  /// of a Winlink SID; longer fragments are processed as regular input.
+  static const int _maxPartialSidLength = 128;
+
   /// Creates the Winlink CMS relay for a connecting client; replaceable in tests.
   static WinlinkGatewayRelay Function(int deviceId, DataBrokerClient broker)
   relayFactory = WinlinkGatewayRelay.new;
@@ -838,11 +842,26 @@ class Bbs {
   void _processBbsStream(BbsLink session, Uint8List data) {
     if (!enabled) return;
 
-    final dataStr = utf8.decode(data, allowMalformed: true);
+    final pending = session.sessionState.remove('bbsPartialLine') as String?;
+    final dataStr =
+        (pending ?? '') + utf8.decode(data, allowMalformed: true);
     final dataStrs = dataStr
         .replaceAll('\r\n', '\r')
         .replaceAll('\n', '\r')
         .split('\r');
+
+    // A Winlink client SID (e.g. "[RMS Express-1.7.28.0-B2FHM$]") may arrive
+    // split across several frames. Hold back an unterminated line that could
+    // be the start of a SID so we don't mistake the fragment for a BBS
+    // command and drop the CMS relay.
+    final last = dataStrs.last;
+    if (last.isNotEmpty &&
+        last.startsWith('[') &&
+        last.length < _maxPartialSidLength) {
+      session.sessionState['bbsPartialLine'] = last;
+      dataStrs.removeLast();
+    }
+
     final sb = StringBuffer();
     for (int lineIndex = 0; lineIndex < dataStrs.length; lineIndex++) {
       final str = dataStrs[lineIndex];
