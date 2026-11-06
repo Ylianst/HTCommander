@@ -1425,7 +1425,7 @@
   "digipeaterNoAprsChannel": "所选电台没有 APRS 频道。请配置一个以启用数字中继器。",
   "menuCheckForUpdates": "检查更新",
   "settingsWinlinkGatewayDbTitle": "离线网关目录",
-  "settingsWinlinkGatewayDbInfo": "下载 Winlink 分组和 VARA-FM 网关的小型离线列表，以便在地图上查找附近的台站及其频率。",
+  "settingsWinlinkGatewayDbInfo": "下载 Winlink 分组和 XARA-FM 网关的小型离线列表，以便在地图上查找附近的台站及其频率。",
   "settingsWinlinkGatewayDbInstalled": "已安装：{version}（{count} 个网关）",
   "settingsWinlinkGatewayDbNotInstalled": "未安装",
   "settingsWinlinkGatewayDbDownload": "下载",

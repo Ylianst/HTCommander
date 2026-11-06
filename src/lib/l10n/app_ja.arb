@@ -1425,7 +1425,7 @@
   "digipeaterNoAprsChannel": "選択した無線機に APRS チャンネルがありません。デジピーターを有効にするには構成してください。",
   "menuCheckForUpdates": "アップデートを確認",
   "settingsWinlinkGatewayDbTitle": "オフライン ゲートウェイ一覧",
-  "settingsWinlinkGatewayDbInfo": "Winlink パケットおよび VARA-FM ゲートウェイの小さなオフライン一覧をダウンロードし、近くの局とその周波数を地図で確認できます。",
+  "settingsWinlinkGatewayDbInfo": "Winlink パケットおよび XARA-FM ゲートウェイの小さなオフライン一覧をダウンロードし、近くの局とその周波数を地図で確認できます。",
   "settingsWinlinkGatewayDbInstalled": "インストール済み: {version}（{count} 局）",
   "settingsWinlinkGatewayDbNotInstalled": "未インストール",
   "settingsWinlinkGatewayDbDownload": "ダウンロード",

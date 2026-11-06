@@ -183,6 +183,7 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
   /// Fixed width of each column (radio / storage), like the import dialog.
   static const double _columnWidth = 240;
   static const double _tileHeight = 50;
+  static const double _dragHandleWidth = 40;
 
   /// Width of the tile shown under the pointer while dragging.
   static const double _feedbackWidth = 216;
@@ -223,7 +224,10 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
   void initState() {
     super.initState();
     _radioRegions = List<_RegionEntry?>.filled(widget.regionCount, null);
-    _originalRadioRegions = List<_RegionEntry?>.filled(widget.regionCount, null);
+    _originalRadioRegions = List<_RegionEntry?>.filled(
+      widget.regionCount,
+      null,
+    );
     _storage = List<_RegionEntry?>.filled(_kStorageSlots, null);
 
     _loadStorage();
@@ -268,7 +272,8 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
     }
     _originalRegion = _currRegionLive;
     _allLoaded =
-        (_broker.getValueDynamic(widget.deviceId, 'AllChannelsLoaded') as bool?) ??
+        (_broker.getValueDynamic(widget.deviceId, 'AllChannelsLoaded')
+            as bool?) ??
         false;
     final names = _broker.getValueDynamic(widget.deviceId, 'RegionNames');
     if (names is List) {
@@ -299,7 +304,8 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
   void _maybeCompleteSwitch() {
     final c = _switchCompleter;
     if (c == null || c.isCompleted) return;
-    if (_currRegionLive == _awaitRegion && (!_awaitRequireLoaded || _allLoaded)) {
+    if (_currRegionLive == _awaitRegion &&
+        (!_awaitRequireLoaded || _allLoaded)) {
       c.complete();
     }
   }
@@ -389,14 +395,11 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
 
   void _persistStorage() {
     final list = _storage
-        .map((e) => (e == null || e.markedForDeletion) ? null : e.toStorageJson())
+        .map(
+          (e) => (e == null || e.markedForDeletion) ? null : e.toStorageJson(),
+        )
         .toList();
-    _broker.dispatch(
-      deviceId: 0,
-      name: _kStorageKey,
-      data: list,
-      store: true,
-    );
+    _broker.dispatch(deviceId: 0, name: _kStorageKey, data: list, store: true);
   }
 
   // --- OK: re-program changed regions ----------------------------------------
@@ -409,8 +412,7 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
     return e;
   }
 
-  String _signatureOf(_RegionEntry? e) =>
-      e == null ? 'null' : e.signature();
+  String _signatureOf(_RegionEntry? e) => e == null ? 'null' : e.signature();
 
   Future<void> _onOk() async {
     // Determine which radio regions actually changed.
@@ -484,10 +486,10 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
     }
     for (int c = 0; c < widget.channelCount; c++) {
       if (!mounted) return;
-      final ch = byId[c]?.copyWith(channelId: c) ??
-          RadioChannelInfo(channelId: c);
-      final existing = curById[c]?.copyWith(channelId: c) ??
-          RadioChannelInfo(channelId: c);
+      final ch =
+          byId[c]?.copyWith(channelId: c) ?? RadioChannelInfo(channelId: c);
+      final existing =
+          curById[c]?.copyWith(channelId: c) ?? RadioChannelInfo(channelId: c);
       // Skip slots the radio already has programmed identically.
       if (_channelBytesEqual(ch, existing)) continue;
       _broker.dispatch(
@@ -692,7 +694,9 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
                           ),
                         ),
                         title: Text(
-                          ch.name.isNotEmpty ? ch.name : 'Ch ${ch.channelId + 1}',
+                          ch.name.isNotEmpty
+                              ? ch.name
+                              : 'Ch ${ch.channelId + 1}',
                         ),
                         subtitle: Text(freq),
                       );
@@ -790,18 +794,16 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
         if (decoded is Map) {
           final entry = _RegionEntry.fromStorageJson(decoded);
           // Keep only non-empty channels.
-          entry.channels = entry.channels
-              .where((c) => c.rxFreq > 0)
-              .toList();
+          entry.channels = entry.channels.where((c) => c.rxFreq > 0).toList();
           return entry;
         }
       } catch (_) {
         // Fall through to CSV parsing.
       }
     }
-    final channels = ChannelImport.parseChannelsFromCsv(content)
-        .where((c) => c.rxFreq > 0)
-        .toList();
+    final channels = ChannelImport.parseChannelsFromCsv(
+      content,
+    ).where((c) => c.rxFreq > 0).toList();
     if (channels.isEmpty) return null;
     var baseName = fileName;
     final dot = baseName.lastIndexOf('.');
@@ -811,8 +813,9 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
 
   Future<void> _saveRegionToFile(_RegionEntry entry) async {
     final messenger = ScaffoldMessenger.of(context);
-    final content = const JsonEncoder.withIndent('  ')
-        .convert(entry.toStorageJson());
+    final content = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(entry.toStorageJson());
     var safeName = entry.name.trim().isEmpty ? 'region' : entry.name.trim();
     safeName = safeName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
     final defaultFileName = '$safeName.json';
@@ -823,9 +826,7 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
         fileName: defaultFileName,
         type: needsBytes ? FileType.any : FileType.custom,
         allowedExtensions: needsBytes ? null : const ['json'],
-        bytes: needsBytes
-            ? Uint8List.fromList(utf8.encode(content))
-            : null,
+        bytes: needsBytes ? Uint8List.fromList(utf8.encode(content)) : null,
       );
       if (outputPath == null) return;
       if (!needsBytes) {
@@ -936,8 +937,9 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(
-            'Drag a region onto the other side to copy it there (the original '
-            'stays). Right-click or long-press a region for details, load, save '
+            'Drag a region by its handle onto the other side to copy it there '
+            '(the original stays). Swipe the region body to scroll. '
+            'Right-click or long-press a region for details, load, save '
             'and delete. Changes are written to the radio only when you press OK.',
             style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
           ),
@@ -960,10 +962,14 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
                       ]
                     : [
                         SizedBox(
-                            width: _columnWidth, child: _buildRadioColumn()),
+                          width: _columnWidth,
+                          child: _buildRadioColumn(),
+                        ),
                         const SizedBox(width: 16),
                         SizedBox(
-                            width: _columnWidth, child: _buildStorageColumn()),
+                          width: _columnWidth,
+                          child: _buildStorageColumn(),
+                        ),
                       ],
               );
             },
@@ -976,9 +982,7 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
   Widget _buildColumnFrame({required String header, required Widget child}) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(4)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -986,7 +990,9 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             decoration: BoxDecoration(
               color: scheme.surfaceContainerHighest,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(3),
+              ),
             ),
             child: Text(
               header,
@@ -1053,27 +1059,61 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
           highlight: highlight,
           pending: changed,
           onCancel: changed ? () => _revertSlot(fromStorage, index) : null,
+          leftInset: entry != null ? _dragHandleWidth : 0,
         );
         if (entry == null) return tile;
-        return Draggable<_RegionDragData>(
-          data: _RegionDragData(fromStorage, index),
-          dragAnchorStrategy: pointerDragAnchorStrategy,
-          feedback: Material(
-            color: Colors.transparent,
-            child: _copyFeedback(
-              _regionTile(
-                fromStorage: fromStorage,
-                index: index,
-                entry: entry,
-                highlight: true,
-                pending: changed,
-                width: _feedbackWidth,
+        final palette = _RegionPalette.of(context);
+        // Only the handle claims drag gestures; the body remains scrollable.
+        return Stack(
+          fit: StackFit.passthrough,
+          children: [
+            tile,
+            Positioned(
+              top: 0,
+              left: 0,
+              bottom: 0,
+              width: _dragHandleWidth,
+              child: Draggable<_RegionDragData>(
+                data: _RegionDragData(fromStorage, index),
+                dragAnchorStrategy: pointerDragAnchorStrategy,
+                feedback: Material(
+                  color: Colors.transparent,
+                  child: _copyFeedback(
+                    _regionTile(
+                      fromStorage: fromStorage,
+                      index: index,
+                      entry: entry,
+                      highlight: true,
+                      pending: changed,
+                      width: _feedbackWidth,
+                    ),
+                  ),
+                ),
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.grab,
+                  child: Tooltip(
+                    message: fromStorage
+                        ? 'Drag to a radio region'
+                        : 'Drag to storage',
+                    child: Container(
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: palette.onRegion.withValues(alpha: 0.14),
+                        borderRadius: const BorderRadius.horizontal(
+                          left: Radius.circular(4),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.drag_indicator,
+                        size: 28,
+                        color: palette.onRegion,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-          // Copy semantics: the source region stays, so keep it fully visible.
-          childWhenDragging: tile,
-          child: tile,
+          ],
         );
       },
     );
@@ -1111,6 +1151,7 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
     double? width,
     bool pending = false,
     VoidCallback? onCancel,
+    double leftInset = 0,
   }) {
     final palette = _RegionPalette.of(context);
     final scheme = Theme.of(context).colorScheme;
@@ -1133,7 +1174,7 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
     Widget content = Container(
       width: width,
       height: _tileHeight,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: EdgeInsets.fromLTRB(10 + leftInset, 6, 10, 6),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(4),
@@ -1160,7 +1201,9 @@ class _RegionStorageDialogState extends State<_RegionStorageDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
-                      padding: EdgeInsets.only(right: onCancel != null ? 16 : 0),
+                      padding: EdgeInsets.only(
+                        right: onCancel != null ? 16 : 0,
+                      ),
                       child: Text(
                         name,
                         maxLines: 1,

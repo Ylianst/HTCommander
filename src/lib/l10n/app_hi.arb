@@ -1425,7 +1425,7 @@
   "digipeaterNoAprsChannel": "चयनित रेडियो में कोई APRS चैनल नहीं है। डिजीपीटर सक्षम करने के लिए एक कॉन्फ़िगर करें।",
   "menuCheckForUpdates": "अपडेट जांचें",
   "settingsWinlinkGatewayDbTitle": "ऑफ़लाइन गेटवे निर्देशिका",
-  "settingsWinlinkGatewayDbInfo": "मानचित्र पर निकटवर्ती स्टेशन और उनकी आवृत्तियाँ खोजने के लिए Winlink पैकेट और VARA-FM गेटवे की एक छोटी ऑफ़लाइन सूची डाउनलोड करें।",
+  "settingsWinlinkGatewayDbInfo": "मानचित्र पर निकटवर्ती स्टेशन और उनकी आवृत्तियाँ खोजने के लिए Winlink पैकेट और XARA-FM गेटवे की एक छोटी ऑफ़लाइन सूची डाउनलोड करें।",
   "settingsWinlinkGatewayDbInstalled": "इंस्टॉल किया गया: {version} ({count} गेटवे)",
   "settingsWinlinkGatewayDbNotInstalled": "इंस्टॉल नहीं है",
   "settingsWinlinkGatewayDbDownload": "डाउनलोड करें",

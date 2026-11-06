@@ -1735,18 +1735,15 @@ class _SatelliteTabState extends State<SatelliteTab> {
                     ),
                   ],
                 ),
-              )
-            else if (trackable)
-              Icon(Icons.satellite_alt, size: 16, color: scheme.primary),
-            if (t.infoUrl != null)
+              ),
+            if (t.infoUrl != null) ...[
+              const SizedBox(width: 8),
               IconButton(
-                icon: const Icon(Icons.open_in_new, size: 16),
+                icon: const Icon(Icons.open_in_new, size: 24),
                 tooltip: 'Open ${t.usage} info',
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
                 onPressed: () => _openUrl(t.infoUrl!),
               ),
+            ],
           ],
         ),
         const SizedBox(height: 6),
@@ -1769,11 +1766,11 @@ class _SatelliteTabState extends State<SatelliteTab> {
           'CTCSS',
           tone == null ? 'None' : '${tone.toStringAsFixed(1)} Hz',
         ),
-        if (trackable)
+        if (trackable || active)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              'Tap to track on the radio',
+              active ? 'Tap to stop tracking' : 'Tap to track on the radio',
               style: TextStyle(
                 fontSize: 11,
                 fontStyle: FontStyle.italic,
@@ -1788,13 +1785,19 @@ class _SatelliteTabState extends State<SatelliteTab> {
       if (!active) return block;
       // Highlight the actively tracked usage.
       return Container(
-        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: Colors.green.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
         ),
-        child: block,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _stopTracking,
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(padding: const EdgeInsets.all(8), child: block),
+          ),
+        ),
       );
     }
 
@@ -1848,6 +1851,16 @@ class _SatelliteTabState extends State<SatelliteTab> {
     }
     return _selectedPasses.take(10).map((p) {
       final now = DateTime.now().toUtc();
+      final today = now.toLocal();
+      final start = p.aos.toLocal();
+      final dayOffset = DateTime.utc(
+        start.year,
+        start.month,
+        start.day,
+      ).difference(DateTime.utc(today.year, today.month, today.day)).inDays;
+      final dayLabel = dayOffset > 0
+          ? ' (+$dayOffset ${dayOffset == 1 ? 'day' : 'days'})'
+          : '';
       final upcoming = p.aos.isAfter(now);
       final inPass = !upcoming && p.los.isAfter(now);
       final when = inPass
@@ -1860,7 +1873,9 @@ class _SatelliteTabState extends State<SatelliteTab> {
           inPass ? Icons.satellite_alt : Icons.schedule,
           color: inPass ? Colors.green : null,
         ),
-        title: Text('${_formatLocal(p.aos)} \u2192 ${_formatLocal(p.los)}'),
+        title: Text(
+          '${_formatLocal(context, p.aos)} \u2192 ${_formatLocal(context, p.los)}$dayLabel',
+        ),
         subtitle: Text(
           'max ${p.maxElevationDeg.round()}\u00b0 \u2022 '
           'az ${p.aosAzimuthDeg.round()}\u00b0\u2192${p.losAzimuthDeg.round()}\u00b0 '
@@ -1899,9 +1914,9 @@ class _SatelliteTabState extends State<SatelliteTab> {
 
   String _mhz(int hz) => '${(hz / 1e6).toStringAsFixed(4)} MHz';
 
-  String _formatLocal(DateTime utc) {
-    final local = utc.toLocal();
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${two(local.hour)}:${two(local.minute)}';
-  }
+  String _formatLocal(BuildContext context, DateTime utc) =>
+      MaterialLocalizations.of(context).formatTimeOfDay(
+        TimeOfDay.fromDateTime(utc.toLocal()),
+        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+      );
 }

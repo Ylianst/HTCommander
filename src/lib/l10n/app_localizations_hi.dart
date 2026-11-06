@@ -4159,7 +4159,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get settingsWinlinkGatewayDbInfo =>
-      'मानचित्र पर निकटवर्ती स्टेशन और उनकी आवृत्तियाँ खोजने के लिए Winlink पैकेट और VARA-FM गेटवे की एक छोटी ऑफ़लाइन सूची डाउनलोड करें।';
+      'मानचित्र पर निकटवर्ती स्टेशन और उनकी आवृत्तियाँ खोजने के लिए Winlink पैकेट और XARA-FM गेटवे की एक छोटी ऑफ़लाइन सूची डाउनलोड करें।';
 
   @override
   String settingsWinlinkGatewayDbInstalled(String version, int count) {

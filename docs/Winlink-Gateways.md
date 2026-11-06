@@ -131,6 +131,12 @@ python build_winlink_db.py --download `
 
 Or from saved feed responses (`--input packet.json varafm.json`, JSON or JSONP).
 The map groups each station into one marker and labels each frequency's modes.
+The app displays VARA-FM support as **XARA-FM**, including dual-mode channels
+shown as **Packet 1200 / XARA-FM**. Feed identifiers and stored mode bits are
+unchanged.
+Gateway icons and their position pointers use light purple in dark mode for
+visibility, keeping the existing deep purple in light mode. Gateways outside
+the connected radios' tuning ranges remain gray, using a lighter gray in dark mode.
 This directory change does not implement or automatically select a modem.
 Run the
 tests with `python src\tools\test_build_winlink_db.py`.

@@ -1425,7 +1425,7 @@
   "digipeaterNoAprsChannel": "Wybrane radio nie ma kanału APRS. Skonfiguruj go, aby włączyć digipeater.",
   "menuCheckForUpdates": "Sprawdź aktualizacje",
   "settingsWinlinkGatewayDbTitle": "Katalog bramek offline",
-  "settingsWinlinkGatewayDbInfo": "Pobierz małą listę offline bramek packet i VARA-FM Winlink, aby znaleźć pobliskie stacje i ich częstotliwości na mapie.",
+  "settingsWinlinkGatewayDbInfo": "Pobierz małą listę offline bramek packet i XARA-FM Winlink, aby znaleźć pobliskie stacje i ich częstotliwości na mapie.",
   "settingsWinlinkGatewayDbInstalled": "Zainstalowano: {version} ({count} bramek)",
   "settingsWinlinkGatewayDbNotInstalled": "Nie zainstalowano",
   "settingsWinlinkGatewayDbDownload": "Pobierz",

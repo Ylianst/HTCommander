@@ -7537,7 +7537,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsWinlinkGatewayDbInfo.
   ///
   /// In en, this message translates to:
-  /// **'Download a small offline list of Winlink packet and VARA-FM gateways to find nearby stations, frequencies and supported modes on the map.'**
+  /// **'Download a small offline list of Winlink packet and XARA-FM gateways to find nearby stations, frequencies and supported modes on the map.'**
   String get settingsWinlinkGatewayDbInfo;
 
   /// Installed Winlink gateway directory version and gateway count

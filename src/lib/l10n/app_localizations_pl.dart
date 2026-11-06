@@ -4185,7 +4185,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get settingsWinlinkGatewayDbInfo =>
-      'Pobierz małą listę offline bramek packet i VARA-FM Winlink, aby znaleźć pobliskie stacje i ich częstotliwości na mapie.';
+      'Pobierz małą listę offline bramek packet i XARA-FM Winlink, aby znaleźć pobliskie stacje i ich częstotliwości na mapie.';
 
   @override
   String settingsWinlinkGatewayDbInstalled(String version, int count) {

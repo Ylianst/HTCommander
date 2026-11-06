@@ -1425,7 +1425,7 @@
   "digipeaterNoAprsChannel": "Das ausgewählte Funkgerät hat keinen APRS-Kanal. Konfigurieren Sie einen, um den Digipeater zu aktivieren.",
   "menuCheckForUpdates": "Nach Updates suchen",
   "settingsWinlinkGatewayDbTitle": "Offline-Gateway-Verzeichnis",
-  "settingsWinlinkGatewayDbInfo": "Laden Sie eine kleine Offline-Liste von Winlink-Packet- und VARA-FM-Gateways herunter, um nahegelegene Stationen und ihre Frequenzen auf der Karte zu finden.",
+  "settingsWinlinkGatewayDbInfo": "Laden Sie eine kleine Offline-Liste von Winlink-Packet- und XARA-FM-Gateways herunter, um nahegelegene Stationen und ihre Frequenzen auf der Karte zu finden.",
   "settingsWinlinkGatewayDbInstalled": "Installiert: {version} ({count} Gateways)",
   "settingsWinlinkGatewayDbNotInstalled": "Nicht installiert",
   "settingsWinlinkGatewayDbDownload": "Herunterladen",

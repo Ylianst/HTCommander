@@ -111,7 +111,7 @@ void main() {
       expect(near.map((g) => g.callsign).toList(), ['AA1AA-10', 'BB2BB-10']);
     });
 
-    test('preserves packet, VARA-FM and dual-mode channels', () {
+    test('preserves mode support and displays XARA-FM channel labels', () {
       final db = WinlinkGatewayDatabase.fromBytes(
         _buildWdb(
           [
@@ -137,8 +137,8 @@ void main() {
       ]);
       expect(channels.map((channel) => channel.modeLabel), [
         'Packet 1200',
-        'VARA-FM',
-        'Packet 1200 / VARA-FM',
+        'XARA-FM',
+        'Packet 1200 / XARA-FM',
       ]);
       expect(db.gateways.last.channels.single.supportsVaraFm, true);
     });

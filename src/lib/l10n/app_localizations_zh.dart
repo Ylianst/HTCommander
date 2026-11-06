@@ -4036,7 +4036,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsWinlinkGatewayDbInfo =>
-      '下载 Winlink 分组和 VARA-FM 网关的小型离线列表，以便在地图上查找附近的台站及其频率。';
+      '下载 Winlink 分组和 XARA-FM 网关的小型离线列表，以便在地图上查找附近的台站及其频率。';
 
   @override
   String settingsWinlinkGatewayDbInstalled(String version, int count) {

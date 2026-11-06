@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/l10n/app_localizations.dart';
+import 'package:htcommander/radio/radio.dart' show SetUnlockData;
 import 'package:htcommander/radio/radio_models.dart' show kSatelliteLockUsage;
 import 'package:htcommander/satellite/satellite_models.dart';
 import 'package:htcommander/services/data_broker.dart';
@@ -13,6 +14,206 @@ import 'package:htcommander/widgets/satellite_globe.dart';
 import 'package:htcommander/widgets/satellite_tab.dart';
 
 void main() {
+  for (final (locale, use24Hour, dayOffset, expected) in [
+    (const Locale('en', 'US'), false, 0, '1:05 PM \u2192 1:15 PM'),
+    (const Locale('de'), false, 0, '13:05 \u2192 13:15'),
+    (const Locale('en', 'US'), true, 0, '13:05 \u2192 13:15'),
+    (const Locale('en', 'US'), false, 1, '1:05 PM \u2192 1:15 PM (+1 day)'),
+    (const Locale('en', 'US'), false, 2, '1:05 PM \u2192 1:15 PM (+2 days)'),
+  ]) {
+    testWidgets(
+      'upcoming pass times use $locale with 24h=$use24Hour day=$dayOffset',
+      (tester) async {
+        final broker = DataBrokerClient();
+        tester.view.physicalSize = const Size(1200, 1000);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(() async {
+          await tester.pumpWidget(const SizedBox.shrink());
+          broker.dispose();
+          DataBroker.clearDevice(0);
+          tester.view.reset();
+        });
+        final tle = SatelliteTle.parseThreeLine(
+          File('assets/satellites/amateur.tle').readAsStringSync(),
+        ).first;
+        broker.dispatch(
+          deviceId: 0,
+          name: 'SelectedSatelliteId',
+          data: tle.noradId,
+        );
+        broker.dispatch(deviceId: 0, name: 'SatelliteShowGlobe', data: 0);
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: locale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(alwaysUse24HourFormat: use24Hour),
+              child: child!,
+            ),
+            home: const Scaffold(body: SatelliteTab()),
+          ),
+        );
+        broker.dispatch(
+          deviceId: 0,
+          name: 'SatelliteCatalog',
+          data: [SatelliteInfo(tle: tle)],
+          store: false,
+        );
+        final today = DateTime.now();
+        broker.dispatch(
+          deviceId: 0,
+          name: 'SatellitePasses',
+          data: [
+            SatellitePass(
+              noradId: tle.noradId,
+              name: tle.name,
+              aos: DateTime(
+                today.year,
+                today.month,
+                today.day + dayOffset,
+                13,
+                5,
+              ).toUtc(),
+              los: DateTime(
+                today.year,
+                today.month,
+                today.day + dayOffset,
+                13,
+                15,
+              ).toUtc(),
+              maxElevationDeg: 45,
+              aosAzimuthDeg: 90,
+              losAzimuthDeg: 270,
+            ),
+          ],
+          store: false,
+        );
+        await tester.pump();
+        final titles = tester
+            .widgetList<Text>(find.byType(Text))
+            .map((text) => text.data?.replaceAll(RegExp(r'\s+'), ' '));
+        expect(titles, contains(expected));
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  for (final usage in ['Satellite', 'APRSSat']) {
+    testWidgets('tapping an active $usage usage stops tracking', (
+      tester,
+    ) async {
+      const radioId = 9401;
+      final broker = DataBrokerClient();
+      tester.view.physicalSize = const Size(1200, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        broker.dispose();
+        DataBroker.clearDevice(0);
+        DataBroker.clearDevice(1);
+        DataBroker.clearDevice(radioId);
+        tester.view.reset();
+      });
+      final tle = SatelliteTle.parseThreeLine(
+        File('assets/satellites/amateur.tle').readAsStringSync(),
+      ).first;
+      final sat = SatelliteInfo(
+        tle: tle,
+        transponder: SatelliteTransponder(
+          noradId: tle.noradId,
+          name: 'Test usage',
+          usage: usage == 'APRSSat' ? 'APRS' : 'Voice',
+          uplinkHz: 145990000,
+          downlinkHz: 437800000,
+          mode: 'FM',
+          ctcssHz: null,
+          inverting: false,
+          status: 'active',
+        ),
+      );
+      broker.dispatch(
+        deviceId: 1,
+        name: 'SelectedRadioDeviceId',
+        data: radioId,
+      );
+      broker.dispatch(
+        deviceId: 0,
+        name: 'SelectedSatelliteId',
+        data: sat.noradId,
+      );
+      broker.dispatch(deviceId: 0, name: 'SatelliteShowGlobe', data: 0);
+      broker.dispatch(
+        deviceId: radioId,
+        name: 'LockState',
+        data: {'isLocked': true, 'usage': usage},
+      );
+      broker.dispatch(
+        deviceId: 0,
+        name: 'SatelliteTrackingMarker',
+        data: {'noradId': sat.noradId, 'usageIndex': 0},
+      );
+      final unlocks = <SetUnlockData>[];
+      final targets = <Object?>[];
+      broker.subscribe(
+        deviceId: radioId,
+        name: 'SetUnlock',
+        callback: (_, _, data) {
+          unlocks.add(data as SetUnlockData);
+          broker.dispatch(
+            deviceId: radioId,
+            name: 'LockState',
+            data: {'isLocked': false, 'usage': usage},
+          );
+        },
+      );
+      broker.subscribe(
+        deviceId: 0,
+        name: 'SatelliteTrackTarget',
+        callback: (_, _, data) => targets.add(data),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(body: SatelliteTab()),
+        ),
+      );
+      broker.dispatch(
+        deviceId: 0,
+        name: 'SatelliteCatalog',
+        data: [sat],
+        store: false,
+      );
+      broker.dispatch(deviceId: 0, name: 'SatelliteObserverKnown', data: true);
+      await tester.pump();
+      expect(find.text('Tracking'), findsOneWidget);
+      await tester.tap(find.text('Tap to stop tracking'));
+      await tester.pump();
+      expect(unlocks.single.usage, usage);
+      expect(targets, [null]);
+      expect(
+        DataBroker.getValue<Object>(0, 'SatelliteTrackingMarker', null),
+        isNull,
+      );
+      expect(find.text('Tracking'), findsNothing);
+      expect(find.text('Tap to track on the radio'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.ancestor(
+            of: find.text('Tap to track on the radio'),
+            matching: find.byType(InkWell),
+          ),
+          matching: find.byIcon(Icons.satellite_alt),
+        ),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('land fill never floods the globe', (tester) async {
     final key = GlobalKey();
     tester.view.physicalSize = const Size(300, 300);

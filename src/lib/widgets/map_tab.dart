@@ -2337,13 +2337,16 @@ class _MapTabState extends State<MapTab>
       bounds.east,
     );
     final markers = <Marker>[];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     for (final gw in gateways.take(400)) {
       if (!_isValidLatLng(gw.latitude, gw.longitude)) continue;
       // Grey the pin when the radio cannot tune any of the gateway's channels.
       // A small spike under the icon marks the exact position (its tip sits on
       // the gateway's coordinates).
       final supported = _isGatewaySupported(gw);
-      final color = supported ? const Color(0xFF6A1B9A) : Colors.grey;
+      final color = supported
+          ? (isDark ? Colors.purple.shade200 : const Color(0xFF6A1B9A))
+          : (isDark ? Colors.grey.shade400 : Colors.grey);
       markers.add(
         Marker(
           point: LatLng(gw.latitude, gw.longitude),

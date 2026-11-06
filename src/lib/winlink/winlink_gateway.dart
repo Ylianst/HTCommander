@@ -20,7 +20,7 @@ class WinlinkGatewayChannel {
 
   String get modeLabel => [
     if (supportsPacket) 'Packet 1200',
-    if (supportsVaraFm) 'VARA-FM',
+    if (supportsVaraFm) 'XARA-FM',
   ].join(' / ');
 }
 

@@ -1317,7 +1317,7 @@
   "cslAutoUpdateWifi": "Aggiornamento automatico tramite Wi-Fi",
   "cslAutoUpdateWifiSubtitle": "Mantieni aggiornati automaticamente i database installati, solo tramite Wi-Fi o connessioni cablate, per evitare costi di dati mobili.",
   "settingsWinlinkGatewayDbTitle": "Elenco gateway offline",
-  "settingsWinlinkGatewayDbInfo": "Scarica un piccolo elenco offline di gateway packet e VARA-FM Winlink per trovare le stazioni vicine e le loro frequenze sulla mappa.",
+  "settingsWinlinkGatewayDbInfo": "Scarica un piccolo elenco offline di gateway packet e XARA-FM Winlink per trovare le stazioni vicine e le loro frequenze sulla mappa.",
   "settingsWinlinkGatewayDbInstalled": "Installato: {version} ({count} gateway)",
   "settingsWinlinkGatewayDbNotInstalled": "Non installato",
   "settingsWinlinkGatewayDbDownload": "Scarica",

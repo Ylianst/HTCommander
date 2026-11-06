@@ -4143,7 +4143,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsWinlinkGatewayDbInfo =>
-      'Download a small offline list of Winlink packet and VARA-FM gateways to find nearby stations, frequencies and supported modes on the map.';
+      'Download a small offline list of Winlink packet and XARA-FM gateways to find nearby stations, frequencies and supported modes on the map.';
 
   @override
   String settingsWinlinkGatewayDbInstalled(String version, int count) {
