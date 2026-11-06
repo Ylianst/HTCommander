@@ -3481,13 +3481,15 @@ class Radio implements FirmwareRadio {
   ///   data[4]    = reply status (0 = success)
   ///   data[5..]  = band edges as big-endian uint16 values in (low, high)
   ///                pairs. The low 14 bits are the edge frequency in whole MHz;
-  ///                the top 2 bits carry a modulation flag (FM=0, AM=1, DMR=2).
+  ///                the top 2 bits carry a band capability flag:
+  ///                FM RX=0, AM RX=1, FM TX/RX=2.
   ///                A zero edge terminates the list (trailing bytes are padding).
+  ///                Nonzero equal-edge entries are skipped.
   ///
   /// Example body `40 6C 40 88 80 88 00 AE 01 2C 02 26 81 90 02 08 40 00 00 00`
   /// decodes to 108-136, 136-174, 300-550 and 400-520 MHz. The parsed bands
   /// are dispatched as `FreqRanges` (a list of
-  /// `{lowHz, highHz, mod}` maps, `mod`: FM=0, AM=1, DMR=2); the raw reply is
+  /// `{lowHz, highHz, mod}` maps, `mod`: FM RX=0, AM RX=1, FM TX/RX=2); the raw reply is
   /// dispatched as `FreqRangesRaw`.
   void _handleReadFreqRange(Uint8List data) {
     _broker.logInfo(
@@ -3499,8 +3501,10 @@ class Radio implements FirmwareRadio {
       final lowRaw = RadioUtils.getShort(data, p);
       final lowMhz = lowRaw & 0x3FFF;
       final highMhz = RadioUtils.getShort(data, p + 2) & 0x3FFF;
-      if (lowMhz == 0 || highMhz == 0 || lowMhz >= highMhz) break;
-      // Modulation support is carried in the low edge's top 2 bits.
+      if (lowMhz == 0 || highMhz == 0) break;
+      if (lowMhz == highMhz) continue;
+      if (lowMhz > highMhz) break;
+      // Band capability is carried in the low edge's top 2 bits.
       final mod = (lowRaw >> 14) & 0x03;
       ranges.add([lowMhz * 1000000, highMhz * 1000000, mod]);
     }

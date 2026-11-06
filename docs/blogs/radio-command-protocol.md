@@ -341,14 +341,16 @@ replies are visible too.
 The request is sent with no payload (a single trailing `0x00`). The reply body
 starts at offset 5 and is a flat list of big-endian `uint16` **band edges** in
 `(low, high)` pairs. In each 16-bit value the low 14 bits are the edge frequency
-in **whole MHz** and the top 2 bits carry a modulation flag (`FM=0`, `AM=1`,
-`DMR=2` — matching the channel modulation encoding). A zero edge terminates the
-list; any remaining bytes are padding.
+in **whole MHz** and the low edge's top 2 bits carry a band capability flag
+(`FM RX=0`, `AM RX=1`, `FM TX/RX=2`). These are not channel modulation codes:
+value 2 indicates FM transmit/receive capability, not DMR. A zero edge terminates the
+list; any remaining bytes are padding. Nonzero equal-edge entries (such as
+200–200 MHz) are skipped without discarding subsequent bands.
 
 | Offset | Bits | Field |
 | --- | --- | --- |
 | 4 | 8 | reply status (0 = success) |
-| 5 + 4·n | `0xC000` | band *n* modulation (FM=0, AM=1, DMR=2) |
+| 5 + 4·n | `0xC000` | band *n* capability (FM RX=0, AM RX=1, FM TX/RX=2) |
 | 5 + 4·n | `0x3FFF` | band *n* low edge, MHz |
 | 7 + 4·n | `0xC000` | (high-edge flag, unused) |
 | 7 + 4·n | `0x3FFF` | band *n* high edge, MHz |
@@ -360,17 +362,19 @@ Worked example — a real reply body from a dual-band HT:
 └─P1──┘└─P1──┘└─P2──┘└─P2──┘└─P3──┘└─P3──┘└─P4──┘└─P4──┘└─term┘
 ```
 
-| Pair | low (raw → MHz, mod) | high (raw → MHz) | Band |
+| Pair | low (raw → MHz, capability) | high (raw → MHz) | Band |
 | --- | --- | --- | --- |
-| P1 | `0x406C` → 108, AM | `0x4088` → 136 | 108–136 MHz (AM airband) |
-| P2 | `0x8088` → 136, DMR | `0x00AE` → 174 | 136–174 MHz (2 m) |
-| P3 | `0x012C` → 300, FM | `0x0226` → 550 | 300–550 MHz (UHF wide) |
-| P4 | `0x8190` → 400, DMR | `0x0208` → 520 | 400–520 MHz (70 cm) |
+| P1 | `0x406C` → 108, AM RX | `0x4088` → 136 | 108–136 MHz (AM RX, airband) |
+| P2 | `0x8088` → 136, FM TX/RX | `0x00AE` → 174 | 136–174 MHz (FM TX/RX, 2 m) |
+| P3 | `0x012C` → 300, FM RX | `0x0226` → 550 | 300–550 MHz (FM RX, UHF wide) |
+| P4 | `0x8190` → 400, FM TX/RX | `0x0208` → 520 | 400–520 MHz (FM TX/RX, 70 cm) |
 | term | `0x4000` → 0 | `0x0000` → 0 | end of list |
 
 HTCommander reads this on every connection (when `freqRangeCount > 0`) and uses
 the bands to validate channel-edit frequencies and to grey out RepeaterBook and
 Winlink stations the radio cannot tune.
+The Radio Information dialog's **Copy All** includes the reported frequency
+ranges and their capability labels, matching the displayed section.
 
 ### GET_HT_STATUS (20) → `RadioHtStatus`
 

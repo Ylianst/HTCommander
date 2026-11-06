@@ -587,8 +587,9 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     return rows;
   }
 
-  String _boolStr(bool v) =>
-      v ? AppLocalizations.of(context).riTrue : AppLocalizations.of(context).riFalse;
+  String _boolStr(bool v) => v
+      ? AppLocalizations.of(context).riTrue
+      : AppLocalizations.of(context).riFalse;
 
   String _weatherModeStr(int mode) {
     switch (mode) {
@@ -670,6 +671,9 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
     section(l10n.riSectionDeviceSettings, _settingsRows());
     section(l10n.riSectionBss, _bssRows());
     section(l10n.riSectionPosition, _positionRows());
+    if (_freqRanges.isNotEmpty) {
+      section(l10n.riSectionFreqRanges, _freqRangeRows());
+    }
     return buffer.toString().trimRight();
   }
 
@@ -687,17 +691,14 @@ class _RadioInfoDialogState extends State<_RadioInfoDialog> {
   /// Shows a "Copy" context menu (long-press or right-click) that copies the
   /// given [value] to the clipboard.
   Future<void> _showRowContextMenu(Offset globalPosition, String value) async {
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final selected = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
         Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
         Offset.zero & overlay.size,
       ),
-      items: const [
-        PopupMenuItem<String>(value: 'copy', child: Text('Copy')),
-      ],
+      items: const [PopupMenuItem<String>(value: 'copy', child: Text('Copy'))],
     );
     if (selected != 'copy') return;
     await Clipboard.setData(ClipboardData(text: value));
