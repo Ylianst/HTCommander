@@ -596,8 +596,9 @@ class WinlinkClient {
 
   void _onXaraData(int deviceId, String name, Object? data) {
     if (_disposed || _transportType != WinlinkTransportType.xara) return;
-    if (deviceId != _lockedRadioId || data is! Uint8List || data.isEmpty)
+    if (deviceId != _lockedRadioId || data is! Uint8List || data.isEmpty) {
       return;
+    }
     _processStream(data);
   }
 
