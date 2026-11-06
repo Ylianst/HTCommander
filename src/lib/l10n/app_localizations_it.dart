@@ -3098,6 +3098,23 @@ class AppLocalizationsIt extends AppLocalizations {
       'La de-enfasi del canale VFO A è attiva e degraderà i trasferimenti di dati.';
 
   @override
+  String get commsAudioRelay => 'Relè audio';
+
+  @override
+  String get commsAudioRelayWarning =>
+      'Attiva il relè audio per registrare la voce ricevuta e inviare la registrazione memorizzata subito dopo la fine della ricezione, realizzando la funzione di relè a eco. Generalmente usato per l\'inoltro da punti elevati o tra due luoghi non direttamente collegati tramite terzi. Se attivato in una normale stazione ripetitrice, causerà confusione nelle comunicazioni.';
+
+  @override
+  String get commsAudioRelayEnable => 'Attiva';
+
+  @override
+  String get commsAudioRelayEnabledBanner =>
+      'Il relè audio è attivo. La radio ritrasmette tutto ciò che riceve.';
+
+  @override
+  String get commsAudioRelayDisable => 'Disattiva';
+
+  @override
   String get commsPttTransmitting => 'Trasmissione in corso';
 
   @override

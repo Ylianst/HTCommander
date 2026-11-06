@@ -1080,6 +1080,12 @@ const Set<String> kSatelliteLockUsages = {
   kAprsSatLockUsage,
 };
 
+/// Lock usage held while the radio's own Audio Relay setting
+/// ([RadioSettings.autoRelayEn]) is on. The radio re-transmits what it
+/// receives, so it is unavailable for anything else. The lock follows the
+/// setting and is only released by turning Audio Relay off.
+const String kAudioRelayLockUsage = 'Audio Relay';
+
 /// Lock usage for hosting an AllStarLink node: the radio is dedicated to
 /// relaying audio between RF and the AllStarLink network.
 const String kAllStarNodeLockUsage = 'AllStarLink';

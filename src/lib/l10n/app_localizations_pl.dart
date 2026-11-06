@@ -3095,6 +3095,23 @@ class AppLocalizationsPl extends AppLocalizations {
       'Deemfaza kanału VFO A jest włączona i pogorszy transfery danych.';
 
   @override
+  String get commsAudioRelay => 'Przekaźnik audio';
+
+  @override
+  String get commsAudioRelayWarning =>
+      'Włącz przekaźnik audio, aby nagrywać odebrany głos i wysyłać zbuforowane nagranie natychmiast po zakończeniu odbioru, realizując funkcję przekaźnika echa. Zwykle używany do przekazywania z wysoko położonych miejsc lub między dwoma miejscami bez bezpośredniego połączenia za pośrednictwem stacji trzeciej. Włączenie go na zwykłej stacji przekaźnikowej spowoduje zamieszanie w łączności.';
+
+  @override
+  String get commsAudioRelayEnable => 'Włącz';
+
+  @override
+  String get commsAudioRelayEnabledBanner =>
+      'Przekaźnik audio jest włączony. Radio retransmituje wszystko, co odbierze.';
+
+  @override
+  String get commsAudioRelayDisable => 'Wyłącz';
+
+  @override
   String get commsPttTransmitting => 'Trwa transmisja';
 
   @override

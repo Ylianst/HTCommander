@@ -3095,6 +3095,23 @@ class AppLocalizationsFr extends AppLocalizations {
       'La désaccentuation du canal VFO A est activée et dégradera les transferts de données.';
 
   @override
+  String get commsAudioRelay => 'Relais audio';
+
+  @override
+  String get commsAudioRelayWarning =>
+      'Activez le relais audio pour enregistrer la voix reçue et envoyer l\'enregistrement mis en mémoire immédiatement après la fin de la réception, afin de réaliser la fonction de relais en écho. Généralement utilisé pour le relayage depuis un point haut ou entre deux lieux non directement reliés par un tiers. S\'il est activé sur une station relais ordinaire, il provoquera une confusion dans les communications.';
+
+  @override
+  String get commsAudioRelayEnable => 'Activer';
+
+  @override
+  String get commsAudioRelayEnabledBanner =>
+      'Le relais audio est activé. La radio retransmet tout ce qu\'elle reçoit.';
+
+  @override
+  String get commsAudioRelayDisable => 'Désactiver';
+
+  @override
   String get commsPttTransmitting => 'Transmission en cours';
 
   @override

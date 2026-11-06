@@ -3060,6 +3060,23 @@ class AppLocalizationsEn extends AppLocalizations {
       'VFO A channel de-emphasis is on and will degrade data transfers.';
 
   @override
+  String get commsAudioRelay => 'Audio Relay';
+
+  @override
+  String get commsAudioRelayWarning =>
+      'Turn on the Audio relay to record the received voice, and send the buffered recording immediately after the reception stops, to realize the echo relay function. Generally used for high-point forwarding or non-directly connected to the two places for third-party forwarding. If it is opened in a general relay station, it will cause communication confusion.';
+
+  @override
+  String get commsAudioRelayEnable => 'Enable';
+
+  @override
+  String get commsAudioRelayEnabledBanner =>
+      'Audio Relay is enabled. The radio re-transmits everything it receives.';
+
+  @override
+  String get commsAudioRelayDisable => 'Disable';
+
+  @override
   String get commsPttTransmitting => 'Transmitting';
 
   @override

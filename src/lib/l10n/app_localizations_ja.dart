@@ -3012,6 +3012,23 @@ class AppLocalizationsJa extends AppLocalizations {
       'VFO A チャンネルのディエンファシスがオンになっており、データ転送を劣化させます。';
 
   @override
+  String get commsAudioRelay => 'オーディオリレー';
+
+  @override
+  String get commsAudioRelayWarning =>
+      'オーディオリレーをオンにすると、受信した音声を録音し、受信終了直後にバッファした録音を送信してエコーリレー機能を実現します。一般的に高所からの中継や、直接接続されていない2地点間の第三者中継に使用されます。一般的な中継局でオンにすると、通信の混乱を招きます。';
+
+  @override
+  String get commsAudioRelayEnable => '有効にする';
+
+  @override
+  String get commsAudioRelayEnabledBanner =>
+      'オーディオリレーが有効です。無線機は受信したすべてを再送信します。';
+
+  @override
+  String get commsAudioRelayDisable => '無効にする';
+
+  @override
   String get commsPttTransmitting => '送信中';
 
   @override

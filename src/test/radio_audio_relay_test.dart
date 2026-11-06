@@ -186,6 +186,102 @@ void main() {
         broker.dispatch(deviceId: deviceId, name: 'SetAudioRelay', data: false);
         expect(transport.sent, isEmpty);
       });
+
+      test('reported Audio Relay holds the lock until turned off', () async {
+        radio.htStatus = RadioHtStatus.fromBytes(Uint8List(9));
+        await receive('FF0100170002800A00$_on');
+        expect(radio.lockUsage, kAudioRelayLockUsage);
+        expect(
+          broker.getValue<Map<String, dynamic>>(deviceId, 'LockState')!['usage'],
+          kAudioRelayLockUsage,
+        );
+
+        transport.sent.clear();
+        broker.dispatch(
+          deviceId: deviceId,
+          name: 'SetLock',
+          data: SetLockData(usage: 'Terminal'),
+        );
+        broker.dispatch(
+          deviceId: deviceId,
+          name: 'SetUnlock',
+          data: SetUnlockData(usage: kAudioRelayLockUsage),
+        );
+        broker.dispatch(
+          deviceId: deviceId,
+          name: 'ChannelChangeVfoA',
+          data: 3,
+        );
+        broker.dispatch(deviceId: deviceId, name: 'SetAudioRelay', data: true);
+        expect(transport.sent, isEmpty);
+        expect(radio.lockUsage, kAudioRelayLockUsage);
+
+        broker.dispatch(deviceId: deviceId, name: 'SetAudioRelay', data: false);
+        expect(transport.sent, hasLength(1));
+        // The lock is released only once the radio confirms the change.
+        expect(radio.lockUsage, kAudioRelayLockUsage);
+        await receive('FF0100170002000906$_off');
+        expect(radio.lockUsage, isNull);
+        expect(
+          broker.getValue<Map<String, dynamic>>(
+            deviceId,
+            'LockState',
+          )!['isLocked'],
+          false,
+        );
+      });
+
+      test('Audio Relay lock cannot be requested via SetLock', () async {
+        radio.htStatus = RadioHtStatus.fromBytes(Uint8List(9));
+        await receive('FF0100170002800A00$_off');
+        transport.sent.clear();
+        broker.dispatch(
+          deviceId: deviceId,
+          name: 'SetLock',
+          data: SetLockData(usage: kAudioRelayLockUsage),
+        );
+        expect(radio.lockUsage, isNull);
+        expect(transport.sent, isEmpty);
+      });
+
+      test('relay enabled during another lock takes over on unlock', () async {
+        radio.htStatus = RadioHtStatus.fromBytes(Uint8List(9));
+        await receive('FF0100170002800A00$_off');
+        broker.dispatch(
+          deviceId: deviceId,
+          name: 'SetLock',
+          data: SetLockData(usage: 'Satellite'),
+        );
+        await receive('FF0100170002000906$_on');
+        expect(radio.lockUsage, 'Satellite');
+
+        broker.dispatch(
+          deviceId: deviceId,
+          name: 'SetUnlock',
+          data: SetUnlockData(usage: 'Satellite'),
+        );
+        expect(radio.lockUsage, kAudioRelayLockUsage);
+      });
+
+      test('relay can be turned off while another usage holds the lock',
+          () async {
+        radio.htStatus = RadioHtStatus.fromBytes(Uint8List(9));
+        await receive('FF0100170002800A00$_off');
+        broker.dispatch(
+          deviceId: deviceId,
+          name: 'SetLock',
+          data: SetLockData(usage: 'Satellite'),
+        );
+        await receive('FF0100170002000906$_on');
+        transport.sent.clear();
+        broker.dispatch(deviceId: deviceId, name: 'SetAudioRelay', data: false);
+        expect(
+          transport.sent.single.sublist(type == BluetoothType.ble ? 4 : 8),
+          _bytes(_off),
+        );
+        await receive('FF0100170002000906$_off');
+        expect(radio.lockUsage, 'Satellite');
+      });
     });
   }
 }

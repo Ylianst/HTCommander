@@ -141,6 +141,11 @@ class _CommsTabState extends State<CommsTab>
   /// software modem is active in Chat mode.
   bool _vfoADeemphasis = false;
 
+  /// Whether the current radio reports its Audio Relay setting on, from
+  /// 'Settings'. Drives the menu checkmark and the warning banner, so relay can
+  /// be turned off even when it was enabled while another usage held the lock.
+  bool _audioRelayEnabled = false;
+
   /// Current software modem mode from device 0 'SoftwareModemMode'
   /// ('none'/'afsk1200'/'psk2400'/'dart').
   String _softwareModemMode = 'none';
@@ -1009,6 +1014,64 @@ class _CommsTabState extends State<CommsTab>
     return ls != null && ls.isLocked && ls.usage == radio.kAprsSatLockUsage;
   }
 
+  /// Whether the current radio is a physical radio (not the EchoLink or
+  /// AllStarLink pseudo-radios).
+  bool get _isPhysicalRadioSelected =>
+      _currentRadioDeviceId > 0 && !_isEchoLink && !_isAllStar;
+
+  /// Audio Relay can be turned off at any time once settings are known, but
+  /// can only be turned on while no other usage holds the radio.
+  bool get _canToggleAudioRelay {
+    if (!_isPhysicalRadioSelected) return false;
+    if (DataBroker.getValueDynamic(_currentRadioDeviceId, 'Settings')
+        is! Map) {
+      return false;
+    }
+    if (_audioRelayEnabled) return true;
+    final ls = _lockStates[_currentRadioDeviceId];
+    return ls == null || !ls.isLocked;
+  }
+
+  /// Turns the radio's Audio Relay off immediately, or on after the user
+  /// confirms the manufacturer's warning.
+  Future<void> _toggleAudioRelay() async {
+    final int deviceId = _currentRadioDeviceId;
+    if (deviceId <= 0) return;
+    if (_audioRelayEnabled) {
+      _setAudioRelay(deviceId, false);
+      return;
+    }
+    final l10n = AppLocalizations.of(context);
+    final bool? enable = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.commsAudioRelay),
+        content: Text(l10n.commsAudioRelayWarning),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.commsAudioRelayEnable),
+          ),
+        ],
+      ),
+    );
+    if (enable != true || !mounted) return;
+    _setAudioRelay(deviceId, true);
+  }
+
+  void _setAudioRelay(int deviceId, bool enabled) {
+    _broker.dispatch(
+      deviceId: deviceId,
+      name: 'SetAudioRelay',
+      data: enabled,
+      store: false,
+    );
+  }
+
   /// Whether to show the de-emphasis warning banner: a software modem
   /// (AFSK/PSK/DART) is enabled, the tab is in data "Chat" mode, and VFO A of
   /// the current radio has FM de-emphasis turned on (which degrades data).
@@ -1026,8 +1089,10 @@ class _CommsTabState extends State<CommsTab>
     _vfoAChannelId = -1;
     bool isAprs = false;
     bool deemphasis = false;
+    bool audioRelay = false;
     if (deviceId > 0) {
       final settings = DataBroker.getValueDynamic(deviceId, 'Settings');
+      if (settings is Map) audioRelay = settings['autoRelayEn'] == true;
       if (settings is Map && settings['channelA'] is int) {
         final int channelA = settings['channelA'] as int;
         _vfoAChannelId = channelA;
@@ -1046,6 +1111,7 @@ class _CommsTabState extends State<CommsTab>
     }
     _isVfoAAprs = isAprs;
     _vfoADeemphasis = deemphasis;
+    _audioRelayEnabled = audioRelay;
   }
 
   /// Recompute the VFO A derived state when the current radio's Settings or
@@ -1056,11 +1122,13 @@ class _CommsTabState extends State<CommsTab>
     final bool prevAprs = _isVfoAAprs;
     final bool prevDeemphasis = _vfoADeemphasis;
     final int prevChannelId = _vfoAChannelId;
+    final bool prevAudioRelay = _audioRelayEnabled;
     _updateVfoAInfo();
     if (mounted &&
         (prevAprs != _isVfoAAprs ||
             prevDeemphasis != _vfoADeemphasis ||
-            prevChannelId != _vfoAChannelId)) {
+            prevChannelId != _vfoAChannelId ||
+            prevAudioRelay != _audioRelayEnabled)) {
       setState(() {});
     }
   }
@@ -2832,11 +2900,29 @@ class _CommsTabState extends State<CommsTab>
           ),
         ],
         const PopupMenuDivider(height: 8),
+        if (_isPhysicalRadioSelected)
+          PopupMenuItem<String>(
+            value: 'audioRelay',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            enabled: _canToggleAudioRelay,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: _audioRelayEnabled
+                      ? const Text('✓', style: TextStyle(fontSize: 14))
+                      : null,
+                ),
+                Text(l10n.commsAudioRelay),
+              ],
+            ),
+          ),
         PopupMenuItem<String>(
           value: 'pttReleaseSettings',
           height: menuItemHeight,
           padding: menuItemPadding,
-          enabled: _currentRadioDeviceId > 0 && !_isEchoLink && !_isAllStar,
+          enabled: _isPhysicalRadioSelected,
           child: const Row(
             children: [SizedBox(width: 20), Text('PTT Release Settings...')],
           ),
@@ -2933,6 +3019,9 @@ class _CommsTabState extends State<CommsTab>
         case 'sendAudio':
           _pickAndSendAudio();
           break;
+        case 'audioRelay':
+          _toggleAudioRelay();
+          break;
         case 'pttReleaseSettings':
           if (context.mounted) {
             showEditIdentSettingsDialog(
@@ -2990,9 +3079,12 @@ class _CommsTabState extends State<CommsTab>
       child: Column(
         children: [
           _buildHeader(),
+          if (_showAudioRelayBanner) _buildAudioRelayBanner(),
           if (_isMuted && _sstvAutoMuted) _buildMuteBanner(),
           if (_isAprsSatellite) _buildAprsSatelliteBanner(),
-          if (_showDeemphasisWarning && !_isAprsSatellite)
+          if (_showDeemphasisWarning &&
+              !_isAprsSatellite &&
+              !_showAudioRelayBanner)
             _buildDeemphasisBanner(),
           Expanded(
             child: DragTarget<radio.RadioChannelInfo>(
@@ -3065,6 +3157,43 @@ class _CommsTabState extends State<CommsTab>
               _currentMode != VoiceTransmitMode.morseKey &&
               _currentMode != VoiceTransmitMode.none)
             _buildCancelPanel(),
+        ],
+      ),
+    );
+  }
+
+  bool get _showAudioRelayBanner =>
+      _audioRelayEnabled && _isPhysicalRadioSelected;
+
+  /// Banner shown above the chat while the radio's Audio Relay is on, with a
+  /// Disable button that turns it off without confirmation.
+  Widget _buildAudioRelayBanner() {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
+    return Container(
+      color: scheme.errorContainer,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          Icon(Icons.repeat, size: 18, color: scheme.onErrorContainer),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              l10n.commsAudioRelayEnabledBanner,
+              style: TextStyle(fontSize: 14, color: scheme.onErrorContainer),
+            ),
+          ),
+          SizedBox(
+            height: 28,
+            child: ElevatedButton(
+              onPressed: () => _setAudioRelay(_currentRadioDeviceId, false),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                textStyle: const TextStyle(fontSize: 12),
+              ),
+              child: Text(l10n.commsAudioRelayDisable),
+            ),
+          ),
         ],
       ),
     );

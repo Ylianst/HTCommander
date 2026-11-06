@@ -2979,6 +2979,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commsDeemphasisWarning => 'VFO A 通道的去加重已开启，会降低数据传输质量。';
 
   @override
+  String get commsAudioRelay => '音频中继';
+
+  @override
+  String get commsAudioRelayWarning =>
+      '开启音频中继后，将录制接收到的语音，并在接收停止后立即发送缓存的录音，以实现回声中继功能。一般用于高点转发或两地无法直接连通时的第三方转发。如果在一般中继站开启，会造成通信混乱。';
+
+  @override
+  String get commsAudioRelayEnable => '启用';
+
+  @override
+  String get commsAudioRelayEnabledBanner => '音频中继已启用。电台会重新发射接收到的所有内容。';
+
+  @override
+  String get commsAudioRelayDisable => '禁用';
+
+  @override
   String get commsPttTransmitting => '正在发送';
 
   @override

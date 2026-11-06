@@ -864,6 +864,10 @@ class Radio implements FirmwareRadio {
   void _onSetLockEvent(int devId, String name, dynamic data) {
     if (devId != deviceId) return;
     if (data is! SetLockData) return;
+    if (data.usage == kAudioRelayLockUsage) {
+      _debug('Ignoring SetLock - Audio Relay lock follows the radio setting');
+      return;
+    }
     if (_lockState != null || settings == null || htStatus == null) {
       _broker.logError(
         '[Radio $deviceId] SetLock rejected: requestedUsage=${data.usage} '
@@ -970,6 +974,8 @@ class Radio implements FirmwareRadio {
 
     final unlockData = data;
     if (_lockState!.usage != unlockData.usage) return;
+    // Released only by turning the Audio Relay setting off (SetAudioRelay).
+    if (unlockData.usage == kAudioRelayLockUsage) return;
     if (settings == null) return;
 
     _pendingLockChannelName = null;
@@ -986,6 +992,7 @@ class Radio implements FirmwareRadio {
       stopFreqMode();
       _lockState = null;
       _dispatch('LockState', RadioLockState(isLocked: false).toJson());
+      _syncAudioRelayLock();
       return;
     }
 
@@ -1014,6 +1021,31 @@ class Radio implements FirmwareRadio {
       channelId: -1,
     );
     _dispatch('LockState', unlockedState.toJson());
+    _syncAudioRelayLock();
+  }
+
+  /// Holds the [kAudioRelayLockUsage] lock while the radio reports Audio Relay
+  /// on, and releases it once the radio reports it off. If another usage holds
+  /// the lock when Audio Relay turns on (e.g. enabled from the radio itself),
+  /// that lock is kept and this is re-evaluated when it is released.
+  void _syncAudioRelayLock() {
+    final bool relayOn = settings?.autoRelayEn ?? false;
+    final lock = _lockState;
+    if (relayOn) {
+      if (lock != null) return;
+      _lockState = RadioLockState(
+        isLocked: true,
+        usage: kAudioRelayLockUsage,
+        regionId: -1,
+        channelId: -1,
+      );
+      _dispatch('LockState', _lockState!.toJson());
+      _debug('Radio locked for Audio Relay');
+    } else if (lock?.usage == kAudioRelayLockUsage) {
+      _lockState = null;
+      _dispatch('LockState', RadioLockState(isLocked: false).toJson());
+      _debug('Radio unlocked from Audio Relay');
+    }
   }
 
   /// Resolves a channel-by-name lock request that was deferred until the
@@ -2086,15 +2118,22 @@ class Radio implements FirmwareRadio {
 
   // Settings and status
   /// Changes Audio Relay via WRITE_SETTINGS, preserving the other settings.
-  /// The radio reports the confirmed value as Settings.autoRelayEn.
+  /// The radio reports the confirmed value as Settings.autoRelayEn, which in
+  /// turn takes or releases the [kAudioRelayLockUsage] lock. Enabling requires
+  /// an unlocked radio; disabling is always allowed so relay switched on at the
+  /// radio while another usage held the lock can still be turned off.
   void setAudioRelay(bool enabled) {
-    if (_lockState != null) {
-      _debug('Ignoring Audio Relay change - radio is locked');
-      return;
-    }
     final current = settings;
     if (current == null || current.rawData.length < 8) {
       _debug('Ignoring Audio Relay change - settings not loaded or incomplete');
+      return;
+    }
+    if (current.autoRelayEn == enabled) {
+      _debug('Ignoring Audio Relay change - already ${enabled ? 'on' : 'off'}');
+      return;
+    }
+    if (enabled && _lockState != null) {
+      _debug('Ignoring Audio Relay change - radio is locked');
       return;
     }
     writeSettings(current.toByteArrayWith(autoRelayEn: enabled));
@@ -3361,6 +3400,7 @@ class Radio implements FirmwareRadio {
       // capture and later restore every setting byte, including fields the
       // parsed model does not model. Retained in memory (not persisted).
       _dispatch('SettingsRaw', base64Encode(data));
+      _syncAudioRelayLock();
     } else {
       _debug('Failed to parse settings');
     }
@@ -3699,6 +3739,7 @@ class Radio implements FirmwareRadio {
     if (settings != null) {
       _dispatch('Settings', settings!.toJson());
       _dispatch('SettingsRaw', base64Encode(data));
+      _syncAudioRelayLock();
       // A weather-mode toggle means a 254+ channel id may be genuine NOAA.
       if (previous != null && previous.wxMode != settings!.wxMode) {
         _vfoExitPending = false;
