@@ -350,6 +350,7 @@ class Radio implements FirmwareRadio {
         'Scan',
         'SetGPS',
         'Region',
+        'SetAudioRelay',
       ],
       callback: _onSettingsChangeEvent,
     );
@@ -735,6 +736,13 @@ class Radio implements FirmwareRadio {
       case 'SetGPS':
         if (data is bool) {
           gpsEnabled = data;
+        }
+        break;
+      case 'SetAudioRelay':
+        if (data is bool) {
+          setAudioRelay(data);
+        } else {
+          _debug('Ignoring SetAudioRelay - expected a boolean');
         }
         break;
       case 'DualWatch':
@@ -2077,6 +2085,21 @@ class Radio implements FirmwareRadio {
   }
 
   // Settings and status
+  /// Changes Audio Relay via WRITE_SETTINGS, preserving the other settings.
+  /// The radio reports the confirmed value as Settings.autoRelayEn.
+  void setAudioRelay(bool enabled) {
+    if (_lockState != null) {
+      _debug('Ignoring Audio Relay change - radio is locked');
+      return;
+    }
+    final current = settings;
+    if (current == null || current.rawData.length < 8) {
+      _debug('Ignoring Audio Relay change - settings not loaded or incomplete');
+      return;
+    }
+    writeSettings(current.toByteArrayWith(autoRelayEn: enabled));
+  }
+
   void writeSettings(Uint8List data) {
     _cancelPendingChannelReads();
     _sendCommand(

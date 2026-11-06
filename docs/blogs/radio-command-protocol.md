@@ -454,6 +454,7 @@ split across byte boundaries. A few representative examples (see
 | `scan` | `byte6 & 0x80` |
 | `doubleChannel` | `(byte6 & 0x30)>>4` (selected VFO: `0`=off, `1`=A, `2`=B, `3`=C) |
 | `squelchLevel` | `byte6 & 0x0F` |
+| `autoRelayEn` | `byte7 & 0x40` (manufacturer app's **Audio Relay**) |
 | `micGain` | `(byte7 & 0x0E)>>1` |
 | `txTimeLimit` | `byte8 & 0x1F` |
 | `autoShareLocCh` | `(byte10 & 0x1F)` \| `((byte16 & 0x07)<<5)` |
@@ -468,6 +469,32 @@ the 4-byte header + status byte) and overwrites only the bytes it needs to chang
 copy-on-write wrapper the app calls. This preserves every field the app does not
 model. After a write, the radio may or may not push a `htSettingsChanged`
 notification, so the app re-reads settings to be safe.
+
+#### Audio Relay (`autoRelayEn`)
+
+A UV-Pro manufacturer-app Bluetooth capture showed five on/off pairs at
+09:14:19–09:14:47 on November 6, 2026. Each toggle sent basic group `0x0002`,
+`WRITE_SETTINGS` command `0x000B`, with the same 22-byte settings block except
+for bit `0x40` in **zero-based write-payload index 2** (byte 7 in a decoded read
+reply or settings notification):
+
+```text
+On:  5D 43 E7 47 1A 1E 1C 80 A1 01 0C 20 00 00 00 78 00 00 00 00 00 00
+Off: 5D 43 A7 47 1A 1E 1C 80 A1 01 0C 20 00 00 00 78 00 00 00 00 00 00
+```
+
+The corresponding Classic GAIA prefix is `FF 01 00 16 00 02 00 0B`; BLE uses
+`00 02 00 0B` followed by the settings payload, without the GAIA prefix.
+Every toggle in those five pairs received a successful `WRITE_SETTINGS` reply
+and a `htSettingsChanged` notification confirming the changed bit.
+
+Do **not** replay this example block on another radio: copy its current settings,
+then set or clear only this bit. Use `Radio.setAudioRelay(bool)` or dispatch the
+per-device `SetAudioRelay` broker event with a boolean. Both use
+`toByteArrayWith(autoRelayEn: ...)`, respect the radio lock, and require loaded
+settings. The existing `Settings.autoRelayEn` value reflects radio-confirmed
+state, not an optimistic local toggle. This changes the radio setting only; it
+does not establish an application audio connection.
 
 #### Weather mode (`wxMode`) — a *preference*, not a live state
 

@@ -214,6 +214,8 @@ class RadioSettings {
   final int doubleChannel;
   final int squelchLevel;
   final bool tailElim;
+
+  /// Manufacturer application's "Audio Relay" setting.
   final bool autoRelayEn;
   final bool autoPowerOn;
   final bool keepAghfpLink;
@@ -387,7 +389,11 @@ class RadioSettings {
     bool? scan,
     int? squelchLevel,
     int? wxMode,
+    bool? autoRelayEn,
   }) {
+    if (autoRelayEn != null && rawData.length < 8) {
+      throw StateError('Settings block is too short to change Audio Relay');
+    }
     final data = toByteArray(
       channelA ?? this.channelA,
       channelB ?? this.channelB,
@@ -395,6 +401,9 @@ class RadioSettings {
       scan ?? this.scan,
       squelchLevel ?? this.squelchLevel,
     );
+    if (autoRelayEn != null) {
+      data[2] = (data[2] & 0xBF) | (autoRelayEn ? 0x40 : 0);
+    }
     // Weather mode (0=off, 1=monitor, 2=alert) is the top 2 bits of raw byte
     // 15, i.e. index 10 of the header-stripped write buffer.
     if (wxMode != null && data.length > 10) {
