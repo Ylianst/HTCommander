@@ -382,6 +382,27 @@ class RadioChannelInfo {
     'rxMod': rxMod.index,
     'bandwidth': bandwidth == RadioBandwidthType.wide ? 1 : 0,
   };
+
+  /// Compact mode caption for a keypad VFO slot, e.g. "VFO · FM · 12.5 kHz".
+  String vfoCaption(String vfoLabel) {
+    final mod = rxMod == RadioModulationType.am ? 'AM' : 'FM';
+    final bw = bandwidth == RadioBandwidthType.wide ? '25 kHz' : '12.5 kHz';
+    return '$vfoLabel · $mod · $bw';
+  }
+}
+
+/// Parses a radio's `VfoChannels` broker value (a list of channel maps) into a
+/// map keyed by channel id. Returns an empty map for null / unexpected data.
+Map<int, RadioChannelInfo> parseVfoChannels(Object? data) {
+  final out = <int, RadioChannelInfo>{};
+  if (data is! List) return out;
+  for (final e in data) {
+    if (e is Map) {
+      final ch = RadioChannelInfo.fromJson(Map<String, dynamic>.from(e));
+      out[ch.channelId] = ch;
+    }
+  }
+  return out;
 }
 
 /// Radio position - GPS position information

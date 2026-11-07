@@ -935,6 +935,22 @@ list immediately, so channel displays refresh without reconnecting. It also
 retains the settings re-read, but does not treat the event as a response to an
 outstanding channel-read request.
 
+### Keypad "any frequency" (VFO) mode
+
+Holding `*` on the radio enters a free-tune mode where a frequency, AM/FM and
+wide/narrow are typed in directly. This is separate from the
+`FREQ_MODE_SET_PAR` satellite/VFO mode (channel 254). On entry the radio only
+pushes `htSettingsChanged`, with settings channel A set to a hidden slot past
+the channel table (observed: **252**, e.g. settings byte `0xCD` + `0xF1`).
+Typing a new frequency pushes `htChChanged` for that slot, e.g.
+`05 FC 08954400 08954400 ...` = channel 252, 144.000 MHz FM narrow. Leaving the
+mode restores the previous channel A in a new `htSettingsChanged`.
+
+HTCommander treats ids from the channel count up to 253 as VFO slots. It keeps
+them outside the channel list, publishes them as `VfoChannels`, and requests
+`READ_RF_CH [slot]` when settings select a slot. The Radio tab then shows the
+typed frequency instead of a blank VFO.
+
 ### freqModeStatusChanged (14) layout
 
 Worth calling out because it packs several fields and has a subtle "authoritative

@@ -70,6 +70,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   // freqModeStatusChanged status flags (curr channel id is not reliable).
   bool _freqModeActive = false;
   List<RadioChannelInfo>? _currentChannels;
+  // Keypad VFO ("any frequency" mode) memory slots keyed by channel id (e.g.
+  // 252), selected as channel A/B in place of a regular channel.
+  Map<int, RadioChannelInfo> _vfoChannels = {};
   // Full channel objects (with tones, de-emphasis, power, etc.) keyed by
   // channelId, used as the payload when a channel is dragged out to be shared.
   Map<int, radio.RadioChannelInfo> _fullChannels = {};
@@ -633,6 +636,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     _freqModeFreqHz = 0;
     _freqModeActive = false;
     _currentChannels = null;
+    _vfoChannels = {};
     _fullChannels = {};
     _friendlyName = '';
     _gpsEnabled = false;
@@ -711,6 +715,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         'FreqModeFreq',
         'FreqModeActive',
         'Channels',
+        'VfoChannels',
         'FriendlyName',
         'GpsEnabled',
         'Position',
@@ -766,6 +771,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       widget.deviceId,
       'Channels',
       (json) => RadioChannelInfo.fromJson(json),
+    );
+    _vfoChannels = parseVfoChannels(
+      _broker.getValueDynamic(widget.deviceId, 'VfoChannels'),
     );
     final fullList = _broker.getJsonListValue<radio.RadioChannelInfo>(
       widget.deviceId,
@@ -989,6 +997,9 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
             };
           }
           break;
+        case 'VfoChannels':
+          _vfoChannels = parseVfoChannels(data);
+          break;
         case 'FriendlyName':
           _friendlyName = data as String? ?? '';
           break;
@@ -1131,6 +1142,26 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     return _currentChannels![idx];
   }
 
+  /// True when channel id [idx] is a keypad VFO ("any frequency") slot.
+  bool _isVfoSlot(int idx) =>
+      _vfoChannels.containsKey(idx) ||
+      radio.isVfoChannelId(idx, _currentChannels?.length ?? 0);
+
+  /// Large label for a keypad VFO slot: its typed frequency, or "VFO" until
+  /// the slot has been read.
+  String _vfoSlotLabel(int idx) {
+    final ch = _vfoChannels[idx];
+    if (ch != null && ch.rxFreq > 0) return '${ch.frequencyDisplay} MHz';
+    return AppLocalizations.of(context).riVfo;
+  }
+
+  /// Small caption for a keypad VFO slot (modulation and bandwidth).
+  String _vfoSlotCaption(int idx) {
+    final ch = _vfoChannels[idx];
+    if (ch == null || ch.rxFreq <= 0) return '';
+    return ch.vfoCaption(AppLocalizations.of(context).riVfo);
+  }
+
   /// True while the radio is in frequency (VFO) mode. Driven by the reliable
   /// freqModeStatusChanged status flags; NOAA weather (settings-based) is also
   /// treated as frequency mode so its live frequency is shown.
@@ -1226,6 +1257,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       if (caption.isNotEmpty) return caption;
       return '';
     }
+    final idxA = _currentSettings?.channelA ?? -1;
+    if (_isVfoSlot(idxA)) return _vfoSlotLabel(idxA);
     final ch = _channelA;
     if (ch == null) return '';
     if (ch.name.isNotEmpty) return ch.name;
@@ -1246,6 +1279,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     if (_showFrequencyMode) {
       return _frequencyModeFreq.isNotEmpty ? _frequencyModeCaption : '';
     }
+    final idxA = _currentSettings?.channelA ?? -1;
+    if (_isVfoSlot(idxA)) return _vfoSlotCaption(idxA);
     final ch = _channelA;
     if (ch == null) return '';
     if (ch.name.isNotEmpty) {
@@ -1294,6 +1329,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
     if (!_isDualChannel) return '';
 
+    final idxB = _currentSettings?.channelB ?? -1;
+    if (_isVfoSlot(idxB)) return _vfoSlotLabel(idxB);
     final ch = _channelB;
     if (ch == null) return '';
     if (ch.name.isNotEmpty) return ch.name;
@@ -1336,6 +1373,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
 
     if (!_isDualChannel) return '';
 
+    final idxB = _currentSettings?.channelB ?? -1;
+    if (_isVfoSlot(idxB)) return _vfoSlotCaption(idxB);
     final ch = _channelB;
     if (ch == null) return '';
     if (ch.name.isNotEmpty) {

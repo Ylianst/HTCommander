@@ -280,6 +280,9 @@ class Radio implements FirmwareRadio {
   // Public state
   RadioDevInfo? info;
   List<RadioChannelInfo?>? channels;
+  // Keypad VFO ("any frequency") memory slots past the channel table, keyed by
+  // channel id (e.g. 252). See [isVfoChannelId]. Dispatched as 'VfoChannels'.
+  final Map<int, RadioChannelInfo> vfoChannels = {};
   // Names of the radio's regions, indexed by region id. An entry is null until
   // its READ_REGION_NAME reply has been received. Sized to info.regionCount
   // once device info is known.
@@ -1606,6 +1609,8 @@ class Radio implements FirmwareRadio {
     // Clear data via broker
     _dispatch('Info', null);
     _dispatch('Channels', null);
+    vfoChannels.clear();
+    _dispatch('VfoChannels', null);
     _dispatch('HtStatus', null);
     _dispatch('Settings', null);
     _dispatch('BssSettings', null);
@@ -1971,16 +1976,43 @@ class Radio implements FirmwareRadio {
     for (int i = 0; i < info!.channelCount; i++) {
       _enqueueRead(RadioBasicCommand.readRfCh, i);
     }
+    _syncVfoChannels(null, force: true);
+  }
+
+  /// True when [channelId] is a keypad VFO memory slot (see [isVfoChannelId]).
+  bool _isVfoChannelId(int channelId) =>
+      isVfoChannelId(channelId, channels?.length ?? info?.channelCount ?? 0);
+
+  /// Reads the keypad VFO slot(s) selected by the current settings. Entering
+  /// the radio's "any frequency" mode only pushes htSettingsChanged (channel A
+  /// becomes e.g. 252), so the slot is read when it becomes selected (or when
+  /// [force] is set / it is not cached yet). Later edits arrive as htChChanged.
+  void _syncVfoChannels(RadioSettings? previous, {bool force = false}) {
+    final s = settings;
+    if (s == null) return;
+    for (final id in {s.channelA, s.channelB}) {
+      if (!_isVfoChannelId(id)) continue;
+      final wasSelected =
+          previous != null &&
+          (previous.channelA == id || previous.channelB == id);
+      if (force || !wasSelected || !vfoChannels.containsKey(id)) {
+        _enqueueRead(RadioBasicCommand.readRfCh, id);
+      }
+    }
+  }
+
+  /// The channel for [channelId], including keypad VFO slots; null if unknown.
+  RadioChannelInfo? channelById(int channelId) {
+    if (channelId < 0) return null;
+    if (channels != null && channelId < channels!.length) {
+      return channels![channelId];
+    }
+    return vfoChannels[channelId];
   }
 
   String _getChannelNameById(int channelId) {
     if (channelId >= 254) return 'NOAA';
-    if (channels != null &&
-        channels!.length > channelId &&
-        channels![channelId] != null) {
-      return channels![channelId]!.name;
-    }
-    return '';
+    return channelById(channelId)?.name ?? '';
   }
 
   /// The id (curr_ch_id from the HT status) of the channel currently being
@@ -2401,12 +2433,8 @@ class Radio implements FirmwareRadio {
     if (regionId == -1 && htStatus != null) regionId = htStatus!.currRegion;
 
     // Fill channel name if not specified
-    if (channelName.isEmpty &&
-        channelId >= 0 &&
-        channels != null &&
-        channelId < channels!.length &&
-        channels![channelId] != null) {
-      channelName = channels![channelId]!.name;
+    if (channelName.isEmpty && channelId >= 0) {
+      channelName = channelById(channelId)?.name ?? '';
     }
 
     final t = DateTime.now();
@@ -3390,6 +3418,7 @@ class Radio implements FirmwareRadio {
     _debug(
       'Received settings data, length: ${data.length}, data: ${RadioUtils.bytesToHex(data)}',
     );
+    final previous = settings;
     settings = RadioSettings.fromBytes(data);
     if (settings != null) {
       _debug(
@@ -3401,6 +3430,7 @@ class Radio implements FirmwareRadio {
       // parsed model does not model. Retained in memory (not persisted).
       _dispatch('SettingsRaw', base64Encode(data));
       _syncAudioRelayLock();
+      _syncVfoChannels(previous);
     } else {
       _debug('Failed to parse settings');
     }
@@ -3473,6 +3503,16 @@ class Radio implements FirmwareRadio {
   }
 
   void _handleReadRfCh(Uint8List data) {
+    // A rejected read (e.g. a VFO slot this firmware does not expose) may not
+    // echo the channel id; release the in-flight read instead of waiting for
+    // its timeout and retries.
+    if (data.length > 4 && data[4] != 0) {
+      final r = _readInFlight;
+      if (r != null && r.cmd == RadioBasicCommand.readRfCh) {
+        _onReadReplyReceived(r.cmd, r.index);
+      }
+      return;
+    }
     final channel = RadioChannelInfo.fromBytes(data);
     // Advance the serialized read queue now that this channel's reply arrived.
     _onReadReplyReceived(RadioBasicCommand.readRfCh, channel.channelId);
@@ -3480,6 +3520,14 @@ class Radio implements FirmwareRadio {
   }
 
   void _storeChannel(RadioChannelInfo channel) {
+    if (channels != null && _isVfoChannelId(channel.channelId)) {
+      vfoChannels[channel.channelId] = channel;
+      _dispatch(
+        'VfoChannels',
+        vfoChannels.values.map((c) => c.toJson()).toList(),
+      );
+      return;
+    }
     if (channels != null && channel.channelId >= channels!.length) {
       _broker.logError(
         '[Radio $deviceId] Channel id ${channel.channelId} is out of range',
@@ -3740,6 +3788,7 @@ class Radio implements FirmwareRadio {
       _dispatch('Settings', settings!.toJson());
       _dispatch('SettingsRaw', base64Encode(data));
       _syncAudioRelayLock();
+      _syncVfoChannels(previous);
       // A weather-mode toggle means a 254+ channel id may be genuine NOAA.
       if (previous != null && previous.wxMode != settings!.wxMode) {
         _vfoExitPending = false;

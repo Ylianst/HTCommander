@@ -1096,6 +1096,20 @@ const String kAllStarNodeLockUsage = 'AllStarLink';
 /// keeps data frames on the satellite uplink instead of a memory channel (0).
 const int kSatelliteTransmitChannelId = 254;
 
+/// The keypad "any frequency" (VFO) mode, entered by holding `*` on the radio,
+/// selects a hidden memory slot past the regular channel table as channel A
+/// (observed: 252). The slot holds the typed frequency, modulation and
+/// bandwidth, is pushed via htChChanged and can be read with READ_RF_CH. Ids
+/// from the radio's channel count up to (but excluding) 254 are such VFO slots.
+const int kVfoChannelIdLimit = 254;
+
+/// True when [channelId] is a keypad VFO memory slot rather than a regular
+/// channel, given the radio's regular [channelCount].
+bool isVfoChannelId(int channelId, int channelCount) =>
+    channelCount > 0 &&
+    channelId >= channelCount &&
+    channelId < kVfoChannelIdLimit;
+
 /// Radio lock state - for exclusive operations
 class RadioLockState {
   bool isLocked;

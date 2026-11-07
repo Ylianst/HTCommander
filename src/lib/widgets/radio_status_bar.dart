@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 import '../models/radio_models.dart';
+import '../radio/radio_models.dart' show isVfoChannelId;
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../echolink/echolink_station.dart';
 
@@ -39,6 +40,8 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
   // freqModeStatusChanged status flags (curr channel id is not reliable).
   bool _freqModeActive = false;
   List<RadioChannelInfo>? _currentChannels;
+  // Keypad VFO ("any frequency" mode) memory slots keyed by channel id.
+  Map<int, RadioChannelInfo> _vfoChannels = {};
   RadioLockState? _lockState;
   bool _gpsEnabled = false;
   RadioPosition? _position;
@@ -98,6 +101,7 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
     _freqModeFreqHz = 0;
     _freqModeActive = false;
     _currentChannels = null;
+    _vfoChannels = {};
     _lockState = null;
     _gpsEnabled = false;
     _position = null;
@@ -143,6 +147,7 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
         'FreqModeFreq',
         'FreqModeActive',
         'Channels',
+        'VfoChannels',
         'LockState',
         'GpsEnabled',
         'Position',
@@ -196,6 +201,9 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
       widget.deviceId,
       'Channels',
       (json) => RadioChannelInfo.fromJson(json),
+    );
+    _vfoChannels = parseVfoChannels(
+      _broker.getValueDynamic(widget.deviceId, 'VfoChannels'),
     );
     _lockState = _broker.getJsonValue<RadioLockState>(
       widget.deviceId,
@@ -275,6 +283,9 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
                 .map((e) => RadioChannelInfo.fromJson(e))
                 .toList();
           }
+          break;
+        case 'VfoChannels':
+          _vfoChannels = parseVfoChannels(data);
           break;
         case 'LockState':
           if (data is Map<String, dynamic>) {
@@ -406,6 +417,23 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
     return _currentChannels![idx];
   }
 
+  /// True when channel id [idx] is a keypad VFO ("any frequency") slot.
+  bool _isVfoSlot(int idx) =>
+      _vfoChannels.containsKey(idx) ||
+      isVfoChannelId(idx, _currentChannels?.length ?? 0);
+
+  String _vfoSlotLabel(int idx) {
+    final ch = _vfoChannels[idx];
+    if (ch != null && ch.rxFreq > 0) return '${ch.frequencyDisplay} MHz';
+    return AppLocalizations.of(context).riVfo;
+  }
+
+  String _vfoSlotCaption(int idx) {
+    final ch = _vfoChannels[idx];
+    if (ch == null || ch.rxFreq <= 0) return '';
+    return ch.vfoCaption(AppLocalizations.of(context).riVfo);
+  }
+
   /// True while the radio is in frequency (VFO) mode. Driven by the reliable
   /// freqModeStatusChanged status flags; NOAA weather (settings-based) is also
   /// treated as frequency mode so its live frequency is shown.
@@ -506,6 +534,8 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
       if (caption.isNotEmpty) return caption;
       return '';
     }
+    final idxA = _currentSettings?.channelA ?? -1;
+    if (_isVfoSlot(idxA)) return _vfoSlotLabel(idxA);
     final ch = _channelA;
     if (ch == null) return '';
     if (ch.name.isNotEmpty) return ch.name;
@@ -519,6 +549,8 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
     if (_showFrequencyMode) {
       return _frequencyModeFreq.isNotEmpty ? _frequencyModeCaption : '';
     }
+    final idxA = _currentSettings?.channelA ?? -1;
+    if (_isVfoSlot(idxA)) return _vfoSlotCaption(idxA);
     final ch = _channelA;
     if (ch == null) return '';
     if (ch.name.isEmpty) return '';
@@ -551,6 +583,8 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
 
     if (!_isDualChannel) return '';
 
+    final idxB = _currentSettings?.channelB ?? -1;
+    if (_isVfoSlot(idxB)) return _vfoSlotCaption(idxB);
     final ch = _channelB;
     if (ch == null || ch.name.isEmpty) return '';
     return ch.rxFreq > 0 ? '${ch.frequencyDisplay} MHz' : '';
@@ -586,6 +620,8 @@ class _RadioStatusBarState extends State<RadioStatusBar> {
 
     if (!_isDualChannel) return '';
 
+    final idxB = _currentSettings?.channelB ?? -1;
+    if (_isVfoSlot(idxB)) return _vfoSlotLabel(idxB);
     final ch = _channelB;
     if (ch == null) return '';
     if (ch.name.isNotEmpty) return ch.name;
