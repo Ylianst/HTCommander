@@ -8157,6 +8157,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Received'**
   String get meshDeliveryReceived;
+
+  /// Title of the dialog that tunes the radio keypad frequency (VFO) mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequency Mode'**
+  String get vfoDialogTitle;
+
+  /// Shown in the frequency mode dialog when the radio is on a regular channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel mode'**
+  String get vfoDialogChannelMode;
+
+  /// Label of the frequency input in the frequency mode dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequency (MHz)'**
+  String get vfoDialogFrequency;
+
+  /// Label of the AM/FM selector in the frequency mode dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Modulation'**
+  String get vfoDialogModulation;
+
+  /// Label of the wide/narrow selector in the frequency mode dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Bandwidth'**
+  String get vfoDialogBandwidth;
+
+  /// Label of the tuning step size selector in the frequency mode dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Step'**
+  String get vfoDialogStep;
+
+  /// Lists the frequency ranges the radio allows for the selected modulation.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed: {ranges}'**
+  String vfoDialogAllowed(String ranges);
+
+  /// Error shown when the entered frequency is outside the radio bands.
+  ///
+  /// In en, this message translates to:
+  /// **'Outside the radio\'s allowed range'**
+  String get vfoDialogOutOfRange;
+
+  /// Button that tunes the radio to the entered frequency.
+  ///
+  /// In en, this message translates to:
+  /// **'Tune'**
+  String get vfoDialogTune;
+
+  /// Button that returns the radio from frequency mode to its channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit Frequency Mode'**
+  String get vfoDialogExit;
+
+  /// Tooltip of the button that tunes one step lower.
+  ///
+  /// In en, this message translates to:
+  /// **'Step down'**
+  String get vfoDialogStepDown;
+
+  /// Tooltip of the button that tunes one step higher.
+  ///
+  /// In en, this message translates to:
+  /// **'Step up'**
+  String get vfoDialogStepUp;
 }
 
 class _AppLocalizationsDelegate

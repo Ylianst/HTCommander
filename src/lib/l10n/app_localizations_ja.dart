@@ -4420,4 +4420,42 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get meshDeliveryReceived => '受信';
+
+  @override
+  String get vfoDialogTitle => '周波数モード';
+
+  @override
+  String get vfoDialogChannelMode => 'チャンネルモード';
+
+  @override
+  String get vfoDialogFrequency => '周波数 (MHz)';
+
+  @override
+  String get vfoDialogModulation => '変調';
+
+  @override
+  String get vfoDialogBandwidth => '帯域幅';
+
+  @override
+  String get vfoDialogStep => 'ステップ';
+
+  @override
+  String vfoDialogAllowed(String ranges) {
+    return '許可範囲: $ranges';
+  }
+
+  @override
+  String get vfoDialogOutOfRange => '無線機の許可範囲外です';
+
+  @override
+  String get vfoDialogTune => '同調';
+
+  @override
+  String get vfoDialogExit => '周波数モードを終了';
+
+  @override
+  String get vfoDialogStepDown => 'ステップダウン';
+
+  @override
+  String get vfoDialogStepUp => 'ステップアップ';
 }

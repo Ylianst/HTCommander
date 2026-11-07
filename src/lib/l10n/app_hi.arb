@@ -1526,5 +1526,17 @@
   "meshDeliverySent": "भेजा गया",
   "meshDeliveryDelivered": "डिलीवर हुआ",
   "meshDeliveryFailed": "विफल",
-  "meshDeliveryReceived": "प्राप्त"
+  "meshDeliveryReceived": "प्राप्त",
+  "vfoDialogTitle": "फ़्रीक्वेंसी मोड",
+  "vfoDialogChannelMode": "चैनल मोड",
+  "vfoDialogFrequency": "फ़्रीक्वेंसी (MHz)",
+  "vfoDialogModulation": "मॉड्यूलेशन",
+  "vfoDialogBandwidth": "बैंडविड्थ",
+  "vfoDialogStep": "स्टेप",
+  "vfoDialogAllowed": "अनुमत: {ranges}",
+  "vfoDialogOutOfRange": "रेडियो की अनुमत सीमा से बाहर",
+  "vfoDialogTune": "ट्यून करें",
+  "vfoDialogExit": "फ़्रीक्वेंसी मोड से बाहर निकलें",
+  "vfoDialogStepDown": "स्टेप नीचे",
+  "vfoDialogStepUp": "स्टेप ऊपर"
 }

@@ -1526,5 +1526,17 @@
   "meshDeliverySent": "送信済み",
   "meshDeliveryDelivered": "配信済み",
   "meshDeliveryFailed": "失敗",
-  "meshDeliveryReceived": "受信"
+  "meshDeliveryReceived": "受信",
+  "vfoDialogTitle": "周波数モード",
+  "vfoDialogChannelMode": "チャンネルモード",
+  "vfoDialogFrequency": "周波数 (MHz)",
+  "vfoDialogModulation": "変調",
+  "vfoDialogBandwidth": "帯域幅",
+  "vfoDialogStep": "ステップ",
+  "vfoDialogAllowed": "許可範囲: {ranges}",
+  "vfoDialogOutOfRange": "無線機の許可範囲外です",
+  "vfoDialogTune": "同調",
+  "vfoDialogExit": "周波数モードを終了",
+  "vfoDialogStepDown": "ステップダウン",
+  "vfoDialogStepUp": "ステップアップ"
 }

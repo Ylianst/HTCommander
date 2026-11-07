@@ -4536,4 +4536,42 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get meshDeliveryReceived => 'Odebrano';
+
+  @override
+  String get vfoDialogTitle => 'Tryb częstotliwości';
+
+  @override
+  String get vfoDialogChannelMode => 'Tryb kanału';
+
+  @override
+  String get vfoDialogFrequency => 'Częstotliwość (MHz)';
+
+  @override
+  String get vfoDialogModulation => 'Modulacja';
+
+  @override
+  String get vfoDialogBandwidth => 'Szerokość pasma';
+
+  @override
+  String get vfoDialogStep => 'Krok';
+
+  @override
+  String vfoDialogAllowed(String ranges) {
+    return 'Dozwolone: $ranges';
+  }
+
+  @override
+  String get vfoDialogOutOfRange => 'Poza dozwolonym zakresem radia';
+
+  @override
+  String get vfoDialogTune => 'Dostrój';
+
+  @override
+  String get vfoDialogExit => 'Wyjdź z trybu częstotliwości';
+
+  @override
+  String get vfoDialogStepDown => 'Krok w dół';
+
+  @override
+  String get vfoDialogStepUp => 'Krok w górę';
 }

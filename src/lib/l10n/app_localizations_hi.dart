@@ -4506,4 +4506,42 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get meshDeliveryReceived => 'प्राप्त';
+
+  @override
+  String get vfoDialogTitle => 'फ़्रीक्वेंसी मोड';
+
+  @override
+  String get vfoDialogChannelMode => 'चैनल मोड';
+
+  @override
+  String get vfoDialogFrequency => 'फ़्रीक्वेंसी (MHz)';
+
+  @override
+  String get vfoDialogModulation => 'मॉड्यूलेशन';
+
+  @override
+  String get vfoDialogBandwidth => 'बैंडविड्थ';
+
+  @override
+  String get vfoDialogStep => 'स्टेप';
+
+  @override
+  String vfoDialogAllowed(String ranges) {
+    return 'अनुमत: $ranges';
+  }
+
+  @override
+  String get vfoDialogOutOfRange => 'रेडियो की अनुमत सीमा से बाहर';
+
+  @override
+  String get vfoDialogTune => 'ट्यून करें';
+
+  @override
+  String get vfoDialogExit => 'फ़्रीक्वेंसी मोड से बाहर निकलें';
+
+  @override
+  String get vfoDialogStepDown => 'स्टेप नीचे';
+
+  @override
+  String get vfoDialogStepUp => 'स्टेप ऊपर';
 }

@@ -1110,6 +1110,61 @@ bool isVfoChannelId(int channelId, int channelCount) =>
     channelId >= channelCount &&
     channelId < kVfoChannelIdLimit;
 
+/// Slot the radio uses for keypad VFO mode on channel A (see
+/// [isVfoChannelId]). HTCommander enters the mode by tuning this slot and
+/// selecting it as channel A.
+const int kKeypadVfoChannelId = 252;
+
+/// A tunable band reported by READ_FREQ_RANGE. [mod] is the band capability:
+/// 0 = FM RX, 1 = AM RX, 2 = FM TX/RX.
+class RadioFreqBand {
+  final int lowHz;
+  final int highHz;
+  final int mod;
+
+  const RadioFreqBand(this.lowHz, this.highHz, this.mod);
+
+  bool contains(int hz) => hz >= lowHz && hz <= highHz;
+
+  /// AM is only valid in AM RX bands; FM in FM RX or FM TX/RX bands.
+  bool supports(RadioModulationType m) =>
+      m == RadioModulationType.am ? mod == 1 : (mod == 0 || mod == 2);
+}
+
+/// Limits used until the radio reports its bands (same as the channel editor).
+const List<RadioFreqBand> kDefaultFreqBands = [
+  RadioFreqBand(108000000, 136000000, 1),
+  RadioFreqBand(136000000, 174000000, 2),
+  RadioFreqBand(300000000, 550000000, 0),
+];
+
+/// Parses the broker `FreqRanges` value (list of `{lowHz, highHz, mod}` maps).
+List<RadioFreqBand> parseFreqBands(Object? data) {
+  if (data is! List) return const [];
+  final out = <RadioFreqBand>[];
+  for (final e in data) {
+    if (e is! Map) continue;
+    final low = (e['lowHz'] as num?)?.toInt();
+    final high = (e['highHz'] as num?)?.toInt();
+    if (low == null || high == null) continue;
+    out.add(RadioFreqBand(low, high, (e['mod'] as num?)?.toInt() ?? 0));
+  }
+  return out;
+}
+
+/// The bands valid for modulation [m], falling back to [kDefaultFreqBands]
+/// when the radio has not reported any.
+List<RadioFreqBand> freqBandsFor(
+  List<RadioFreqBand> bands,
+  RadioModulationType m,
+) => (bands.isEmpty ? kDefaultFreqBands : bands)
+    .where((b) => b.supports(m))
+    .toList();
+
+/// True when [hz] lies within one of the radio's bands for modulation [m].
+bool isFreqAllowed(List<RadioFreqBand> bands, int hz, RadioModulationType m) =>
+    hz > 0 && freqBandsFor(bands, m).any((b) => b.contains(hz));
+
 /// Radio lock state - for exclusive operations
 class RadioLockState {
   bool isLocked;

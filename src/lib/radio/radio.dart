@@ -298,6 +298,11 @@ class Radio implements FirmwareRadio {
   // Frequency bands the radio can tune, each as `[lowHz, highHz]`. Populated
   // from the READ_FREQ_RANGE reply; empty until that reply has been received.
   List<List<int>> freqRanges = const [];
+  // Same bands with their capability flag, used to validate VFO tuning.
+  List<RadioFreqBand> freqBands = const [];
+  // Last regular (non-VFO) settings channel A, restored when leaving keypad
+  // VFO mode. The radio's settings do not expose it while in that mode.
+  int? _lastRegularChannelA;
   bool hardwareModemEnabled = true;
 
   /// Live general software-modem mode (enum name, e.g. 'afsk1200' / 'none'),
@@ -341,6 +346,12 @@ class Radio implements FirmwareRadio {
       deviceId: deviceId,
       names: ['ChannelChangeVfoA', 'ChannelChangeVfoB'],
       callback: _onChannelChangeEvent,
+    );
+
+    _broker.subscribeMultiple(
+      deviceId: deviceId,
+      names: ['VfoTune', 'VfoExit'],
+      callback: _onKeypadVfoEvent,
     );
 
     // Subscribe to settings change events
@@ -717,6 +728,81 @@ class Radio implements FirmwareRadio {
         );
         break;
     }
+  }
+
+  void _onKeypadVfoEvent(int devId, String name, dynamic data) {
+    if (devId != deviceId) return;
+    if (name == 'VfoExit') {
+      exitKeypadVfo();
+      return;
+    }
+    if (data is! Map) return;
+    final freqHz = (data['freqHz'] as num?)?.toInt();
+    if (freqHz == null) return;
+    tuneKeypadVfo(
+      freqHz: freqHz,
+      mod: data['am'] == true ? RadioModulationType.am : RadioModulationType.fm,
+      bandwidth: data['wide'] == true
+          ? RadioBandwidthType.wide
+          : RadioBandwidthType.narrow,
+    );
+  }
+
+  /// True while settings channel A is a keypad VFO slot.
+  bool get isKeypadVfoActive =>
+      settings != null && _isVfoChannelId(settings!.channelA);
+
+  /// Tunes the keypad VFO slot to [freqHz] and selects it as channel A,
+  /// entering the radio's "any frequency" mode if needed. Returns false (and
+  /// sends nothing) when the radio is not ready, is locked, or the frequency
+  /// is outside the radio's bands for [mod].
+  bool tuneKeypadVfo({
+    required int freqHz,
+    required RadioModulationType mod,
+    required RadioBandwidthType bandwidth,
+  }) {
+    if (_state != RadioState.connected || settings == null) return false;
+    if (_lockState?.isLocked == true) {
+      _debug('Ignoring VFO tune - radio is locked');
+      return false;
+    }
+    if (!isFreqAllowed(freqBands, freqHz, mod)) {
+      _broker.logError(
+        '[Radio $deviceId] VFO frequency $freqHz Hz (${mod.name}) is outside '
+        'the radio\'s allowed range',
+      );
+      return false;
+    }
+    final slot = isKeypadVfoActive ? settings!.channelA : kKeypadVfoChannelId;
+    if (!_isVfoChannelId(slot)) return false;
+    final base =
+        vfoChannels[slot] ??
+        RadioChannelInfo(channelId: slot, txAtMaxPower: false);
+    setChannel(
+      base.copyWith(
+        channelId: slot,
+        rxFreq: freqHz,
+        txFreq: freqHz,
+        rxMod: mod,
+        txMod: mod,
+        bandwidth: bandwidth,
+      ),
+    );
+    if (settings!.channelA != slot) {
+      writeSettings(settings!.toByteArrayWith(channelA: slot));
+    }
+    return true;
+  }
+
+  /// Leaves keypad VFO mode by restoring the last regular channel A (channel
+  /// 0 when unknown, e.g. connected while already in VFO mode).
+  bool exitKeypadVfo() {
+    if (_state != RadioState.connected || !isKeypadVfoActive) return false;
+    if (_lockState?.isLocked == true) return false;
+    writeSettings(
+      settings!.toByteArrayWith(channelA: _lastRegularChannelA ?? 0),
+    );
+    return true;
   }
 
   void _onSettingsChangeEvent(int devId, String name, dynamic data) {
@@ -1610,6 +1696,7 @@ class Radio implements FirmwareRadio {
     _dispatch('Info', null);
     _dispatch('Channels', null);
     vfoChannels.clear();
+    _lastRegularChannelA = null;
     _dispatch('VfoChannels', null);
     _dispatch('HtStatus', null);
     _dispatch('Settings', null);
@@ -1990,6 +2077,9 @@ class Radio implements FirmwareRadio {
   void _syncVfoChannels(RadioSettings? previous, {bool force = false}) {
     final s = settings;
     if (s == null) return;
+    if (s.channelA < kVfoChannelIdLimit && !_isVfoChannelId(s.channelA)) {
+      _lastRegularChannelA = s.channelA;
+    }
     for (final id in {s.channelA, s.channelB}) {
       if (!_isVfoChannelId(id)) continue;
       final wasSelected =
@@ -3621,6 +3711,7 @@ class Radio implements FirmwareRadio {
     }
 
     freqRanges = ranges.map((r) => [r[0], r[1]]).toList();
+    freqBands = ranges.map((r) => RadioFreqBand(r[0], r[1], r[2])).toList();
     _dispatch(
       'FreqRanges',
       ranges.map((r) => {'lowHz': r[0], 'highHz': r[1], 'mod': r[2]}).toList(),

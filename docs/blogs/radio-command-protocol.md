@@ -951,6 +951,14 @@ them outside the channel list, publishes them as `VfoChannels`, and requests
 `READ_RF_CH [slot]` when settings select a slot. The Radio tab then shows the
 typed frequency instead of a blank VFO.
 
+Tapping VFO A opens a Frequency Mode dialog. Tuning sends `WRITE_RF_CH` for
+slot 252 (RX = TX frequency, AM/FM, wide/narrow) and, when not already in the
+mode, a settings write with channel A = 252. Exiting writes channel A back to
+the last regular channel seen (0 if unknown). Frequencies are only accepted
+inside the `READ_FREQ_RANGE` bands for the chosen modulation (AM only in AM RX
+bands, FM in FM RX or FM TX/RX bands), using the channel editor's fallback
+limits until the radio reports them.
+
 ### freqModeStatusChanged (14) layout
 
 Worth calling out because it packs several fields and has a subtle "authoritative

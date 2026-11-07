@@ -134,4 +134,125 @@ void main() {
     );
     expect(published[252]!.vfoCaption('VFO'), 'VFO · AM · Wide');
   });
+
+  group('tuning keypad VFO mode', () {
+    // READ_FREQ_RANGE reply: 108-136 AM RX, 136-174 FM TX/RX, 300-550 FM RX,
+    // 400-520 FM TX/RX.
+    const bands =
+        'FF010015000280270040'
+        '6C4088808800AE012C0226819002084000000000';
+    final writeSettings = RegExp('^FF01[0-9A-F]{4}0002000B');
+    final writeChannel = RegExp('^FF01[0-9A-F]{4}0002000E');
+
+    List<String> sentMatching(RegExp re) =>
+        transport.sent.where(re.hasMatch).toList();
+
+    Future<void> ready() async {
+      await receive(bands);
+      expect(radio.freqBands, hasLength(4));
+      await receive(_exitVfoSettings);
+      transport.sent.clear();
+    }
+
+    test('enters the mode by writing slot 252 then selecting it', () async {
+      await ready();
+      expect(
+        radio.tuneKeypadVfo(
+          freqHz: 146520000,
+          mod: RadioModulationType.fm,
+          bandwidth: RadioBandwidthType.wide,
+        ),
+        isTrue,
+      );
+      final ch = sentMatching(writeChannel).single;
+      final payload = RadioUtils.hexStringToByteArray(ch)!.sublist(8);
+      final written = RadioChannelInfo.fromBytes(
+        Uint8List.fromList([0, 0, 0, 0, 0, ...payload]),
+      );
+      expect(written.channelId, 252);
+      expect(written.rxFreq, 146520000);
+      expect(written.txFreq, 146520000);
+      expect(written.bandwidth, RadioBandwidthType.wide);
+
+      final settingsFrame = RadioUtils.hexStringToByteArray(
+        sentMatching(writeSettings).single,
+      )!;
+      final written2 = RadioSettings.fromBytes(
+        Uint8List.fromList([0, 0, 0, 0, 0, ...settingsFrame.sublist(8)]),
+      );
+      expect(written2.channelA, 252);
+      expect(written2.channelB, radio.settings!.channelB);
+    });
+
+    test('retuning while in the mode only rewrites the slot', () async {
+      await ready();
+      await receive(_enterVfoSettings);
+      transport.sent.clear();
+      expect(
+        radio.tuneKeypadVfo(
+          freqHz: 446000000,
+          mod: RadioModulationType.fm,
+          bandwidth: RadioBandwidthType.narrow,
+        ),
+        isTrue,
+      );
+      expect(sentMatching(writeChannel), hasLength(1));
+      expect(sentMatching(writeSettings), isEmpty);
+    });
+
+    test('rejects frequencies outside the radio bands', () async {
+      await ready();
+      for (final (hz, mod) in [
+        (200000000, RadioModulationType.fm),
+        (600000000, RadioModulationType.fm),
+        (146520000, RadioModulationType.am),
+        (120000000, RadioModulationType.fm),
+      ]) {
+        expect(
+          radio.tuneKeypadVfo(
+            freqHz: hz,
+            mod: mod,
+            bandwidth: RadioBandwidthType.narrow,
+          ),
+          isFalse,
+        );
+      }
+      expect(
+        radio.tuneKeypadVfo(
+          freqHz: 120000000,
+          mod: RadioModulationType.am,
+          bandwidth: RadioBandwidthType.wide,
+        ),
+        isTrue,
+      );
+      expect(sentMatching(writeChannel), hasLength(1));
+    });
+
+    test('exit restores the last regular channel A', () async {
+      await ready();
+      expect(radio.exitKeypadVfo(), isFalse);
+      await receive(_enterVfoSettings);
+      transport.sent.clear();
+      expect(radio.exitKeypadVfo(), isTrue);
+      final frame = RadioUtils.hexStringToByteArray(
+        sentMatching(writeSettings).single,
+      )!;
+      final written = RadioSettings.fromBytes(
+        Uint8List.fromList([0, 0, 0, 0, 0, ...frame.sublist(8)]),
+      );
+      expect(written.channelA, 4);
+    });
+
+    test('broker VfoTune and VfoExit drive the radio', () async {
+      await ready();
+      broker.dispatch(
+        deviceId: radio.deviceId,
+        name: 'VfoTune',
+        data: {'freqHz': 145500000, 'am': false, 'wide': false},
+        store: false,
+      );
+      expect(sentMatching(writeChannel), hasLength(1));
+      expect(sentMatching(writeSettings), hasLength(1));
+    });
+  });
 }

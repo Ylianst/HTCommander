@@ -1526,5 +1526,17 @@
   "meshDeliverySent": "已发送",
   "meshDeliveryDelivered": "已送达",
   "meshDeliveryFailed": "失败",
-  "meshDeliveryReceived": "已接收"
+  "meshDeliveryReceived": "已接收",
+  "vfoDialogTitle": "频率模式",
+  "vfoDialogChannelMode": "信道模式",
+  "vfoDialogFrequency": "频率 (MHz)",
+  "vfoDialogModulation": "调制",
+  "vfoDialogBandwidth": "带宽",
+  "vfoDialogStep": "步进",
+  "vfoDialogAllowed": "允许范围：{ranges}",
+  "vfoDialogOutOfRange": "超出电台允许的范围",
+  "vfoDialogTune": "调谐",
+  "vfoDialogExit": "退出频率模式",
+  "vfoDialogStepDown": "向下步进",
+  "vfoDialogStepUp": "向上步进"
 }

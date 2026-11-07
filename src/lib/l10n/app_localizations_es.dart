@@ -4536,4 +4536,42 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get meshDeliveryReceived => 'Recibido';
+
+  @override
+  String get vfoDialogTitle => 'Modo de frecuencia';
+
+  @override
+  String get vfoDialogChannelMode => 'Modo de canal';
+
+  @override
+  String get vfoDialogFrequency => 'Frecuencia (MHz)';
+
+  @override
+  String get vfoDialogModulation => 'Modulación';
+
+  @override
+  String get vfoDialogBandwidth => 'Ancho de banda';
+
+  @override
+  String get vfoDialogStep => 'Paso';
+
+  @override
+  String vfoDialogAllowed(String ranges) {
+    return 'Permitido: $ranges';
+  }
+
+  @override
+  String get vfoDialogOutOfRange => 'Fuera del rango permitido de la radio';
+
+  @override
+  String get vfoDialogTune => 'Sintonizar';
+
+  @override
+  String get vfoDialogExit => 'Salir del modo de frecuencia';
+
+  @override
+  String get vfoDialogStepDown => 'Bajar un paso';
+
+  @override
+  String get vfoDialogStepUp => 'Subir un paso';
 }

@@ -2552,5 +2552,58 @@
     "placeholders": {
       "count": { "type": "int" }
     }
+  },
+  "vfoDialogTitle": "Frequency Mode",
+  "@vfoDialogTitle": {
+    "description": "Title of the dialog that tunes the radio keypad frequency (VFO) mode."
+  },
+  "vfoDialogChannelMode": "Channel mode",
+  "@vfoDialogChannelMode": {
+    "description": "Shown in the frequency mode dialog when the radio is on a regular channel."
+  },
+  "vfoDialogFrequency": "Frequency (MHz)",
+  "@vfoDialogFrequency": {
+    "description": "Label of the frequency input in the frequency mode dialog."
+  },
+  "vfoDialogModulation": "Modulation",
+  "@vfoDialogModulation": {
+    "description": "Label of the AM/FM selector in the frequency mode dialog."
+  },
+  "vfoDialogBandwidth": "Bandwidth",
+  "@vfoDialogBandwidth": {
+    "description": "Label of the wide/narrow selector in the frequency mode dialog."
+  },
+  "vfoDialogStep": "Step",
+  "@vfoDialogStep": {
+    "description": "Label of the tuning step size selector in the frequency mode dialog."
+  },
+  "vfoDialogAllowed": "Allowed: {ranges}",
+  "@vfoDialogAllowed": {
+    "description": "Lists the frequency ranges the radio allows for the selected modulation.",
+    "placeholders": {
+      "ranges": {
+        "type": "String"
+      }
+    }
+  },
+  "vfoDialogOutOfRange": "Outside the radio's allowed range",
+  "@vfoDialogOutOfRange": {
+    "description": "Error shown when the entered frequency is outside the radio bands."
+  },
+  "vfoDialogTune": "Tune",
+  "@vfoDialogTune": {
+    "description": "Button that tunes the radio to the entered frequency."
+  },
+  "vfoDialogExit": "Exit Frequency Mode",
+  "@vfoDialogExit": {
+    "description": "Button that returns the radio from frequency mode to its channel."
+  },
+  "vfoDialogStepDown": "Step down",
+  "@vfoDialogStepDown": {
+    "description": "Tooltip of the button that tunes one step lower."
+  },
+  "vfoDialogStepUp": "Step up",
+  "@vfoDialogStepUp": {
+    "description": "Tooltip of the button that tunes one step higher."
   }
 }

@@ -1418,5 +1418,17 @@
   "meshDeliverySent": "Inviato",
   "meshDeliveryDelivered": "Consegnato",
   "meshDeliveryFailed": "Non riuscito",
-  "meshDeliveryReceived": "Ricevuto"
+  "meshDeliveryReceived": "Ricevuto",
+  "vfoDialogTitle": "Modalità frequenza",
+  "vfoDialogChannelMode": "Modalità canale",
+  "vfoDialogFrequency": "Frequenza (MHz)",
+  "vfoDialogModulation": "Modulazione",
+  "vfoDialogBandwidth": "Larghezza di banda",
+  "vfoDialogStep": "Passo",
+  "vfoDialogAllowed": "Consentito: {ranges}",
+  "vfoDialogOutOfRange": "Fuori dall'intervallo consentito della radio",
+  "vfoDialogTune": "Sintonizza",
+  "vfoDialogExit": "Esci dalla modalità frequenza",
+  "vfoDialogStepDown": "Passo giù",
+  "vfoDialogStepUp": "Passo su"
 }

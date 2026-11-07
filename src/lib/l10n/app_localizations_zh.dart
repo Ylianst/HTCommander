@@ -4369,4 +4369,42 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get meshDeliveryReceived => '已接收';
+
+  @override
+  String get vfoDialogTitle => '频率模式';
+
+  @override
+  String get vfoDialogChannelMode => '信道模式';
+
+  @override
+  String get vfoDialogFrequency => '频率 (MHz)';
+
+  @override
+  String get vfoDialogModulation => '调制';
+
+  @override
+  String get vfoDialogBandwidth => '带宽';
+
+  @override
+  String get vfoDialogStep => '步进';
+
+  @override
+  String vfoDialogAllowed(String ranges) {
+    return '允许范围：$ranges';
+  }
+
+  @override
+  String get vfoDialogOutOfRange => '超出电台允许的范围';
+
+  @override
+  String get vfoDialogTune => '调谐';
+
+  @override
+  String get vfoDialogExit => '退出频率模式';
+
+  @override
+  String get vfoDialogStepDown => '向下步进';
+
+  @override
+  String get vfoDialogStepUp => '向上步进';
 }

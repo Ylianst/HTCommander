@@ -13,6 +13,7 @@ import '../radio/radio_models.dart' as radio;
 import '../dialogs/radio_channel_dialog.dart';
 import '../dialogs/gps_details_dialog.dart';
 import '../dialogs/fm_radio_dialog.dart';
+import '../dialogs/vfo_frequency_dialog.dart';
 import '../dialogs/digipeater_dialog.dart';
 import '../dialogs/echolink_channel_dialog.dart';
 import '../dialogs/allstar_node_dialog.dart' show showAllStarNodeDialog;
@@ -3201,19 +3202,36 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       ],
     );
 
-    // In dual-channel mode, tapping VFO A selects it (switches away from B).
-    if (_isDualChannel && !_showFrequencyMode) {
+    // In dual-channel mode, tapping VFO A selects it (switches away from B);
+    // tapping the already-selected VFO A opens the frequency mode dialog.
+    final dual = _isDualChannel && !_showFrequencyMode;
+    if (dual || _canOpenVfoDialog) {
       return MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => _switchToVfo(1),
+          onTap: () {
+            if (dual && (_selectedVfo == 2 || _displayedVfo != 1)) {
+              _switchToVfo(1);
+            } else if (_canOpenVfoDialog) {
+              showVfoFrequencyDialog(context, deviceId: widget.deviceId);
+            }
+          },
           child: content,
         ),
       );
     }
     return content;
   }
+
+  /// True when VFO A can be tuned in the radio's keypad frequency mode: not
+  /// locked (e.g. satellite / BBS) and not in satellite or NOAA weather mode.
+  bool get _canOpenVfoDialog =>
+      widget.deviceId > 0 &&
+      _isConnected &&
+      _currentSettings != null &&
+      !(_lockState?.isLocked ?? false) &&
+      !_showFrequencyMode;
 
   /// Builds the VFO1 status text (lock usage). When the radio is locked for the
   /// "Digipeater" usage, the text becomes a tappable link that opens the
