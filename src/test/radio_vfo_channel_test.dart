@@ -132,6 +132,6 @@ void main() {
     final published = ui.parseVfoChannels(
       broker.getValueDynamic(radio.deviceId, 'VfoChannels'),
     );
-    expect(published[252]!.vfoCaption('VFO'), 'VFO · AM · 25 kHz');
+    expect(published[252]!.vfoCaption('VFO'), 'VFO · AM · Wide');
   });
 }

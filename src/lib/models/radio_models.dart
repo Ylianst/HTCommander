@@ -383,10 +383,10 @@ class RadioChannelInfo {
     'bandwidth': bandwidth == RadioBandwidthType.wide ? 1 : 0,
   };
 
-  /// Compact mode caption for a keypad VFO slot, e.g. "VFO · FM · 12.5 kHz".
+  /// Compact mode caption for a keypad VFO slot, e.g. "VFO · FM · Narrow".
   String vfoCaption(String vfoLabel) {
     final mod = rxMod == RadioModulationType.am ? 'AM' : 'FM';
-    final bw = bandwidth == RadioBandwidthType.wide ? '25 kHz' : '12.5 kHz';
+    final bw = bandwidth == RadioBandwidthType.wide ? 'Wide' : 'Narrow';
     return '$vfoLabel · $mod · $bw';
   }
 }
