@@ -65,9 +65,9 @@ void main() {
   ) async {
     await open(tester);
     expect(value(0), '100');
-    expect(value(1), '800');
+    expect(value(1), '200');
     expect(find.text('Default: 100 ms. Range: 0-5000 ms.'), findsOneWidget);
-    expect(find.text('Default: 800 ms. Range: 0-5000 ms.'), findsOneWidget);
+    expect(find.text('Default: 200 ms. Range: 0-5000 ms.'), findsOneWidget);
     expect(
       find.textContaining('disconnects any active XARA links'),
       findsOneWidget,
@@ -144,13 +144,13 @@ void main() {
     await tester.tap(find.text('Restore Defaults'));
     await tester.pumpAndSettle();
     expect(value(0), '100');
-    expect(value(1), '800');
+    expect(value(1), '200');
     expect(find.text('Enter a whole number from 0 to 5000.'), findsNothing);
     expect(commands, isEmpty);
     expect(DataBroker.getValue<int>(0, 'XaraTxKeyUpMs'), 600);
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
-    expect(commands, [('SetXaraTxKeyUpMs', 100), ('SetXaraTxLatencyMs', 800)]);
+    expect(commands, [('SetXaraTxKeyUpMs', 100), ('SetXaraTxLatencyMs', 200)]);
   });
 
   testWidgets('saving persists through the SoftwareModem handler and reopens', (

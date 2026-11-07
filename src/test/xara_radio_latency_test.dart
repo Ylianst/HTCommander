@@ -57,7 +57,7 @@ class RadioPath {
   }
 }
 
-/// Runs a caller and an answerer with the app's default transmit latency over
+/// Runs a caller and an answerer with [txLatencyMs] transmit latency over
 /// [lagMs] radio paths with [lossMs] key-up loss and [txKeyUpMs] pre-roll, sends
 /// 400 bytes to the caller, and returns link events and control code verdicts.
 Future<
@@ -71,6 +71,7 @@ runLink(
   int lagMs, {
   int lossMs = 80,
   int txKeyUpMs = XaraModemConfig.defaultTxKeyUpMs,
+  int txLatencyMs = XaraModemConfig.defaultTxLatencyMs,
 }) async {
   final verdicts = {'caller': <String>[], 'answerer': <String>[]};
   final events = {'caller': <String>[], 'answerer': <String>[]};
@@ -78,7 +79,11 @@ runLink(
   late final RadioPath toAnswerer, toCaller;
   XaraModem modem(String call, String who, void Function(Uint8List) tx) =>
       XaraModem(
-        config: XaraModemConfig(callsign: call, txKeyUpMs: txKeyUpMs),
+        config: XaraModemConfig(
+          callsign: call,
+          txKeyUpMs: txKeyUpMs,
+          txLatencyMs: txLatencyMs,
+        ),
         onTransmit: tx,
         onEvent: (e) {
           switch (e['evt']) {
@@ -126,9 +131,10 @@ runLink(
 }
 
 void main() {
-  test('default 100 ms pre-roll connects and delivers with key-up loss', () async {
+  test('default settings connect and deliver with key-up loss', () async {
     expect(XaraModemConfig.defaultTxKeyUpMs, 100);
-    final r = await runLink(750);
+    expect(XaraModemConfig.defaultTxLatencyMs, 200);
+    final r = await runLink(200);
     expect(r.received, 400, reason: '${r.events} ${r.verdicts}');
     expect(r.events['caller'], ['connected']);
     expect(r.events['answerer'], ['connected']);
@@ -137,7 +143,12 @@ void main() {
   test(
     'a link with 750 ms radio lag and key-up loss keeps its control codes',
     () async {
-      final r = await runLink(750, lossMs: 240, txKeyUpMs: 300);
+      final r = await runLink(
+        750,
+        lossMs: 240,
+        txKeyUpMs: 300,
+        txLatencyMs: 800,
+      );
       expect(r.received, 400, reason: '${r.events} ${r.verdicts}');
       expect(r.events['caller'], ['connected']);
       expect(r.events['answerer'], ['connected']);
@@ -156,8 +167,13 @@ void main() {
     timeout: const Timeout(Duration(minutes: 2)),
   );
 
-  test('a link with 1 s radio lag still connects and delivers', () async {
-    final r = await runLink(1000, lossMs: 240, txKeyUpMs: 300);
+  test('a link with 1 s radio lag connects when latency matches', () async {
+    final r = await runLink(
+      1000,
+      lossMs: 240,
+      txKeyUpMs: 300,
+      txLatencyMs: 1000,
+    );
     expect(r.received, 400, reason: '${r.events} ${r.verdicts}');
     expect(r.events['caller'], ['connected']);
     expect(r.events['answerer'], ['connected']);

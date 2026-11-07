@@ -34,10 +34,10 @@ class XaraModemConfig {
   static const int defaultTxKeyUpMs = 100;
 
   /// Default delay from PCM handed to the radio until the far station hears it,
-  /// on top of [defaultTxKeyUpMs] (which the modem adds itself). Over-estimating
-  /// is harmless while under-estimating drops ARQ replies as late, so this is
-  /// set to cover Bluetooth HT paths of up to about 1 s.
-  static const int defaultTxLatencyMs = 800;
+  /// on top of [defaultTxKeyUpMs] (which the modem adds itself). Raise it for
+  /// slower radio paths: too low drops ARQ replies as late, while too high
+  /// drops short, fast replies as early.
+  static const int defaultTxLatencyMs = 200;
 
   final String callsign;
 

@@ -65,7 +65,7 @@ None of these has been tested on air yet.
    links time out. The XARA and lock flows should warn about this, or require a
    squelch of at least 1.
 2. **Use real PTT timing from the radio.** XARA estimates its transmit timing
-   from fixed settings (800 ms latency plus 100 ms key-up by default). The radio echoes our
+   from fixed settings (200 ms latency plus 100 ms key-up by default). The radio echoes our
    transmit audio over Bluetooth and reports when it is actually transmitting,
    which gives the real start and end of each burst. Feeding the real end time to
    XARA would replace guesswork with measurement and avoid dropped ACKs on
@@ -146,15 +146,16 @@ continuous 48 kHz timeline with sample-accurate transmit timing. A small driver
   burst is complete, resamples it to 32 kHz and sends it as one buffer. The
   radio hears nothing while it transmits, so no receive audio is lost.
 - The delay from "PCM handed to the radio" to "remote audio heard" is passed to
-  XARA as its transmit latency (800 ms by default, setting `XaraTxLatencyMs`),
+  XARA as its transmit latency (200 ms by default, setting `XaraTxLatencyMs`),
   plus the key-up pre-roll below, since that silence delays every frame's
   content by the same amount. XARA times its ARQ reply windows and transmit
   holds from this latency, and the radio's receive path (squelch, SBC decode,
   Bluetooth) adds delay XARA's soundcard-based windows do not expect. If the
   latency is under-estimated, replies arrive after the window and control
   codes (ACKs, connect replies) are dropped while data frames still decode. If
-  it is over-estimated nothing breaks, so the default leaves headroom: in
-  simulation it keeps links clean from 0 to about 1 s of one-way radio lag.
+  it is over-estimated, short replies from fast stations can end before the
+  window opens and are dropped as early, so the default stays close to the
+  measured path. Raise it for slower radio paths.
   The packet capture shows each received control code's reply delay, window
   and verdict (`accepted`, `late`, `early`, `transmitting`).
 - The radio keys up on the arriving audio, so the start of every burst is lost
