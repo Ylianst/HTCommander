@@ -10,6 +10,8 @@ to the game until it ends or the caller types QUIT.
 
 import 'dart:math' as math;
 
+import 'bbs_settings.dart';
+
 /// A text game played one line at a time.
 abstract class BbsGame {
   /// Text sent when the game starts.
@@ -71,6 +73,20 @@ class BbsGames {
   static const String _quitHint = 'Type QUIT to leave the game.\r';
   static const String _back = 'Back to the BBS, [M] for menu.\r';
 
+  /// Every game, enabled or not, for the sysop settings.
+  static List<({String key, String name})> get all => [
+    for (final g in _games) (key: g.key, name: g.name),
+  ];
+
+  /// The games the sysop left enabled.
+  static List<_GameInfo> get _enabled {
+    final settings = BbsSettings.load();
+    return _games.where((g) => settings.isGameEnabled(g.key)).toList();
+  }
+
+  /// Whether at least one game can be played.
+  static bool get anyEnabled => _enabled.isNotEmpty;
+
   /// True when a game is running in [session].
   static bool isPlaying(Map<String, Object?> session) =>
       session[sessionKey] is BbsGame;
@@ -78,21 +94,23 @@ class BbsGames {
   /// The `G [game]` command: lists the games, or starts the one named by
   /// [arg] (number or name).
   String command(Map<String, Object?> session, String arg) {
-    if (arg.isEmpty) return _list();
+    final games = _enabled;
+    if (games.isEmpty) return 'Games are not available on this BBS.\r';
+    if (arg.isEmpty) return _list(games);
     final a = arg.trim().toUpperCase();
     final n = int.tryParse(a);
     _GameInfo? info;
-    if (n != null && n >= 1 && n <= _games.length) {
-      info = _games[n - 1];
+    if (n != null && n >= 1 && n <= games.length) {
+      info = games[n - 1];
     } else {
-      for (final g in _games) {
+      for (final g in games) {
         if (g.key.startsWith(a) || g.name.toUpperCase().startsWith(a)) {
           info = g;
           break;
         }
       }
     }
-    if (info == null) return 'Game $arg not found.\r${_list()}';
+    if (info == null) return 'Game $arg not found.\r${_list(games)}';
     final game = info.create(_random);
     session[sessionKey] = game;
     return '--- ${info.name} ---\r$_quitHint${game.start()}';
@@ -114,10 +132,10 @@ class BbsGames {
     return '$text$_back';
   }
 
-  String _list() {
+  String _list(List<_GameInfo> games) {
     final sb = StringBuffer('Games:\r');
-    for (var i = 0; i < _games.length; i++) {
-      final g = _games[i];
+    for (var i = 0; i < games.length; i++) {
+      final g = games[i];
       sb.write('${i + 1} ${g.name.padRight(18)} ${g.description}\r');
     }
     sb.write('G <#> to play.\r');

@@ -4228,6 +4228,204 @@ abstract class AppLocalizations {
   /// **'N/A'**
   String get audioNa;
 
+  /// No description provided for @bbsCustomize.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize...'**
+  String get bbsCustomize;
+
+  /// No description provided for @bbsCustomizeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize BBS'**
+  String get bbsCustomizeTitle;
+
+  /// No description provided for @bbsCustomizeGeneral.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get bbsCustomizeGeneral;
+
+  /// No description provided for @bbsCustomizeGames.
+  ///
+  /// In en, this message translates to:
+  /// **'Games'**
+  String get bbsCustomizeGames;
+
+  /// No description provided for @bbsCustomizeAprs.
+  ///
+  /// In en, this message translates to:
+  /// **'APRS'**
+  String get bbsCustomizeAprs;
+
+  /// No description provided for @bbsWelcomeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome Message'**
+  String get bbsWelcomeMessage;
+
+  /// No description provided for @bbsWelcomeMessageHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown at the top of the BBS main menu.'**
+  String get bbsWelcomeMessageHelp;
+
+  /// No description provided for @bbsAnnouncement.
+  ///
+  /// In en, this message translates to:
+  /// **'Announcement'**
+  String get bbsAnnouncement;
+
+  /// No description provided for @bbsAnnouncementEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable announcement'**
+  String get bbsAnnouncementEnable;
+
+  /// No description provided for @bbsAnnouncementText.
+  ///
+  /// In en, this message translates to:
+  /// **'Announcement text'**
+  String get bbsAnnouncementText;
+
+  /// No description provided for @bbsAnnouncementHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds a [N]ews option to the BBS menu that shows this text. Stations are told about it when they connect.'**
+  String get bbsAnnouncementHelp;
+
+  /// No description provided for @bbsCallsignLookup.
+  ///
+  /// In en, this message translates to:
+  /// **'Callsign Lookup'**
+  String get bbsCallsignLookup;
+
+  /// No description provided for @bbsCallsignLookupEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable callsign lookup'**
+  String get bbsCallsignLookupEnable;
+
+  /// No description provided for @bbsCallsignLookupHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Stations can look up license details in the offline callsign database with C <callsign>, when a database is installed.'**
+  String get bbsCallsignLookupHelp;
+
+  /// No description provided for @bbsUploads.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploads'**
+  String get bbsUploads;
+
+  /// No description provided for @bbsMaxUploadSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum upload size (KB)'**
+  String get bbsMaxUploadSize;
+
+  /// No description provided for @bbsMaxUploadSizeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a size between 1 and {max} KB'**
+  String bbsMaxUploadSizeInvalid(int max);
+
+  /// No description provided for @bbsUploadsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Stations upload files with YAPP over an AX.25 connection or from the web BBS.'**
+  String get bbsUploadsHelp;
+
+  /// No description provided for @bbsDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads'**
+  String get bbsDownloads;
+
+  /// No description provided for @bbsDownloadsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Every file in the BBS file area is offered for download. Add or delete files to choose what is offered.'**
+  String get bbsDownloadsHelp;
+
+  /// No description provided for @bbsManageFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Files...'**
+  String get bbsManageFiles;
+
+  /// No description provided for @bbsGamesEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable games'**
+  String get bbsGamesEnable;
+
+  /// No description provided for @bbsGamesHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Stations list games with G, start one with G <number> and leave with QUIT.'**
+  String get bbsGamesHelp;
+
+  /// No description provided for @bbsGameGuess.
+  ///
+  /// In en, this message translates to:
+  /// **'Guess the number'**
+  String get bbsGameGuess;
+
+  /// No description provided for @bbsGameHangman.
+  ///
+  /// In en, this message translates to:
+  /// **'Hangman'**
+  String get bbsGameHangman;
+
+  /// No description provided for @bbsGameMorse.
+  ///
+  /// In en, this message translates to:
+  /// **'Morse quiz'**
+  String get bbsGameMorse;
+
+  /// No description provided for @bbsGameTtt.
+  ///
+  /// In en, this message translates to:
+  /// **'Tic-tac-toe'**
+  String get bbsGameTtt;
+
+  /// No description provided for @bbsAprsMessagesEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable APRS messages'**
+  String get bbsAprsMessagesEnable;
+
+  /// No description provided for @bbsAprsMessagesHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Stations can list the APRS messages heard with A, and the ones addressed to them with AM.'**
+  String get bbsAprsMessagesHelp;
+
+  /// No description provided for @bbsAprsLookupEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable APRS station lookup'**
+  String get bbsAprsLookupEnable;
+
+  /// No description provided for @bbsAprsLookupHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Stations can see the last position, comment and weather heard from an APRS station with AP <callsign>.'**
+  String get bbsAprsLookupHelp;
+
+  /// No description provided for @bbsAprsHeardEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable list of heard APRS stations'**
+  String get bbsAprsHeardEnable;
+
+  /// No description provided for @bbsAprsHeardHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Stations can list the most recently heard APRS stations with AH.'**
+  String get bbsAprsHeardHelp;
+
   /// No description provided for @bbsHeaderActive.
   ///
   /// In en, this message translates to:
@@ -4327,7 +4525,7 @@ abstract class AppLocalizations {
   /// No description provided for @bbsFilesAllowUploads.
   ///
   /// In en, this message translates to:
-  /// **'Allow stations to upload files to the BBS (up to 25 KB each)'**
+  /// **'Allow stations to upload files to the BBS'**
   String get bbsFilesAllowUploads;
 
   /// No description provided for @bbsFilesColName.

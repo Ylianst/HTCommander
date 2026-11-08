@@ -25,6 +25,7 @@ import '../services/data_broker.dart';
 import 'aprs_handler.dart';
 import 'bbs_files.dart';
 import 'bbs_games.dart';
+import 'bbs_settings.dart';
 import 'bbs_store.dart';
 
 /// Reply to a single BBS menu command.
@@ -120,6 +121,7 @@ class BbsMenu {
   BbsFileStore get files => _filesOverride ?? BbsFileStore.instance;
 
   bool get _hasCallsignLookup {
+    if (!BbsSettings.load().callsignLookupEnabled) return false;
     try {
       return _lookupAvailable();
     } catch (_) {
@@ -149,6 +151,10 @@ class BbsMenu {
     final call = callsign.trim().toUpperCase();
     if (call.isEmpty) return '';
     final previous = store.recordVisit(call, protocol, time: _clock());
+    final settings = BbsSettings.load();
+    final news = _hasAnnouncement(settings)
+        ? 'There is an announcement, [N] to read it.\r'
+        : '';
     final sb = StringBuffer();
     if (previous == null) {
       sb.write('Welcome $call!\r');
@@ -156,6 +162,7 @@ class BbsMenu {
       if (count > 0) {
         sb.write('${_plural(count, 'message')} on the board, [B] to list.\r');
       }
+      sb.write(news);
       return sb.toString();
     }
 
@@ -171,18 +178,21 @@ class BbsMenu {
     if (newPosts > 0) {
       sb.write('${_plural(newPosts, 'new board message')}, [B] to list.\r');
     }
-    final newAprs = aprsMessages()
-        .where(
-          (m) =>
-              m.time.isAfter(previous.lastSeen) &&
-              _baseCall(m.addressee) == base,
-        )
-        .length;
+    final newAprs = !settings.aprsMessagesEnabled
+        ? 0
+        : aprsMessages()
+              .where(
+                (m) =>
+                    m.time.isAfter(previous.lastSeen) &&
+                    _baseCall(m.addressee) == base,
+              )
+              .length;
     if (newAprs > 0) {
       sb.write(
         '${_plural(newAprs, 'new APRS message')} for you, [AM] to list.\r',
       );
     }
+    sb.write(news);
     return sb.toString();
   }
 
@@ -227,19 +237,30 @@ class BbsMenu {
             : _withPrompt(reply);
     }
 
+    final settings = BbsSettings.load();
+    const aprsOff = 'APRS features are not available on this BBS.\r';
     final String text = switch (key) {
       'M' ||
       'MENU' ||
       'H' ||
       'HELP' ||
-      '?' => _menuText(caller, transfer, games: session != null),
+      '?' => _menuText(caller, transfer, settings, games: session != null),
       'S' || 'SOFTWARE' => _softwareText,
+      'N' || 'NEWS' => _announcement(settings),
       'B' || 'BOARD' => _board(arg),
       'R' || 'READ' => _read(arg),
       'P' || 'POST' => _post(caller, arg),
       'K' || 'KILL' || 'DEL' || 'DELETE' => _delete(caller, arg),
-      'A' || 'APRS' => _aprs(caller, arg, toCaller: false),
-      'AM' => _aprs(caller, arg, toCaller: true),
+      'A' || 'APRS' =>
+        settings.aprsMessagesEnabled
+            ? _aprs(caller, arg, toCaller: false)
+            : aprsOff,
+      'AM' =>
+        settings.aprsMessagesEnabled
+            ? _aprs(caller, arg, toCaller: true)
+            : aprsOff,
+      'AP' => settings.aprsLookupEnabled ? _aprsStation(arg) : aprsOff,
+      'AH' => settings.aprsHeardEnabled ? _aprsHeard(arg) : aprsOff,
       'L' || 'LAST' => _lastVisitors(arg),
       'F' || 'FILES' || 'DIR' || 'LS' => _listFiles(arg, transfer),
       'UL' || 'PUT' || 'UPLOAD' => _upload(transfer),
@@ -261,29 +282,45 @@ class BbsMenu {
   /// `List board messages (3)`.
   String _menuText(
     String caller,
-    BbsFileTransfer transfer, {
+    BbsFileTransfer transfer,
+    BbsSettings settings, {
     required bool games,
   }) {
-    final aprs = aprsMessages();
-    final base = _baseCall(caller);
-    final aprsForCaller = aprs
-        .where((m) => _baseCall(m.addressee) == base)
-        .length;
-    final sb = StringBuffer()
-      ..write('Welcome to our BBS\r')
+    final sb = StringBuffer();
+    final welcome = settings.welcomeMessage.trim();
+    if (welcome.isNotEmpty) sb.write('${_toBbsText(welcome)}\r');
+    sb
       ..write('---\r')
-      ..write('[M]ain menu\r')
+      ..write('[M]ain menu\r');
+    if (_hasAnnouncement(settings)) {
+      sb.write('[N]ews          Read the announcement\r');
+    }
+    sb
       ..write(
         '[B]oard [n]     List board messages (${store.messages.length})\r',
       )
       ..write('[R]ead <#>      Read a board message\r')
       ..write('[P]ost <text>   Post on the board\r')
-      ..write('[K]ill <#>      Delete your board message\r')
-      ..write('[A]PRS [n]      APRS messages heard (${aprs.length})\r')
-      ..write('[AM] [n]        APRS messages for you ($aprsForCaller)\r')
-      ..write(
-        '[L]ast [n]      Stations that connected (${store.visitCount})\r',
-      );
+      ..write('[K]ill <#>      Delete your board message\r');
+    if (settings.aprsMessagesEnabled) {
+      final aprs = aprsMessages();
+      final base = _baseCall(caller);
+      final aprsForCaller = aprs
+          .where((m) => _baseCall(m.addressee) == base)
+          .length;
+      sb
+        ..write('[A]PRS [n]      APRS messages heard (${aprs.length})\r')
+        ..write('[AM] [n]        APRS messages for you ($aprsForCaller)\r');
+    }
+    if (settings.aprsLookupEnabled) {
+      sb.write('[AP] <call>     APRS station position and weather\r');
+    }
+    if (settings.aprsHeardEnabled) {
+      sb.write('[AH] [n]        APRS stations heard\r');
+    }
+    sb.write(
+      '[L]ast [n]      Stations that connected (${store.visitCount})\r',
+    );
     if (files.isAvailable) {
       sb.write('[F]iles [n]     List files (${files.list().length})\r');
       if (transfer != BbsFileTransfer.none) {
@@ -297,7 +334,9 @@ class BbsMenu {
     if (_hasCallsignLookup) {
       sb.write('[C]all <call>   Callsign lookup\r');
     }
-    if (games) sb.write('[G]ames [#]     Play a text game\r');
+    if (games && BbsGames.anyEnabled) {
+      sb.write('[G]ames [#]     Play a text game\r');
+    }
     sb
       ..write('[S]oftware information\r')
       ..write('[D]isconnect\r')
@@ -309,6 +348,21 @@ class BbsMenu {
       'This BBS is run by Handy-Talky Commander, an open source software '
       'available at https://github.com/Ylianst/HTCommander. This BBS can '
       'also handle Winlink messages in a limited way.\r';
+
+  /// Multi-line sysop text with `\r` line endings and no control characters.
+  static String _toBbsText(String text) => text
+      .replaceAll('\r\n', '\r')
+      .replaceAll('\n', '\r')
+      .replaceAll(RegExp(r'[\x00-\x0C\x0E-\x1F\x7F]'), ' ');
+
+  static bool _hasAnnouncement(BbsSettings settings) =>
+      settings.announcementEnabled &&
+      settings.announcementText.trim().isNotEmpty;
+
+  static String _announcement(BbsSettings settings) =>
+      _hasAnnouncement(settings)
+      ? '${_toBbsText(settings.announcementText.trim())}\r'
+      : 'There is no announcement.\r';
 
   /// Parses an optional entry count; null when [arg] is not a valid count.
   static int? _count(String arg) {
@@ -477,6 +531,105 @@ class BbsMenu {
     );
     for (final m in shown) {
       sb.write('${_date(m.time)} ${m.source} > ${m.addressee}: ${m.text}\r');
+    }
+    return sb.toString();
+  }
+
+  /// Incoming APRS packets with a source station.
+  List<AprsPacket> _heardPackets() {
+    try {
+      return _aprsPackets()
+          .where(
+            (p) =>
+                p.packet?.incoming == true && p.sourceCallsignWithId.isNotEmpty,
+          )
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// The last position, comment and weather heard from a station.
+  String _aprsStation(String arg) {
+    final call = _displayCall(arg.split(RegExp(r'\s')).first);
+    if (!RegExp(r'^[A-Z0-9/\-]{3,12}$').hasMatch(call)) {
+      return 'Usage: AP <callsign>\r';
+    }
+    final matches =
+        _heardPackets().where((p) {
+          final source = _displayCall(p.sourceCallsignWithId);
+          return source == call ||
+              (!call.contains('-') && _baseCall(source) == call);
+        }).toList()..sort((a, b) => a.packet!.time.compareTo(b.packet!.time));
+    if (matches.isEmpty) return 'No APRS station $call has been heard.\r';
+
+    final now = _clock();
+    final last = matches.last;
+    final station = _displayCall(last.sourceCallsignWithId);
+    final fromStation = matches
+        .where((p) => _displayCall(p.sourceCallsignWithId) == station)
+        .toList();
+    final sb = StringBuffer(
+      '$station last heard ${_date(last.packet!.time)} '
+      '(${_ago(now, last.packet!.time)})\r',
+    );
+    final positioned = fromStation
+        .where((p) => p.position.isValid())
+        .lastOrNull;
+    if (positioned != null) {
+      final c = positioned.position.coordinateSet;
+      final grid = positioned.position.gridsquare;
+      sb.write(
+        'Position: ${c.latitude.value.toStringAsFixed(4)}, '
+        '${c.longitude.value.toStringAsFixed(4)}'
+        '${grid.isEmpty ? '' : ' ($grid)'}, '
+        '${_ago(now, positioned.packet!.time)}\r',
+      );
+      final comment = positioned.comment
+          .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), ' ')
+          .trim();
+      if (comment.isNotEmpty) sb.write('Comment: $comment\r');
+    }
+    final weather = fromStation
+        .where((p) => p.weather?.hasData == true)
+        .lastOrNull;
+    if (weather != null) {
+      sb.write(
+        'Weather: ${weather.weather!.toReadableString()}, '
+        '${_ago(now, weather.packet!.time)}\r',
+      );
+    }
+    return sb.toString();
+  }
+
+  /// The stations heard most recently, newest first.
+  String _aprsHeard(String arg) {
+    final count = _count(arg);
+    if (count == null) return 'Usage: AH [count], up to $maxCount\r';
+    final latest = <String, AprsPacket>{};
+    for (final p in _heardPackets()) {
+      final call = _displayCall(p.sourceCallsignWithId);
+      final prev = latest[call];
+      if (prev == null || !p.packet!.time.isBefore(prev.packet!.time)) {
+        latest[call] = p;
+      }
+    }
+    if (latest.isEmpty) return 'No APRS stations have been heard.\r';
+    final stations = latest.entries.toList()
+      ..sort((a, b) => b.value.packet!.time.compareTo(a.value.packet!.time));
+    final shown = stations.take(count).toList();
+    final now = _clock();
+    final sb = StringBuffer(
+      shown.length == stations.length
+          ? '${_plural(shown.length, 'APRS station')} heard:\r'
+          : 'Last ${shown.length} of ${stations.length} APRS stations heard:\r',
+    );
+    for (final e in shown) {
+      final p = e.value;
+      final grid = p.position.isValid() ? ' ${p.position.gridsquare}' : '';
+      sb.write(
+        '${e.key.padRight(10)} ${_ago(now, p.packet!.time).padRight(8)}$grid\r',
+      );
     }
     return sb.toString();
   }

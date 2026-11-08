@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'tab_visibility.dart';
+import '../dialogs/bbs_customize_dialog.dart';
 import '../dialogs/bbs_files_dialog.dart';
 import '../dialogs/callsign_lookup_dialog.dart';
 import '../handlers/bbs_handler.dart';
@@ -572,6 +573,14 @@ class _BbsTabState extends State<BbsTab>
               ],
             ),
           ),
+          PopupMenuItem<String>(
+            value: 'customize',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [const SizedBox(width: 20), Text(l10n.bbsCustomize)],
+            ),
+          ),
         ],
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
@@ -605,6 +614,9 @@ class _BbsTabState extends State<BbsTab>
           break;
         case 'files':
           if (mounted) BbsFilesDialog.show(this.context);
+          break;
+        case 'customize':
+          if (mounted) showBbsCustomizeDialog(this.context);
           break;
         case 'detach':
           windowService.createWindow('bbs');

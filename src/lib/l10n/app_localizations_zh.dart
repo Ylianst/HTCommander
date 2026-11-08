@@ -2268,6 +2268,107 @@ class AppLocalizationsZh extends AppLocalizations {
   String get audioNa => '不适用';
 
   @override
+  String get bbsCustomize => '自定义...';
+
+  @override
+  String get bbsCustomizeTitle => '自定义 BBS';
+
+  @override
+  String get bbsCustomizeGeneral => '常规';
+
+  @override
+  String get bbsCustomizeGames => '游戏';
+
+  @override
+  String get bbsCustomizeAprs => 'APRS';
+
+  @override
+  String get bbsWelcomeMessage => '欢迎消息';
+
+  @override
+  String get bbsWelcomeMessageHelp => '显示在 BBS 主菜单顶部。';
+
+  @override
+  String get bbsAnnouncement => '公告';
+
+  @override
+  String get bbsAnnouncementEnable => '启用公告';
+
+  @override
+  String get bbsAnnouncementText => '公告内容';
+
+  @override
+  String get bbsAnnouncementHelp => '在 BBS 菜单中添加 [N]ews 选项以显示此文本。电台连接时会收到提示。';
+
+  @override
+  String get bbsCallsignLookup => '呼号查询';
+
+  @override
+  String get bbsCallsignLookupEnable => '启用呼号查询';
+
+  @override
+  String get bbsCallsignLookupHelp => '安装数据库后，电台可以使用 C <呼号> 在离线呼号数据库中查询执照信息。';
+
+  @override
+  String get bbsUploads => '上传';
+
+  @override
+  String get bbsMaxUploadSize => '最大上传大小（KB）';
+
+  @override
+  String bbsMaxUploadSizeInvalid(int max) {
+    return '请输入 1 到 $max KB 之间的大小';
+  }
+
+  @override
+  String get bbsUploadsHelp => '电台通过 AX.25 连接上的 YAPP 或网页 BBS 上传文件。';
+
+  @override
+  String get bbsDownloads => '下载';
+
+  @override
+  String get bbsDownloadsHelp => 'BBS 文件区中的每个文件都可供下载。添加或删除文件以选择提供的内容。';
+
+  @override
+  String get bbsManageFiles => '管理文件...';
+
+  @override
+  String get bbsGamesEnable => '启用游戏';
+
+  @override
+  String get bbsGamesHelp => '电台使用 G 列出游戏，使用 G <编号> 开始游戏，使用 QUIT 退出。';
+
+  @override
+  String get bbsGameGuess => '猜数字';
+
+  @override
+  String get bbsGameHangman => '猜单词';
+
+  @override
+  String get bbsGameMorse => '摩尔斯电码测验';
+
+  @override
+  String get bbsGameTtt => '井字棋';
+
+  @override
+  String get bbsAprsMessagesEnable => '启用 APRS 消息';
+
+  @override
+  String get bbsAprsMessagesHelp => '电台可以使用 A 列出收到的 APRS 消息，使用 AM 列出发给自己的消息。';
+
+  @override
+  String get bbsAprsLookupEnable => '启用 APRS 电台查询';
+
+  @override
+  String get bbsAprsLookupHelp => '电台可以使用 AP <呼号> 查看从 APRS 电台最后收到的位置、注释和天气。';
+
+  @override
+  String get bbsAprsHeardEnable => '启用已收听 APRS 电台列表';
+
+  @override
+  String get bbsAprsHeardHelp => '电台可以使用 AH 列出最近收听到的 APRS 电台。';
+
+  @override
   String get bbsHeaderActive => 'BBS - 活动';
 
   @override
@@ -2316,7 +2417,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bbsFilesEmpty => '暂无文件。可在此添加文件、将文件复制到文件夹中，或让电台上传。';
 
   @override
-  String get bbsFilesAllowUploads => '允许电台向 BBS 上传文件（每个最多 25 KB）';
+  String get bbsFilesAllowUploads => '允许电台向 BBS 上传文件';
 
   @override
   String get bbsFilesColName => '名称';

@@ -29,6 +29,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import 'bbs_settings.dart';
 
 /// A file offered by the BBS.
 class BbsFile {
@@ -109,8 +110,8 @@ class BbsFileStore {
   /// The store shared by every BBS. Replaceable in tests.
   static BbsFileStore instance = BbsFileStore();
 
-  /// Largest file a station may upload.
-  static const int maxUploadBytes = 25 * 1024;
+  /// Largest file a station may upload, set by the sysop.
+  static int get maxUploadBytes => BbsSettings.load().maxUploadBytes;
 
   /// Uploads are refused once uploaded files take this much space in total.
   static const int maxUploadedTotalBytes = 20 * 1024 * 1024;
@@ -274,8 +275,9 @@ class BbsFileStore {
     if (!isAvailable) return 'File storage is not available on this BBS';
     if (!uploadsEnabled) return 'Uploads are disabled on this BBS';
     if (size <= 0) return 'The file is empty';
-    if (size > maxUploadBytes) {
-      return 'File too large ($size bytes, max $maxUploadBytes)';
+    final max = maxUploadBytes;
+    if (size > max) {
+      return 'File too large ($size bytes, max $max)';
     }
     final used = list()
         .where((f) => f.uploader.isNotEmpty)
