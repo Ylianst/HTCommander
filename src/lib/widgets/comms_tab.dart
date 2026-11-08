@@ -3554,53 +3554,60 @@ class _CommsTabState extends State<CommsTab>
           ],
           // Text input
           Expanded(
-            child: Container(
-              height: 34,
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerLow,
-                border: Border.all(color: scheme.onSurfaceVariant),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: TextField(
-                controller: _messageController,
-                focusNode: _messageFocusNode,
-                enabled: _canSend,
-                style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: _currentMode == VoiceTransmitMode.dtmf
-                      ? AppLocalizations.of(context).commsDtmfHint
-                      : AppLocalizations.of(context).aprsTypeMessage,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                  border: InputBorder.none,
-                  isCollapsed: true,
+            // While sending is disabled the field ignores taps, so catch
+            // them here and explain why (e.g. VFO A is on the APRS channel),
+            // matching what the PTT button does.
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _canSend ? null : _showSendDisabledHint,
+              child: Container(
+                height: 34,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerLow,
+                  border: Border.all(color: scheme.onSurfaceVariant),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                keyboardType: _currentMode == VoiceTransmitMode.dtmf
-                    ? TextInputType.phone
-                    : TextInputType.text,
-                onSubmitted: (_) => _sendMessage(),
-                onChanged: (value) {
-                  // Filter DTMF input
-                  if (_currentMode == VoiceTransmitMode.dtmf) {
-                    final filtered = value.replaceAll(RegExp(r'[^0-9*#]'), '');
-                    if (filtered != value) {
-                      _messageController.text = filtered;
-                      _messageController.selection = TextSelection.fromPosition(
-                        TextPosition(offset: filtered.length),
-                      );
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: TextField(
+                  controller: _messageController,
+                  focusNode: _messageFocusNode,
+                  enabled: _canSend,
+                  style: const TextStyle(fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: _currentMode == VoiceTransmitMode.dtmf
+                        ? AppLocalizations.of(context).commsDtmfHint
+                        : AppLocalizations.of(context).aprsTypeMessage,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                    border: InputBorder.none,
+                    isCollapsed: true,
+                  ),
+                  keyboardType: _currentMode == VoiceTransmitMode.dtmf
+                      ? TextInputType.phone
+                      : TextInputType.text,
+                  onSubmitted: (_) => _sendMessage(),
+                  onChanged: (value) {
+                    // Filter DTMF input
+                    if (_currentMode == VoiceTransmitMode.dtmf) {
+                      final filtered = value.replaceAll(RegExp(r'[^0-9*#]'), '');
+                      if (filtered != value) {
+                        _messageController.text = filtered;
+                        _messageController.selection = TextSelection.fromPosition(
+                          TextPosition(offset: filtered.length),
+                        );
+                      }
+                    } else if (_currentMode == VoiceTransmitMode.morse) {
+                      // Only letters, digits and spaces can be sent as Morse.
+                      final filtered =
+                          value.replaceAll(RegExp(r'[^A-Za-z0-9 ]'), '');
+                      if (filtered != value) {
+                        _messageController.text = filtered;
+                        _messageController.selection = TextSelection.fromPosition(
+                          TextPosition(offset: filtered.length),
+                        );
+                      }
                     }
-                  } else if (_currentMode == VoiceTransmitMode.morse) {
-                    // Only letters, digits and spaces can be sent as Morse.
-                    final filtered =
-                        value.replaceAll(RegExp(r'[^A-Za-z0-9 ]'), '');
-                    if (filtered != value) {
-                      _messageController.text = filtered;
-                      _messageController.selection = TextSelection.fromPosition(
-                        TextPosition(offset: filtered.length),
-                      );
-                    }
-                  }
-                },
+                  },
+                ),
               ),
             ),
           ),
@@ -3609,6 +3616,8 @@ class _CommsTabState extends State<CommsTab>
           SizedBox(
             height: 34,
             child: GestureDetector(
+              // A disabled button ignores taps; explain why instead.
+              onTap: _canSend ? null : _showSendDisabledHint,
               onSecondaryTapDown: (details) =>
                   _showModeMenu(context, details.globalPosition),
               onLongPressStart: (details) =>
