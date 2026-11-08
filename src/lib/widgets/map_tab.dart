@@ -2204,112 +2204,102 @@ class _MapTabState extends State<MapTab>
       child: Card(
         margin: EdgeInsets.zero,
         color: scheme.surface.withValues(alpha: 0.95),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
-          child: Row(
+        child: _buildInfoCardLayout(
+          leading: ContactAvatar(
+            callsign: s.key,
+            avatarIcon: contact?.avatarIcon,
+            avatarImage: contact?.avatarImage,
+            initials: nameInitials(_meshDisplayName(s, contacts)),
+            radius: 20,
+          ),
+          details: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              ContactAvatar(
-                callsign: s.key,
-                avatarIcon: contact?.avatarIcon,
-                avatarImage: contact?.avatarImage,
-                initials: nameInitials(_meshDisplayName(s, contacts)),
-                radius: 20,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          _meshTypeIcon(s.type),
-                          size: 14,
-                          color: _meshColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            _meshDisplayName(s, contacts),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            [_meshTypeLabel(s.type), ?grade].join('  •  '),
-                            style: small,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+              Row(
+                children: [
+                  Icon(_meshTypeIcon(s.type), size: 14, color: _meshColor),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      _meshDisplayName(s, contacts),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    ?license,
-                    if (relative != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.near_me,
-                              size: 13,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                relative,
-                                style: small,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        [
-                          meshCoreFingerprint(s.key),
-                          if (s.lastHeard != null) _formatTime(s.lastHeard!),
-                        ].join('  •  '),
-                        style: small,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (_meshIsUser(s)) ...[
-                IconButton(
-                  tooltip: l10n.mapStationMessage,
-                  icon: const Icon(Icons.chat_bubble_outline, size: 20),
-                  onPressed: () => _messageMesh(s),
-                ),
-                if (contact == null)
-                  IconButton(
-                    tooltip: l10n.mapStationAddContact,
-                    icon: const Icon(Icons.person_add_alt, size: 20),
-                    onPressed: () => _editMeshContact(s, null),
                   ),
-              ],
-              IconButton(
-                tooltip: l10n.mapStationCenter,
-                icon: const Icon(Icons.center_focus_strong, size: 20),
-                onPressed: () => _mapController.move(
-                  s.position,
-                  math.max(_mapController.camera.zoom, 16.0),
-                ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      [_meshTypeLabel(s.type), ?grade].join('  •  '),
+                      style: small,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-              IconButton(
-                tooltip: l10n.commonClose,
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: () => setState(() => _selectedMeshKey = null),
+              ?license,
+              if (relative != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.near_me,
+                        size: 13,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          relative,
+                          style: small,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  [
+                    meshCoreFingerprint(s.key),
+                    if (s.lastHeard != null) _formatTime(s.lastHeard!),
+                  ].join('  •  '),
+                  style: small,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
+          actions: [
+            if (_meshIsUser(s)) ...[
+              IconButton(
+                tooltip: l10n.mapStationMessage,
+                icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                onPressed: () => _messageMesh(s),
+              ),
+              if (contact == null)
+                IconButton(
+                  tooltip: l10n.mapStationAddContact,
+                  icon: const Icon(Icons.person_add_alt, size: 20),
+                  onPressed: () => _editMeshContact(s, null),
+                ),
+            ],
+            IconButton(
+              tooltip: l10n.mapStationCenter,
+              icon: const Icon(Icons.center_focus_strong, size: 20),
+              onPressed: () => _mapController.move(
+                s.position,
+                math.max(_mapController.camera.zoom, 16.0),
+              ),
+            ),
+            IconButton(
+              tooltip: l10n.commonClose,
+              icon: const Icon(Icons.close, size: 20),
+              onPressed: () => setState(() => _selectedMeshKey = null),
+            ),
+          ],
         ),
       ),
     );
@@ -2648,6 +2638,61 @@ class _MapTabState extends State<MapTab>
     );
   }
 
+  /// Card widths below this use the stacked compact info-card layout.
+  static const double _infoCardCompactWidth = 480;
+
+  /// Lays out a bottom info card. Wide: [leading], [details], then [actions]
+  /// in one row. Compact (narrow card): [leading] and [actions] share the top
+  /// row so [details] gets the full card width underneath.
+  Widget _buildInfoCardLayout({
+    required Widget leading,
+    required Widget details,
+    required List<Widget> actions,
+    EdgeInsets padding = const EdgeInsets.fromLTRB(8, 8, 4, 8),
+    double leadingGap = 8,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= _infoCardCompactWidth) {
+          return Padding(
+            padding: padding,
+            child: Row(
+              children: [
+                leading,
+                SizedBox(width: leadingGap),
+                Expanded(child: details),
+                ...actions,
+              ],
+            ),
+          );
+        }
+        return Padding(
+          padding: padding,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: leading,
+                    ),
+                  ),
+                  ...actions,
+                ],
+              ),
+              const SizedBox(height: 6),
+              Padding(padding: const EdgeInsets.only(right: 4), child: details),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   /// Bottom overlay for a selected Winlink gateway: a draggable channel
   /// rectangle (one per frequency) on the left, then callsign, distance, and
   /// frequencies. Mirrors the APRS station info bar.
@@ -2671,129 +2716,122 @@ class _MapTabState extends State<MapTab>
       child: Card(
         margin: EdgeInsets.zero,
         color: scheme.surface.withValues(alpha: 0.95),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
-          child: Row(
-            children: [
-              // Channel rectangle(s) — drag onto a radio to program. Stacked
-              // vertically so multiple frequencies sit one above the other.
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 100),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (int i = 0; i < gw.channels.length; i++) ...[
-                        if (i > 0) const SizedBox(height: 4),
-                        _buildWinlinkChannelTile(gw, gw.channels[i]),
-                      ],
-                    ],
-                  ),
-                ),
+        child: _buildInfoCardLayout(
+          // Channel rectangle(s) — drag onto a radio to program. Stacked
+          // vertically so multiple frequencies sit one above the other.
+          leading: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 100),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (int i = 0; i < gw.channels.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 4),
+                    _buildWinlinkChannelTile(gw, gw.channels[i]),
+                  ],
+                ],
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.cell_tower,
-                          size: 14,
-                          color: Color(0xFF6A1B9A),
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            gw.callsign,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (gradeText != null) ...[
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              gradeText,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ],
+            ),
+          ),
+          details: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.cell_tower,
+                    size: 14,
+                    color: Color(0xFF6A1B9A),
+                  ),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      gw.callsign,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (relative != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.near_me,
-                              size: 13,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                relative,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ?license,
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
+                  ),
+                  if (gradeText != null) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
                       child: Text(
-                        '${l10n.winlinkGatewayFrequencies}: '
-                        '${gw.channels.map((channel) => '${(channel.frequencyHz / 1e6).toStringAsFixed(3)} MHz (${channel.modeLabel})').join(', ')}',
-                        style: TextStyle(fontSize: 12, color: scheme.onSurface),
-                        maxLines: 2,
+                        gradeText,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.onSurfaceVariant,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
-              if (!_hasContactOfType(gw.callsign, StationType.winlink))
-                IconButton(
-                  tooltip: l10n.mapStationAddWinlink,
-                  icon: const Icon(Icons.person_add_alt, size: 20),
-                  onPressed: () => _addContactFrom(
-                    StationInfo(
-                      callsign: gw.callsign,
-                      stationType: StationType.winlink,
-                      modem: _varaFmOnly(gw) ? 'XARA' : 'Hardware',
-                    ),
+              if (relative != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.near_me,
+                        size: 13,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          relative,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              IconButton(
-                tooltip: 'Center on map',
-                icon: const Icon(Icons.center_focus_strong, size: 20),
-                onPressed: () => _mapController.move(
-                  pos,
-                  math.max(_mapController.camera.zoom, 16.0),
+              ?license,
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '${l10n.winlinkGatewayFrequencies}: '
+                  '${gw.channels.map((channel) => '${(channel.frequencyHz / 1e6).toStringAsFixed(3)} MHz (${channel.modeLabel})').join(', ')}',
+                  style: TextStyle(fontSize: 12, color: scheme.onSurface),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              IconButton(
-                tooltip: 'Close',
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: () =>
-                    setState(() => _selectedWinlinkCallsign = null),
               ),
             ],
           ),
+          actions: [
+            if (!_hasContactOfType(gw.callsign, StationType.winlink))
+              IconButton(
+                tooltip: l10n.mapStationAddWinlink,
+                icon: const Icon(Icons.person_add_alt, size: 20),
+                onPressed: () => _addContactFrom(
+                  StationInfo(
+                    callsign: gw.callsign,
+                    stationType: StationType.winlink,
+                    modem: _varaFmOnly(gw) ? 'XARA' : 'Hardware',
+                  ),
+                ),
+              ),
+            IconButton(
+              tooltip: 'Center on map',
+              icon: const Icon(Icons.center_focus_strong, size: 20),
+              onPressed: () => _mapController.move(
+                pos,
+                math.max(_mapController.camera.zoom, 16.0),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Close',
+              icon: const Icon(Icons.close, size: 20),
+              onPressed: () => setState(() => _selectedWinlinkCallsign = null),
+            ),
+          ],
         ),
       ),
     );
@@ -3596,82 +3634,50 @@ class _MapTabState extends State<MapTab>
       child: Card(
         margin: EdgeInsets.zero,
         color: scheme.surface.withValues(alpha: 0.95),
-        child: Padding(
+        child: _buildInfoCardLayout(
           padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-          child: Row(
+          leadingGap: 10,
+          leading: _buildStationThumbnail(station, _stationColor(station)),
+          details: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: _buildStationThumbnail(station, _stationColor(station)),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          station.callsign,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (gradeText != null) ...[
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              gradeText,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    if (relative != null)
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.near_me,
-                            size: 13,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              relative,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ?license,
-                    if (lastMessage.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          lastMessage,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: scheme.onSurface,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
+              Row(
+                children: [
+                  Text(
+                    station.callsign,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (gradeText != null) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
                       child: Text(
-                        _formatTime(station.time),
+                        gradeText,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              if (relative != null)
+                Row(
+                  children: [
+                    Icon(
+                      Icons.near_me,
+                      size: 13,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        relative,
+                        style: TextStyle(
+                          fontSize: 12,
                           color: scheme.onSurfaceVariant,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -3679,32 +3685,54 @@ class _MapTabState extends State<MapTab>
                     ),
                   ],
                 ),
-              ),
-              if (!station.isSelf && !_hasAprsContact(station.callsign))
-                IconButton(
-                  tooltip: l10n.mapStationAddContact,
-                  icon: const Icon(Icons.person_add_alt, size: 20),
-                  onPressed: () => _addStationContact(station),
+              ?license,
+              if (lastMessage.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    lastMessage,
+                    style: TextStyle(fontSize: 12, color: scheme.onSurface),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              if (!station.isSelf)
-                IconButton(
-                  tooltip: 'Message',
-                  icon: const Icon(Icons.chat_bubble_outline, size: 20),
-                  onPressed: () => _messageStation(station),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  _formatTime(station.time),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              IconButton(
-                tooltip: 'Center on map',
-                icon: const Icon(Icons.center_focus_strong, size: 20),
-                onPressed: () => _centerOnStation(station),
-              ),
-              IconButton(
-                tooltip: 'Close',
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: () =>
-                    setState(() => _selectedStationCallsign = null),
               ),
             ],
           ),
+          actions: [
+            if (!station.isSelf && !_hasAprsContact(station.callsign))
+              IconButton(
+                tooltip: l10n.mapStationAddContact,
+                icon: const Icon(Icons.person_add_alt, size: 20),
+                onPressed: () => _addStationContact(station),
+              ),
+            if (!station.isSelf)
+              IconButton(
+                tooltip: 'Message',
+                icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                onPressed: () => _messageStation(station),
+              ),
+            IconButton(
+              tooltip: 'Center on map',
+              icon: const Icon(Icons.center_focus_strong, size: 20),
+              onPressed: () => _centerOnStation(station),
+            ),
+            IconButton(
+              tooltip: 'Close',
+              icon: const Icon(Icons.close, size: 20),
+              onPressed: () => setState(() => _selectedStationCallsign = null),
+            ),
+          ],
         ),
       ),
     );

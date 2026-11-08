@@ -76,6 +76,13 @@ diagnosis and fix.
    coding, OFDM, receive decoding, acknowledgments, and adaptive speed levels.
    Explains how Winlink and AX.25 fit, and what remains to be tested on real radios.
 
+3. **[How VarAC Works: A Chat Application on Top of the VARA Modem](how-varac-works.md)**
+   VarAC's architecture from its published material: the VARA host interface and
+   `CHAT ON` mode, beacons, calling frequencies and slots, tags, QSY and VMail.
+   It also covers the byte-level formats reconstructed by third parties (message
+   framing, CQ slot SSIDs, advanced beacon, VMail envelope), and which parts
+   belong to the modem (XARA) versus the chat application.
+
 ---
 
 ## Firmware Updates
