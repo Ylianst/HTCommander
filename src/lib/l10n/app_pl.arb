@@ -1567,5 +1567,14 @@
   "vfoDialogTune": "Dostrój",
   "vfoDialogExit": "Wyjdź z trybu częstotliwości",
   "vfoDialogStepDown": "Krok w dół",
-  "vfoDialogStepUp": "Krok w górę"
+  "vfoDialogStepUp": "Krok w górę",
+  "vfoDialogSavedHeader": "Zapisane częstotliwości",
+  "vfoDialogSaveTooltip": "Zapisz bieżącą częstotliwość",
+  "vfoDialogNoSaved": "Brak zapisanych częstotliwości",
+  "vfoDialogNameTitle": "Nazwa częstotliwości",
+  "vfoDialogNameLabel": "Nazwa",
+  "vfoDialogDeleteTitle": "Usuń częstotliwość",
+  "vfoDialogDeleteMessage": "Usunąć \"{name}\" z zapisanych częstotliwości?",
+  "vfoDialogWide": "Szeroki",
+  "vfoDialogNarrow": "Wąski"
 }

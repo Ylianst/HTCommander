@@ -4688,4 +4688,33 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get vfoDialogStepUp => 'Passo su';
+
+  @override
+  String get vfoDialogSavedHeader => 'Frequenze salvate';
+
+  @override
+  String get vfoDialogSaveTooltip => 'Salva frequenza corrente';
+
+  @override
+  String get vfoDialogNoSaved => 'Nessuna frequenza salvata';
+
+  @override
+  String get vfoDialogNameTitle => 'Nome frequenza';
+
+  @override
+  String get vfoDialogNameLabel => 'Nome';
+
+  @override
+  String get vfoDialogDeleteTitle => 'Elimina frequenza';
+
+  @override
+  String vfoDialogDeleteMessage(String name) {
+    return 'Rimuovere \"$name\" dalle frequenze salvate?';
+  }
+
+  @override
+  String get vfoDialogWide => 'Larga';
+
+  @override
+  String get vfoDialogNarrow => 'Stretta';
 }

@@ -1459,5 +1459,14 @@
   "vfoDialogTune": "Sintonizza",
   "vfoDialogExit": "Esci dalla modalità frequenza",
   "vfoDialogStepDown": "Passo giù",
-  "vfoDialogStepUp": "Passo su"
+  "vfoDialogStepUp": "Passo su",
+  "vfoDialogSavedHeader": "Frequenze salvate",
+  "vfoDialogSaveTooltip": "Salva frequenza corrente",
+  "vfoDialogNoSaved": "Nessuna frequenza salvata",
+  "vfoDialogNameTitle": "Nome frequenza",
+  "vfoDialogNameLabel": "Nome",
+  "vfoDialogDeleteTitle": "Elimina frequenza",
+  "vfoDialogDeleteMessage": "Rimuovere \"{name}\" dalle frequenze salvate?",
+  "vfoDialogWide": "Larga",
+  "vfoDialogNarrow": "Stretta"
 }

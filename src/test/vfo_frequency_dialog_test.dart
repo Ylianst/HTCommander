@@ -59,6 +59,7 @@ void main() {
   tearDown(() {
     broker.dispose();
     DataBroker.clearDevice(_deviceId);
+    DataBroker.clearDevice(0);
   });
 
   Future<void> open(WidgetTester tester) async {
@@ -99,7 +100,7 @@ void main() {
     tester,
   ) async {
     await open(tester);
-    expect(find.text('146.520 MHz'), findsOneWidget);
+    expect(find.text('Frequency Mode'), findsOneWidget);
     expect(find.text('146.520'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), '147.0');
@@ -123,7 +124,7 @@ void main() {
     expect(commands, isEmpty);
 
     // 120 MHz is valid once AM is selected (108-136 MHz is AM RX).
-    await tester.tap(find.text('AM'));
+    await tester.tap(find.text('FM'));
     await tester.pump();
     expect(tuneButton(tester).onPressed, isNotNull);
   });
@@ -144,9 +145,77 @@ void main() {
     expect(stepUp.onPressed, isNull);
   });
 
-  testWidgets('exit leaves frequency mode', (tester) async {
+  testWidgets('titles channel mode and cycles the step size', (tester) async {
+    broker.dispatch(
+      deviceId: _deviceId,
+      name: 'Settings',
+      data: {'channelA': 3, 'channelB': 1},
+    );
+    await open(tester);
+    expect(find.text('Channel Mode'), findsOneWidget);
+    expect(find.text('Frequency Mode'), findsNothing);
+
+    await tester.tap(find.text('12.5 kHz'));
+    await tester.pump();
+    expect(find.text('25 kHz'), findsOneWidget);
+  });
+
+  testWidgets('exit leaves frequency mode and closes the dialog', (
+    tester,
+  ) async {
     await open(tester);
     await tester.tap(find.text('Exit Frequency Mode'));
+    await tester.pumpAndSettle();
     expect(commands.single, 'exit');
+    expect(find.text('Frequency Mode'), findsNothing);
+  });
+
+  testWidgets('saves, tunes, renames and deletes saved frequencies', (
+    tester,
+  ) async {
+    await open(tester);
+    expect(find.text('No saved frequencies'), findsOneWidget);
+
+    // Save 120 MHz AM wide under a custom name.
+    await tester.enterText(find.byType(TextField), '120');
+    await tester.tap(find.text('FM'));
+    await tester.tap(find.text('Narrow'));
+    await tester.pump();
+    expect(find.text('AM'), findsOneWidget);
+    expect(find.text('Wide'), findsOneWidget);
+    await tester.tap(find.byTooltip('Save current frequency'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Tower');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tower'), findsOneWidget);
+    expect(commands, isEmpty);
+    final stored = broker.getValue<String>(0, 'VfoFrequencies')!;
+    expect(stored, contains('"freqHz":120000000'));
+
+    // Change the editor, then tap the saved entry to restore and tune it.
+    await tester.enterText(find.byType(TextField), '146.52');
+    await tester.tap(find.text('AM'));
+    await tester.pump();
+    await tester.tap(find.text('Tower'));
+    await tester.pump();
+    expect(commands.single, {'freqHz': 120000000, 'am': true, 'wide': true});
+    expect(find.text('120.000'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Rename'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Airport');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(find.text('Airport'), findsOneWidget);
+    expect(find.text('Tower'), findsNothing);
+
+    await tester.tap(find.byTooltip('Delete'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Airport'), findsNothing);
+    expect(find.text('No saved frequencies'), findsOneWidget);
+    expect(broker.getValue<String>(0, 'VfoFrequencies'), '[]');
   });
 }

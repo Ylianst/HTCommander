@@ -4610,7 +4610,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vfoDialogTitle => 'Frequency Mode';
 
   @override
-  String get vfoDialogChannelMode => 'Channel mode';
+  String get vfoDialogChannelMode => 'Channel Mode';
 
   @override
   String get vfoDialogFrequency => 'Frequency (MHz)';
@@ -4643,4 +4643,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vfoDialogStepUp => 'Step up';
+
+  @override
+  String get vfoDialogSavedHeader => 'Saved Frequencies';
+
+  @override
+  String get vfoDialogSaveTooltip => 'Save current frequency';
+
+  @override
+  String get vfoDialogNoSaved => 'No saved frequencies';
+
+  @override
+  String get vfoDialogNameTitle => 'Frequency Name';
+
+  @override
+  String get vfoDialogNameLabel => 'Name';
+
+  @override
+  String get vfoDialogDeleteTitle => 'Delete Frequency';
+
+  @override
+  String vfoDialogDeleteMessage(String name) {
+    return 'Remove \"$name\" from your saved frequencies?';
+  }
+
+  @override
+  String get vfoDialogWide => 'Wide';
+
+  @override
+  String get vfoDialogNarrow => 'Narrow';
 }

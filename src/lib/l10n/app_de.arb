@@ -1567,5 +1567,14 @@
   "vfoDialogTune": "Abstimmen",
   "vfoDialogExit": "Frequenzmodus beenden",
   "vfoDialogStepDown": "Schritt abwärts",
-  "vfoDialogStepUp": "Schritt aufwärts"
+  "vfoDialogStepUp": "Schritt aufwärts",
+  "vfoDialogSavedHeader": "Gespeicherte Frequenzen",
+  "vfoDialogSaveTooltip": "Aktuelle Frequenz speichern",
+  "vfoDialogNoSaved": "Keine gespeicherten Frequenzen",
+  "vfoDialogNameTitle": "Frequenzname",
+  "vfoDialogNameLabel": "Name",
+  "vfoDialogDeleteTitle": "Frequenz löschen",
+  "vfoDialogDeleteMessage": "\"{name}\" aus den gespeicherten Frequenzen entfernen?",
+  "vfoDialogWide": "Breit",
+  "vfoDialogNarrow": "Schmal"
 }

@@ -4698,4 +4698,33 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get vfoDialogStepUp => 'Schritt aufwärts';
+
+  @override
+  String get vfoDialogSavedHeader => 'Gespeicherte Frequenzen';
+
+  @override
+  String get vfoDialogSaveTooltip => 'Aktuelle Frequenz speichern';
+
+  @override
+  String get vfoDialogNoSaved => 'Keine gespeicherten Frequenzen';
+
+  @override
+  String get vfoDialogNameTitle => 'Frequenzname';
+
+  @override
+  String get vfoDialogNameLabel => 'Name';
+
+  @override
+  String get vfoDialogDeleteTitle => 'Frequenz löschen';
+
+  @override
+  String vfoDialogDeleteMessage(String name) {
+    return '\"$name\" aus den gespeicherten Frequenzen entfernen?';
+  }
+
+  @override
+  String get vfoDialogWide => 'Breit';
+
+  @override
+  String get vfoDialogNarrow => 'Schmal';
 }

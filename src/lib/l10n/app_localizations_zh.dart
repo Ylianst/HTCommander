@@ -4521,4 +4521,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vfoDialogStepUp => '向上步进';
+
+  @override
+  String get vfoDialogSavedHeader => '已保存的频率';
+
+  @override
+  String get vfoDialogSaveTooltip => '保存当前频率';
+
+  @override
+  String get vfoDialogNoSaved => '没有已保存的频率';
+
+  @override
+  String get vfoDialogNameTitle => '频率名称';
+
+  @override
+  String get vfoDialogNameLabel => '名称';
+
+  @override
+  String get vfoDialogDeleteTitle => '删除频率';
+
+  @override
+  String vfoDialogDeleteMessage(String name) {
+    return '从已保存的频率中删除“$name”？';
+  }
+
+  @override
+  String get vfoDialogWide => '宽带';
+
+  @override
+  String get vfoDialogNarrow => '窄带';
 }

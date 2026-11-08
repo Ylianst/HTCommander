@@ -1567,5 +1567,14 @@
   "vfoDialogTune": "Accorder",
   "vfoDialogExit": "Quitter le mode fréquence",
   "vfoDialogStepDown": "Pas vers le bas",
-  "vfoDialogStepUp": "Pas vers le haut"
+  "vfoDialogStepUp": "Pas vers le haut",
+  "vfoDialogSavedHeader": "Fréquences enregistrées",
+  "vfoDialogSaveTooltip": "Enregistrer la fréquence actuelle",
+  "vfoDialogNoSaved": "Aucune fréquence enregistrée",
+  "vfoDialogNameTitle": "Nom de la fréquence",
+  "vfoDialogNameLabel": "Nom",
+  "vfoDialogDeleteTitle": "Supprimer la fréquence",
+  "vfoDialogDeleteMessage": "Retirer « {name} » de vos fréquences enregistrées ?",
+  "vfoDialogWide": "Large",
+  "vfoDialogNarrow": "Étroit"
 }

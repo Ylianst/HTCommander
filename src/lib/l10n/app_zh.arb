@@ -1567,5 +1567,14 @@
   "vfoDialogTune": "调谐",
   "vfoDialogExit": "退出频率模式",
   "vfoDialogStepDown": "向下步进",
-  "vfoDialogStepUp": "向上步进"
+  "vfoDialogStepUp": "向上步进",
+  "vfoDialogSavedHeader": "已保存的频率",
+  "vfoDialogSaveTooltip": "保存当前频率",
+  "vfoDialogNoSaved": "没有已保存的频率",
+  "vfoDialogNameTitle": "频率名称",
+  "vfoDialogNameLabel": "名称",
+  "vfoDialogDeleteTitle": "删除频率",
+  "vfoDialogDeleteMessage": "从已保存的频率中删除“{name}”？",
+  "vfoDialogWide": "宽带",
+  "vfoDialogNarrow": "窄带"
 }

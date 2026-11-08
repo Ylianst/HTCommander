@@ -4574,4 +4574,33 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get vfoDialogStepUp => 'ステップアップ';
+
+  @override
+  String get vfoDialogSavedHeader => '保存済み周波数';
+
+  @override
+  String get vfoDialogSaveTooltip => '現在の周波数を保存';
+
+  @override
+  String get vfoDialogNoSaved => '保存済みの周波数はありません';
+
+  @override
+  String get vfoDialogNameTitle => '周波数名';
+
+  @override
+  String get vfoDialogNameLabel => '名前';
+
+  @override
+  String get vfoDialogDeleteTitle => '周波数を削除';
+
+  @override
+  String vfoDialogDeleteMessage(String name) {
+    return '「$name」を保存済み周波数から削除しますか？';
+  }
+
+  @override
+  String get vfoDialogWide => 'ワイド';
+
+  @override
+  String get vfoDialogNarrow => 'ナロー';
 }

@@ -4699,4 +4699,33 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get vfoDialogStepUp => 'Krok w górę';
+
+  @override
+  String get vfoDialogSavedHeader => 'Zapisane częstotliwości';
+
+  @override
+  String get vfoDialogSaveTooltip => 'Zapisz bieżącą częstotliwość';
+
+  @override
+  String get vfoDialogNoSaved => 'Brak zapisanych częstotliwości';
+
+  @override
+  String get vfoDialogNameTitle => 'Nazwa częstotliwości';
+
+  @override
+  String get vfoDialogNameLabel => 'Nazwa';
+
+  @override
+  String get vfoDialogDeleteTitle => 'Usuń częstotliwość';
+
+  @override
+  String vfoDialogDeleteMessage(String name) {
+    return 'Usunąć \"$name\" z zapisanych częstotliwości?';
+  }
+
+  @override
+  String get vfoDialogWide => 'Szeroki';
+
+  @override
+  String get vfoDialogNarrow => 'Wąski';
 }

@@ -1567,5 +1567,14 @@
   "vfoDialogTune": "同調",
   "vfoDialogExit": "周波数モードを終了",
   "vfoDialogStepDown": "ステップダウン",
-  "vfoDialogStepUp": "ステップアップ"
+  "vfoDialogStepUp": "ステップアップ",
+  "vfoDialogSavedHeader": "保存済み周波数",
+  "vfoDialogSaveTooltip": "現在の周波数を保存",
+  "vfoDialogNoSaved": "保存済みの周波数はありません",
+  "vfoDialogNameTitle": "周波数名",
+  "vfoDialogNameLabel": "名前",
+  "vfoDialogDeleteTitle": "周波数を削除",
+  "vfoDialogDeleteMessage": "「{name}」を保存済み周波数から削除しますか？",
+  "vfoDialogWide": "ワイド",
+  "vfoDialogNarrow": "ナロー"
 }

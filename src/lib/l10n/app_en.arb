@@ -2621,9 +2621,9 @@
   "@vfoDialogTitle": {
     "description": "Title of the dialog that tunes the radio keypad frequency (VFO) mode."
   },
-  "vfoDialogChannelMode": "Channel mode",
+  "vfoDialogChannelMode": "Channel Mode",
   "@vfoDialogChannelMode": {
-    "description": "Shown in the frequency mode dialog when the radio is on a regular channel."
+    "description": "Title of the frequency mode dialog when the radio is on a regular channel."
   },
   "vfoDialogFrequency": "Frequency (MHz)",
   "@vfoDialogFrequency": {
@@ -2669,5 +2669,46 @@
   "vfoDialogStepUp": "Step up",
   "@vfoDialogStepUp": {
     "description": "Tooltip of the button that tunes one step higher."
+  },
+  "vfoDialogSavedHeader": "Saved Frequencies",
+  "@vfoDialogSavedHeader": {
+    "description": "Header of the saved frequency list in the frequency mode dialog."
+  },
+  "vfoDialogSaveTooltip": "Save current frequency",
+  "@vfoDialogSaveTooltip": {
+    "description": "Tooltip of the button that saves the entered frequency to the list."
+  },
+  "vfoDialogNoSaved": "No saved frequencies",
+  "@vfoDialogNoSaved": {
+    "description": "Shown when the frequency mode dialog has no saved frequencies."
+  },
+  "vfoDialogNameTitle": "Frequency Name",
+  "@vfoDialogNameTitle": {
+    "description": "Title of the prompt that names a saved frequency."
+  },
+  "vfoDialogNameLabel": "Name",
+  "@vfoDialogNameLabel": {
+    "description": "Label of the saved frequency name input."
+  },
+  "vfoDialogDeleteTitle": "Delete Frequency",
+  "@vfoDialogDeleteTitle": {
+    "description": "Title of the confirmation to delete a saved frequency."
+  },
+  "vfoDialogDeleteMessage": "Remove \"{name}\" from your saved frequencies?",
+  "@vfoDialogDeleteMessage": {
+    "description": "Confirmation message to delete a saved frequency.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "vfoDialogWide": "Wide",
+  "@vfoDialogWide": {
+    "description": "Short label of the wide bandwidth toggle in the frequency mode dialog."
+  },
+  "vfoDialogNarrow": "Narrow",
+  "@vfoDialogNarrow": {
+    "description": "Short label of the narrow bandwidth toggle in the frequency mode dialog."
   }
 }

@@ -4661,4 +4661,33 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get vfoDialogStepUp => 'स्टेप ऊपर';
+
+  @override
+  String get vfoDialogSavedHeader => 'सहेजी गई फ़्रीक्वेंसी';
+
+  @override
+  String get vfoDialogSaveTooltip => 'वर्तमान फ़्रीक्वेंसी सहेजें';
+
+  @override
+  String get vfoDialogNoSaved => 'कोई सहेजी गई फ़्रीक्वेंसी नहीं';
+
+  @override
+  String get vfoDialogNameTitle => 'फ़्रीक्वेंसी का नाम';
+
+  @override
+  String get vfoDialogNameLabel => 'नाम';
+
+  @override
+  String get vfoDialogDeleteTitle => 'फ़्रीक्वेंसी हटाएँ';
+
+  @override
+  String vfoDialogDeleteMessage(String name) {
+    return '\"$name\" को सहेजी गई फ़्रीक्वेंसी से हटाएँ?';
+  }
+
+  @override
+  String get vfoDialogWide => 'वाइड';
+
+  @override
+  String get vfoDialogNarrow => 'नैरो';
 }

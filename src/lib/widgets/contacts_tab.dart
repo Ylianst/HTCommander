@@ -726,10 +726,15 @@ class _ContactsTabState extends State<ContactsTab>
     });
   }
 
-  /// Handles arrow up/down and page up/down while the contact list has focus.
+  /// Handles navigation and removal while the contact list has focus.
   KeyEventResult _handleListKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.delete) {
+      if (_selectedIndices.isEmpty) return KeyEventResult.ignored;
+      if (event is KeyDownEvent) _onRemove();
+      return KeyEventResult.handled;
     }
     final order = _displayOrder();
     if (order.isEmpty) return KeyEventResult.ignored;

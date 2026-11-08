@@ -8326,10 +8326,10 @@ abstract class AppLocalizations {
   /// **'Frequency Mode'**
   String get vfoDialogTitle;
 
-  /// Shown in the frequency mode dialog when the radio is on a regular channel.
+  /// Title of the frequency mode dialog when the radio is on a regular channel.
   ///
   /// In en, this message translates to:
-  /// **'Channel mode'**
+  /// **'Channel Mode'**
   String get vfoDialogChannelMode;
 
   /// Label of the frequency input in the frequency mode dialog.
@@ -8391,6 +8391,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Step up'**
   String get vfoDialogStepUp;
+
+  /// Header of the saved frequency list in the frequency mode dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved Frequencies'**
+  String get vfoDialogSavedHeader;
+
+  /// Tooltip of the button that saves the entered frequency to the list.
+  ///
+  /// In en, this message translates to:
+  /// **'Save current frequency'**
+  String get vfoDialogSaveTooltip;
+
+  /// Shown when the frequency mode dialog has no saved frequencies.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved frequencies'**
+  String get vfoDialogNoSaved;
+
+  /// Title of the prompt that names a saved frequency.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequency Name'**
+  String get vfoDialogNameTitle;
+
+  /// Label of the saved frequency name input.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get vfoDialogNameLabel;
+
+  /// Title of the confirmation to delete a saved frequency.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Frequency'**
+  String get vfoDialogDeleteTitle;
+
+  /// Confirmation message to delete a saved frequency.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{name}\" from your saved frequencies?'**
+  String vfoDialogDeleteMessage(String name);
+
+  /// Short label of the wide bandwidth toggle in the frequency mode dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Wide'**
+  String get vfoDialogWide;
+
+  /// Short label of the narrow bandwidth toggle in the frequency mode dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Narrow'**
+  String get vfoDialogNarrow;
 }
 
 class _AppLocalizationsDelegate

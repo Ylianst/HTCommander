@@ -1567,5 +1567,14 @@
   "vfoDialogTune": "ट्यून करें",
   "vfoDialogExit": "फ़्रीक्वेंसी मोड से बाहर निकलें",
   "vfoDialogStepDown": "स्टेप नीचे",
-  "vfoDialogStepUp": "स्टेप ऊपर"
+  "vfoDialogStepUp": "स्टेप ऊपर",
+  "vfoDialogSavedHeader": "सहेजी गई फ़्रीक्वेंसी",
+  "vfoDialogSaveTooltip": "वर्तमान फ़्रीक्वेंसी सहेजें",
+  "vfoDialogNoSaved": "कोई सहेजी गई फ़्रीक्वेंसी नहीं",
+  "vfoDialogNameTitle": "फ़्रीक्वेंसी का नाम",
+  "vfoDialogNameLabel": "नाम",
+  "vfoDialogDeleteTitle": "फ़्रीक्वेंसी हटाएँ",
+  "vfoDialogDeleteMessage": "\"{name}\" को सहेजी गई फ़्रीक्वेंसी से हटाएँ?",
+  "vfoDialogWide": "वाइड",
+  "vfoDialogNarrow": "नैरो"
 }
