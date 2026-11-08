@@ -129,6 +129,7 @@ class WebBbsHandler {
       client.callsign,
     );
     final files = menu.files;
+    _server?.maxUploadBytes = BbsFileStore.maxUploadBytes;
     _sendControl(client, {
       't': 'session',
       'token': client.fileToken,

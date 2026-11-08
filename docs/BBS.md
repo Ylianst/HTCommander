@@ -25,6 +25,9 @@ Stations connected to the BBS (over AX.25, XARA or the HTTP BBS) can type the fo
 | `K <#>` | Delete a board message. Only the poster (with any SSID) or the station running the BBS can delete a message. |
 | `A [n]` | List the last APRS messages this station received, over the air or from APRS-IS. |
 | `AM [n]` | List the last APRS messages received for the connected station (any SSID). |
+| `AP <call>` | Show the last position, comment and weather heard from an APRS station (off by default). |
+| `AH [n]` | List the APRS stations heard most recently (off by default). |
+| `N` | Read the sysop's announcement, when one is enabled. |
 | `L [n]` | List the last stations that connected to the BBS, with when they were last seen, how they connected and how many times. |
 | `F [n]` | List the files in the BBS file area, with their number, size, date and uploader. |
 | `DL <#>` | Download a file, by number or name (`GET` also works). See [File area](#file-area). |
@@ -38,6 +41,17 @@ When a station connects it is greeted by callsign. Returning stations are told w
 
 Note that callsigns are not authenticated, over the radio or the web, so the board and deletions rely on stations using their own callsign.
 
+## Customizing the BBS
+
+Select **Customize...** in the BBS tab menu to choose what the BBS offers:
+
+- **General**: the welcome message shown at the top of the main menu, an optional announcement (`N`, which stations are told about when they connect), and callsign lookup (`C`).
+- **Files**: whether stations may upload files, the largest upload allowed (25 KB by default, up to 1024 KB), and **Manage Files...** to choose the files offered for download.
+- **Games**: turn games off entirely or one by one.
+- **APRS**: the APRS message lists (`A`, `AM`), the APRS station lookup (`AP`) and the list of heard stations (`AH`).
+
+The settings apply to every radio BBS and the HTTP BBS. Commands that are turned off are removed from the menu.
+
 ## File area
 
 The BBS offers a small file area that stations can list (`F`), download from (`DL`) and upload to (`UL`). Click **Files** in the BBS tab header (or "BBS Files..." in the tab menu) to see the files, add or delete files, open the folder, and choose whether stations may upload. Files can also be copied straight into the folder; they are picked up and numbered on the next listing. File numbers are never reused. The file area is shared by every radio BBS and the HTTP BBS.
@@ -45,7 +59,7 @@ The BBS offers a small file area that stations can list (`F`), download from (`D
 - **Over the radio**, files are transferred with the YAPP protocol over an AX.25 connected session. In the Handy-Talky Commander terminal, `DL <#>` makes the BBS send the file and the terminal offers to save it when it arrives. To upload, type `UL` (optional) and use **Send File...**. Other YAPP-capable packet terminals work the same way. A station that does not answer the YAPP offer can just keep typing: the download is cancelled and its commands run. XARA connections can list files but not transfer them.
 - **On the HTTP BBS**, `DL <#>` downloads the file in the browser, and the **Upload** button at the top of the page sends a file. Each web session has its own secret link, so files can only be transferred by connected visitors.
 
-Uploads are limited to 25 KB per file (several minutes at 1200 baud) and 20 MB in total, and can be turned off with "Allow stations to upload files to the BBS" in the Files window or in "File" -> "Settings", "Servers" tab. Uploaded file names are reduced to letters, digits, `.`, `_` and `-`, and a number is added if the name is taken. Large files added by the sysop can be downloaded, but they take a long time over the radio.
+Uploads are limited to 25 KB per file by default (several minutes at 1200 baud, adjustable in "Customize...") and 20 MB in total, and can be turned off with "Allow stations to upload files to the BBS" in the Files window or in "File" -> "Settings", "Servers" tab. Uploaded file names are reduced to letters, digits, `.`, `_` and `-`, and a number is added if the name is taken. Large files added by the sysop can be downloaded, but they take a long time over the radio.
 
 Disabling the BBS immediately drops its AX.25/XARA sessions and Winlink gateway connections, clears queued transmissions for that radio, and cancels active audio transmission. No disconnect handshake or final BBS message is sent. Incoming packets cannot restart the disabled BBS; enabling it again starts fresh sessions. Data already handed to the radio or transmitted over the air cannot be recalled.
 

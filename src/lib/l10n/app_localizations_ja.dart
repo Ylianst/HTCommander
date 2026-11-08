@@ -2290,6 +2290,112 @@ class AppLocalizationsJa extends AppLocalizations {
   String get audioNa => '該当なし';
 
   @override
+  String get bbsCustomize => 'カスタマイズ...';
+
+  @override
+  String get bbsCustomizeTitle => 'BBSのカスタマイズ';
+
+  @override
+  String get bbsCustomizeGeneral => '一般';
+
+  @override
+  String get bbsCustomizeGames => 'ゲーム';
+
+  @override
+  String get bbsCustomizeAprs => 'APRS';
+
+  @override
+  String get bbsWelcomeMessage => 'ウェルカムメッセージ';
+
+  @override
+  String get bbsWelcomeMessageHelp => 'BBSメインメニューの上部に表示されます。';
+
+  @override
+  String get bbsAnnouncement => 'お知らせ';
+
+  @override
+  String get bbsAnnouncementEnable => 'お知らせを有効にする';
+
+  @override
+  String get bbsAnnouncementText => 'お知らせの本文';
+
+  @override
+  String get bbsAnnouncementHelp =>
+      'このテキストを表示する [N]ews オプションをBBSメニューに追加します。接続時に局へ通知されます。';
+
+  @override
+  String get bbsCallsignLookup => 'コールサイン検索';
+
+  @override
+  String get bbsCallsignLookupEnable => 'コールサイン検索を有効にする';
+
+  @override
+  String get bbsCallsignLookupHelp =>
+      'データベースがインストールされていれば、局は C <コールサイン> でオフラインのコールサインデータベースから免許情報を検索できます。';
+
+  @override
+  String get bbsUploads => 'アップロード';
+
+  @override
+  String get bbsMaxUploadSize => '最大アップロードサイズ（KB）';
+
+  @override
+  String bbsMaxUploadSizeInvalid(int max) {
+    return '1～$max KBのサイズを入力してください';
+  }
+
+  @override
+  String get bbsUploadsHelp => '局はAX.25接続上のYAPPまたはWeb BBSからファイルをアップロードします。';
+
+  @override
+  String get bbsDownloads => 'ダウンロード';
+
+  @override
+  String get bbsDownloadsHelp =>
+      'BBSファイルエリアのすべてのファイルがダウンロード用に提供されます。ファイルを追加または削除して提供内容を選びます。';
+
+  @override
+  String get bbsManageFiles => 'ファイルを管理...';
+
+  @override
+  String get bbsGamesEnable => 'ゲームを有効にする';
+
+  @override
+  String get bbsGamesHelp => '局は G でゲームを一覧表示し、G <番号> で開始し、QUIT で終了します。';
+
+  @override
+  String get bbsGameGuess => '数当て';
+
+  @override
+  String get bbsGameHangman => 'ハングマン';
+
+  @override
+  String get bbsGameMorse => 'モールスクイズ';
+
+  @override
+  String get bbsGameTtt => '三目並べ';
+
+  @override
+  String get bbsAprsMessagesEnable => 'APRSメッセージを有効にする';
+
+  @override
+  String get bbsAprsMessagesHelp =>
+      '局は A で受信したAPRSメッセージを、AM で自局宛のメッセージを一覧表示できます。';
+
+  @override
+  String get bbsAprsLookupEnable => 'APRS局の検索を有効にする';
+
+  @override
+  String get bbsAprsLookupHelp =>
+      '局は AP <コールサイン> でAPRS局から最後に受信した位置、コメント、気象情報を確認できます。';
+
+  @override
+  String get bbsAprsHeardEnable => '受信したAPRS局の一覧を有効にする';
+
+  @override
+  String get bbsAprsHeardHelp => '局は AH で最近受信したAPRS局を一覧表示できます。';
+
+  @override
   String get bbsHeaderActive => 'BBS - アクティブ';
 
   @override
@@ -2339,8 +2445,7 @@ class AppLocalizationsJa extends AppLocalizations {
       'ファイルはまだありません。ここでファイルを追加するか、フォルダーにコピーするか、局にアップロードしてもらってください。';
 
   @override
-  String get bbsFilesAllowUploads =>
-      '局が BBS にファイルをアップロードすることを許可する (1 ファイル 25 KB まで)';
+  String get bbsFilesAllowUploads => '局が BBS にファイルをアップロードすることを許可する';
 
   @override
   String get bbsFilesColName => '名前';

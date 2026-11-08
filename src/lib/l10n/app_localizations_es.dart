@@ -2349,6 +2349,117 @@ class AppLocalizationsEs extends AppLocalizations {
   String get audioNa => 'N/D';
 
   @override
+  String get bbsCustomize => 'Personalizar...';
+
+  @override
+  String get bbsCustomizeTitle => 'Personalizar BBS';
+
+  @override
+  String get bbsCustomizeGeneral => 'General';
+
+  @override
+  String get bbsCustomizeGames => 'Juegos';
+
+  @override
+  String get bbsCustomizeAprs => 'APRS';
+
+  @override
+  String get bbsWelcomeMessage => 'Mensaje de bienvenida';
+
+  @override
+  String get bbsWelcomeMessageHelp =>
+      'Se muestra en la parte superior del menú principal del BBS.';
+
+  @override
+  String get bbsAnnouncement => 'Anuncio';
+
+  @override
+  String get bbsAnnouncementEnable => 'Habilitar anuncio';
+
+  @override
+  String get bbsAnnouncementText => 'Texto del anuncio';
+
+  @override
+  String get bbsAnnouncementHelp =>
+      'Añade una opción [N]ews al menú del BBS que muestra este texto. Se avisa a las estaciones al conectarse.';
+
+  @override
+  String get bbsCallsignLookup => 'Búsqueda de indicativos';
+
+  @override
+  String get bbsCallsignLookupEnable => 'Habilitar búsqueda de indicativos';
+
+  @override
+  String get bbsCallsignLookupHelp =>
+      'Las estaciones pueden consultar datos de licencia en la base de datos de indicativos sin conexión con C <indicativo>, si hay una base de datos instalada.';
+
+  @override
+  String get bbsUploads => 'Subidas';
+
+  @override
+  String get bbsMaxUploadSize => 'Tamaño máximo de subida (KB)';
+
+  @override
+  String bbsMaxUploadSizeInvalid(int max) {
+    return 'Introduzca un tamaño entre 1 y $max KB';
+  }
+
+  @override
+  String get bbsUploadsHelp =>
+      'Las estaciones suben archivos con YAPP sobre una conexión AX.25 o desde el BBS web.';
+
+  @override
+  String get bbsDownloads => 'Descargas';
+
+  @override
+  String get bbsDownloadsHelp =>
+      'Todos los archivos del área de archivos del BBS se ofrecen para descarga. Añada o elimine archivos para elegir lo que se ofrece.';
+
+  @override
+  String get bbsManageFiles => 'Administrar archivos...';
+
+  @override
+  String get bbsGamesEnable => 'Habilitar juegos';
+
+  @override
+  String get bbsGamesHelp =>
+      'Las estaciones listan los juegos con G, inician uno con G <número> y salen con QUIT.';
+
+  @override
+  String get bbsGameGuess => 'Adivina el número';
+
+  @override
+  String get bbsGameHangman => 'Ahorcado';
+
+  @override
+  String get bbsGameMorse => 'Prueba de Morse';
+
+  @override
+  String get bbsGameTtt => 'Tres en raya';
+
+  @override
+  String get bbsAprsMessagesEnable => 'Habilitar mensajes APRS';
+
+  @override
+  String get bbsAprsMessagesHelp =>
+      'Las estaciones pueden listar los mensajes APRS escuchados con A, y los dirigidos a ellas con AM.';
+
+  @override
+  String get bbsAprsLookupEnable => 'Habilitar búsqueda de estaciones APRS';
+
+  @override
+  String get bbsAprsLookupHelp =>
+      'Las estaciones pueden ver la última posición, comentario y clima recibidos de una estación APRS con AP <indicativo>.';
+
+  @override
+  String get bbsAprsHeardEnable =>
+      'Habilitar lista de estaciones APRS escuchadas';
+
+  @override
+  String get bbsAprsHeardHelp =>
+      'Las estaciones pueden listar las estaciones APRS escuchadas más recientemente con AH.';
+
+  @override
   String get bbsHeaderActive => 'BBS - Activo';
 
   @override
@@ -2399,7 +2510,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get bbsFilesAllowUploads =>
-      'Permitir que las estaciones suban archivos al BBS (hasta 25 KB cada uno)';
+      'Permitir que las estaciones suban archivos al BBS';
 
   @override
   String get bbsFilesColName => 'Nombre';
