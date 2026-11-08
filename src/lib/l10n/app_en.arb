@@ -825,6 +825,10 @@
   "settingsPort": "Port:",
   "settingsEnableAgwpeServer": "Enable AGWPE Server",
 
+  "settingsEnableBbsWebServer": "Enable HTTP BBS Server",
+
+  "settingsBbsWebServerNote": "Serves a web terminal where anyone who can reach this port can connect to the BBS by entering a valid callsign. No password is required.",
+
   "settingsHomeAssistant": "Home Assistant",
   "@settingsHomeAssistant": {
     "description": "Section title for the Home Assistant MQTT integration in Settings > Servers"
@@ -1416,6 +1420,7 @@
   "terminalShowCallsign": "Show Callsign",
   "terminalWordWrap": "Word Wrap",
   "terminalWaitForConnection": "Wait for Connection...",
+  "terminalConnectLocalBbs": "Connect to Local BBS",
   "terminalWaitingForConnection": "Waiting for connection...",
   "terminalConnectedFrom": "Connected from {callsign}",
   "@terminalConnectedFrom": {
@@ -1524,6 +1529,40 @@
   "bbsColStats": "Stats",
   "bbsTraffic": "Traffic",
   "bbsJustNow": "Just now",
+  "bbsFiles": "Files",
+  "bbsFilesTitle": "BBS Files",
+  "bbsFilesAdd": "Add Files...",
+  "bbsFilesOpenFolder": "Open Folder",
+  "bbsFilesEmpty": "No files yet. Add files here, copy them into the folder, or let stations upload them.",
+  "bbsFilesAllowUploads": "Allow stations to upload files to the BBS (up to 25 KB each)",
+  "bbsFilesColName": "Name",
+  "bbsFilesColSize": "Size",
+  "bbsFilesColUploader": "Uploaded By",
+  "bbsFilesColDate": "Date",
+  "bbsFilesSysop": "Sysop",
+  "bbsFilesDeleteConfirm": "Delete {name}?",
+  "@bbsFilesDeleteConfirm": {
+    "placeholders": {
+      "name": { "type": "String", "example": "readme.txt" }
+    }
+  },
+  "bbsFilesAddFailed": "Could not add {name}.",
+  "@bbsFilesAddFailed": {
+    "placeholders": {
+      "name": { "type": "String", "example": "readme.txt" }
+    }
+  },
+  "bbsAllSessions": "All Sessions",
+  "bbsAllSessionsCount": "All sessions ({count} active)",
+  "@bbsAllSessionsCount": {
+    "placeholders": {
+      "count": { "type": "int", "example": "2" }
+    }
+  },
+  "bbsSessionEnded": "ended",
+  "bbsNoActiveSessions": "No active sessions",
+  "bbsSessionPickerTooltip": "Choose which session to follow",
+  "bbsShowSessionTraffic": "Show Session Traffic",
   "bbsMinAgo": "{n}m ago",
   "@bbsMinAgo": {
     "placeholders": {
@@ -1594,6 +1633,31 @@
   "mailDeletePermanent": "Permanently delete the selected mail? This cannot be undone.",
   "mailMoveToTrashPrompt": "Move the selected mail to Trash?",
   "mailMove": "Move",
+  "mailMoveToMenu": "Move To",
+  "mailSelectedCount": "{count, plural, one{1 message selected} other{{count} messages selected}}",
+  "@mailSelectedCount": {
+    "placeholders": {
+      "count": { "type": "int", "example": "5" }
+    }
+  },
+  "mailMoveToTrashPromptCount": "{count, plural, one{Move the selected mail to Trash?} other{Move the {count} selected messages to Trash?}}",
+  "@mailMoveToTrashPromptCount": {
+    "placeholders": {
+      "count": { "type": "int", "example": "5" }
+    }
+  },
+  "mailDeletePermanentCount": "{count, plural, one{Permanently delete the selected mail? This cannot be undone.} other{Permanently delete the {count} selected messages? This cannot be undone.}}",
+  "@mailDeletePermanentCount": {
+    "placeholders": {
+      "count": { "type": "int", "example": "5" }
+    }
+  },
+  "mailMoveTo": "Move to {mailbox}",
+  "@mailMoveTo": {
+    "placeholders": {
+      "mailbox": { "type": "String", "example": "Archive" }
+    }
+  },
   "mailOpen": "Open",
   "mailReply": "Reply",
   "mailReplyAll": "Reply All",

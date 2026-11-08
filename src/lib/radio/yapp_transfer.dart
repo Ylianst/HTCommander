@@ -46,9 +46,13 @@ class YappProgress {
 /// Received file bytes are buffered in memory and handed to [onReceiveComplete]
 /// when the transfer finishes, letting the UI prompt for a save location.
 class YappTransfer {
-  YappTransfer(this.session);
+  /// Drives [session]. Packets go out through [send] when given (e.g. to count
+  /// traffic), otherwise straight to the session.
+  YappTransfer(this.session, {void Function(Uint8List packet)? send})
+    : _sender = send;
 
   final AX25Session session;
+  final void Function(Uint8List packet)? _sender;
 
   // ---- YAPP control characters (from the protocol specification) -----------
   static const int _ack = 0x06;
@@ -83,7 +87,19 @@ class YappTransfer {
   /// `packetLength` so each YAPP packet maps to a single I-frame.
   int blockSize = 128;
 
+  /// Largest file accepted when receiving, in bytes (0 = no limit). Larger
+  /// files are refused from their header, or cancelled if they send more.
+  int maxReceiveBytes = 0;
+
   // ---- Callbacks -----------------------------------------------------------
+
+  /// Asked before accepting an incoming file. Returns null to accept, or the
+  /// reason the file is refused (sent to the remote as Not Ready).
+  String? Function(String filename, int fileSize)? onReceiveRequest;
+
+  /// Fired when the remote ends an incoming transfer session (EOT), after any
+  /// [onReceiveComplete]. The remote is listening for text again from here.
+  void Function()? onReceiveSessionEnd;
 
   /// Fired repeatedly during a transfer with the current progress.
   void Function(YappProgress progress)? onProgress;
@@ -128,6 +144,12 @@ class YappTransfer {
   bool get isIdle => _state == _YappState.idle;
 
   YappDirection get direction => _direction;
+
+  /// Whether a send was offered and the receiver has not answered yet.
+  bool get isAwaitingReceiver => _state == _YappState.sendWaitRR;
+
+  /// Whether [data] starts like a YAPP packet (a protocol control byte).
+  static bool isProtocolData(Uint8List data) => _isYappControl(data);
 
   // ---------------------------------------------------------------------------
   // Receive mode
@@ -297,6 +319,15 @@ class YappTransfer {
     _bytesTransferred = 0;
     _recvBuffer.clear();
 
+    final limit = maxReceiveBytes;
+    final refusal = limit > 0 && _fileSize > limit
+        ? 'File too large ($_fileSize bytes, max $limit)'
+        : onReceiveRequest?.call(_filename, _fileSize);
+    if (refusal != null) {
+      _sendNotReady(refusal);
+      return;
+    }
+
     // Accept the header: YappC (RT) when checksums are enabled, otherwise the
     // standard Receive File (RF) response.
     if (useChecksum) {
@@ -344,6 +375,10 @@ class YappTransfer {
 
     _recvBuffer.add(payload);
     _bytesTransferred += payload.length;
+    if (maxReceiveBytes > 0 && _bytesTransferred > maxReceiveBytes) {
+      cancel('File too large (max $maxReceiveBytes bytes)');
+      return;
+    }
     _emitProgress();
 
     // Acknowledge the block so the sender releases the next one.
@@ -365,6 +400,7 @@ class YappTransfer {
     _cleanup();
     // Return to listening for the next incoming transfer.
     _setState(_YappState.recvInit);
+    onReceiveSessionEnd?.call();
   }
 
   // ---- Send-side state handlers --------------------------------------------
@@ -391,7 +427,12 @@ class YappTransfer {
       _setState(_YappState.sendData);
       _sendNextBlock();
     } else if (type == _nak) {
-      _fail('Receiver rejected the file');
+      final reason = _reason(data);
+      _fail(
+        reason == null
+            ? 'Receiver rejected the file'
+            : 'Receiver rejected the file: $reason',
+      );
     } else if (type == _can) {
       _processRemoteCancel(data);
     }
@@ -511,15 +552,17 @@ class YappTransfer {
   }
 
   void _processRemoteCancel(Uint8List data) {
-    var reason = 'Transfer cancelled by remote';
-    if (data.length > 2) {
-      final length = data[1];
-      if (length > 0 && data.length >= 2 + length) {
-        reason = utf8.decode(data.sublist(2, 2 + length), allowMalformed: true);
-      }
-    }
+    final reason = _reason(data) ?? 'Transfer cancelled by remote';
     _send(Uint8List.fromList([_ack, _ca])); // Cancel Ack
     _fail('Remote cancelled: $reason');
+  }
+
+  /// The text reason carried by a length-prefixed NR / CN packet, if any.
+  static String? _reason(Uint8List data) {
+    if (data.length <= 2) return null;
+    final length = data[1];
+    if (length == 0 || data.length < 2 + length) return null;
+    return utf8.decode(data.sublist(2, 2 + length), allowMalformed: true);
   }
 
   void _sendCancel(String reason) {
@@ -611,13 +654,20 @@ class YappTransfer {
   }
 
   void _send(Uint8List packet) {
-    session.send(packet);
+    final sender = _sender;
+    if (sender != null) {
+      sender(packet);
+    } else {
+      session.send(packet);
+    }
   }
 
   bool _isTransferRequest(Uint8List data) =>
       data.length >= 2 && data[0] == _enq && data[1] == _si;
 
-  bool _isYappData(Uint8List data) {
+  bool _isYappData(Uint8List data) => _isYappControl(data);
+
+  static bool _isYappControl(Uint8List data) {
     if (data.isEmpty) return false;
     final b = data[0];
     return b == _enq ||
@@ -671,6 +721,8 @@ class YappTransfer {
     onReceiveComplete = null;
     onSendComplete = null;
     onError = null;
+    onReceiveRequest = null;
+    onReceiveSessionEnd = null;
   }
 }
 

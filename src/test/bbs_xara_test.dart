@@ -155,8 +155,8 @@ void main() {
       xara.connectFrom('N1ABC-5');
       expect(await waitFor(() => xara.text.contains('[M] for menu')), isTrue);
       expect(xara.text, contains('[WL2K-5.0-B2FWIHJM\$]'));
-      expect(bbs.activeLink?.remoteCallsign, 'N1ABC-5');
-      expect(bbs.activeLink?.remoteAddress, 'N1ABC');
+      expect(bbs.links.firstOrNull?.remoteCallsign, 'N1ABC-5');
+      expect(bbs.links.firstOrNull?.remoteAddress, 'N1ABC');
       expect(control, contains('Connected to N1ABC-5 (XARA)'));
       expect(stats.last.protocol, 'XARA');
 
@@ -164,7 +164,7 @@ void main() {
       expect(await waitFor(() => xara.text.contains('open source')), isTrue);
       xara.receive('D\r');
       expect(await waitFor(() => xara.disconnects == 1), isTrue);
-      expect(bbs.activeLink, isNull);
+      expect(bbs.links.firstOrNull, isNull);
       expect(control.last, 'Disconnected');
     } finally {
       bbs.dispose();
@@ -189,24 +189,27 @@ void main() {
     }
   });
 
-  test('a Winlink SID split across XARA frames still reaches the mail server', () async {
-    final xara = FakeXara(409);
-    final bbs = Bbs(409)..enabled = true;
-    try {
-      xara.connectFrom('N1ABC');
-      expect(await waitFor(() => xara.text.endsWith('>\r')), isTrue);
-      xara.sent.clear();
-      xara.receive('[RMS Express');
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(xara.sent, isEmpty);
-      xara.receive('-1.7.28.0-B2F');
-      xara.receive('HM\$]\rFF\r');
-      expect(await waitFor(() => xara.text.contains('FQ\r')), isTrue);
-    } finally {
-      bbs.dispose();
-      xara.dispose();
-    }
-  });
+  test(
+    'a Winlink SID split across XARA frames still reaches the mail server',
+    () async {
+      final xara = FakeXara(409);
+      final bbs = Bbs(409)..enabled = true;
+      try {
+        xara.connectFrom('N1ABC');
+        expect(await waitFor(() => xara.text.endsWith('>\r')), isTrue);
+        xara.sent.clear();
+        xara.receive('[RMS Express');
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(xara.sent, isEmpty);
+        xara.receive('-1.7.28.0-B2F');
+        xara.receive('HM\$]\rFF\r');
+        expect(await waitFor(() => xara.text.contains('FQ\r')), isTrue);
+      } finally {
+        bbs.dispose();
+        xara.dispose();
+      }
+    },
+  );
 
   test('our own outgoing XARA connects and other radios are ignored', () async {
     final xara = FakeXara(403);
@@ -217,14 +220,14 @@ void main() {
       xara.event({'evt': 'connected', 'caller': 'N1ABC', 'incoming': false});
       other.connectFrom('N1ABC');
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(bbs.activeLink, isNull);
+      expect(bbs.links.firstOrNull, isNull);
       expect(xara.sent, isEmpty);
 
       // A station sharing our callsign is still answered when the modem says
       // the link is incoming.
       xara.event({'evt': 'connected', 'caller': 'N0CALL', 'incoming': true});
       expect(await waitFor(() => xara.text.contains('[M] for menu')), isTrue);
-      expect(bbs.activeLink?.remoteCallsign, 'N0CALL');
+      expect(bbs.links.firstOrNull?.remoteCallsign, 'N0CALL');
     } finally {
       bbs.dispose();
       xara.dispose();
@@ -238,7 +241,7 @@ void main() {
     try {
       xara.connectFrom('N1ABC');
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(bbs.activeLink, isNull);
+      expect(bbs.links.firstOrNull, isNull);
       expect(xara.sent, isEmpty);
     } finally {
       bbs.dispose();
@@ -246,26 +249,29 @@ void main() {
     }
   });
 
-  test('link timeout ends the session; disposing cancels without a handshake', () async {
-    final xara = FakeXara(406);
-    var bbs = Bbs(406)..enabled = true;
-    try {
-      xara.connectFrom('N1ABC');
-      expect(await waitFor(() => bbs.activeLink != null), isTrue);
-      xara.event({'evt': 'timedOut'});
-      expect(bbs.activeLink, isNull);
-      expect(control.last, 'Disconnected');
+  test(
+    'link timeout ends the session; disposing cancels without a handshake',
+    () async {
+      final xara = FakeXara(406);
+      var bbs = Bbs(406)..enabled = true;
+      try {
+        xara.connectFrom('N1ABC');
+        expect(await waitFor(() => bbs.links.firstOrNull != null), isTrue);
+        xara.event({'evt': 'timedOut'});
+        expect(bbs.links.firstOrNull, isNull);
+        expect(control.last, 'Disconnected');
 
-      xara.connectFrom('N1ABC');
-      expect(await waitFor(() => xara.text.contains('[M] for menu')), isTrue);
-      bbs.dispose();
-      expect(xara.disconnects, 0);
-      expect(xara.cancellations, 1);
-    } finally {
-      bbs.dispose();
-      xara.dispose();
-    }
-  });
+        xara.connectFrom('N1ABC');
+        expect(await waitFor(() => xara.text.contains('[M] for menu')), isTrue);
+        bbs.dispose();
+        expect(xara.disconnects, 0);
+        expect(xara.cancellations, 1);
+      } finally {
+        bbs.dispose();
+        xara.dispose();
+      }
+    },
+  );
 
   test(
     'a real XARA station connects to the BBS through SoftwareModem',
@@ -390,7 +396,7 @@ Future<void> runOverTheAir({
       reason: '$peerEvents ${peerText()}',
     );
     expect(peerText(), contains('Handy-Talky Commander BBS'));
-    expect(bbs.activeLink?.remoteCallsign, peerCall);
+    expect(bbs.links.firstOrNull?.remoteCallsign, peerCall);
 
     peer.send(Uint8List.fromList(utf8.encode('S\r')));
     expect(
@@ -404,11 +410,15 @@ Future<void> runOverTheAir({
     if (disableWhileConnected) {
       bbs.enabled = false;
       final before = transmissions;
-      expect(bbs.activeLink, isNull);
-      expect(bbs.session, isNull);
+      expect(bbs.links.firstOrNull, isNull);
+      expect(bbs.ax25Sessions, isEmpty);
       peer.send(Uint8List.fromList(utf8.encode('M\r')));
       await Future<void>.delayed(const Duration(seconds: 5));
-      expect(transmissions, before, reason: 'disabled BBS answered the old link');
+      expect(
+        transmissions,
+        before,
+        reason: 'disabled BBS answered the old link',
+      );
 
       final attempted = Completer<void>();
       final newcomer = XaraModem(
@@ -423,7 +433,11 @@ Future<void> runOverTheAir({
         newcomer.connect(target, const []);
         await attempted.future.timeout(const Duration(seconds: 10));
         await Future<void>.delayed(const Duration(seconds: 5));
-        expect(transmissions, before, reason: 'disabled BBS answered a new caller');
+        expect(
+          transmissions,
+          before,
+          reason: 'disabled BBS answered a new caller',
+        );
       } finally {
         newcomer.dispose();
       }
@@ -433,7 +447,9 @@ Future<void> runOverTheAir({
     peer.send(Uint8List.fromList(utf8.encode('D\r')));
     expect(
       await waitFor(
-        () => peerEvents.contains('disconnected') && bbs.activeLink == null,
+        () =>
+            peerEvents.contains('disconnected') &&
+            bbs.links.firstOrNull == null,
         limit: const Duration(seconds: 60),
       ),
       isTrue,

@@ -7,7 +7,8 @@ The Terminal engine, independent of any UI. It connects to a Terminal station
 over a radio locked to "Terminal" usage and exchanges text using the
 connectionless AX.25 protocols (raw, raw compressed, APRS messages), a
 connected-mode AX.25 session (with YAPP file transfer), or a XARA (VARA FM)
-link. It can also wait for an incoming AX.25 connection.
+link. It can also wait for an incoming AX.25 connection, or connect to a
+radio-less local BBS instance as our own callsign.
 
 It is driven entirely through the DataBroker (device 1), so the Terminal tab
 (in any window), the hosted web UI and test agents all share one engine:
@@ -15,6 +16,7 @@ It is driven entirely through the DataBroker (device 1), so the Terminal tab
 Commands
   TerminalConnect   {RadioId, Station: StationInfo json}
   TerminalWait      {RadioId}
+  TerminalConnectLocalBbs                  (no radio; our own callsign)
   TerminalDisconnect  graceful (AX.25 DISC / XARA disconnect / unlock)
   TerminalAbort       immediate teardown
   TerminalSend      {Text}
@@ -40,6 +42,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../models/radio_models.dart';
+import 'bbs_handler.dart';
 import '../models/station_info.dart';
 import '../radio/ax25_address.dart';
 import '../radio/ax25_packet.dart';
@@ -84,6 +87,47 @@ abstract final class TerminalNotices {
   static const String fileTransferError = 'fileTransferError'; // message
 }
 
+/// Virtual device id of the radio-less BBS the terminal connects to locally.
+const int localBbsDeviceId = 205;
+
+/// `TerminalState.protocol` while connected to the local BBS.
+const String localBbsProtocol = 'localBbs';
+
+/// An in-memory link between the terminal and the local [Bbs].
+class _LocalBbsLink extends BbsLink {
+  _LocalBbsLink(this.remoteCallsign, this._onSend, this._onDisconnect);
+
+  @override
+  final String remoteCallsign;
+  @override
+  final Map<String, Object?> sessionState = {};
+  final void Function(Uint8List data) _onSend;
+  final void Function() _onDisconnect;
+  bool connected = true;
+
+  @override
+  String get protocol => 'Local';
+
+  @override
+  bool get isConnected => connected;
+
+  @override
+  void send(Uint8List data) {
+    if (connected && data.isNotEmpty) _onSend(data);
+  }
+
+  @override
+  void disconnect() {
+    if (!connected) return;
+    connected = false;
+    // The BBS may ask to disconnect while processing input; let it unwind.
+    scheduleMicrotask(_onDisconnect);
+  }
+
+  @override
+  void abort() => connected = false;
+}
+
 /// The terminal engine (see the file header for its broker interface).
 class TerminalHandler {
   final DataBrokerClient _broker = DataBrokerClient();
@@ -104,6 +148,9 @@ class TerminalHandler {
   bool _waiting = false;
   String? _remote;
   bool _pendingDisconnect = false;
+
+  Bbs? _localBbs;
+  _LocalBbsLink? _localLink;
 
   void init() {
     _loadConnectedRadios();
@@ -137,6 +184,7 @@ class TerminalHandler {
       names: const [
         'TerminalConnect',
         'TerminalWait',
+        'TerminalConnectLocalBbs',
         'TerminalDisconnect',
         'TerminalAbort',
         'TerminalSend',
@@ -151,6 +199,7 @@ class TerminalHandler {
   void dispose() {
     if (_disposed) return;
     if (_xaraState != null) _finishXara(abort: true, notify: false);
+    if (_localLink != null) _closeLocalBbs(notify: false);
     _yapp?.dispose();
     _yapp = null;
     _session?.dispose();
@@ -175,6 +224,7 @@ class TerminalHandler {
   }
 
   TerminalStatus get status {
+    if (_localLink != null) return TerminalStatus.connected;
     final x = _xaraState;
     if (x != null) {
       return switch (x) {
@@ -213,6 +263,7 @@ class TerminalHandler {
   }
 
   bool get _canSend {
+    if (_localLink != null) return true;
     if (_transfer != null) return false;
     if (_xaraState != null) return _xaraState == _XaraState.connected;
     return activeRadioId > 0;
@@ -234,9 +285,10 @@ class TerminalHandler {
         'radioId': _radioId > 0 ? _radioId : activeRadioId,
         'station': station?.toJson(),
         'remote': station?.callsign ?? _remote,
-        'protocol':
-            station?.terminalProtocol.name ??
-            (_session != null ? TerminalProtocol.x25Session.name : null),
+        'protocol': _localLink != null
+            ? localBbsProtocol
+            : station?.terminalProtocol.name ??
+                  (_session != null ? TerminalProtocol.x25Session.name : null),
         'canSend': _canSend,
         'canSendFile': _canSendFile,
         'pendingDisconnect': _pendingDisconnect,
@@ -311,6 +363,8 @@ class TerminalHandler {
         }
       case 'TerminalWait':
         waitForConnection((args['RadioId'] as num?)?.toInt() ?? -1);
+      case 'TerminalConnectLocalBbs':
+        connectLocalBbs();
       case 'TerminalDisconnect':
         disconnect();
       case 'TerminalAbort':
@@ -415,8 +469,59 @@ class TerminalHandler {
     _publish();
   }
 
+  /// Connects to a local BBS instance as our own callsign, without a radio.
+  void connectLocalBbs() {
+    if (status != TerminalStatus.idle) {
+      _notice(TerminalNotices.busy);
+      return;
+    }
+    final callsign = _myAddress;
+    final bbs = Bbs(localBbsDeviceId)..enabled = true;
+    late final _LocalBbsLink link;
+    link = _LocalBbsLink(
+      callsign,
+      (data) => _text(
+        outgoing: false,
+        from: callsign,
+        to: callsign,
+        text: utf8.decode(data, allowMalformed: true),
+      ),
+      () {
+        if (identical(_localLink, link)) _closeLocalBbs();
+      },
+    );
+    _localBbs = bbs;
+    _localLink = link;
+    _remote = callsign;
+    _broker.logInfo('[Terminal] Connecting to the local BBS as $callsign');
+    _notice(TerminalNotices.connectedTo, {'callsign': callsign});
+    _publish();
+    bbs.openLink(link, cmsRelay: false);
+  }
+
+  void _closeLocalBbs({bool notify = true}) {
+    final link = _localLink;
+    final bbs = _localBbs;
+    _localLink = null;
+    _localBbs = null;
+    _remote = null;
+    if (link != null) {
+      link.connected = false;
+      bbs?.closeLink(link);
+    }
+    bbs?.dispose();
+    _broker.logInfo('[Terminal] Disconnected from the local BBS');
+    if (!notify) return;
+    _notice(TerminalNotices.disconnected);
+    _publish();
+  }
+
   /// Gracefully ends the current connection.
   void disconnect() {
+    if (_localLink != null) {
+      _closeLocalBbs();
+      return;
+    }
     if (_xaraState != null) {
       _disconnectXara();
       return;
@@ -461,6 +566,10 @@ class TerminalHandler {
   /// Ends the current connection immediately: aborts XARA, drops the AX.25
   /// session and releases the radio.
   void abort() {
+    if (_localLink != null) {
+      _closeLocalBbs();
+      return;
+    }
     if (_xaraState != null) {
       _finishXara(abort: true);
       return;
@@ -498,6 +607,15 @@ class TerminalHandler {
   /// Sends a line of text over the current connection.
   void send(String text) {
     if (text.isEmpty) return;
+    final localLink = _localLink;
+    if (localLink != null) {
+      _text(outgoing: true, from: _remote, to: _remote, text: '$text\n');
+      _localBbs?.linkReceived(
+        localLink,
+        Uint8List.fromList(utf8.encode('$text\r')),
+      );
+      return;
+    }
     final radioId = activeRadioId;
     if (radioId <= 0 && _xaraState == null) {
       _notice(TerminalNotices.notConnected);

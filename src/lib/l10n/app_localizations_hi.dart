@@ -1137,6 +1137,13 @@ class AppLocalizationsHi extends AppLocalizations {
   String get settingsEnableAgwpeServer => 'AGWPE सर्वर सक्षम करें';
 
   @override
+  String get settingsEnableBbsWebServer => 'HTTP BBS सर्वर सक्षम करें';
+
+  @override
+  String get settingsBbsWebServerNote =>
+      'एक वेब टर्मिनल प्रदान करता है जिससे इस पोर्ट तक पहुँचने वाला कोई भी व्यक्ति मान्य कॉलसाइन दर्ज करके BBS से जुड़ सकता है। किसी पासवर्ड की आवश्यकता नहीं है।';
+
+  @override
   String get settingsHomeAssistant => 'Home Assistant';
 
   @override
@@ -2152,6 +2159,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get terminalWaitForConnection => 'कनेक्शन की प्रतीक्षा करें...';
 
   @override
+  String get terminalConnectLocalBbs => 'स्थानीय BBS से कनेक्ट करें';
+
+  @override
   String get terminalWaitingForConnection =>
       'कनेक्शन की प्रतीक्षा हो रही है...';
 
@@ -2358,6 +2368,71 @@ class AppLocalizationsHi extends AppLocalizations {
   String get bbsJustNow => 'अभी-अभी';
 
   @override
+  String get bbsFiles => 'फ़ाइलें';
+
+  @override
+  String get bbsFilesTitle => 'BBS फ़ाइलें';
+
+  @override
+  String get bbsFilesAdd => 'फ़ाइलें जोड़ें...';
+
+  @override
+  String get bbsFilesOpenFolder => 'फ़ोल्डर खोलें';
+
+  @override
+  String get bbsFilesEmpty =>
+      'अभी कोई फ़ाइल नहीं है। यहाँ फ़ाइलें जोड़ें, उन्हें फ़ोल्डर में कॉपी करें, या स्टेशनों को उन्हें अपलोड करने दें।';
+
+  @override
+  String get bbsFilesAllowUploads =>
+      'स्टेशनों को BBS पर फ़ाइलें अपलोड करने दें (प्रत्येक 25 KB तक)';
+
+  @override
+  String get bbsFilesColName => 'नाम';
+
+  @override
+  String get bbsFilesColSize => 'आकार';
+
+  @override
+  String get bbsFilesColUploader => 'अपलोडकर्ता';
+
+  @override
+  String get bbsFilesColDate => 'दिनांक';
+
+  @override
+  String get bbsFilesSysop => 'सिसॉप';
+
+  @override
+  String bbsFilesDeleteConfirm(String name) {
+    return '$name हटाएँ?';
+  }
+
+  @override
+  String bbsFilesAddFailed(String name) {
+    return '$name नहीं जोड़ी जा सकी।';
+  }
+
+  @override
+  String get bbsAllSessions => 'सभी सत्र';
+
+  @override
+  String bbsAllSessionsCount(int count) {
+    return 'सभी सत्र ($count सक्रिय)';
+  }
+
+  @override
+  String get bbsSessionEnded => 'समाप्त';
+
+  @override
+  String get bbsNoActiveSessions => 'कोई सक्रिय सत्र नहीं';
+
+  @override
+  String get bbsSessionPickerTooltip => 'अनुसरण करने के लिए सत्र चुनें';
+
+  @override
+  String get bbsShowSessionTraffic => 'सत्र ट्रैफ़िक दिखाएँ';
+
+  @override
   String bbsMinAgo(int n) {
     return '$n मिनट पहले';
   }
@@ -2513,6 +2588,48 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get mailMove => 'ले जाएँ';
+
+  @override
+  String get mailMoveToMenu => '???? ?? ????';
+
+  @override
+  String mailSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count संदेश चयनित',
+      one: '1 संदेश चयनित',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveToTrashPromptCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count चयनित संदेशों को कचरे में ले जाएँ?',
+      one: 'चयनित मेल को कचरे में ले जाएँ?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailDeletePermanentCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count चयनित संदेश स्थायी रूप से हटाएँ? यह क्रिया पूर्ववत नहीं की जा सकती।',
+      one: 'चयनित मेल स्थायी रूप से हटाएँ? यह क्रिया पूर्ववत नहीं की जा सकती।',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveTo(String mailbox) {
+    return '$mailbox में ले जाएँ';
+  }
 
   @override
   String get mailOpen => 'खोलें';

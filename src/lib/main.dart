@@ -36,9 +36,13 @@ import 'handlers/airplane_handler.dart';
 import 'handlers/satellite_handler.dart';
 import 'handlers/comms_handler.dart';
 import 'handlers/morse_key_handler.dart';
+import 'handlers/bbs_files.dart';
 import 'handlers/bbs_handler.dart';
+import 'handlers/bbs_monitor.dart';
+import 'handlers/bbs_store.dart';
 import 'handlers/agwpe_handler.dart';
 import 'handlers/web_server_handler.dart';
+import 'handlers/web_bbs_handler.dart';
 import 'handlers/home_assistant_handler.dart';
 import 'handlers/debug_log_handler.dart';
 import 'handlers/terminal_handler.dart';
@@ -561,6 +565,18 @@ Future<void> _startApp(List<String> args) async {
   locationHandler.init();
   DataBroker.addDataHandler('LocationHandler', locationHandler);
 
+  // Load the BBS message board and visitor log shared by the radio BBS and
+  // the HTTP BBS. Memory only when there is no database (web).
+  await BbsStore.instance.init();
+
+  // Open the BBS file area (a folder of files BBS users can download and
+  // upload). The desktop host owns it on the hosted web build.
+  if (!HostBridge.isHosted) await BbsFileStore.instance.init();
+
+  // Track BBS sessions and traffic so the BBS tab (also when detached) can
+  // follow every session live, whether radio, local terminal or web.
+  if (!HostBridge.isHosted) BbsMonitor.instance.init();
+
   // Register the BBS handler so that the BBS tab can activate a bulletin-board /
   // Winlink server on a radio. It creates per-radio BBS instances on CreateBbs,
   // locks the radio for "BBS" usage, and aggregates station statistics.
@@ -632,6 +648,15 @@ Future<void> _startApp(List<String> args) async {
     final webServerHandler = WebServerHandler();
     webServerHandler.init();
     DataBroker.addDataHandler('WebServerHandler', webServerHandler);
+  }
+
+  // Register the HTTP BBS handler (desktop only) so that, when enabled in
+  // settings, a public web terminal lets anyone connect to the BBS with a
+  // callsign. Not available on web/iOS/Android.
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    final webBbsHandler = WebBbsHandler();
+    webBbsHandler.init();
+    DataBroker.addDataHandler('WebBbsHandler', webBbsHandler);
   }
 
   // Register the Home Assistant handler (desktop only) so that, when enabled in

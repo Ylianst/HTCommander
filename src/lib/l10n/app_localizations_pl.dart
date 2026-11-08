@@ -1146,6 +1146,13 @@ class AppLocalizationsPl extends AppLocalizations {
   String get settingsEnableAgwpeServer => 'Włącz serwer AGWPE';
 
   @override
+  String get settingsEnableBbsWebServer => 'Włącz serwer BBS HTTP';
+
+  @override
+  String get settingsBbsWebServerNote =>
+      'Udostępnia terminal webowy, przez który każdy, kto ma dostęp do tego portu, może połączyć się z BBS, podając poprawny znak wywoławczy. Hasło nie jest wymagane.';
+
+  @override
   String get settingsHomeAssistant => 'Home Assistant';
 
   @override
@@ -2169,6 +2176,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get terminalWaitForConnection => 'Oczekiwanie na połączenie...';
 
   @override
+  String get terminalConnectLocalBbs => 'Połącz z lokalnym BBS';
+
+  @override
   String get terminalWaitingForConnection => 'Oczekiwanie na połączenie...';
 
   @override
@@ -2375,6 +2385,71 @@ class AppLocalizationsPl extends AppLocalizations {
   String get bbsJustNow => 'Przed chwilą';
 
   @override
+  String get bbsFiles => 'Pliki';
+
+  @override
+  String get bbsFilesTitle => 'Pliki BBS';
+
+  @override
+  String get bbsFilesAdd => 'Dodaj pliki...';
+
+  @override
+  String get bbsFilesOpenFolder => 'Otwórz folder';
+
+  @override
+  String get bbsFilesEmpty =>
+      'Brak plików. Dodaj pliki tutaj, skopiuj je do folderu lub pozwól stacjom je przesłać.';
+
+  @override
+  String get bbsFilesAllowUploads =>
+      'Zezwalaj stacjom na przesyłanie plików do BBS (do 25 KB każdy)';
+
+  @override
+  String get bbsFilesColName => 'Nazwa';
+
+  @override
+  String get bbsFilesColSize => 'Rozmiar';
+
+  @override
+  String get bbsFilesColUploader => 'Przesłane przez';
+
+  @override
+  String get bbsFilesColDate => 'Data';
+
+  @override
+  String get bbsFilesSysop => 'Sysop';
+
+  @override
+  String bbsFilesDeleteConfirm(String name) {
+    return 'Usunąć $name?';
+  }
+
+  @override
+  String bbsFilesAddFailed(String name) {
+    return 'Nie można dodać $name.';
+  }
+
+  @override
+  String get bbsAllSessions => 'Wszystkie sesje';
+
+  @override
+  String bbsAllSessionsCount(int count) {
+    return 'Wszystkie sesje (aktywne: $count)';
+  }
+
+  @override
+  String get bbsSessionEnded => 'zakończona';
+
+  @override
+  String get bbsNoActiveSessions => 'Brak aktywnych sesji';
+
+  @override
+  String get bbsSessionPickerTooltip => 'Wybierz sesję do śledzenia';
+
+  @override
+  String get bbsShowSessionTraffic => 'Pokaż ruch sesji';
+
+  @override
   String bbsMinAgo(int n) {
     return '$n min temu';
   }
@@ -2530,6 +2605,56 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get mailMove => 'Przenieś';
+
+  @override
+  String get mailMoveToMenu => 'Przenie? do';
+
+  @override
+  String mailSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Zaznaczono $count wiadomości',
+      many: 'Zaznaczono $count wiadomości',
+      few: 'Zaznaczono $count wiadomości',
+      one: 'Zaznaczono 1 wiadomość',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveToTrashPromptCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Przenieść $count wybranej wiadomości do kosza?',
+      many: 'Przenieść $count wybranych wiadomości do kosza?',
+      few: 'Przenieść $count wybrane wiadomości do kosza?',
+      one: 'Przenieść wybraną wiadomość do kosza?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailDeletePermanentCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Trwale usunąć $count wybranej wiadomości? Tej operacji nie można cofnąć.',
+      many:
+          'Trwale usunąć $count wybranych wiadomości? Tej operacji nie można cofnąć.',
+      few:
+          'Trwale usunąć $count wybrane wiadomości? Tej operacji nie można cofnąć.',
+      one: 'Trwale usunąć wybraną wiadomość? Tej operacji nie można cofnąć.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveTo(String mailbox) {
+    return 'Przenieś do: $mailbox';
+  }
 
   @override
   String get mailOpen => 'Otwórz';

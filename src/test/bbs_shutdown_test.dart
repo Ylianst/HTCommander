@@ -123,8 +123,8 @@ void main() {
   test(
     'disabling AX.25 stops timers, pending relay and incoming replies',
     () async {
-      final session = bbs.session!..frackSeconds = 1;
       receiveSabm();
+      final session = bbs.ax25Session('N1ABC')!..frackSeconds = 1;
       expect(session.currentState, AX25ConnectionState.connected);
       session.sendString('queued data');
       expect(commands, contains('TransmitDataFrame'));
@@ -133,8 +133,8 @@ void main() {
 
       expect(session.currentState, AX25ConnectionState.disconnected);
       expect(session.sendBufferLength, 0);
-      expect(bbs.session, isNull);
-      expect(bbs.activeLink, isNull);
+      expect(bbs.ax25Sessions, isEmpty);
+      expect(bbs.links, isEmpty);
       expect(relays.single.disposed, isTrue);
       expect(commands.last, 'CancelDataTransmit');
       receiveSabm();
@@ -143,9 +143,9 @@ void main() {
       expect(commands.length, count, reason: 'disabled BBS transmitted again');
 
       bbs.enabled = true;
-      expect(bbs.session, isNot(same(session)));
       receiveSabm();
-      expect(bbs.activeLink, isNotNull);
+      expect(bbs.ax25Session('N1ABC'), isNot(same(session)));
+      expect(bbs.links, hasLength(1));
       expect(relays.length, 2);
     },
   );
@@ -159,7 +159,7 @@ void main() {
         data: {'evt': 'connected', 'caller': 'N1ABC', 'incoming': true},
         store: false,
       );
-      final link = bbs.activeLink!;
+      final link = bbs.links.single;
       bbs.enabled = false;
       expect(link.isConnected, isFalse);
       expect(link.sessionState, isEmpty);
@@ -171,7 +171,7 @@ void main() {
       relays.single.result.complete(true);
       await Future<void>.delayed(Duration.zero);
       expect(commands, ['CancelDataTransmit']);
-      expect(bbs.activeLink, isNull);
+      expect(bbs.links, isEmpty);
     },
   );
 
@@ -187,7 +187,7 @@ void main() {
       });
       radio.htStatus = RadioHtStatus.fromBytes(Uint8List(9));
       receiveSabm();
-      bbs.session!.sendString('queued BBS data');
+      bbs.ax25Session('N1ABC')!.sendString('queued BBS data');
       await Future<void>.delayed(Duration.zero);
       expect(radio.transmitQueueLength, greaterThan(1));
       bbs.enabled = false;
@@ -238,7 +238,7 @@ void main() {
     );
     expect(commands, ['CancelDataTransmit', 'SetUnlock']);
     expect(handler.getBbsInstance(id), isNull);
-    expect(managed.session, isNull);
+    expect(managed.ax25Sessions, isEmpty);
     expect(relays.single.disposed, isTrue);
     managed.dispose();
     expect(commands, ['CancelDataTransmit', 'SetUnlock']);
@@ -249,14 +249,16 @@ void main() {
       deviceId: 0,
       name: 'BbsControlMessage',
       callback: (_, _, data) {
-        if ((data! as BbsControlMessageData).message.startsWith('Connected to')) {
+        if ((data! as BbsControlMessageData).message.startsWith(
+          'Connected to',
+        )) {
           bbs.enabled = false;
         }
       },
     );
     receiveSabm();
-    expect(bbs.session, isNull);
-    expect(bbs.activeLink, isNull);
+    expect(bbs.ax25Sessions, isEmpty);
+    expect(bbs.links, isEmpty);
     expect(relays, isEmpty);
     expect(commands.last, 'CancelDataTransmit');
   });

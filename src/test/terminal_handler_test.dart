@@ -229,4 +229,47 @@ void main() {
     expect(commands, isEmpty);
     expect(state()['status'], 'idle');
   });
+
+  group('local BBS', () {
+    String incoming() => texts
+        .where((t) => t['outgoing'] == false)
+        .map((t) => t['text'])
+        .join();
+
+    test('connects without a radio and serves the BBS menu', () {
+      command('TerminalConnectLocalBbs');
+      expect(commands, isEmpty);
+      expect(state()['status'], 'connected');
+      expect(state()['remote'], 'N0CALL');
+      expect(state()['protocol'], localBbsProtocol);
+      expect(state()['canSend'], isTrue);
+      expect(state()['canSendFile'], isFalse);
+      expect(notices.last, {'kind': 'connectedTo', 'callsign': 'N0CALL'});
+      expect(incoming(), contains('Handy-Talky Commander BBS'));
+
+      command('TerminalSend', {'Text': 'M'});
+      expect(texts.where((t) => t['outgoing'] == true).last['text'], 'M\n');
+      expect(incoming(), contains('[S]oftware information'));
+
+      command('TerminalWait', {'RadioId': radioId});
+      expect(notices.last['kind'], 'busy');
+
+      command('TerminalDisconnect');
+      expect(state()['status'], 'idle');
+      expect(state()['protocol'], isNull);
+      expect(notices.last['kind'], 'disconnected');
+      expect(commands, isEmpty);
+    });
+
+    test('the BBS D command ends the session', () async {
+      command('TerminalConnectLocalBbs');
+      command('TerminalSend', {'Text': 'D'});
+      await Future<void>.delayed(Duration.zero);
+      expect(state()['status'], 'idle');
+      expect(notices.last['kind'], 'disconnected');
+      // A fresh connection works afterwards.
+      command('TerminalConnectLocalBbs');
+      expect(state()['status'], 'connected');
+    });
+  });
 }

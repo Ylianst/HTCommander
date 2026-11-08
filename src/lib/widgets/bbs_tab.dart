@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'tab_visibility.dart';
+import '../dialogs/bbs_files_dialog.dart';
 import '../dialogs/callsign_lookup_dialog.dart';
 import '../handlers/bbs_handler.dart';
+import '../handlers/bbs_monitor.dart';
 import '../l10n/app_localizations.dart';
 import '../radio/radio_models.dart';
 import '../services/data_broker.dart';
@@ -10,21 +12,6 @@ import '../services/data_broker_client.dart';
 import '../services/host_bridge.dart';
 import '../services/window_service.dart';
 import 'host_managed_banner.dart';
-
-/// BBS traffic entry
-class BbsTrafficEntry {
-  final String callsign;
-  final bool outgoing;
-  final String message;
-  final bool isControl;
-
-  const BbsTrafficEntry({
-    required this.callsign,
-    required this.message,
-    this.outgoing = false,
-    this.isControl = false,
-  });
-}
 
 /// BBS tab - Bulletin Board System
 class BbsTab extends StatefulWidget {
@@ -38,7 +25,21 @@ class _BbsTabState extends State<BbsTab>
     with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   final DataBrokerClient _broker = DataBrokerClient();
   final List<MergedStationStats> _stations = [];
-  final List<BbsTrafficEntry> _traffic = [];
+
+  /// Traffic of every session, oldest first (see BbsMonitor).
+  final List<BbsTrafficRecord> _traffic = [];
+  final Set<int> _trafficSeqs = {};
+  static const int _maxTraffic = 5000;
+
+  /// Sessions currently connected to any BBS, in the order they started.
+  List<BbsSessionInfo> _sessions = [];
+
+  /// The session shown in the traffic panel, or null for all of them. Kept
+  /// after the session ends so its last lines can still be read.
+  BbsSessionInfo? _selectedSession;
+
+  /// Sessions with traffic not seen yet while another session was shown.
+  final Set<String> _unreadSessions = {};
   final ScrollController _trafficScrollController = ScrollController();
 
   // Keyboard navigation for the station list.
@@ -83,21 +84,21 @@ class _BbsTabState extends State<BbsTab>
       callback: _onLockStateChanged,
     );
 
-    // BBS conversation traffic and control/error messages (dispatched on dev 0).
+    // Live sessions and their traffic, recorded by the host's BbsMonitor.
     _broker.subscribe(
-      deviceId: DataBroker.allDevices,
-      name: 'BbsTraffic',
-      callback: _onBbsTraffic,
+      deviceId: 1,
+      name: 'BbsActiveSessions',
+      callback: (_, _, data) => setState(() => _applySessions(data)),
     );
     _broker.subscribe(
-      deviceId: DataBroker.allDevices,
-      name: 'BbsControlMessage',
-      callback: _onBbsControlMessage,
+      deviceId: 1,
+      name: 'BbsTrafficEntry',
+      callback: _onTrafficEntry,
     );
     _broker.subscribe(
-      deviceId: DataBroker.allDevices,
-      name: 'BbsError',
-      callback: _onBbsError,
+      deviceId: 1,
+      name: 'BbsTrafficHistory',
+      callback: _onTrafficHistory,
     );
 
     // Merged per-station statistics from the BBS manager (device 1).
@@ -113,6 +114,14 @@ class _BbsTabState extends State<BbsTab>
     // Seed current state from the broker.
     _loadConnectedRadios();
     _applyMergedStats(DataBroker.getValueDynamic(1, 'BbsMergedStats'));
+    _applySessions(DataBroker.getValueDynamic(1, 'BbsActiveSessions'));
+    // Fetch what was said before this view opened (e.g. a detached window).
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'RequestBbsTraffic',
+      data: null,
+      store: false,
+    );
   }
 
   @override
@@ -206,36 +215,100 @@ class _BbsTabState extends State<BbsTab>
   }
 
   // ---------------------------------------------------------------------------
-  // Traffic
+  // Sessions and traffic
   // ---------------------------------------------------------------------------
 
-  void _onBbsTraffic(int deviceId, String name, Object? data) {
-    if (data is! BbsTrafficData) return;
-    _addTrafficEntry(
-      BbsTrafficEntry(
-        callsign: data.callsign,
-        outgoing: data.outgoing,
-        message: data.message,
-      ),
+  void _applySessions(Object? data) {
+    if (data is! List) return;
+    _sessions = [for (final s in data) ?BbsSessionInfo.fromJson(s)];
+    final active = _sessions.map((s) => s.key).toSet();
+    // Unread marks only matter for sessions that can still be picked.
+    _unreadSessions.removeWhere(
+      (k) => !active.contains(k) && k != _selectedSession?.key,
     );
   }
 
-  void _onBbsControlMessage(int deviceId, String name, Object? data) {
-    if (data is! BbsControlMessageData) return;
-    _addTrafficEntry(
-      BbsTrafficEntry(callsign: '', message: data.message, isControl: true),
-    );
+  bool _isVisible(BbsTrafficRecord r) {
+    final selected = _selectedSession;
+    return selected == null || r.key == selected.key;
   }
 
-  void _onBbsError(int deviceId, String name, Object? data) {
-    if (data is! BbsErrorEventData) return;
-    _addTrafficEntry(
-      BbsTrafficEntry(
-        callsign: '',
-        message: 'Error: ${data.error}',
-        isControl: true,
-      ),
+  /// Adds [records] not seen yet; returns whether any was added.
+  bool _mergeTraffic(Iterable<BbsTrafficRecord> records) {
+    var added = false;
+    var outOfOrder = false;
+    for (final r in records) {
+      if (!_trafficSeqs.add(r.seq)) continue;
+      if (_traffic.isNotEmpty && r.seq < _traffic.last.seq) outOfOrder = true;
+      _traffic.add(r);
+      added = true;
+    }
+    if (outOfOrder) _traffic.sort((a, b) => a.seq.compareTo(b.seq));
+    if (_traffic.length > _maxTraffic) {
+      final drop = _traffic.length - _maxTraffic;
+      _trafficSeqs.removeAll(_traffic.take(drop).map((r) => r.seq));
+      _traffic.removeRange(0, drop);
+    }
+    return added;
+  }
+
+  void _onTrafficEntry(int deviceId, String name, Object? data) {
+    final record = BbsTrafficRecord.fromJson(data);
+    if (record == null) return;
+    setState(() {
+      if (!_mergeTraffic([record])) return;
+      final key = record.key;
+      if (key != null &&
+          _selectedSession != null &&
+          key != _selectedSession!.key) {
+        _unreadSessions.add(key);
+      }
+    });
+    if (_isVisible(record)) _scrollTrafficToEnd();
+  }
+
+  void _onTrafficHistory(int deviceId, String name, Object? data) {
+    if (data is! List) return;
+    setState(() {
+      _mergeTraffic([for (final r in data) ?BbsTrafficRecord.fromJson(r)]);
+    });
+    _scrollTrafficToEnd(animate: false);
+  }
+
+  void _selectSession(BbsSessionInfo? session) {
+    setState(() {
+      _selectedSession = session;
+      if (session != null) _unreadSessions.remove(session.key);
+    });
+    _scrollTrafficToEnd(animate: false);
+  }
+
+  /// The active session of [callsign] (any BBS), if any.
+  BbsSessionInfo? _sessionOf(String callsign) {
+    final call = callsign.toUpperCase();
+    return _sessions.where((s) => s.callsign == call).firstOrNull;
+  }
+
+  /// Display name of [session]: callsign and [_sessionDetail].
+  String _sessionLabel(BbsSessionInfo session) =>
+      '${session.callsign} · ${_sessionDetail(session)}';
+
+  /// How [session] is connected, plus the radio when the same station is
+  /// connected the same way to several radios.
+  String _sessionDetail(BbsSessionInfo session) {
+    final ambiguous = _sessions.any(
+      (s) =>
+          s.key != session.key &&
+          s.callsign == session.callsign &&
+          s.protocol == session.protocol,
     );
+    if (!ambiguous) return session.protocol;
+    final radio = _connectedRadios
+        .where((r) => r['DeviceId'] == session.deviceId)
+        .map((r) => r['FriendlyName'] as String?)
+        .firstOrNull;
+    return '${session.protocol} · '
+        '${radio?.isNotEmpty == true ? radio : session.deviceId}';
   }
 
   void _onStationSelected(int index) {
@@ -391,24 +464,34 @@ class _BbsTabState extends State<BbsTab>
     );
   }
 
-  void _addTrafficEntry(BbsTrafficEntry entry) {
-    setState(() {
-      _traffic.add(entry);
-    });
+  void _scrollTrafficToEnd({bool animate = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_trafficScrollController.hasClients) {
+      if (!_trafficScrollController.hasClients) return;
+      final end = _trafficScrollController.position.maxScrollExtent;
+      if (animate) {
         _trafficScrollController.animateTo(
-          _trafficScrollController.position.maxScrollExtent,
+          end,
           duration: const Duration(milliseconds: 100),
           curve: Curves.easeOut,
         );
+      } else {
+        _trafficScrollController.jumpTo(end);
       }
     });
   }
 
   void _clearTraffic() {
+    // Also clear the host's history so reopened views start empty.
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'ClearBbsTraffic',
+      data: null,
+      store: false,
+    );
     setState(() {
       _traffic.clear();
+      _trafficSeqs.clear();
+      _unreadSessions.clear();
     });
   }
 
@@ -476,6 +559,20 @@ class _BbsTabState extends State<BbsTab>
             children: [const SizedBox(width: 20), Text(l10n.bbsClearStats)],
           ),
         ),
+        if (!HostBridge.isHosted) ...[
+          const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            value: 'files',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                Text('${l10n.bbsFilesTitle}...'),
+              ],
+            ),
+          ),
+        ],
         if (windowService.canDetach) ...[
           const PopupMenuDivider(height: 8),
           PopupMenuItem<String>(
@@ -506,6 +603,9 @@ class _BbsTabState extends State<BbsTab>
         case 'clearStats':
           _clearStats();
           break;
+        case 'files':
+          if (mounted) BbsFilesDialog.show(this.context);
+          break;
         case 'detach':
           windowService.createWindow('bbs');
           break;
@@ -517,6 +617,7 @@ class _BbsTabState extends State<BbsTab>
   /// offline callsign database lookup.
   void _showStationContextMenu(Offset globalPosition, String callsign) async {
     final l10n = AppLocalizations.of(context);
+    final session = _sessionOf(callsign);
     final selected = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
@@ -530,6 +631,11 @@ class _BbsTabState extends State<BbsTab>
           child: Text(callsign, style: Theme.of(context).textTheme.labelSmall),
         ),
         const PopupMenuDivider(height: 8),
+        if (session != null && _viewTraffic)
+          PopupMenuItem<String>(
+            value: 'session',
+            child: Text(l10n.bbsShowSessionTraffic),
+          ),
         PopupMenuItem<String>(
           value: 'lookup',
           child: Text(l10n.callsignLookup),
@@ -537,7 +643,9 @@ class _BbsTabState extends State<BbsTab>
       ],
     );
     if (selected == null || !mounted) return;
-    if (selected == 'lookup') {
+    if (selected == 'session') {
+      _selectSession(session);
+    } else if (selected == 'lookup') {
       CallsignLookupDialog.show(context, initialCallsign: callsign);
     }
   }
@@ -652,6 +760,20 @@ class _BbsTabState extends State<BbsTab>
                 ),
               ),
               const Spacer(),
+              if (constraints.maxWidth > 320 && !HostBridge.isHosted) ...[
+                SizedBox(
+                  height: 28,
+                  child: OutlinedButton(
+                    onPressed: () => BbsFilesDialog.show(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    child: Text(AppLocalizations.of(context).bbsFiles),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               if (showButton) ...[
                 SizedBox(
                   height: 28,
@@ -927,6 +1049,8 @@ class _BbsTabState extends State<BbsTab>
   }
 
   Widget _buildTrafficPanel() {
+    final visible = _traffic.where(_isVisible).toList();
+    final showCallsign = _selectedSession == null;
     return Container(
       color: Colors.black87,
       child: Column(
@@ -937,16 +1061,19 @@ class _BbsTabState extends State<BbsTab>
             height: 28,
             color: Colors.grey.shade800,
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                AppLocalizations.of(context).bbsTraffic,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  color: Colors.white,
+            child: Row(
+              children: [
+                Text(
+                  AppLocalizations.of(context).bbsTraffic,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Flexible(child: _buildSessionPicker()),
+              ],
             ),
           ),
           // Traffic content
@@ -958,12 +1085,24 @@ class _BbsTabState extends State<BbsTab>
                 width: double.infinity,
                 child: SelectableText.rich(
                   TextSpan(
-                    children: _traffic.map((entry) {
-                      if (entry.isControl) {
+                    children: visible.map((entry) {
+                      if (entry.kind != BbsTrafficKind.traffic) {
+                        final message = entry.kind == BbsTrafficKind.error
+                            ? 'Error: ${entry.message}'
+                            : entry.message;
+                        // Name the station when several sessions are shown.
+                        final text =
+                            !showCallsign ||
+                                entry.callsign.isEmpty ||
+                                message.toUpperCase().contains(entry.callsign)
+                            ? message
+                            : '${entry.callsign}: $message';
                         return TextSpan(
-                          text: '${entry.message}\n',
-                          style: const TextStyle(
-                            color: Colors.yellow,
+                          text: '$text\n',
+                          style: TextStyle(
+                            color: entry.kind == BbsTrafficKind.error
+                                ? Colors.redAccent
+                                : Colors.yellow,
                             fontFamily: 'monospace',
                             fontSize: 12,
                           ),
@@ -1000,6 +1139,123 @@ class _BbsTabState extends State<BbsTab>
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Drop-down next to "Traffic" choosing which session the panel follows.
+  Widget _buildSessionPicker() {
+    final l10n = AppLocalizations.of(context);
+    final selected = _selectedSession;
+    final selectedActive =
+        selected != null && _sessions.any((s) => s.key == selected.key);
+    final label = selected == null
+        ? l10n.bbsAllSessionsCount(_sessions.length)
+        : selectedActive
+        ? _sessionLabel(selected)
+        : '${_sessionLabel(selected)} (${l10n.bbsSessionEnded})';
+    final anyUnread = _unreadSessions.isNotEmpty;
+    const itemStyle = TextStyle(fontSize: 13);
+
+    Widget dot(bool on) => Container(
+      width: 8,
+      height: 8,
+      margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: on ? Colors.lightGreenAccent : Colors.transparent,
+      ),
+    );
+
+    String time(DateTime t) =>
+        '${t.hour.toString().padLeft(2, '0')}:'
+        '${t.minute.toString().padLeft(2, '0')}';
+
+    PopupMenuItem<String> sessionItem(BbsSessionInfo s, {bool ended = false}) {
+      return PopupMenuItem<String>(
+        value: s.key,
+        height: 36,
+        child: Row(
+          children: [
+            dot(_unreadSessions.contains(s.key)),
+            Text(
+              s.callsign,
+              style: itemStyle.copyWith(
+                fontWeight: s.key == selected?.key ? FontWeight.bold : null,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                ended
+                    ? '${_sessionDetail(s)} · ${l10n.bbsSessionEnded}'
+                    : '${_sessionDetail(s)} · ${time(s.since)}',
+                style: itemStyle.copyWith(color: Colors.grey),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return PopupMenuButton<String>(
+      tooltip: l10n.bbsSessionPickerTooltip,
+      position: PopupMenuPosition.under,
+      onSelected: (key) => _selectSession(
+        key.isEmpty
+            ? null
+            : _sessions.where((s) => s.key == key).firstOrNull ?? selected,
+      ),
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: '',
+          height: 36,
+          child: Row(
+            children: [
+              dot(false),
+              Text(
+                l10n.bbsAllSessions,
+                style: itemStyle.copyWith(
+                  fontWeight: selected == null ? FontWeight.bold : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(height: 8),
+        if (_sessions.isEmpty && selected == null)
+          PopupMenuItem<String>(
+            enabled: false,
+            height: 32,
+            child: Text(l10n.bbsNoActiveSessions, style: itemStyle),
+          ),
+        for (final s in _sessions) sessionItem(s),
+        if (selected != null && !selectedActive)
+          sessionItem(selected, ended: true),
+      ],
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (anyUnread)
+            Container(
+              width: 7,
+              height: 7,
+              margin: const EdgeInsets.only(right: 6),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.lightGreenAccent,
+              ),
+            ),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+          ),
+          const Icon(Icons.arrow_drop_down, size: 18, color: Colors.white70),
         ],
       ),
     );

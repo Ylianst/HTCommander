@@ -1109,6 +1109,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsEnableAgwpeServer => 'AGWPE サーバーを有効化';
 
   @override
+  String get settingsEnableBbsWebServer => 'HTTP BBS サーバーを有効化';
+
+  @override
+  String get settingsBbsWebServerNote =>
+      'このポートにアクセスできる誰もが、有効なコールサインを入力するだけで BBS に接続できる Web ターミナルを提供します。パスワードは不要です。';
+
+  @override
   String get settingsHomeAssistant => 'Home Assistant';
 
   @override
@@ -2112,6 +2119,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get terminalWaitForConnection => '接続を待機...';
 
   @override
+  String get terminalConnectLocalBbs => 'ローカルBBSに接続';
+
+  @override
   String get terminalWaitingForConnection => '接続を待機しています...';
 
   @override
@@ -2313,6 +2323,71 @@ class AppLocalizationsJa extends AppLocalizations {
   String get bbsJustNow => 'たった今';
 
   @override
+  String get bbsFiles => 'ファイル';
+
+  @override
+  String get bbsFilesTitle => 'BBS ファイル';
+
+  @override
+  String get bbsFilesAdd => 'ファイルを追加...';
+
+  @override
+  String get bbsFilesOpenFolder => 'フォルダーを開く';
+
+  @override
+  String get bbsFilesEmpty =>
+      'ファイルはまだありません。ここでファイルを追加するか、フォルダーにコピーするか、局にアップロードしてもらってください。';
+
+  @override
+  String get bbsFilesAllowUploads =>
+      '局が BBS にファイルをアップロードすることを許可する (1 ファイル 25 KB まで)';
+
+  @override
+  String get bbsFilesColName => '名前';
+
+  @override
+  String get bbsFilesColSize => 'サイズ';
+
+  @override
+  String get bbsFilesColUploader => 'アップロード者';
+
+  @override
+  String get bbsFilesColDate => '日付';
+
+  @override
+  String get bbsFilesSysop => 'シスオペ';
+
+  @override
+  String bbsFilesDeleteConfirm(String name) {
+    return '$name を削除しますか?';
+  }
+
+  @override
+  String bbsFilesAddFailed(String name) {
+    return '$name を追加できませんでした。';
+  }
+
+  @override
+  String get bbsAllSessions => 'すべてのセッション';
+
+  @override
+  String bbsAllSessionsCount(int count) {
+    return 'すべてのセッション ($count 件アクティブ)';
+  }
+
+  @override
+  String get bbsSessionEnded => '終了';
+
+  @override
+  String get bbsNoActiveSessions => 'アクティブなセッションはありません';
+
+  @override
+  String get bbsSessionPickerTooltip => '表示するセッションを選択';
+
+  @override
+  String get bbsShowSessionTraffic => 'セッションの通信を表示';
+
+  @override
   String bbsMinAgo(int n) {
     return '$n 分前';
   }
@@ -2463,6 +2538,47 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get mailMove => '移動';
+
+  @override
+  String get mailMoveToMenu => '???';
+
+  @override
+  String mailSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 件のメッセージを選択中',
+      one: '1 件のメッセージを選択中',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveToTrashPromptCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '選択した $count 件のメッセージをゴミ箱に移動しますか？',
+      one: '選択したメールをゴミ箱に移動しますか？',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailDeletePermanentCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '選択した $count 件のメッセージを完全に削除しますか？この操作は元に戻せません。',
+      one: '選択したメールを完全に削除しますか？この操作は元に戻せません。',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveTo(String mailbox) {
+    return '$mailbox に移動';
+  }
 
   @override
   String get mailOpen => '開く';

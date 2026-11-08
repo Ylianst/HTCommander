@@ -1299,10 +1299,14 @@ class AgentApi {
       };
     }
     if (v is BbsControlMessageData) {
-      return {'deviceId': v.deviceId, 'message': v.message};
+      return {
+        'deviceId': v.deviceId,
+        'callsign': v.callsign,
+        'message': v.message,
+      };
     }
     if (v is BbsErrorEventData) {
-      return {'deviceId': v.deviceId, 'error': v.error};
+      return {'deviceId': v.deviceId, 'callsign': v.callsign, 'error': v.error};
     }
     if (v is Map) {
       return {

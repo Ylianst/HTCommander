@@ -1127,6 +1127,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsEnableAgwpeServer => 'Enable AGWPE Server';
 
   @override
+  String get settingsEnableBbsWebServer => 'Enable HTTP BBS Server';
+
+  @override
+  String get settingsBbsWebServerNote =>
+      'Serves a web terminal where anyone who can reach this port can connect to the BBS by entering a valid callsign. No password is required.';
+
+  @override
   String get settingsHomeAssistant => 'Home Assistant';
 
   @override
@@ -2139,6 +2146,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get terminalWaitForConnection => 'Wait for Connection...';
 
   @override
+  String get terminalConnectLocalBbs => 'Connect to Local BBS';
+
+  @override
   String get terminalWaitingForConnection => 'Waiting for connection...';
 
   @override
@@ -2345,6 +2355,71 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bbsJustNow => 'Just now';
 
   @override
+  String get bbsFiles => 'Files';
+
+  @override
+  String get bbsFilesTitle => 'BBS Files';
+
+  @override
+  String get bbsFilesAdd => 'Add Files...';
+
+  @override
+  String get bbsFilesOpenFolder => 'Open Folder';
+
+  @override
+  String get bbsFilesEmpty =>
+      'No files yet. Add files here, copy them into the folder, or let stations upload them.';
+
+  @override
+  String get bbsFilesAllowUploads =>
+      'Allow stations to upload files to the BBS (up to 25 KB each)';
+
+  @override
+  String get bbsFilesColName => 'Name';
+
+  @override
+  String get bbsFilesColSize => 'Size';
+
+  @override
+  String get bbsFilesColUploader => 'Uploaded By';
+
+  @override
+  String get bbsFilesColDate => 'Date';
+
+  @override
+  String get bbsFilesSysop => 'Sysop';
+
+  @override
+  String bbsFilesDeleteConfirm(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String bbsFilesAddFailed(String name) {
+    return 'Could not add $name.';
+  }
+
+  @override
+  String get bbsAllSessions => 'All Sessions';
+
+  @override
+  String bbsAllSessionsCount(int count) {
+    return 'All sessions ($count active)';
+  }
+
+  @override
+  String get bbsSessionEnded => 'ended';
+
+  @override
+  String get bbsNoActiveSessions => 'No active sessions';
+
+  @override
+  String get bbsSessionPickerTooltip => 'Choose which session to follow';
+
+  @override
+  String get bbsShowSessionTraffic => 'Show Session Traffic';
+
+  @override
   String bbsMinAgo(int n) {
     return '${n}m ago';
   }
@@ -2498,6 +2573,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mailMove => 'Move';
+
+  @override
+  String get mailMoveToMenu => 'Move To';
+
+  @override
+  String mailSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count messages selected',
+      one: '1 message selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveToTrashPromptCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Move the $count selected messages to Trash?',
+      one: 'Move the selected mail to Trash?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailDeletePermanentCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Permanently delete the $count selected messages? This cannot be undone.',
+      one: 'Permanently delete the selected mail? This cannot be undone.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveTo(String mailbox) {
+    return 'Move to $mailbox';
+  }
 
   @override
   String get mailOpen => 'Open';

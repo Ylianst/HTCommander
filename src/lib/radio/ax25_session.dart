@@ -249,12 +249,19 @@ class AX25Session {
 
   /// Creates a new AX.25 session that communicates through the radio identified
   /// by [radioDeviceId].
-  AX25Session(int radioDeviceId) : _radioDeviceId = radioDeviceId {
-    _broker.subscribe(
-      deviceId: DataBroker.allDevices,
-      name: 'UniqueDataFrame',
-      callback: _onUniqueDataFrame,
-    );
+  ///
+  /// With [listen] the session consumes `UniqueDataFrame` events itself. Owners
+  /// that multiplex several sessions on one radio (e.g. the BBS) pass `false`
+  /// and route each frame to the right session through [receive].
+  AX25Session(int radioDeviceId, {bool listen = true})
+    : _radioDeviceId = radioDeviceId {
+    if (listen) {
+      _broker.subscribe(
+        deviceId: DataBroker.allDevices,
+        name: 'UniqueDataFrame',
+        callback: _onUniqueDataFrame,
+      );
+    }
     _broker.logInfo(
       '[AX25Session] Session created for radio device $radioDeviceId',
     );
@@ -466,6 +473,8 @@ class AX25Session {
   }
 
   void _ensureTicker() {
+    // A state callback may dispose the session mid-transition.
+    if (_disposed) return;
     _ticker ??= Timer.periodic(const Duration(milliseconds: 100), (_) {
       _dlTimerExpiry();
     });

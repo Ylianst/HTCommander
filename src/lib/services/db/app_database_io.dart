@@ -32,6 +32,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'aprsis_dao.dart';
+import 'bbs_dao.dart';
 import 'comms_dao.dart';
 import 'legacy_import.dart';
 import 'meshcore_dao.dart';
@@ -43,7 +44,8 @@ class AppDatabase {
     : comms = CommsDao(db),
       packets = PacketsDao(db),
       aprsis = AprsisDao(db),
-      meshcore = MeshCoreDao(db);
+      meshcore = MeshCoreDao(db),
+      bbs = BbsDao(db);
 
   /// The open database handle. DAOs run their statements against this.
   final Database db;
@@ -60,9 +62,12 @@ class AppDatabase {
   /// MeshCore direct and group message history.
   final MeshCoreDao meshcore;
 
+  /// BBS message board and visitor log.
+  final BbsDao bbs;
+
   /// Current schema version. Bump and add an [onUpgrade] branch when the schema
   /// changes.
-  static const int _schemaVersion = 3;
+  static const int _schemaVersion = 4;
 
   static const String _dbFileName = 'htcommander.db';
 
@@ -122,6 +127,7 @@ class AppDatabase {
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) await MeshCoreDao.createSchema(db);
           if (oldVersion < 3) await PacketsDao.addAprsHiddenColumn(db);
+          if (oldVersion < 4) await BbsDao.createSchema(db);
         },
       ),
     );
@@ -184,6 +190,7 @@ class AppDatabase {
     await db.execute('CREATE INDEX idx_aprsis_time ON aprsis_history(time_us)');
 
     await MeshCoreDao.createSchema(db);
+    await BbsDao.createSchema(db);
   }
 
   /// Runs a quick integrity check so a corrupt database is rebuilt rather than

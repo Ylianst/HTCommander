@@ -102,6 +102,7 @@ class _SettingsDialogState extends State<SettingsDialog>
   late TextEditingController _repeaterBookTokenController;
   late TextEditingController _webPortController;
   late TextEditingController _agwpePortController;
+  late TextEditingController _bbsWebPortController;
   late TextEditingController _airplaneUrlController;
   late TextEditingController _customMapUrlController;
   late TextEditingController _customMapAttributionController;
@@ -347,6 +348,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     _agwpePortController = TextEditingController(
       text: _settings.agwpeServerPort.toString(),
     );
+    _bbsWebPortController = TextEditingController(
+      text: _settings.bbsWebServerPort.toString(),
+    );
     _airplaneUrlController = TextEditingController(
       text: _settings.airplaneServerUrl,
     );
@@ -436,6 +440,7 @@ class _SettingsDialogState extends State<SettingsDialog>
     _repeaterBookTokenController.dispose();
     _webPortController.dispose();
     _agwpePortController.dispose();
+    _bbsWebPortController.dispose();
     _airplaneUrlController.dispose();
     _customMapUrlController.dispose();
     _customMapAttributionController.dispose();
@@ -956,6 +961,11 @@ class _SettingsDialogState extends State<SettingsDialog>
     _settings.repeaterBookToken = _repeaterBookTokenController.text.trim();
     _settings.webServerPort = int.tryParse(_webPortController.text) ?? 8080;
     _settings.agwpeServerPort = int.tryParse(_agwpePortController.text) ?? 8000;
+    final bbsWebPort = int.tryParse(_bbsWebPortController.text.trim());
+    _settings.bbsWebServerPort =
+        (bbsWebPort != null && bbsWebPort > 0 && bbsWebPort < 65536)
+        ? bbsWebPort
+        : 8023;
     _settings.airplaneServerUrl = _airplaneUrlController.text;
     _settings.homeAssistantMqttUrl = _homeAssistantUrlController.text.trim();
     _settings.homeAssistantUsername = _homeAssistantUsernameController.text;
@@ -3900,6 +3910,80 @@ class _SettingsDialogState extends State<SettingsDialog>
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 16),
+                // HTTP BBS Server
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _settings.bbsWebServerEnabled,
+                      onChanged: (value) {
+                        setState(
+                          () => _settings.bbsWebServerEnabled = value ?? false,
+                        );
+                      },
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(
+                          () => _settings.bbsWebServerEnabled =
+                              !_settings.bbsWebServerEnabled,
+                        ),
+                        child: Text(l10n.settingsEnableBbsWebServer),
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 48),
+                  child: Row(
+                    children: [
+                      Text(l10n.settingsPort, style: DialogStyles.labelStyle),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 100,
+                        child: TextField(
+                          controller: _bbsWebPortController,
+                          enabled: _settings.bbsWebServerEnabled,
+                          keyboardType: TextInputType.number,
+                          decoration: _inputDecoration(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 48, top: 8),
+                  child: Text(
+                    l10n.settingsBbsWebServerNote,
+                    style: _secondaryStyle(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // BBS file uploads (radio YAPP and the HTTP BBS)
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _settings.bbsFileUploadsEnabled,
+                      onChanged: (value) {
+                        setState(
+                          () =>
+                              _settings.bbsFileUploadsEnabled = value ?? false,
+                        );
+                      },
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(
+                          () => _settings.bbsFileUploadsEnabled =
+                              !_settings.bbsFileUploadsEnabled,
+                        ),
+                        child: Text(l10n.bbsFilesAllowUploads),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

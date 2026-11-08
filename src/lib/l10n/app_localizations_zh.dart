@@ -1094,6 +1094,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsEnableAgwpeServer => '启用 AGWPE 服务器';
 
   @override
+  String get settingsEnableBbsWebServer => '启用 HTTP BBS 服务器';
+
+  @override
+  String get settingsBbsWebServerNote =>
+      '提供一个网页终端，任何能访问此端口的人只需输入有效呼号即可连接到 BBS，无需密码。';
+
+  @override
   String get settingsHomeAssistant => 'Home Assistant';
 
   @override
@@ -2093,6 +2100,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get terminalWaitForConnection => '等待连接...';
 
   @override
+  String get terminalConnectLocalBbs => '连接到本地 BBS';
+
+  @override
   String get terminalWaitingForConnection => '正在等待连接...';
 
   @override
@@ -2291,6 +2301,69 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bbsJustNow => '刚刚';
 
   @override
+  String get bbsFiles => '文件';
+
+  @override
+  String get bbsFilesTitle => 'BBS 文件';
+
+  @override
+  String get bbsFilesAdd => '添加文件...';
+
+  @override
+  String get bbsFilesOpenFolder => '打开文件夹';
+
+  @override
+  String get bbsFilesEmpty => '暂无文件。可在此添加文件、将文件复制到文件夹中，或让电台上传。';
+
+  @override
+  String get bbsFilesAllowUploads => '允许电台向 BBS 上传文件（每个最多 25 KB）';
+
+  @override
+  String get bbsFilesColName => '名称';
+
+  @override
+  String get bbsFilesColSize => '大小';
+
+  @override
+  String get bbsFilesColUploader => '上传者';
+
+  @override
+  String get bbsFilesColDate => '日期';
+
+  @override
+  String get bbsFilesSysop => '系统管理员';
+
+  @override
+  String bbsFilesDeleteConfirm(String name) {
+    return '删除 $name？';
+  }
+
+  @override
+  String bbsFilesAddFailed(String name) {
+    return '无法添加 $name。';
+  }
+
+  @override
+  String get bbsAllSessions => '所有会话';
+
+  @override
+  String bbsAllSessionsCount(int count) {
+    return '所有会话（$count 个活动）';
+  }
+
+  @override
+  String get bbsSessionEnded => '已结束';
+
+  @override
+  String get bbsNoActiveSessions => '没有活动会话';
+
+  @override
+  String get bbsSessionPickerTooltip => '选择要跟踪的会话';
+
+  @override
+  String get bbsShowSessionTraffic => '显示会话流量';
+
+  @override
   String bbsMinAgo(int n) {
     return '$n 分钟前';
   }
@@ -2441,6 +2514,47 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mailMove => '移动';
+
+  @override
+  String get mailMoveToMenu => '??';
+
+  @override
+  String mailSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '已选择 $count 封邮件',
+      one: '已选择 1 封邮件',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveToTrashPromptCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '将所选的 $count 封邮件移至回收站？',
+      one: '将所选邮件移至回收站？',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailDeletePermanentCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '永久删除所选的 $count 封邮件？此操作无法撤消。',
+      one: '永久删除所选邮件？此操作无法撤消。',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveTo(String mailbox) {
+    return '移至$mailbox';
+  }
 
   @override
   String get mailOpen => '打开';

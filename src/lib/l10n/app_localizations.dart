@@ -2110,6 +2110,18 @@ abstract class AppLocalizations {
   /// **'Enable AGWPE Server'**
   String get settingsEnableAgwpeServer;
 
+  /// No description provided for @settingsEnableBbsWebServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable HTTP BBS Server'**
+  String get settingsEnableBbsWebServer;
+
+  /// No description provided for @settingsBbsWebServerNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Serves a web terminal where anyone who can reach this port can connect to the BBS by entering a valid callsign. No password is required.'**
+  String get settingsBbsWebServerNote;
+
   /// Section title for the Home Assistant MQTT integration in Settings > Servers
   ///
   /// In en, this message translates to:
@@ -3916,6 +3928,12 @@ abstract class AppLocalizations {
   /// **'Wait for Connection...'**
   String get terminalWaitForConnection;
 
+  /// No description provided for @terminalConnectLocalBbs.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to Local BBS'**
+  String get terminalConnectLocalBbs;
+
   /// No description provided for @terminalWaitingForConnection.
   ///
   /// In en, this message translates to:
@@ -4276,6 +4294,120 @@ abstract class AppLocalizations {
   /// **'Just now'**
   String get bbsJustNow;
 
+  /// No description provided for @bbsFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get bbsFiles;
+
+  /// No description provided for @bbsFilesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'BBS Files'**
+  String get bbsFilesTitle;
+
+  /// No description provided for @bbsFilesAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Files...'**
+  String get bbsFilesAdd;
+
+  /// No description provided for @bbsFilesOpenFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Folder'**
+  String get bbsFilesOpenFolder;
+
+  /// No description provided for @bbsFilesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No files yet. Add files here, copy them into the folder, or let stations upload them.'**
+  String get bbsFilesEmpty;
+
+  /// No description provided for @bbsFilesAllowUploads.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow stations to upload files to the BBS (up to 25 KB each)'**
+  String get bbsFilesAllowUploads;
+
+  /// No description provided for @bbsFilesColName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get bbsFilesColName;
+
+  /// No description provided for @bbsFilesColSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get bbsFilesColSize;
+
+  /// No description provided for @bbsFilesColUploader.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploaded By'**
+  String get bbsFilesColUploader;
+
+  /// No description provided for @bbsFilesColDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get bbsFilesColDate;
+
+  /// No description provided for @bbsFilesSysop.
+  ///
+  /// In en, this message translates to:
+  /// **'Sysop'**
+  String get bbsFilesSysop;
+
+  /// No description provided for @bbsFilesDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}?'**
+  String bbsFilesDeleteConfirm(String name);
+
+  /// No description provided for @bbsFilesAddFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not add {name}.'**
+  String bbsFilesAddFailed(String name);
+
+  /// No description provided for @bbsAllSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'All Sessions'**
+  String get bbsAllSessions;
+
+  /// No description provided for @bbsAllSessionsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'All sessions ({count} active)'**
+  String bbsAllSessionsCount(int count);
+
+  /// No description provided for @bbsSessionEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'ended'**
+  String get bbsSessionEnded;
+
+  /// No description provided for @bbsNoActiveSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'No active sessions'**
+  String get bbsNoActiveSessions;
+
+  /// No description provided for @bbsSessionPickerTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which session to follow'**
+  String get bbsSessionPickerTooltip;
+
+  /// No description provided for @bbsShowSessionTraffic.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Session Traffic'**
+  String get bbsShowSessionTraffic;
+
   /// No description provided for @bbsMinAgo.
   ///
   /// In en, this message translates to:
@@ -4563,6 +4695,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Move'**
   String get mailMove;
+
+  /// No description provided for @mailMoveToMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Move To'**
+  String get mailMoveToMenu;
+
+  /// No description provided for @mailSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 message selected} other{{count} messages selected}}'**
+  String mailSelectedCount(int count);
+
+  /// No description provided for @mailMoveToTrashPromptCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Move the selected mail to Trash?} other{Move the {count} selected messages to Trash?}}'**
+  String mailMoveToTrashPromptCount(int count);
+
+  /// No description provided for @mailDeletePermanentCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Permanently delete the selected mail? This cannot be undone.} other{Permanently delete the {count} selected messages? This cannot be undone.}}'**
+  String mailDeletePermanentCount(int count);
+
+  /// No description provided for @mailMoveTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to {mailbox}'**
+  String mailMoveTo(String mailbox);
 
   /// No description provided for @mailOpen.
   ///

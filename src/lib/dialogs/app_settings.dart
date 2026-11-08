@@ -84,6 +84,13 @@ class AppSettings {
   bool agwpeServerEnabled;
   int agwpeServerPort;
 
+  /// Public, unauthenticated web terminal for the BBS (see WebBbsHandler).
+  bool bbsWebServerEnabled;
+  int bbsWebServerPort;
+
+  /// Whether BBS users may upload files (YAPP over the radio, or the web BBS).
+  bool bbsFileUploadsEnabled;
+
   // Home Assistant (Servers tab)
   bool homeAssistantEnabled;
   String homeAssistantMqttUrl;
@@ -225,6 +232,9 @@ class AppSettings {
     this.agentApiToken = '',
     this.agwpeServerEnabled = false,
     this.agwpeServerPort = 8000,
+    this.bbsWebServerEnabled = false,
+    this.bbsWebServerPort = 8023,
+    this.bbsFileUploadsEnabled = true,
     this.homeAssistantEnabled = false,
     this.homeAssistantMqttUrl = '',
     this.homeAssistantUsername = '',
@@ -285,6 +295,9 @@ class AppSettings {
     String? agentApiToken,
     bool? agwpeServerEnabled,
     int? agwpeServerPort,
+    bool? bbsWebServerEnabled,
+    int? bbsWebServerPort,
+    bool? bbsFileUploadsEnabled,
     bool? homeAssistantEnabled,
     String? homeAssistantMqttUrl,
     String? homeAssistantUsername,
@@ -346,6 +359,10 @@ class AppSettings {
       agentApiToken: agentApiToken ?? this.agentApiToken,
       agwpeServerEnabled: agwpeServerEnabled ?? this.agwpeServerEnabled,
       agwpeServerPort: agwpeServerPort ?? this.agwpeServerPort,
+      bbsWebServerEnabled: bbsWebServerEnabled ?? this.bbsWebServerEnabled,
+      bbsWebServerPort: bbsWebServerPort ?? this.bbsWebServerPort,
+      bbsFileUploadsEnabled:
+          bbsFileUploadsEnabled ?? this.bbsFileUploadsEnabled,
       homeAssistantEnabled: homeAssistantEnabled ?? this.homeAssistantEnabled,
       homeAssistantMqttUrl: homeAssistantMqttUrl ?? this.homeAssistantMqttUrl,
       homeAssistantUsername:
@@ -462,6 +479,12 @@ class AppSettings {
           (DataBroker.getValue<int>(0, 'agwpeServerEnabled', 0) ?? 0) == 1,
       agwpeServerPort:
           DataBroker.getValue<int>(0, 'agwpeServerPort', 8000) ?? 8000,
+      bbsWebServerEnabled:
+          (DataBroker.getValue<int>(0, 'bbsWebServerEnabled', 0) ?? 0) == 1,
+      bbsWebServerPort:
+          DataBroker.getValue<int>(0, 'bbsWebServerPort', 8023) ?? 8023,
+      bbsFileUploadsEnabled:
+          (DataBroker.getValue<int>(0, 'BbsFileUploads', 1) ?? 1) == 1,
       homeAssistantEnabled:
           (DataBroker.getValue<int>(0, 'homeAssistantEnabled', 0) ?? 0) == 1,
       homeAssistantMqttUrl:
@@ -650,6 +673,21 @@ class AppSettings {
       deviceId: 0,
       name: 'agwpeServerPort',
       data: agwpeServerPort,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'bbsWebServerEnabled',
+      data: bbsWebServerEnabled ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'bbsWebServerPort',
+      data: bbsWebServerPort,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'BbsFileUploads',
+      data: bbsFileUploadsEnabled ? 1 : 0,
     );
     DataBroker.dispatch(
       deviceId: 0,

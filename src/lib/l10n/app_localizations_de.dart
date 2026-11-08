@@ -1149,6 +1149,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsEnableAgwpeServer => 'AGWPE-Server aktivieren';
 
   @override
+  String get settingsEnableBbsWebServer => 'HTTP-BBS-Server aktivieren';
+
+  @override
+  String get settingsBbsWebServerNote =>
+      'Stellt ein Web-Terminal bereit, über das sich jeder, der diesen Port erreicht, mit einem gültigen Rufzeichen mit der BBS verbinden kann. Es ist kein Passwort erforderlich.';
+
+  @override
   String get settingsHomeAssistant => 'Home Assistant';
 
   @override
@@ -2173,6 +2180,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get terminalWaitForConnection => 'Auf Verbindung warten...';
 
   @override
+  String get terminalConnectLocalBbs => 'Mit lokalem BBS verbinden';
+
+  @override
   String get terminalWaitingForConnection => 'Warte auf Verbindung...';
 
   @override
@@ -2380,6 +2390,71 @@ class AppLocalizationsDe extends AppLocalizations {
   String get bbsJustNow => 'Gerade eben';
 
   @override
+  String get bbsFiles => 'Dateien';
+
+  @override
+  String get bbsFilesTitle => 'BBS-Dateien';
+
+  @override
+  String get bbsFilesAdd => 'Dateien hinzufügen...';
+
+  @override
+  String get bbsFilesOpenFolder => 'Ordner öffnen';
+
+  @override
+  String get bbsFilesEmpty =>
+      'Noch keine Dateien. Fügen Sie hier Dateien hinzu, kopieren Sie sie in den Ordner oder lassen Sie Stationen sie hochladen.';
+
+  @override
+  String get bbsFilesAllowUploads =>
+      'Stationen erlauben, Dateien in das BBS hochzuladen (bis zu 25 KB pro Datei)';
+
+  @override
+  String get bbsFilesColName => 'Name';
+
+  @override
+  String get bbsFilesColSize => 'Größe';
+
+  @override
+  String get bbsFilesColUploader => 'Hochgeladen von';
+
+  @override
+  String get bbsFilesColDate => 'Datum';
+
+  @override
+  String get bbsFilesSysop => 'Sysop';
+
+  @override
+  String bbsFilesDeleteConfirm(String name) {
+    return '$name löschen?';
+  }
+
+  @override
+  String bbsFilesAddFailed(String name) {
+    return '$name konnte nicht hinzugefügt werden.';
+  }
+
+  @override
+  String get bbsAllSessions => 'Alle Sitzungen';
+
+  @override
+  String bbsAllSessionsCount(int count) {
+    return 'Alle Sitzungen ($count aktiv)';
+  }
+
+  @override
+  String get bbsSessionEnded => 'beendet';
+
+  @override
+  String get bbsNoActiveSessions => 'Keine aktiven Sitzungen';
+
+  @override
+  String get bbsSessionPickerTooltip => 'Zu verfolgende Sitzung wählen';
+
+  @override
+  String get bbsShowSessionTraffic => 'Sitzungsverkehr anzeigen';
+
+  @override
   String bbsMinAgo(int n) {
     return 'vor $n Min.';
   }
@@ -2537,6 +2612,50 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get mailMove => 'Verschieben';
+
+  @override
+  String get mailMoveToMenu => 'Verschieben nach';
+
+  @override
+  String mailSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Nachrichten ausgewählt',
+      one: '1 Nachricht ausgewählt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveToTrashPromptCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Die $count ausgewählten Nachrichten in den Papierkorb verschieben?',
+      one: 'Ausgewählte E-Mail in den Papierkorb verschieben?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailDeletePermanentCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Die $count ausgewählten Nachrichten dauerhaft löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+      one:
+          'Ausgewählte E-Mail dauerhaft löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveTo(String mailbox) {
+    return 'Verschieben nach $mailbox';
+  }
 
   @override
   String get mailOpen => 'Öffnen';

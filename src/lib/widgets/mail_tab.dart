@@ -3,7 +3,8 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'tab_visibility.dart';
@@ -57,6 +58,14 @@ class Mailbox {
   int get unreadCount => messages.where((m) => !m.isRead).length;
 }
 
+/// Payload carried while dragging one or more messages onto a mailbox.
+class _MailDragData {
+  final String fromMailbox;
+  final List<String> ids;
+
+  const _MailDragData(this.fromMailbox, this.ids);
+}
+
 /// Which content the Mail tab currently shows: the mailbox/list view, a
 /// full-tab read-only message viewer, or the full-tab compose/edit editor.
 enum _MailView { list, view, compose }
@@ -72,7 +81,12 @@ class MailTab extends StatefulWidget {
 class _MailTabState extends State<MailTab>
     with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   String _selectedMailbox = 'Inbox';
+  // The focused message (shown in the preview). [_selectedIds] holds the full
+  // multi-selection (Ctrl/Shift+click) by MID so it survives list reloads, and
+  // [_selectionAnchor] is the row a Shift+click range extends from.
   int? _selectedMailIndex;
+  final Set<String> _selectedIds = {};
+  int? _selectionAnchor;
   bool _showPreview = true;
   int _sortColumnIndex = 0;
   bool _sortAscending = false; // Descending by default for time
@@ -109,9 +123,13 @@ class _MailTabState extends State<MailTab>
   late final Map<String, Mailbox> _mailboxes;
 
   // Keyboard navigation for the mailbox tree and mail list.
-  final FocusNode _mailboxFocusNode = FocusNode();
-  final FocusNode _mailListFocusNode = FocusNode();
+  final FocusNode _mailboxFocusNode = FocusNode(debugLabel: 'MailboxTree');
+  final FocusNode _mailListFocusNode = FocusNode(debugLabel: 'MailList');
   final ScrollController _mailScrollController = ScrollController();
+  // Right-click context menu for the mail list (a MenuAnchor so it can show a
+  // cascading "Move To" submenu).
+  final MenuController _mailMenuController = MenuController();
+  final GlobalKey _mailListKey = GlobalKey();
   static const double _mailRowHeight = 34;
 
   // Raw Winlink mail keyed by MID, used for read-flag updates and lookups.
@@ -420,6 +438,7 @@ class _MailTabState extends State<MailTab>
     if (!mounted) return;
     if (data is! List) return;
     final mails = data.whereType<WinLinkMail>().toList();
+    final focusedId = _selectedMail?.id;
     setState(() {
       _rawMails.clear();
       for (final box in _mailboxes.values) {
@@ -447,11 +466,24 @@ class _MailTabState extends State<MailTab>
       for (final box in _mailboxes.values) {
         _applySort(box.messages);
       }
-      if (_selectedMailIndex != null &&
-          _selectedMailIndex! >= _currentMessages.length) {
-        _selectedMailIndex = null;
-      }
+      _restoreSelection(focusedId);
     });
+  }
+
+  /// Re-resolves the focused row index after the current list was rebuilt or
+  /// re-sorted, and drops selected messages that are no longer in the mailbox.
+  void _restoreSelection(String? focusedId) {
+    final messages = _currentMessages;
+    final present = messages.map((m) => m.id).toSet();
+    _selectedIds.retainWhere(present.contains);
+    int index = focusedId == null
+        ? -1
+        : messages.indexWhere((m) => m.id == focusedId);
+    if (index < 0 && _selectedIds.isNotEmpty) {
+      index = messages.indexWhere((m) => _selectedIds.contains(m.id));
+    }
+    _selectedMailIndex = index >= 0 ? index : null;
+    _selectionAnchor = _selectedMailIndex;
   }
 
   List<MailMessage> get _currentMessages =>
@@ -476,14 +508,90 @@ class _MailTabState extends State<MailTab>
     setState(() {
       _selectedMailbox = mailbox;
       _selectedMailIndex = null;
+      _selectedIds.clear();
+      _selectionAnchor = null;
     });
   }
 
+  /// Selects only the message at [index] (a plain click or arrow key).
   void _onMailSelected(int index) {
     setState(() {
       _selectedMailIndex = index;
+      _selectionAnchor = index;
+      _selectedIds
+        ..clear()
+        ..add(_currentMessages[index].id);
     });
   }
+
+  /// Handles a click on a mail row: Ctrl (Cmd on macOS) toggles the row, Shift
+  /// selects the range from the anchor (Ctrl+Shift adds the range), otherwise
+  /// the row alone is selected.
+  void _onMailClicked(int index) {
+    final keyboard = HardwareKeyboard.instance;
+    final ctrl = keyboard.isControlPressed || keyboard.isMetaPressed;
+    if (keyboard.isShiftPressed) {
+      _selectRange(index, additive: ctrl);
+    } else if (ctrl) {
+      _toggleSelection(index);
+    } else {
+      _onMailSelected(index);
+    }
+  }
+
+  void _selectRange(int index, {bool additive = false}) {
+    final messages = _currentMessages;
+    if (messages.isEmpty) return;
+    final anchor = (_selectionAnchor ?? _selectedMailIndex ?? index).clamp(
+      0,
+      messages.length - 1,
+    );
+    final lo = anchor < index ? anchor : index;
+    final hi = anchor < index ? index : anchor;
+    setState(() {
+      if (!additive) _selectedIds.clear();
+      for (var i = lo; i <= hi; i++) {
+        _selectedIds.add(messages[i].id);
+      }
+      _selectedMailIndex = index;
+      _selectionAnchor = anchor;
+    });
+  }
+
+  void _toggleSelection(int index) {
+    final messages = _currentMessages;
+    final id = messages[index].id;
+    setState(() {
+      if (_selectedIds.remove(id)) {
+        if (_selectedMailIndex == index) {
+          final other = messages.indexWhere((m) => _selectedIds.contains(m.id));
+          _selectedMailIndex = other >= 0 ? other : null;
+        }
+      } else {
+        _selectedIds.add(id);
+        _selectedMailIndex = index;
+      }
+      _selectionAnchor = index;
+    });
+  }
+
+  void _selectAll() {
+    final messages = _currentMessages;
+    if (messages.isEmpty) return;
+    setState(() {
+      _selectedIds
+        ..clear()
+        ..addAll(messages.map((m) => m.id));
+      _selectedMailIndex ??= 0;
+      _selectionAnchor = _selectedMailIndex;
+    });
+  }
+
+  /// Selected messages of the current mailbox, in list order.
+  List<MailMessage> get _selectedMessages =>
+      _currentMessages.where((m) => _selectedIds.contains(m.id)).toList();
+
+  bool get _hasMultiSelection => _selectedIds.length > 1;
 
   /// Handles arrow up/down and page up/down while the mailbox tree has focus,
   /// moving the selection between mailboxes.
@@ -523,15 +631,28 @@ class _MailTabState extends State<MailTab>
     final count = _currentMessages.length;
     if (count == 0) return KeyEventResult.ignored;
 
-    // Enter opens the selected message full-tab (matching a double-tap).
+    // Enter opens the focused message full-tab (matching a double-tap).
     if (event.logicalKey == LogicalKeyboardKey.enter ||
         event.logicalKey == LogicalKeyboardKey.numpadEnter) {
       final m = _selectedMail;
       if (m != null) {
+        _onMailSelected(_selectedMailIndex!);
         _onOpenMail(m);
         return KeyEventResult.handled;
       }
       return KeyEventResult.ignored;
+    }
+
+    final keyboard = HardwareKeyboard.instance;
+    if (event.logicalKey == LogicalKeyboardKey.keyA &&
+        (keyboard.isControlPressed || keyboard.isMetaPressed)) {
+      _selectAll();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.delete) {
+      if (_selectedIds.isEmpty) return KeyEventResult.ignored;
+      _deleteMails(_selectedMessages.map((m) => m.id).toList());
+      return KeyEventResult.handled;
     }
 
     int page = 10;
@@ -559,7 +680,11 @@ class _MailTabState extends State<MailTab>
       return KeyEventResult.ignored;
     }
     next = next.clamp(0, count - 1);
-    if (next != current) {
+    if (keyboard.isShiftPressed) {
+      // Shift+arrow extends the selection from the anchor.
+      _selectRange(next);
+      _scrollMailIntoView(next);
+    } else if (next != current || _hasMultiSelection) {
       _onMailSelected(next);
       _scrollMailIntoView(next);
     }
@@ -948,125 +1073,145 @@ class _MailTabState extends State<MailTab>
     _broker.dispatch(deviceId: 0, name: 'MailUpdate', data: raw, store: false);
   }
 
-  void _onDelete() async {
+  /// Deletes the focused message (preview toolbar and full-tab viewer).
+  void _onDelete() {
     final m = _selectedMail;
     if (m == null) return;
+    _deleteMails([m.id]);
+  }
+
+  /// Moves [ids] to Trash, or permanently deletes them when already in Trash,
+  /// after confirmation.
+  Future<void> _deleteMails(List<String> ids) async {
+    if (ids.isEmpty) return;
     final inTrash = _selectedMailbox == 'Trash';
     final l10n = AppLocalizations.of(context);
     final confirmed = await DialogHelper.showConfirmDialog(
       context,
       title: inTrash ? l10n.mailDeleteTitle : l10n.mailMoveToTrashTitle,
-      message: inTrash ? l10n.mailDeletePermanent : l10n.mailMoveToTrashPrompt,
+      message: inTrash
+          ? l10n.mailDeletePermanentCount(ids.length)
+          : l10n.mailMoveToTrashPromptCount(ids.length),
       okText: inTrash ? l10n.commonDelete : l10n.mailMove,
     );
-    if (!confirmed) return;
+    if (!confirmed || !mounted) return;
     if (inTrash) {
-      _broker.dispatch(
-        deviceId: 0,
-        name: 'MailDelete',
-        data: m.id,
-        store: false,
-      );
+      for (final id in ids) {
+        _broker.dispatch(
+          deviceId: 0,
+          name: 'MailDelete',
+          data: id,
+          store: false,
+        );
+      }
+      _clearSelection();
     } else {
+      _moveMails(ids, 'Trash');
+    }
+    setState(() => _view = _MailView.list);
+  }
+
+  /// Whether messages may be moved from mailbox [from] to [to]. Outbox and
+  /// Draft only exchange messages with each other, so received or sent mail is
+  /// never queued for transmission by accident.
+  bool _isMoveAllowed(String from, String to) {
+    if (from == to || !_mailboxes.containsKey(to)) return false;
+    const composed = {'Outbox', 'Draft'};
+    if (composed.contains(to)) return composed.contains(from);
+    return true;
+  }
+
+  /// Mailboxes the current mailbox's messages may be moved to.
+  List<String> get _moveTargets => _mailboxes.keys
+      .where((k) => _isMoveAllowed(_selectedMailbox, k))
+      .toList();
+
+  /// Moves [ids] to the [target] mailbox via the MailStore.
+  void _moveMails(List<String> ids, String target) {
+    for (final id in ids) {
+      if (_rawMails[id]?.mailbox == target) continue;
       _broker.dispatch(
         deviceId: 0,
         name: 'MailMove',
-        data: {'MID': m.id, 'Mailbox': 'Trash'},
+        data: {'MID': id, 'Mailbox': target},
         store: false,
       );
     }
+    _clearSelection();
+  }
+
+  void _clearSelection() {
     setState(() {
+      _selectedIds.clear();
       _selectedMailIndex = null;
-      _view = _MailView.list;
+      _selectionAnchor = null;
     });
   }
 
-  /// Shows a right-click context menu for a mail row with common actions.
-  void _showMailContextMenu(BuildContext context, Offset globalPosition) async {
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+  /// Opens the right-click context menu for the mail list at [globalPosition].
+  /// The menu acts on the current selection (see [_buildMailContextMenuItems]).
+  void _showMailContextMenu(Offset globalPosition) {
+    final box = _mailListKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    _mailMenuController.open(position: box.globalToLocal(globalPosition));
+  }
+
+  /// Context menu entries for the selected mail. With several messages
+  /// selected only the batch actions (Move To submenu and delete) are offered.
+  List<Widget> _buildMailContextMenuItems() {
+    final l10n = AppLocalizations.of(context);
     final inTrash = _selectedMailbox == 'Trash';
-
-    final value = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromRect(
-        globalPosition & const Size(48, 48),
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        PopupMenuItem<String>(
-          value: 'open',
-          child: ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.open_in_new),
-            title: Text(AppLocalizations.of(context).mailOpen),
-          ),
+    final error = Theme.of(context).colorScheme.error;
+    List<String> selectedIds() => _selectedMessages.map((m) => m.id).toList();
+    return [
+      if (!_hasMultiSelection) ...[
+        MenuItemButton(
+          leadingIcon: const Icon(Icons.open_in_new, size: 20),
+          onPressed: () {
+            final m = _selectedMail;
+            if (m != null) _onOpenMail(m);
+          },
+          child: Text(l10n.mailOpen),
         ),
-        const PopupMenuDivider(),
-        PopupMenuItem<String>(
-          value: 'reply',
-          child: ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.reply),
-            title: Text(AppLocalizations.of(context).mailReply),
-          ),
+        const Divider(height: 1),
+        MenuItemButton(
+          leadingIcon: const Icon(Icons.reply, size: 20),
+          onPressed: _onReply,
+          child: Text(l10n.mailReply),
         ),
-        PopupMenuItem<String>(
-          value: 'replyAll',
-          child: ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.reply_all),
-            title: Text(AppLocalizations.of(context).mailReplyAll),
-          ),
+        MenuItemButton(
+          leadingIcon: const Icon(Icons.reply_all, size: 20),
+          onPressed: _onReplyAll,
+          child: Text(l10n.mailReplyAll),
         ),
-        PopupMenuItem<String>(
-          value: 'forward',
-          child: ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.forward),
-            title: Text(AppLocalizations.of(context).mailForward),
-          ),
+        MenuItemButton(
+          leadingIcon: const Icon(Icons.forward, size: 20),
+          onPressed: _onForward,
+          child: Text(l10n.mailForward),
         ),
-        const PopupMenuDivider(),
-        PopupMenuItem<String>(
-          value: 'delete',
-          child: ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.delete_outline, color: Colors.red),
-            title: Text(
-              inTrash
-                  ? AppLocalizations.of(context).commonDelete
-                  : AppLocalizations.of(context).mailMoveToTrashTitle,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        ),
+        const Divider(height: 1),
       ],
-    );
-
-    if (!mounted) return;
-    switch (value) {
-      case 'open':
-        final m = _selectedMail;
-        if (m != null) _onOpenMail(m);
-        break;
-      case 'reply':
-        _onReply();
-        break;
-      case 'replyAll':
-        _onReplyAll();
-        break;
-      case 'forward':
-        _onForward();
-        break;
-      case 'delete':
-        _onDelete();
-        break;
-    }
+      SubmenuButton(
+        leadingIcon: const Icon(Icons.drive_file_move_outline, size: 20),
+        menuChildren: [
+          for (final target in _moveTargets)
+            MenuItemButton(
+              leadingIcon: Icon(_mailboxes[target]!.icon, size: 20),
+              onPressed: () => _moveMails(selectedIds(), target),
+              child: Text(_mailboxDisplayName(target)),
+            ),
+        ],
+        child: Text(l10n.mailMoveToMenu),
+      ),
+      MenuItemButton(
+        leadingIcon: Icon(Icons.delete_outline, size: 20, color: error),
+        onPressed: () => _deleteMails(selectedIds()),
+        child: Text(
+          inTrash ? l10n.commonDelete : l10n.mailMoveToTrashTitle,
+          style: TextStyle(color: error),
+        ),
+      ),
+    ];
   }
 
   /// Shows a mailbox-selection menu anchored to the compact-mode title. Lists
@@ -1400,6 +1545,7 @@ class _MailTabState extends State<MailTab>
   }
 
   void _sort(int columnIndex) {
+    final focusedId = _selectedMail?.id;
     setState(() {
       if (_sortColumnIndex == columnIndex) {
         _sortAscending = !_sortAscending;
@@ -1408,6 +1554,7 @@ class _MailTabState extends State<MailTab>
         _sortAscending = columnIndex != 0; // Descending for time by default
       }
       _applySort(_currentMessages);
+      _restoreSelection(focusedId);
     });
   }
 
@@ -1810,37 +1957,58 @@ class _MailTabState extends State<MailTab>
             final mailbox = entry.value;
             final isSelected = _selectedMailbox == entry.key;
             final count = mailbox.messages.length;
-            return InkWell(
-              onTap: () {
-                _mailboxFocusNode.requestFocus();
-                _onMailboxSelected(entry.key);
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                color: isSelected ? scheme.primaryContainer : null,
-                child: Row(
-                  children: [
-                    Icon(
-                      mailbox.icon,
-                      size: 20,
-                      color: scheme.onSurfaceVariant,
+            // Mail rows dragged from the list can be dropped on a mailbox to
+            // move them there.
+            return DragTarget<_MailDragData>(
+              onWillAcceptWithDetails: (details) =>
+                  _isMoveAllowed(details.data.fromMailbox, entry.key),
+              onAcceptWithDetails: (details) =>
+                  _moveMails(details.data.ids, entry.key),
+              builder: (context, candidates, rejected) {
+                final isDropTarget = candidates.isNotEmpty;
+                return InkWell(
+                  onTap: () {
+                    _mailboxFocusNode.requestFocus();
+                    _onMailboxSelected(entry.key);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        count > 0
-                            ? '${_mailboxDisplayName(entry.key)} ($count)'
-                            : _mailboxDisplayName(entry.key),
-                        style: TextStyle(
-                          fontWeight: mailbox.unreadCount > 0
-                              ? FontWeight.bold
-                              : null,
+                    decoration: BoxDecoration(
+                      color: isDropTarget
+                          ? scheme.secondaryContainer
+                          : (isSelected ? scheme.primaryContainer : null),
+                      border: isDropTarget
+                          ? Border.all(color: scheme.secondary)
+                          : null,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          mailbox.icon,
+                          size: 20,
+                          color: scheme.onSurfaceVariant,
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            count > 0
+                                ? '${_mailboxDisplayName(entry.key)} ($count)'
+                                : _mailboxDisplayName(entry.key),
+                            style: TextStyle(
+                              fontWeight: mailbox.unreadCount > 0
+                                  ? FontWeight.bold
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             );
           }).toList(),
         ),
@@ -1850,7 +2018,9 @@ class _MailTabState extends State<MailTab>
 
   Widget _buildMailList() {
     final scheme = Theme.of(context).colorScheme;
-    return Focus(
+    final selectedIds = _selectedMessages.map((m) => m.id).toList();
+    final list = Focus(
+      key: _mailListKey,
       focusNode: _mailListFocusNode,
       onKeyEvent: _handleMailListKey,
       child: Container(
@@ -1867,11 +2037,11 @@ class _MailTabState extends State<MailTab>
                 itemCount: _currentMessages.length,
                 itemBuilder: (context, index) {
                   final mail = _currentMessages[index];
-                  final isSelected = _selectedMailIndex == index;
-                  return InkWell(
+                  final isSelected = _selectedIds.contains(mail.id);
+                  final row = InkWell(
                     onTap: () {
                       _mailListFocusNode.requestFocus();
-                      _onMailSelected(index);
+                      _onMailClicked(index);
                     },
                     onDoubleTap: () {
                       _onMailSelected(index);
@@ -1879,8 +2049,10 @@ class _MailTabState extends State<MailTab>
                     },
                     onSecondaryTapDown: (details) {
                       _mailListFocusNode.requestFocus();
-                      _onMailSelected(index);
-                      _showMailContextMenu(context, details.globalPosition);
+                      // Right-clicking inside a multi-selection keeps it so the
+                      // menu acts on all selected messages.
+                      if (!isSelected) _onMailSelected(index);
+                      _showMailContextMenu(details.globalPosition);
                     },
                     child: Container(
                       clipBehavior: Clip.hardEdge,
@@ -1950,10 +2122,103 @@ class _MailTabState extends State<MailTab>
                       ),
                     ),
                   );
+                  // Drag & drop to a mailbox is only available while the
+                  // mailbox tree (the drop targets) is shown.
+                  if (_isCompact) return row;
+                  return _buildDraggableRow(
+                    row: row,
+                    mail: mail,
+                    index: index,
+                    ids: isSelected ? selectedIds : <String>[mail.id],
+                  );
                 },
               ),
             ),
           ],
+        ),
+      ),
+    );
+    return MenuAnchor(
+      controller: _mailMenuController,
+      menuChildren: _buildMailContextMenuItems(),
+      child: list,
+    );
+  }
+
+  /// Wraps a mail row so it can be dragged onto a mailbox. Dragging a selected
+  /// row carries the whole selection; dragging an unselected row selects and
+  /// carries just that row. Touch platforms use a long press so the list can
+  /// still be scrolled.
+  Widget _buildDraggableRow({
+    required Widget row,
+    required MailMessage mail,
+    required int index,
+    required List<String> ids,
+  }) {
+    final data = _MailDragData(_selectedMailbox, ids);
+    final feedback = _buildDragFeedback(mail, ids.length);
+    void onDragStarted() {
+      if (!_selectedIds.contains(mail.id)) _onMailSelected(index);
+    }
+
+    final isTouch =
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS);
+    if (isTouch) {
+      return LongPressDraggable<_MailDragData>(
+        data: data,
+        feedback: feedback,
+        dragAnchorStrategy: pointerDragAnchorStrategy,
+        onDragStarted: onDragStarted,
+        child: row,
+      );
+    }
+    return Draggable<_MailDragData>(
+      data: data,
+      feedback: feedback,
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      onDragStarted: onDragStarted,
+      child: row,
+    );
+  }
+
+  /// The chip shown under the pointer while dragging messages.
+  Widget _buildDragFeedback(MailMessage mail, int count) {
+    final scheme = Theme.of(context).colorScheme;
+    final label = count == 1
+        ? (mail.subject.isEmpty ? mail.from : mail.subject)
+        : AppLocalizations.of(context).mailSelectedCount(count);
+    return Transform.translate(
+      offset: const Offset(12, 12),
+      child: Material(
+        elevation: 4,
+        borderRadius: BorderRadius.circular(6),
+        color: scheme.primaryContainer,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 260),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                count == 1 ? Icons.mail_outline : Icons.all_inbox,
+                size: 18,
+                color: scheme.onPrimaryContainer,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: scheme.onPrimaryContainer,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2105,6 +2370,7 @@ class _MailTabState extends State<MailTab>
 
   Widget _buildPreviewArea() {
     final scheme = Theme.of(context).colorScheme;
+    if (_hasMultiSelection) return _buildMultiSelectionPanel(scheme);
     if (_selectedMail == null) {
       return Container(
         color: scheme.surface,
@@ -2217,6 +2483,63 @@ class _MailTabState extends State<MailTab>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Shown in place of the preview when several messages are selected, with
+  /// buttons to move or delete them all at once.
+  Widget _buildMultiSelectionPanel(ColorScheme scheme) {
+    final l10n = AppLocalizations.of(context);
+    final ids = _selectedMessages.map((m) => m.id).toList();
+    final inTrash = _selectedMailbox == 'Trash';
+    return Container(
+      color: scheme.surface,
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.all_inbox, size: 40, color: scheme.onSurfaceVariant),
+              const SizedBox(height: 8),
+              Text(
+                l10n.mailSelectedCount(ids.length),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final target in _moveTargets)
+                    if (target != 'Trash')
+                      OutlinedButton.icon(
+                        onPressed: () => _moveMails(ids, target),
+                        icon: Icon(_mailboxes[target]!.icon, size: 18),
+                        label: Text(
+                          l10n.mailMoveTo(_mailboxDisplayName(target)),
+                        ),
+                      ),
+                  OutlinedButton.icon(
+                    onPressed: () => _deleteMails(ids),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: scheme.error,
+                    ),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: Text(
+                      inTrash ? l10n.commonDelete : l10n.mailMoveToTrashTitle,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

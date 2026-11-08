@@ -1143,6 +1143,13 @@ class AppLocalizationsIt extends AppLocalizations {
   String get settingsEnableAgwpeServer => 'Abilita server AGWPE';
 
   @override
+  String get settingsEnableBbsWebServer => 'Abilita server BBS HTTP';
+
+  @override
+  String get settingsBbsWebServerNote =>
+      'Fornisce un terminale web tramite il quale chiunque possa raggiungere questa porta può connettersi al BBS inserendo un nominativo valido. Non è richiesta alcuna password.';
+
+  @override
   String get settingsHomeAssistant => 'Home Assistant';
 
   @override
@@ -2168,6 +2175,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get terminalWaitForConnection => 'Attendi connessione...';
 
   @override
+  String get terminalConnectLocalBbs => 'Connetti al BBS locale';
+
+  @override
   String get terminalWaitingForConnection => 'In attesa di connessione...';
 
   @override
@@ -2376,6 +2386,71 @@ class AppLocalizationsIt extends AppLocalizations {
   String get bbsJustNow => 'Proprio ora';
 
   @override
+  String get bbsFiles => 'File';
+
+  @override
+  String get bbsFilesTitle => 'File del BBS';
+
+  @override
+  String get bbsFilesAdd => 'Aggiungi file...';
+
+  @override
+  String get bbsFilesOpenFolder => 'Apri cartella';
+
+  @override
+  String get bbsFilesEmpty =>
+      'Nessun file. Aggiungi file qui, copiali nella cartella o lascia che le stazioni li carichino.';
+
+  @override
+  String get bbsFilesAllowUploads =>
+      'Consenti alle stazioni di caricare file sul BBS (fino a 25 KB ciascuno)';
+
+  @override
+  String get bbsFilesColName => 'Nome';
+
+  @override
+  String get bbsFilesColSize => 'Dimensione';
+
+  @override
+  String get bbsFilesColUploader => 'Caricato da';
+
+  @override
+  String get bbsFilesColDate => 'Data';
+
+  @override
+  String get bbsFilesSysop => 'Sysop';
+
+  @override
+  String bbsFilesDeleteConfirm(String name) {
+    return 'Eliminare $name?';
+  }
+
+  @override
+  String bbsFilesAddFailed(String name) {
+    return 'Impossibile aggiungere $name.';
+  }
+
+  @override
+  String get bbsAllSessions => 'Tutte le sessioni';
+
+  @override
+  String bbsAllSessionsCount(int count) {
+    return 'Tutte le sessioni ($count attive)';
+  }
+
+  @override
+  String get bbsSessionEnded => 'terminata';
+
+  @override
+  String get bbsNoActiveSessions => 'Nessuna sessione attiva';
+
+  @override
+  String get bbsSessionPickerTooltip => 'Scegli la sessione da seguire';
+
+  @override
+  String get bbsShowSessionTraffic => 'Mostra traffico della sessione';
+
+  @override
   String bbsMinAgo(int n) {
     return '$n min fa';
   }
@@ -2533,6 +2608,49 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get mailMove => 'Sposta';
+
+  @override
+  String get mailMoveToMenu => 'Sposta in';
+
+  @override
+  String mailSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count messaggi selezionati',
+      one: '1 messaggio selezionato',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveToTrashPromptCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Spostare i $count messaggi selezionati nel cestino?',
+      one: 'Spostare la posta selezionata nel cestino?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailDeletePermanentCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Eliminare definitivamente i $count messaggi selezionati? Questa operazione non può essere annullata.',
+      one:
+          'Eliminare definitivamente la posta selezionata? Questa operazione non può essere annullata.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mailMoveTo(String mailbox) {
+    return 'Sposta in $mailbox';
+  }
 
   @override
   String get mailOpen => 'Apri';

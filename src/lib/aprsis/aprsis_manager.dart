@@ -119,6 +119,9 @@ class AprsIsManager {
   /// the APRS / Map tabs on request. Empty on web (no persistence).
   final List<AprsPacket> _historyPackets = [];
 
+  /// A copy of the retained internet packet history (persisted and live).
+  List<AprsPacket> get historyPackets => List<AprsPacket>.of(_historyPackets);
+
   /// Whether the persisted history has finished loading.
   bool _historyReady = false;
 

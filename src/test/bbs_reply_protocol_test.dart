@@ -135,7 +135,8 @@ void main() {
   ]) {
     test('BBS keeps $encoding for handshake, banner and disconnect', () async {
       receive(FrameType.uFrameSabm, encoding);
-      expect(bbs.session!.currentState, AX25ConnectionState.connected);
+      final session = bbs.ax25Session('N1ABC')!;
+      expect(session.currentState, AX25ConnectionState.connected);
       expect(AX25Packet.decode(sent.first)!.type, FrameType.uFrameUa);
       await waitFor(
         () => sent.any(
@@ -145,7 +146,7 @@ void main() {
       );
 
       receive(FrameType.sFrameRr, FragmentEncodingType.unknown);
-      bbs.session!.disconnect();
+      session.disconnect();
       expect(AX25Packet.decode(sent.last)!.type, FrameType.uFrameDisc);
       expect(sent.map((f) => f.encoding), everyElement(encoding));
       if (encoding == FragmentEncodingType.hardwareAfsk1200) {
@@ -166,7 +167,7 @@ void main() {
     receive(FrameType.uFrameSabm, FragmentEncodingType.hardwareAfsk1200);
     receive(FrameType.uFrameDisc, FragmentEncodingType.hardwareAfsk1200);
     expect(sent.last.encoding, FragmentEncodingType.hardwareAfsk1200);
-    expect(bbs.activeLink, isNull);
+    expect(bbs.links, isEmpty);
 
     receive(FrameType.uFrameSabm, FragmentEncodingType.softwareXara);
     expect(sent.last.encoding, FragmentEncodingType.softwareXara);
@@ -174,8 +175,11 @@ void main() {
 
     receive(FrameType.uFrameSabm, FragmentEncodingType.hardwareAfsk1200);
     receive(FrameType.uFrameDisc, FragmentEncodingType.hardwareAfsk1200);
+    expect(bbs.ax25Sessions, isEmpty);
+    final outgoing = AX25Session(deviceId, listen: false);
+    addTearDown(outgoing.dispose);
     expect(
-      bbs.session!.connect([
+      outgoing.connect([
         AX25Address.getAddress('N2ABC')!,
         AX25Address.getAddress('N0CALL')!,
       ]),

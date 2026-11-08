@@ -20,6 +20,7 @@ import '../models/radio_models.dart';
 import '../models/station_info.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/host_bridge.dart';
 import '../services/window_service.dart';
 
 /// Represents a piece of text with a specific color in the terminal.
@@ -286,6 +287,12 @@ class _TerminalTabState extends State<TerminalTab>
     final radioId = await _chooseRadio();
     if (radioId == null || !mounted) return;
     _command('TerminalWait', <String, Object?>{'RadioId': radioId});
+    _inputFocus.requestFocus();
+  }
+
+  void _onLocalBbsPressed() {
+    if (_isConnected) return;
+    _command('TerminalConnectLocalBbs');
     _inputFocus.requestFocus();
   }
 
@@ -654,6 +661,22 @@ class _TerminalTabState extends State<TerminalTab>
             ],
           ),
         ),
+        // "Connect to Local BBS" opens a session with this station's own BBS
+        // using our callsign, without a radio. The hosted web UI skips it: the
+        // BBS and its mail store live on the desktop host.
+        if (!HostBridge.isHosted)
+          PopupMenuItem<String>(
+            value: 'localBbs',
+            height: menuItemHeight,
+            padding: menuItemPadding,
+            enabled: !_isConnected,
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                Text(AppLocalizations.of(context).terminalConnectLocalBbs),
+              ],
+            ),
+          ),
         // "Send File" transfers a file to the connected station using the YAPP
         // protocol. Available only over a connected AX.25 session that is not
         // already busy with a transfer.
@@ -722,6 +745,9 @@ class _TerminalTabState extends State<TerminalTab>
           break;
         case 'waitForConnection':
           _onWaitForConnectionPressed();
+          break;
+        case 'localBbs':
+          _onLocalBbsPressed();
           break;
         case 'sendFile':
           _onSendFilePressed();
