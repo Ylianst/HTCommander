@@ -37,12 +37,14 @@ class StationChannelResolution {
 
   /// Channel name to pass to the lock for cross-region deferred resolution.
   final String? channelName;
+  final int frequencyHz;
 
   const StationChannelResolution(
     this.status, {
     this.regionId = -1,
     this.channelId = -1,
     this.channelName,
+    this.frequencyHz = 0,
   });
 
   bool get isError =>
@@ -65,6 +67,31 @@ StationChannelResolution resolveStationChannel(
   final htStatus = broker.getValueDynamic(radioId, 'HtStatus');
   final currRegion =
       (htStatus is Map ? htStatus['currRegion'] as int? : null) ?? 0;
+
+  if (station.frequencyHz > 0) {
+    final channels = broker.getValueDynamic(radioId, 'Channels');
+    if (channels is List) {
+      for (int index = 0; index < channels.length; index++) {
+        final channel = channels[index];
+        if (channel is Map &&
+            channel['rxFreq'] == station.frequencyHz &&
+            channel['txFreq'] == station.frequencyHz &&
+            (channel['rxSubAudio'] ?? 0) == 0 &&
+            (channel['txSubAudio'] ?? 0) == 0) {
+          return StationChannelResolution(
+            StationChannelStatus.ok,
+            regionId: currRegion,
+            channelId: (channel['channelId'] as int?) ?? index,
+          );
+        }
+      }
+    }
+    return StationChannelResolution(
+      StationChannelStatus.ok,
+      regionId: currRegion,
+      frequencyHz: station.frequencyHz,
+    );
+  }
 
   // Resolve the region the station's channel lives in.
   int targetRegion = currRegion;

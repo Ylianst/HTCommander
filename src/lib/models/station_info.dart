@@ -43,6 +43,7 @@ class StationInfo {
   String aprsRoute;
   TerminalProtocol terminalProtocol;
   String channel;
+  int frequencyHz;
 
   /// Name of the radio region the [channel] belongs to. Empty when unknown
   /// (older contacts or free-text channels). Used to switch the radio to the
@@ -83,6 +84,7 @@ class StationInfo {
     this.aprsRoute = '',
     this.terminalProtocol = TerminalProtocol.x25Session,
     this.channel = '',
+    this.frequencyHz = 0,
     this.channelRegion = '',
     this.ax25Destination = '',
     this.ax25Path = '',
@@ -109,6 +111,7 @@ class StationInfo {
     String? aprsRoute,
     TerminalProtocol? terminalProtocol,
     String? channel,
+    int? frequencyHz,
     String? channelRegion,
     String? ax25Destination,
     String? ax25Path,
@@ -126,6 +129,7 @@ class StationInfo {
       aprsRoute: aprsRoute ?? this.aprsRoute,
       terminalProtocol: terminalProtocol ?? this.terminalProtocol,
       channel: channel ?? this.channel,
+      frequencyHz: frequencyHz ?? this.frequencyHz,
       channelRegion: channelRegion ?? this.channelRegion,
       ax25Destination: ax25Destination ?? this.ax25Destination,
       ax25Path: ax25Path ?? this.ax25Path,
@@ -148,6 +152,7 @@ class StationInfo {
       'APRSRoute': aprsRoute,
       'TerminalProtocol': terminalProtocol.index,
       'Channel': channel,
+      'FrequencyHz': frequencyHz,
       'ChannelRegion': channelRegion,
       'AX25Destination': ax25Destination,
       'AX25Path': ax25Path,
@@ -212,6 +217,11 @@ class StationInfo {
         json['TerminalProtocol'] ?? json['terminalProtocol'],
       ),
       channel: (json['Channel'] ?? json['channel'] ?? '').toString(),
+      frequencyHz:
+          int.tryParse(
+            (json['FrequencyHz'] ?? json['frequencyHz'] ?? 0).toString(),
+          ) ??
+          0,
       channelRegion: (json['ChannelRegion'] ?? json['channelRegion'] ?? '')
           .toString(),
       ax25Destination:
@@ -264,6 +274,7 @@ class StationInfo {
       sb.writeln('APRSRoute=${station.aprsRoute}');
       sb.writeln('TerminalProtocol=${station.terminalProtocol.index}');
       sb.writeln('Channel=${station.channel}');
+      sb.writeln('FrequencyHz=${station.frequencyHz}');
       sb.writeln('ChannelRegion=${station.channelRegion}');
       sb.writeln('AX25Destination=${station.ax25Destination}');
       sb.writeln('AX25Path=${station.ax25Path}');
@@ -321,6 +332,9 @@ class StationInfo {
             break;
           case 'Channel':
             current.channel = value;
+            break;
+          case 'FrequencyHz':
+            current.frequencyHz = int.tryParse(value) ?? 0;
             break;
           case 'ChannelRegion':
             current.channelRegion = value;

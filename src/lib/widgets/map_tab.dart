@@ -2500,7 +2500,11 @@ class _MapTabState extends State<MapTab>
     switch (action) {
       case 'addWinlink':
         _addContactFrom(
-          StationInfo(callsign: gw.callsign, stationType: StationType.winlink),
+          StationInfo(
+            callsign: gw.callsign,
+            stationType: StationType.winlink,
+            frequencyHz: gw.channels.isEmpty ? 0 : gw.channels.first.frequencyHz,
+          ),
         );
         break;
       case 'center':
@@ -2814,6 +2818,9 @@ class _MapTabState extends State<MapTab>
                   StationInfo(
                     callsign: gw.callsign,
                     stationType: StationType.winlink,
+                    frequencyHz: gw.channels.isEmpty
+                      ? 0
+                      : gw.channels.first.frequencyHz,
                     modem: _varaFmOnly(gw) ? 'XARA' : 'Hardware',
                   ),
                 ),

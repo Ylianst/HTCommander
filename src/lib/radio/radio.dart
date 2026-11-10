@@ -101,6 +101,7 @@ class SetLockData {
   final String usage;
   final int regionId;
   final int channelId;
+  final int frequencyHz;
 
   /// Optional channel name to lock onto. When [regionId] selects a region other
   /// than the current one, that region's channels are not loaded yet, so the
@@ -122,6 +123,7 @@ class SetLockData {
     required this.usage,
     this.regionId = -1,
     this.channelId = -1,
+    this.frequencyHz = 0,
     this.channelName,
     this.modem,
     this.xaraWide,
@@ -972,6 +974,19 @@ class Radio implements FirmwareRadio {
 
     final lockData = data;
 
+    if (lockData.frequencyHz > 0 &&
+        (_state != RadioState.connected ||
+            !isFreqAllowed(
+              freqBands,
+              lockData.frequencyHz,
+              RadioModulationType.fm,
+            ))) {
+      _broker.logError(
+        '[Radio $deviceId] Cannot tune station frequency ${lockData.frequencyHz} Hz',
+      );
+      return;
+    }
+
     // Save current state
     _savedRegionId = htStatus!.currRegion;
     _savedChannelId = settings!.channelA;
@@ -1006,6 +1021,23 @@ class Radio implements FirmwareRadio {
     int targetChannelId = lockData.channelId >= 0
         ? lockData.channelId
         : settings!.channelA;
+
+    if (lockData.frequencyHz > 0) {
+      targetChannelId = isKeypadVfoActive
+          ? settings!.channelA
+          : kKeypadVfoChannelId;
+      setChannel(
+        RadioChannelInfo(
+          channelId: targetChannelId,
+          rxFreq: lockData.frequencyHz,
+          txFreq: lockData.frequencyHz,
+          rxMod: RadioModulationType.fm,
+          txMod: RadioModulationType.fm,
+          bandwidth: RadioBandwidthType.wide,
+          txAtMaxPower: true,
+        ),
+      );
+    }
 
     // Resolve a channel requested by name. When staying on the current region
     // the channel list is already loaded so resolve now; when switching region

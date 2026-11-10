@@ -867,7 +867,7 @@ class _MailTabState extends State<MailTab>
     // Validate the station's region/channel up front so a missing region or
     // channel offers a quick way to fix the contact instead of failing quietly.
     final l10n = AppLocalizations.of(context);
-    if (station.channel.isEmpty) {
+    if (station.channel.isEmpty && station.frequencyHz <= 0) {
       await showStationConnectErrorDialog(
         context,
         station: station,

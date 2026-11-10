@@ -17,6 +17,7 @@ import '../radio/utils.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/notification_service.dart';
+import '../utils/station_channel_resolver.dart';
 import 'mail_store.dart';
 import 'winlink_mail.dart';
 import 'winlink_utils.dart';
@@ -197,60 +198,18 @@ class WinlinkClient {
         station.terminalProtocol.isXara ||
         station.modem.toUpperCase() == 'XARA';
 
-    // Get the current region from HtStatus
-    final htStatusJson = _broker.getValueDynamic(radioId, 'HtStatus');
-    final currRegion =
-        (htStatusJson is Map ? htStatusJson['currRegion'] as int? : null) ?? 0;
-
-    // Resolve the region the station's channel lives in. Falls back to the
-    // current region when the station has no stored region or the name can't be
-    // matched (older contacts, renamed regions).
-    int targetRegion = currRegion;
-    if (station.channelRegion.isNotEmpty) {
-      final regionNames = _broker.getValueDynamic(radioId, 'RegionNames');
-      if (regionNames is List) {
-        final idx = regionNames.indexOf(station.channelRegion);
-        if (idx >= 0) targetRegion = idx;
-      }
-    }
-
-    // A Winlink station must have a channel configured.
-    if (station.channel.isEmpty) {
+    final resolution = resolveStationChannel(_broker, radioId, station);
+    if ((station.channel.isEmpty && station.frequencyHz <= 0) ||
+        resolution.isError) {
       _broker.logError(
-        "[WinlinkClient] Channel '' not found on radio $radioId",
+        '[WinlinkClient] Station tuning could not be resolved on radio $radioId',
       );
-      _errorMessage("Channel '' not found on radio.");
+      _errorMessage("Channel '${station.channel}' not found on radio.");
       return;
     }
-
-    // When the channel lives in the current region, resolve its id from the
-    // loaded channel list now. When it lives in another region that list isn't
-    // loaded yet, so pass the channel name to the lock and let the radio resolve
-    // it after switching region.
-    int channelId = -1;
-    String? channelName;
-    if (targetRegion == currRegion) {
-      final channels = _broker.getValueDynamic(radioId, 'Channels');
-      if (channels is List) {
-        for (int i = 0; i < channels.length; i++) {
-          final channel = channels[i];
-          if (channel is Map && channel['name'] == station.channel) {
-            channelId = (channel['channelId'] as int?) ?? i;
-            break;
-          }
-        }
-      }
-      // If no channel found, report error and don't lock the radio
-      if (channelId < 0) {
-        _broker.logError(
-          "[WinlinkClient] Channel '${station.channel}' not found on radio $radioId",
-        );
-        _errorMessage("Channel '${station.channel}' not found on radio.");
-        return;
-      }
-    } else {
-      channelName = station.channel;
-    }
+    final targetRegion = resolution.regionId;
+    final channelId = resolution.channelId;
+    final channelName = resolution.channelName;
 
     _broker.logInfo(
       '[WinlinkClient] Locking radio $radioId for Winlink, channel '
@@ -268,6 +227,7 @@ class WinlinkClient {
       regionId: targetRegion,
       channelId: channelId,
       channelName: channelName,
+      frequencyHz: resolution.frequencyHz,
       modem: useXara ? 'XARA' : station.modem,
       xaraWide: station.terminalProtocol.isXara
           ? station.terminalProtocol == TerminalProtocol.xaraWide

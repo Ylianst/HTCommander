@@ -445,6 +445,7 @@ class TerminalHandler {
         regionId: res.regionId,
         channelId: res.channelId,
         channelName: res.channelName,
+        frequencyHz: res.frequencyHz,
         modem: station.terminalProtocol.isXara ? 'XARA' : station.modem,
         xaraWide: station.terminalProtocol.isXara
             ? station.terminalProtocol == TerminalProtocol.xaraWide
@@ -847,6 +848,10 @@ class TerminalHandler {
     // HtStatus.currChId is the channel of the last reception, not the
     // selected one; the selected channel is settings channel A.
     final channel = settings is Map ? settings['channelA'] : null;
+    final lockJson = _broker.getValueDynamic(radioId, 'LockState');
+    final expectedChannel = resolution.frequencyHz > 0
+      ? (lockJson is Map ? lockJson['channelId'] as int? : null)
+      : resolution.channelId;
     final reason = lock?.isLocked != true
         ? 'lockNotHeld'
         : lock?.usage != 'Terminal'
@@ -857,7 +862,9 @@ class TerminalHandler {
         ? 'statusUnavailable'
         : region != resolution.regionId
         ? 'regionMismatch'
-        : resolution.channelId >= 0 && channel != resolution.channelId
+          : expectedChannel != null &&
+            expectedChannel >= 0 &&
+            channel != expectedChannel
         ? 'channelMismatch'
         : 'ready';
     return (
@@ -866,7 +873,7 @@ class TerminalHandler {
           'radio=$radioId reason=$reason '
           'lockOwner=${lock?.usage} locked=${lock?.isLocked} '
           'expectedRegion=${resolution.regionId} '
-          'expectedChannel=${resolution.channelId} '
+          'expectedChannel=$expectedChannel '
           'reportedRegion=$region selectedChannel=$channel '
           'lastRxChannel=${ht is Map ? ht['currChId'] : null} '
           'resolution=${resolution.status.name} '

@@ -22,6 +22,8 @@ void main() {
           stationType: StationType.winlink,
           terminalProtocol: protocol,
           channel: 'WINLINK',
+          channelRegion: 'Old region',
+          frequencyHz: 145050000,
           ax25Path: 'N9DIG',
         );
         await tester.pumpWidget(
@@ -68,6 +70,18 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Software AFSK 1200'), findsNothing);
 
+        if (!editing) {
+          final frequency = find.byWidgetPredicate(
+            (widget) =>
+                widget is TextField &&
+                widget.keyboardType ==
+                    const TextInputType.numberWithOptions(decimal: true),
+          );
+          await tester.ensureVisible(frequency);
+          await tester.enterText(frequency, '145.050');
+          await tester.pump();
+        }
+
         final path = find.byWidgetPredicate(
           (widget) =>
               widget is TextField &&
@@ -89,13 +103,111 @@ void main() {
         expect(saved!.terminalProtocol, protocol);
         expect(saved!.ax25Path, 'N9DIG,N8DIG');
         expect(saved!.modem, 'Hardware');
+        expect(saved!.frequencyHz, 145050000);
+        expect(saved!.channel, isEmpty);
+        expect(saved!.channelRegion, isEmpty);
+        expect(saved!.copyWith().frequencyHz, saved!.frequencyHz);
         final restored = StationInfo.fromJson(saved!.toJson());
         expect(restored.terminalProtocol, protocol);
+        expect(restored.frequencyHz, saved!.frequencyHz);
         final imported = StationInfo.deserializeList(
           StationInfo.serializeList([saved!]),
         ).single;
         expect(imported.terminalProtocol, protocol);
+        expect(imported.frequencyHz, saved!.frequencyHz);
       });
+    }
+  }
+
+  for (final type in [
+    StationType.winlink,
+    StationType.terminal,
+    StationType.bbs,
+  ]) {
+    for (final width in [360.0, 900.0]) {
+      testWidgets(
+        '$type copies channel frequency without saving channel at $width',
+        (tester) async {
+          tester.view.physicalSize = Size(width, 800);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          final broker = DataBrokerClient();
+          addTearDown(() {
+            broker.dispatch(deviceId: 1, name: 'ConnectedRadios', data: null);
+            broker.dispatch(deviceId: 9401, name: 'Channels', data: null);
+            broker.dispose();
+          });
+          broker.dispatch(
+            deviceId: 1,
+            name: 'ConnectedRadios',
+            data: [
+              {'DeviceId': 9401},
+            ],
+          );
+          broker.dispatch(
+            deviceId: 9401,
+            name: 'Channels',
+            data: [
+              {
+                'name': 'Packet',
+                'channelId': 2,
+                'rxFreq': 145050000,
+                'txFreq': 145050000,
+              },
+            ],
+          );
+          StationInfo? saved;
+          await tester.pumpWidget(
+            MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              locale: const Locale('en'),
+              home: Scaffold(
+                body: Builder(
+                  builder: (context) => TextButton(
+                    onPressed: () async {
+                      saved = await showStationDialog(
+                        context,
+                        fixedType: type,
+                        initialCallsign: 'N1ABC-1',
+                      );
+                    },
+                    child: const Text('Open'),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          expect(find.text('Channel'), findsNothing);
+          final picker = find.byType(PopupMenuButton<String>);
+          await tester.ensureVisible(picker);
+          await tester.tap(picker);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Packet (145.050000 MHz)'));
+          await tester.pumpAndSettle();
+          final frequency = find.byWidgetPredicate(
+            (widget) =>
+                widget is TextField &&
+                widget.keyboardType ==
+                    const TextInputType.numberWithOptions(decimal: true),
+          );
+          expect(
+            tester.widget<TextField>(frequency).controller!.text,
+            '145.050000',
+          );
+          expect(tester.takeException(), isNull);
+          final ok = find.widgetWithText(ElevatedButton, 'OK');
+          await tester.ensureVisible(ok);
+          await tester.tap(ok);
+          await tester.pumpAndSettle();
+          expect(saved!.frequencyHz, 145050000);
+          expect(saved!.channel, isEmpty);
+          expect(saved!.channelRegion, isEmpty);
+        },
+      );
     }
   }
 

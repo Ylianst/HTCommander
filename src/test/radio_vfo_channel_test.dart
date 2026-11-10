@@ -184,6 +184,65 @@ void main() {
       expect(written2.channelB, radio.settings!.channelB);
     });
 
+    test(
+      'station lock tunes a simplex tone-free VFO and restores channel',
+      () async {
+        await ready();
+        radio.htStatus = RadioHtStatus.fromBytes(Uint8List(9));
+        radio.vfoChannels[252] = RadioChannelInfo(
+          channelId: 252,
+          rxFreq: 145000000,
+          txFreq: 145600000,
+          rxSubAudio: 885,
+          txSubAudio: 885,
+        );
+        broker.dispatch(
+          deviceId: radio.deviceId,
+          name: 'SetLock',
+          data: SetLockData(usage: 'Terminal', frequencyHz: 145050000),
+          store: false,
+        );
+        final channelFrame = RadioUtils.hexStringToByteArray(
+          sentMatching(writeChannel).single,
+        )!;
+        final written = RadioChannelInfo.fromBytes(
+          Uint8List.fromList([0, 0, 0, 0, 0, ...channelFrame.sublist(8)]),
+        );
+        expect(written.channelId, 252);
+        expect(written.rxFreq, 145050000);
+        expect(written.txFreq, 145050000);
+        expect(written.rxSubAudio, 0);
+        expect(written.txSubAudio, 0);
+        final settingsFrame = RadioUtils.hexStringToByteArray(
+          sentMatching(writeSettings).single,
+        )!;
+        final selected = RadioSettings.fromBytes(
+          Uint8List.fromList([0, 0, 0, 0, 0, ...settingsFrame.sublist(8)]),
+        );
+        expect(selected.channelA, 252);
+        expect(selected.doubleChannel, 0);
+        expect(selected.scan, isFalse);
+        expect(radio.lockUsage, 'Terminal');
+        expect(radio.channels![4]!.name, 'Channel 4');
+
+        transport.sent.clear();
+        broker.dispatch(
+          deviceId: radio.deviceId,
+          name: 'SetUnlock',
+          data: SetUnlockData(usage: 'Terminal'),
+          store: false,
+        );
+        final restoredFrame = RadioUtils.hexStringToByteArray(
+          sentMatching(writeSettings).single,
+        )!;
+        final restored = RadioSettings.fromBytes(
+          Uint8List.fromList([0, 0, 0, 0, 0, ...restoredFrame.sublist(8)]),
+        );
+        expect(restored.channelA, 4);
+        expect(radio.lockUsage, isNull);
+      },
+    );
+
     test('retuning while in the mode only rewrites the slot', () async {
       await ready();
       await receive(_enterVfoSettings);

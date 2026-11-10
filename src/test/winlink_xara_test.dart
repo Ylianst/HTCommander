@@ -162,6 +162,29 @@ void main() {
     errors.clear();
   });
 
+  test('frequency-only Winlink contact requests direct VFO tuning', () async {
+    final radio = FakeXaraRadio(209);
+    final client = WinlinkClient();
+    try {
+      ui.dispatch(
+        deviceId: 1,
+        name: 'WinlinkSync',
+        data: {
+          'RadioId': radio.id,
+          'Station': gateway().copyWith(channel: '', frequencyHz: 145050000),
+        },
+      );
+      expect(await waitFor(() => states.contains('CONNECTED')), isTrue);
+      expect(errors, isEmpty);
+      expect(radio.lock!.frequencyHz, 145050000);
+      expect(radio.lock!.channelId, -1);
+      expect(radio.commands.take(2), ['SetLock', 'XaraConnect']);
+    } finally {
+      client.dispose();
+      radio.dispose();
+    }
+  });
+
   test('a legacy XARA Winlink session runs B2F over the XARA link', () async {
     final FakeXaraRadio radio = FakeXaraRadio(201);
     final WinlinkClient client = WinlinkClient();

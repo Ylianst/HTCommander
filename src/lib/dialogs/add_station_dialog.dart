@@ -192,6 +192,7 @@ class _StationDialogState extends State<_StationDialog> {
   late final TextEditingController _ax25PathController;
   late final TextEditingController _authPasswordController;
   late final TextEditingController _channelController;
+  late final TextEditingController _frequencyController;
 
   StationType _stationType = StationType.generic;
   TerminalProtocol _terminalProtocol = TerminalProtocol.x25Session;
@@ -207,10 +208,16 @@ class _StationDialogState extends State<_StationDialog> {
   // Maps a channel name to the name of the region it currently belongs to, so
   // the chosen channel's region can be persisted with the station.
   final Map<String, String> _channelRegions = {};
+  final Map<String, int> _channelFrequencies = {};
   String _channelRegion = '';
   List<String> _aprsRouteNames = [];
 
   bool get _isEditing => widget.existing != null;
+
+  bool get _usesStationFrequency =>
+      _stationType == StationType.terminal ||
+      _stationType == StationType.bbs ||
+      _stationType == StationType.winlink;
 
   /// The station type is locked when editing an existing station or when a
   /// [fixedType] was requested for a new station.
@@ -237,6 +244,11 @@ class _StationDialogState extends State<_StationDialog> {
       text: s?.authPassword ?? '',
     );
     _channelController = TextEditingController(text: s?.channel ?? '');
+    _frequencyController = TextEditingController(
+      text: (s?.frequencyHz ?? 0) > 0
+          ? (s!.frequencyHz / 1000000).toStringAsFixed(6)
+          : '',
+    );
 
     if (s != null) {
       _stationType = s.stationType;
@@ -265,6 +277,16 @@ class _StationDialogState extends State<_StationDialog> {
     }
 
     _loadChannelNames();
+    final storedChannelFrequency = _channelFrequencies[_channelController.text];
+    if (_frequencyController.text.isEmpty &&
+        storedChannelFrequency != null &&
+        storedChannelFrequency > 0 &&
+        (_stationType == StationType.terminal ||
+            _stationType == StationType.bbs ||
+            _stationType == StationType.winlink)) {
+      _frequencyController.text = (storedChannelFrequency / 1000000)
+          .toStringAsFixed(6);
+    }
     _loadAprsRoutes();
 
     _callsignController.addListener(_onTextChanged);
@@ -273,6 +295,7 @@ class _StationDialogState extends State<_StationDialog> {
     _ax25PathController.addListener(_onTextChanged);
     _authPasswordController.addListener(_onTextChanged);
     _channelController.addListener(_onTextChanged);
+    _frequencyController.addListener(_onTextChanged);
     _callsignFocusNode.addListener(_onCallsignFocusChanged);
 
     // When opened prefilled with a callsign (e.g. from the callsign lookup
@@ -295,6 +318,7 @@ class _StationDialogState extends State<_StationDialog> {
     _ax25PathController.dispose();
     _authPasswordController.dispose();
     _channelController.dispose();
+    _frequencyController.dispose();
     super.dispose();
   }
 
@@ -424,6 +448,7 @@ class _StationDialogState extends State<_StationDialog> {
           if (channel.name.isEmpty) continue;
           if (channel.name.toUpperCase() == 'APRS') continue;
           names.add(channel.name);
+          _channelFrequencies.putIfAbsent(channel.name, () => channel.rxFreq);
           if (regionName.isNotEmpty) {
             _channelRegions.putIfAbsent(channel.name, () => regionName);
           }
@@ -511,6 +536,9 @@ class _StationDialogState extends State<_StationDialog> {
 
   bool get _isValid {
     if (!_idValid) return false;
+    if (_frequencyController.text.trim().isNotEmpty && _frequencyHz <= 0) {
+      return false;
+    }
     if (_isSimpleContact) return true;
     if (_isMeshCore) return _nameController.text.trim().isNotEmpty;
     if (!_ax25DestValid) return false;
@@ -522,7 +550,7 @@ class _StationDialogState extends State<_StationDialog> {
     }
     if (_stationType == StationType.terminal &&
         _terminalProtocol == TerminalProtocol.aprs &&
-        _channelController.text.trim().isEmpty) {
+        _frequencyHz <= 0) {
       return false;
     }
     return true;
@@ -786,8 +814,7 @@ class _StationDialogState extends State<_StationDialog> {
         terminalProtocol: _terminalProtocol.isXara
             ? _terminalProtocol
             : TerminalProtocol.x25Session,
-        channel: _channelController.text.trim(),
-        channelRegion: _channelRegion,
+        frequencyHz: _frequencyHz,
         ax25Path: _ax25PathController.text.trim(),
         modem: _modem,
         avatarIcon: _avatarIcon,
@@ -801,8 +828,9 @@ class _StationDialogState extends State<_StationDialog> {
       stationType: _stationType,
       aprsRoute: _aprsRoute,
       terminalProtocol: _terminalProtocol,
-      channel: _channelController.text.trim(),
-      channelRegion: _channelRegion,
+      channel: _usesStationFrequency ? '' : _channelController.text.trim(),
+      frequencyHz: _frequencyHz,
+      channelRegion: _usesStationFrequency ? '' : _channelRegion,
       ax25Destination: _ax25DestController.text.trim(),
       ax25Path:
           (_terminalProtocol == TerminalProtocol.x25Session ||
@@ -1003,6 +1031,7 @@ class _StationDialogState extends State<_StationDialog> {
       case StationType.aprs:
         return _buildAprsFields();
       case StationType.terminal:
+      case StationType.bbs:
         return _buildTerminalFields();
       case StationType.winlink:
         return _buildWinlinkFields();
@@ -1057,6 +1086,7 @@ class _StationDialogState extends State<_StationDialog> {
     return DropdownButtonFormField<TerminalProtocol>(
       key: ValueKey(_stationType),
       initialValue: _terminalProtocol,
+      isExpanded: true,
       decoration: _inputDecoration(labelText: l10n.stationTerminalProtocol),
       items: [
         for (final option in _protocolOptions)
@@ -1066,7 +1096,10 @@ class _StationDialogState extends State<_StationDialog> {
               (_audioChannelSupported ||
                   !option.protocol.isXara ||
                   option.protocol == _terminalProtocol))
-            DropdownMenuItem(value: option.protocol, child: Text(option.label)),
+            DropdownMenuItem(
+              value: option.protocol,
+              child: Text(option.label, overflow: TextOverflow.ellipsis),
+            ),
       ],
       onChanged: (value) {
         if (value != null) setState(() => _terminalProtocol = value);
@@ -1079,7 +1112,7 @@ class _StationDialogState extends State<_StationDialog> {
     return [
       _buildProtocolDropdown(),
       const SizedBox(height: 12),
-      _buildChannelField(),
+      _buildFrequencyField(),
       if (_terminalProtocol == TerminalProtocol.aprs) ...[
         const SizedBox(height: 12),
         TextField(
@@ -1118,7 +1151,7 @@ class _StationDialogState extends State<_StationDialog> {
     return [
       _buildProtocolDropdown(),
       const SizedBox(height: 12),
-      _buildChannelField(),
+      _buildFrequencyField(),
       const SizedBox(height: 12),
       _buildAx25PathField(),
       if (_audioChannelSupported && !_terminalProtocol.isXara) ...[
@@ -1179,39 +1212,45 @@ class _StationDialogState extends State<_StationDialog> {
     );
   }
 
-  Widget _buildChannelField() {
+  int get _frequencyHz {
+    final mhz = double.tryParse(_frequencyController.text.trim());
+    return mhz != null && mhz.isFinite && mhz > 0 ? (mhz * 1000000).round() : 0;
+  }
+
+  Widget _buildFrequencyField() {
     final l10n = AppLocalizations.of(context);
-    // Use a dropdown when channel names are available, otherwise free text.
-    if (_channelNames.isEmpty) {
-      return TextField(
-        controller: _channelController,
-        decoration: _inputDecoration(labelText: l10n.packetsColChannel),
-      );
-    }
-
-    final current = _channelController.text.trim();
-    final items = <String>[..._channelNames];
-    if (current.isNotEmpty && !items.contains(current)) {
-      items.insert(0, current);
-    }
-
-    return DropdownButtonFormField<String>(
-      initialValue: items.contains(current) && current.isNotEmpty
-          ? current
-          : items.first,
-      decoration: _inputDecoration(labelText: l10n.packetsColChannel),
-      items: [
-        for (final name in items)
-          DropdownMenuItem(value: name, child: Text(name)),
+    final channels = _channelNames
+        .where((name) => (_channelFrequencies[name] ?? 0) > 0)
+        .toList();
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _frequencyController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: _inputDecoration(labelText: l10n.chFrequencyMhz),
+          ),
+        ),
+        const SizedBox(width: 8),
+        PopupMenuButton<String>(
+          tooltip: l10n.packetsColChannel,
+          icon: const Icon(Icons.list_alt),
+          enabled: channels.isNotEmpty,
+          itemBuilder: (context) => [
+            for (final name in channels)
+              PopupMenuItem(
+                value: name,
+                child: Text(
+                  '$name (${(_channelFrequencies[name]! / 1000000).toStringAsFixed(6)} MHz)',
+                ),
+              ),
+          ],
+          onSelected: (name) {
+            _frequencyController.text = (_channelFrequencies[name]! / 1000000)
+                .toStringAsFixed(6);
+          },
+        ),
       ],
-      onChanged: (value) {
-        if (value != null) {
-          setState(() {
-            _channelController.text = value;
-            _channelRegion = _channelRegions[value] ?? _channelRegion;
-          });
-        }
-      },
     );
   }
 }

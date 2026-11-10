@@ -20,6 +20,7 @@ import 'package:htcommander/radio/radio.dart';
 import 'package:htcommander/radio/tnc_data_fragment.dart';
 import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/services/data_broker_client.dart';
+import 'package:htcommander/utils/station_channel_resolver.dart';
 
 const int radioId = 701;
 
@@ -138,6 +139,66 @@ void main() {
     expect(notices.last['kind'], 'busy');
   });
 
+  test('station frequency prefers an exact simplex channel without tones', () {
+    final contact = station(
+      TerminalProtocol.rawX25,
+    ).copyWith(frequencyHz: 145050000, channelRegion: 'Old region');
+    bus.dispatch(
+      deviceId: radioId,
+      name: 'Channels',
+      data: [
+        {'channelId': 0, 'rxFreq': 145050001, 'txFreq': 145050001},
+        {'channelId': 1, 'rxFreq': 145050000, 'txFreq': 145650000},
+        {
+          'channelId': 2,
+          'rxFreq': 145050000,
+          'txFreq': 145050000,
+          'rxSubAudio': 885,
+        },
+        {
+          'channelId': 3,
+          'rxFreq': 145050000,
+          'txFreq': 145050000,
+          'txSubAudio': 885,
+        },
+        {'channelId': 4, 'rxFreq': 145050000, 'txFreq': 145050000},
+      ],
+    );
+    final resolution = resolveStationChannel(bus, radioId, contact);
+    expect(resolution.status, StationChannelStatus.ok);
+    expect(resolution.regionId, 0);
+    expect(resolution.channelId, 4);
+    expect(resolution.frequencyHz, 0);
+    SetLockData? lock;
+    bus.subscribe(
+      deviceId: radioId,
+      name: 'SetLock',
+      callback: (_, _, data) => lock = data as SetLockData,
+    );
+    handler.connect(radioId, contact);
+    expect(lock!.channelId, 4);
+    expect(lock!.frequencyHz, 0);
+  });
+
+  test('station frequency without a matching channel requests VFO tuning', () {
+    final contact = station(
+      TerminalProtocol.rawX25,
+    ).copyWith(frequencyHz: 145050000, channel: '');
+    final resolution = resolveStationChannel(bus, radioId, contact);
+    expect(resolution.status, StationChannelStatus.ok);
+    expect(resolution.channelId, -1);
+    expect(resolution.frequencyHz, 145050000);
+    SetLockData? lock;
+    bus.subscribe(
+      deviceId: radioId,
+      name: 'SetLock',
+      callback: (_, _, data) => lock = data as SetLockData,
+    );
+    handler.connect(radioId, contact);
+    expect(lock!.frequencyHz, 145050000);
+    expect(state()['status'], 'connected');
+  });
+
   test('raw AX.25 sends UI frames and shows received text', () {
     command('TerminalConnect', {
       'RadioId': radioId,
@@ -231,10 +292,8 @@ void main() {
   });
 
   group('local BBS', () {
-    String incoming() => texts
-        .where((t) => t['outgoing'] == false)
-        .map((t) => t['text'])
-        .join();
+    String incoming() =>
+        texts.where((t) => t['outgoing'] == false).map((t) => t['text']).join();
 
     test('connects without a radio and serves the BBS menu', () {
       command('TerminalConnectLocalBbs');
