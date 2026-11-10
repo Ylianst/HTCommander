@@ -918,7 +918,15 @@ class _SubWindowAppState extends State<SubWindowApp> with WindowListener {
     try {
       windowManager.removeListener(this);
       await windowManager.setPreventClose(false);
-      await windowManager.destroy();
+      if (!kIsWeb && Platform.isMacOS) {
+        // On macOS, window_manager's destroy() calls NSApp.terminate(), which
+        // quits the whole app, not just this detached window. close() runs
+        // performClose on this engine's own window instead, which now goes
+        // through because prevent-close was just cleared.
+        await windowManager.close();
+      } else {
+        await windowManager.destroy();
+      }
     } catch (e) {
       debugPrint('SubWindow: error closing window: $e');
     }
