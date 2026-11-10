@@ -16,6 +16,7 @@ limitations under the License.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/radio/radio_models.dart';
+import 'package:htcommander/utils/channel_export.dart';
 import 'package:htcommander/utils/channel_import.dart';
 
 const _chirpHeader =
@@ -24,6 +25,83 @@ const _chirpHeader =
     'RPT1CALL,RPT2CALL,DVCODE';
 
 void main() {
+  group('Channel CSV receive-only round trips', () {
+    for (final modulation in [RadioModulationType.am, RadioModulationType.fm]) {
+      final frequency = modulation == RadioModulationType.am
+          ? 121500000
+          : 162400000;
+      for (final txDisable in [false, true]) {
+        final channel = RadioChannelInfo(
+          channelId: 0,
+          name: 'Monitor',
+          rxFreq: frequency,
+          txFreq: 0,
+          rxMod: modulation,
+          txMod: modulation,
+          txDisable: txDisable,
+        );
+
+        test('native preserves TX=0, $modulation, txDisable=$txDisable', () {
+          final csv = ChannelExport.exportToNativeFormat([channel.toJson()]);
+          final imported = ChannelImport.parseChannelsFromCsv(csv).single;
+          expect(imported.rxFreq, frequency);
+          expect(imported.txFreq, 0);
+          expect(imported.rxMod, modulation);
+          expect(imported.txMod, modulation);
+          expect(imported.txDisable, txDisable);
+        });
+
+        test('CHIRP preserves receive-only $modulation, txDisable=$txDisable', () {
+          final csv = ChannelExport.exportToChirpFormat([channel.toJson()]);
+          final fields = csv.trim().split('\n')[1].split(',');
+          expect(fields[3], 'off');
+          expect(fields[4], '0.000000');
+          final imported = ChannelImport.parseChannelsFromCsv(csv).single;
+          expect(imported.rxFreq, frequency);
+          expect(imported.rxMod, modulation);
+          expect(imported.txDisable, isTrue);
+        });
+      }
+    }
+
+    test('CHIRP preserves transmit-disable with a nonzero TX frequency', () {
+      final channel = RadioChannelInfo(
+        channelId: 0,
+        rxFreq: 162400000,
+        txFreq: 162400000,
+        txDisable: true,
+      );
+      final csv = ChannelExport.exportToChirpFormat([channel.toJson()]);
+      expect(ChannelImport.parseChannelsFromCsv(csv).single.txDisable, isTrue);
+    });
+
+    test('both exporters skip slots without a receive frequency', () {
+      final channels = [
+        RadioChannelInfo(channelId: 0).toJson(),
+        RadioChannelInfo(channelId: 1, txFreq: 146520000).toJson(),
+      ];
+      for (final export in [
+        ChannelExport.exportToNativeFormat,
+        ChannelExport.exportToChirpFormat,
+      ]) {
+        expect(export(channels).trim().split('\n'), hasLength(1));
+      }
+    });
+
+    test('CHIRP keeps normal repeater transmit offsets', () {
+      final channel = RadioChannelInfo(
+        channelId: 0,
+        rxFreq: 147380000,
+        txFreq: 147980000,
+      );
+      final csv = ChannelExport.exportToChirpFormat([channel.toJson()]);
+      final imported = ChannelImport.parseChannelsFromCsv(csv).single;
+      expect(imported.rxFreq, channel.rxFreq);
+      expect(imported.txFreq, channel.txFreq);
+      expect(imported.txDisable, isFalse);
+    });
+  });
+
   group('ChannelImport CHIRP CSV', () {
     test('imports a simplex FM channel', () {
       final csv =

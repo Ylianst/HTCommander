@@ -49,7 +49,7 @@ class ChannelExport {
     for (final c in channels) {
       final txFreq = _txFreq(c);
       final rxFreq = _rxFreq(c);
-      if (txFreq == 0 || rxFreq == 0) continue;
+      if (rxFreq <= 0) continue;
 
       String power = 'L';
       if (_txAtMaxPower(c)) {
@@ -92,17 +92,19 @@ class ChannelExport {
       final c = channels[i];
       final txFreq = _txFreq(c);
       final rxFreq = _rxFreq(c);
-      if (txFreq == 0 || rxFreq == 0) continue;
+      if (rxFreq <= 0) continue;
 
+      final receiveOnly = txFreq == 0 || _txDisable(c);
       String duplex = '';
-      if (txFreq < rxFreq) {
+      if (receiveOnly) {
+        duplex = 'off';
+      } else if (txFreq < rxFreq) {
         duplex = '-';
-      }
-      if (txFreq > rxFreq) {
+      } else if (txFreq > rxFreq) {
         duplex = '+';
       }
 
-      final offset = (txFreq - rxFreq).abs() / 1000000;
+      final offset = receiveOnly ? 0.0 : (txFreq - rxFreq).abs() / 1000000;
 
       final txSub = _txSubAudio(c);
       final rxSub = _rxSubAudio(c);

@@ -2583,11 +2583,9 @@ class _MainFormState extends State<MainForm>
     }
 
     // The CSV formats only export the currently displayed region. Require at
-    // least one channel with valid TX/RX frequencies before continuing.
+    // least one channel with a valid RX frequency before continuing.
     final hasExportable = channels.any(
-      (c) =>
-          ((c['txFreq'] ?? c['tx_freq'] ?? 0) as int) != 0 &&
-          ((c['rxFreq'] ?? c['rx_freq'] ?? 0) as int) != 0,
+      (c) => ((c['rxFreq'] ?? c['rx_freq'] ?? 0) as int) > 0,
     );
 
     if (channels.isEmpty || !hasExportable) {
