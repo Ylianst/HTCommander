@@ -14,6 +14,97 @@ import 'package:htcommander/widgets/satellite_globe.dart';
 import 'package:htcommander/widgets/satellite_tab.dart';
 
 void main() {
+  for (final (width, textScale) in [
+    (320.0, 1.0),
+    (360.0, 1.5),
+    (1200.0, 1.0),
+  ]) {
+    testWidgets('satellite header flows at width $width and scale $textScale', (
+      tester,
+    ) async {
+      final broker = DataBrokerClient();
+      tester.view.physicalSize = const Size(1200, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        broker.dispose();
+        DataBroker.clearDevice(0);
+        tester.view.reset();
+      });
+      final tle = SatelliteTle.parseThreeLine(
+        File('assets/satellites/amateur.tle').readAsStringSync(),
+      ).first;
+      broker.dispatch(deviceId: 0, name: 'SatelliteShowGlobe', data: 0);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.android),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(body: SatelliteTab()),
+        ),
+      );
+      broker.dispatch(
+        deviceId: 0,
+        name: 'SatelliteCatalog',
+        data: [SatelliteInfo(tle: tle)],
+        store: false,
+      );
+      await tester.pump();
+      await tester.tap(find.text(tle.name).first);
+      await tester.pump();
+
+      final edit = find.byTooltip('Edit satellite');
+      final header = find
+          .ancestor(of: edit, matching: find.byType(LayoutBuilder))
+          .first;
+      final headerWidget = tester.widget<LayoutBuilder>(header);
+      tester.view.physicalSize = Size(width, 1200);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.android),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.all(30),
+                child: headerWidget,
+              ),
+            ),
+          ),
+        ),
+      );
+      final name = find.descendant(of: header, matching: find.text(tle.name));
+      final nameRect = tester.getRect(name);
+      final actions = [
+        find.byTooltip('Show on map'),
+        find.byTooltip('Point antenna'),
+        edit,
+        find.byTooltip('More'),
+      ];
+      for (final action in actions) {
+        expect(action, findsOneWidget);
+        final actionRect = tester.getRect(action);
+        if (width < 720) {
+          expect(actionRect.top, greaterThanOrEqualTo(nameRect.bottom));
+        } else {
+          expect(actionRect.left, greaterThanOrEqualTo(nameRect.right));
+        }
+        expect(actionRect.left, greaterThanOrEqualTo(0));
+        expect(actionRect.right, lessThanOrEqualTo(width));
+      }
+      if (width < 720) {
+        expect(tester.getSize(name).width, greaterThan(width - 140));
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   for (final (locale, use24Hour, dayOffset, expected) in [
     (const Locale('en', 'US'), false, 0, '1:05 PM \u2192 1:15 PM'),
     (const Locale('de'), false, 0, '13:05 \u2192 13:15'),

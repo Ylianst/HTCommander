@@ -1357,101 +1357,133 @@ class _SatelliteTabState extends State<SatelliteTab> {
         ),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: scheme.primary,
-            child: Icon(Icons.satellite_alt, color: scheme.onPrimary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  sat.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: scheme.onPrimaryContainer,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final actions = _buildDetailHeaderActions(context, sat, pos);
+          final narrow = constraints.maxWidth < 480;
+          final information = Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: scheme.primary,
+                child: Icon(Icons.satellite_alt, color: scheme.onPrimary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (!sat.isStatic)
-                      _pill(
-                        context,
-                        'NORAD ${sat.noradId}',
-                        onTap: () => _openN2yo(sat.noradId),
+                    Text(
+                      sat.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: scheme.onPrimaryContainer,
                       ),
-                    _pill(
-                      context,
-                      visible ? 'Above horizon' : 'Below horizon',
-                      color: visible ? Colors.green : null,
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (!sat.isStatic)
+                          _pill(
+                            context,
+                            'NORAD ${sat.noradId}',
+                            onTap: () => _openN2yo(sat.noradId),
+                          ),
+                        _pill(
+                          context,
+                          visible ? 'Above horizon' : 'Below horizon',
+                          color: visible ? Colors.green : null,
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.location_pin,
-              color: pos != null ? Colors.red : theme.disabledColor,
-            ),
-            tooltip: 'Show on map',
-            onPressed: pos != null
-                ? () => _showOnMap(sat.name, sat.noradId, pos)
-                : null,
-          ),
-          if (OrientationService.isSupported)
-            IconButton(
-              icon: Icon(
-                Icons.explore,
-                color: pos != null ? scheme.primary : theme.disabledColor,
               ),
-              tooltip: 'Point antenna',
-              onPressed: pos != null
-                  ? () => _openAntennaPointer(sat.noradId, sat.name)
-                  : null,
-            ),
-          IconButton(
-            icon: Icon(Icons.edit, color: scheme.onPrimaryContainer),
-            tooltip: 'Edit satellite',
-            onPressed: () => _editSatellite(sat),
-          ),
-          PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert, color: scheme.onPrimaryContainer),
-            tooltip: 'More',
-            onSelected: (value) {
-              switch (value) {
-                case 'delete':
-                  _deleteSatellite(sat);
-                  break;
-                case 'restore':
-                  _restoreSatellite(sat);
-                  break;
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem<String>(
-                value: 'restore',
-                child: Text('Restore to default'),
-              ),
-              PopupMenuItem<String>(
-                value: 'delete',
-                child: Text('Delete satellite'),
+              if (!narrow) ...actions,
+            ],
+          );
+          if (!narrow) return information;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              information,
+              const SizedBox(height: 8),
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 4,
+                runSpacing: 4,
+                children: actions,
               ),
             ],
+          );
+        },
+      ),
+    );
+  }
+
+  List<Widget> _buildDetailHeaderActions(
+    BuildContext context,
+    SatelliteInfo sat,
+    SatellitePosition? pos,
+  ) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return [
+      IconButton(
+        icon: Icon(
+          Icons.location_pin,
+          color: pos != null ? Colors.red : theme.disabledColor,
+        ),
+        tooltip: 'Show on map',
+        onPressed: pos != null
+            ? () => _showOnMap(sat.name, sat.noradId, pos)
+            : null,
+      ),
+      if (OrientationService.isSupported)
+        IconButton(
+          icon: Icon(
+            Icons.explore,
+            color: pos != null ? scheme.primary : theme.disabledColor,
+          ),
+          tooltip: 'Point antenna',
+          onPressed: pos != null
+              ? () => _openAntennaPointer(sat.noradId, sat.name)
+              : null,
+        ),
+      IconButton(
+        icon: Icon(Icons.edit, color: scheme.onPrimaryContainer),
+        tooltip: 'Edit satellite',
+        onPressed: () => _editSatellite(sat),
+      ),
+      PopupMenuButton<String>(
+        icon: Icon(Icons.more_vert, color: scheme.onPrimaryContainer),
+        tooltip: 'More',
+        onSelected: (value) {
+          switch (value) {
+            case 'delete':
+              _deleteSatellite(sat);
+              break;
+            case 'restore':
+              _restoreSatellite(sat);
+              break;
+          }
+        },
+        itemBuilder: (context) => const [
+          PopupMenuItem<String>(
+            value: 'restore',
+            child: Text('Restore to default'),
+          ),
+          PopupMenuItem<String>(
+            value: 'delete',
+            child: Text('Delete satellite'),
           ),
         ],
       ),
-    );
+    ];
   }
 
   Widget _pill(
