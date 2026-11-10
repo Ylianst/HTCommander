@@ -12,6 +12,7 @@ import '../handlers/bbs_games.dart';
 import '../handlers/bbs_settings.dart';
 import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
+import '../utils/callsign_format.dart';
 import 'bbs_files_dialog.dart';
 import 'dialog_utils.dart';
 
@@ -38,15 +39,17 @@ class _BbsCustomizeDialogState extends State<BbsCustomizeDialog>
   late final TextEditingController _welcome;
   late final TextEditingController _announcement;
   late final TextEditingController _maxUploadKb;
+  final _newStation = TextEditingController();
   late bool _uploadsEnabled;
   bool _maxUploadInvalid = false;
+  bool _newStationInvalid = false;
 
   static const int _maxUploadKbLimit = BbsSettings.maxUploadBytesLimit ~/ 1024;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _settings = BbsSettings.load();
     _welcome = TextEditingController(text: _settings.welcomeMessage);
     _announcement = TextEditingController(text: _settings.announcementText);
@@ -63,6 +66,7 @@ class _BbsCustomizeDialogState extends State<BbsCustomizeDialog>
     _welcome.dispose();
     _announcement.dispose();
     _maxUploadKb.dispose();
+    _newStation.dispose();
     _broker.dispose();
     super.dispose();
   }
@@ -111,19 +115,22 @@ class _BbsCustomizeDialogState extends State<BbsCustomizeDialog>
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          ...children,
-        ],
+            const SizedBox(height: 8),
+            ...children,
+          ],
+        ),
       ),
     );
   }
@@ -296,6 +303,116 @@ class _BbsCustomizeDialogState extends State<BbsCustomizeDialog>
     ]);
   }
 
+  Widget _buildWinlinkTab(AppLocalizations l10n) {
+    return _tab([
+      _section(l10n.bbsWinlinkGateway, [
+        _switch(
+          l10n.bbsWinlinkGatewayEnable,
+          _settings.winlinkGatewayEnabled,
+          (v) => setState(() => _settings.winlinkGatewayEnabled = v),
+        ),
+        Text(l10n.bbsWinlinkGatewayHelp, style: _hintStyle()),
+      ]),
+    ]);
+  }
+
+  List<String> get _accessList => _settings.allowListOnly
+      ? _settings.allowedStations
+      : _settings.deniedStations;
+
+  void _addStation() {
+    final call = normalizeAmateurCallsign(_newStation.text);
+    if (call == null) {
+      setState(() => _newStationInvalid = true);
+      return;
+    }
+    final station = BbsSettings.normalizeStation(call);
+    setState(() {
+      if (!_accessList.contains(station)) _accessList.add(station);
+      _newStation.clear();
+      _newStationInvalid = false;
+    });
+  }
+
+  Widget _buildAccessTab(AppLocalizations l10n) {
+    final list = _accessList;
+    return _tab([
+      _section(l10n.bbsAccessMode, [
+        RadioGroup<bool>(
+          groupValue: _settings.allowListOnly,
+          onChanged: (v) => setState(() {
+            _settings.allowListOnly = v ?? false;
+            _newStationInvalid = false;
+          }),
+          child: Column(
+            children: [
+              RadioListTile<bool>(
+                value: false,
+                title: Text(l10n.bbsAccessOpen),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+              RadioListTile<bool>(
+                value: true,
+                title: Text(l10n.bbsAccessAllowListOnly),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+            ],
+          ),
+        ),
+        Text(l10n.bbsAccessHelp, style: _hintStyle()),
+      ]),
+      _section(_settings.allowListOnly ? l10n.bbsAllowList : l10n.bbsDenyList, [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _newStation,
+                textCapitalization: TextCapitalization.characters,
+                onChanged: (_) {
+                  if (_newStationInvalid) {
+                    setState(() => _newStationInvalid = false);
+                  }
+                },
+                onSubmitted: (_) => _addStation(),
+                decoration: DialogStyles.inputDecoration(
+                  context,
+                  hintText: l10n.bbsAccessCallsign,
+                  errorText: _newStationInvalid
+                      ? l10n.bbsAccessInvalidCallsign
+                      : null,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: _addStation,
+              child: Text(l10n.bbsAccessAdd),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (list.isEmpty)
+          Text(l10n.bbsAccessEmpty, style: _hintStyle())
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final station in list)
+                InputChip(
+                  label: Text(station),
+                  deleteButtonTooltipMessage: l10n.bbsAccessRemove,
+                  onDeleted: () => setState(() => list.remove(station)),
+                ),
+            ],
+          ),
+      ]),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -326,6 +443,8 @@ class _BbsCustomizeDialogState extends State<BbsCustomizeDialog>
                   Tab(text: l10n.bbsFiles),
                   Tab(text: l10n.bbsCustomizeGames),
                   Tab(text: l10n.bbsCustomizeAprs),
+                  Tab(text: l10n.bbsCustomizeWinlink),
+                  Tab(text: l10n.bbsCustomizeAccess),
                 ],
               ),
               const SizedBox(height: 8),
@@ -337,6 +456,8 @@ class _BbsCustomizeDialogState extends State<BbsCustomizeDialog>
                     _buildFilesTab(l10n),
                     _buildGamesTab(l10n),
                     _buildAprsTab(l10n),
+                    _buildWinlinkTab(l10n),
+                    _buildAccessTab(l10n),
                   ],
                 ),
               ),

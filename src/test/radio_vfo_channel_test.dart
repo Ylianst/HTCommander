@@ -135,6 +135,29 @@ void main() {
     expect(published[252]!.vfoCaption('VFO'), 'VFO · AM · Wide');
   });
 
+  test('the VFO caption shows the offset and tones', () async {
+    final channel = RadioChannelInfo(
+      channelId: 252,
+      rxFreq: 442100000,
+      txFreq: 447100000,
+      txSubAudio: 8850,
+      rxSubAudio: 8850,
+    );
+    final payload = Uint8List.fromList([0, ...channel.toByteArray()]);
+    await receive('FF01001A0002800D${RadioUtils.bytesToHex(payload)}');
+    final published = ui.parseVfoChannels(
+      broker.getValueDynamic(radio.deviceId, 'VfoChannels'),
+    );
+    expect(
+      published[252]!.vfoCaption('VFO'),
+      'VFO · FM · Narrow · +5 · TSQL 88.5',
+    );
+    expect(
+      ui.offsetToneSummary(offsetHz: -600000, rxSubAudio: 23, txSubAudio: 6700),
+      '-0.6 · T 67.0 · R D023',
+    );
+  });
+
   group('tuning keypad VFO mode', () {
     // READ_FREQ_RANGE reply: 108-136 AM RX, 136-174 FM TX/RX, 300-550 FM RX,
     // 400-520 FM TX/RX.
@@ -300,6 +323,52 @@ void main() {
         Uint8List.fromList([0, 0, 0, 0, 0, ...frame.sublist(8)]),
       );
       expect(written.channelA, 4);
+    });
+
+    test('writes a repeater offset and tones into the slot', () async {
+      await ready();
+      expect(
+        radio.tuneKeypadVfo(
+          freqHz: 146940000,
+          mod: RadioModulationType.fm,
+          bandwidth: RadioBandwidthType.wide,
+          txFreqHz: 146340000,
+          rxSubAudio: 23,
+          txSubAudio: 10000,
+        ),
+        isTrue,
+      );
+      final payload = RadioUtils.hexStringToByteArray(
+        sentMatching(writeChannel).single,
+      )!.sublist(8);
+      final written = RadioChannelInfo.fromBytes(
+        Uint8List.fromList([0, 0, 0, 0, 0, ...payload]),
+      );
+      expect(written.rxFreq, 146940000);
+      expect(written.txFreq, 146340000);
+      expect(written.rxSubAudio, 23);
+      expect(written.txSubAudio, 10000);
+    });
+
+    test('rejects offsets outside the TX bands or in AM', () async {
+      await ready();
+      for (final (rx, tx, mod) in [
+        (173900000, 174900000, RadioModulationType.fm),
+        (146520000, 300000000, RadioModulationType.fm),
+        (120000000, 121000000, RadioModulationType.am),
+      ]) {
+        expect(
+          radio.tuneKeypadVfo(
+            freqHz: rx,
+            mod: mod,
+            bandwidth: RadioBandwidthType.narrow,
+            txFreqHz: tx,
+          ),
+          isFalse,
+          reason: '$rx -> $tx',
+        );
+      }
+      expect(sentMatching(writeChannel), isEmpty);
     });
 
     test('broker VfoTune and VfoExit drive the radio', () async {

@@ -92,7 +92,6 @@
   "stationConnectErrorRegion": "Region „{region}” skonfigurowany dla tego kontaktu nie został znaleziony w radiotelefonie. Czy chcesz edytować kontakt?",
   "stationConnectErrorChannel": "Kanał „{channel}” skonfigurowany dla tego kontaktu nie został znaleziony w radiotelefonie. Czy chcesz edytować kontakt?",
   "stationConnectErrorNoChannel": "Dla tego kontaktu nie skonfigurowano żadnego kanału. Czy chcesz edytować kontakt?",
-
   "aboutCheckForUpdates": "Sprawdź aktualizacje",
   "aboutVersionAuthor": "Wersja {version}\nYlian Saint-Hilaire, KK7VZT\nOtwarte oprogramowanie, licencja Apache 2.0",
 
@@ -791,6 +790,22 @@
   "bbsAprsLookupHelp": "Stacje mogą zobaczyć ostatnią pozycję, komentarz i pogodę odebrane od stacji APRS poleceniem AP <znak>.",
   "bbsAprsHeardEnable": "Włącz listę słyszanych stacji APRS",
   "bbsAprsHeardHelp": "Stacje mogą wyświetlić ostatnio słyszane stacje APRS poleceniem AH.",
+  "bbsCustomizeWinlink": "Winlink",
+  "bbsWinlinkGateway": "Bramka Winlink",
+  "bbsWinlinkGatewayEnable": "Działaj jako bramka Winlink",
+  "bbsWinlinkGatewayHelp": "Łączące się stacje Winlink są przekazywane do CMS Winlink przez Internet z ich własnym znakiem. Gdy wyłączone lub CMS jest nieosiągalny, poczta jest wymieniana z lokalną skrzynką tej stacji.",
+  "bbsCustomizeAccess": "Dostęp",
+  "bbsAccessMode": "Dostęp stacji",
+  "bbsAccessOpen": "Otwarte dla wszystkich stacji poza listą zablokowanych",
+  "bbsAccessAllowListOnly": "Tylko stacje z listy dozwolonych",
+  "bbsAccessHelp": "Znak bez SSID (N0CALL) pasuje do wszystkich jego SSID; z SSID (N0CALL-7) tylko do tego. Dotyczy połączeń radiowych i webowych. Znaki webowe nie są weryfikowane.",
+  "bbsAllowList": "Lista dozwolonych",
+  "bbsDenyList": "Lista zablokowanych",
+  "bbsAccessCallsign": "Znak",
+  "bbsAccessAdd": "Dodaj",
+  "bbsAccessRemove": "Usuń",
+  "bbsAccessEmpty": "Brak stacji",
+  "bbsAccessInvalidCallsign": "Wpisz poprawny znak",
   "bbsHeaderActive": "BBS - Aktywny",
   "bbsActivate": "Aktywuj",
   "bbsDeactivate": "Dezaktywuj",
@@ -1609,5 +1624,11 @@
   "vfoDialogDeleteTitle": "Usuń częstotliwość",
   "vfoDialogDeleteMessage": "Usunąć \"{name}\" z zapisanych częstotliwości?",
   "vfoDialogWide": "Szeroki",
-  "vfoDialogNarrow": "Wąski"
+  "vfoDialogNarrow": "Wąski",
+  "vfoDialogOffset": "Przesuni?cie",
+  "vfoDialogSimplex": "Simpleks",
+  "vfoDialogOffsetMhz": "Przesuni?cie (MHz)",
+  "vfoDialogRxTone": "Ton RX",
+  "vfoDialogTxTone": "Ton TX",
+  "vfoDialogTxOutOfRange": "Cz?stotliwo?? nadawania jest poza zakresem nadawania radia"
 }

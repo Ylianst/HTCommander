@@ -4426,6 +4426,102 @@ abstract class AppLocalizations {
   /// **'Stations can list the most recently heard APRS stations with AH.'**
   String get bbsAprsHeardHelp;
 
+  /// No description provided for @bbsCustomizeWinlink.
+  ///
+  /// In en, this message translates to:
+  /// **'Winlink'**
+  String get bbsCustomizeWinlink;
+
+  /// No description provided for @bbsWinlinkGateway.
+  ///
+  /// In en, this message translates to:
+  /// **'Winlink Gateway'**
+  String get bbsWinlinkGateway;
+
+  /// No description provided for @bbsWinlinkGatewayEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Act as a Winlink gateway'**
+  String get bbsWinlinkGatewayEnable;
+
+  /// No description provided for @bbsWinlinkGatewayHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Winlink stations that connect are relayed to the Winlink CMS over the Internet using their own callsign. When off, or when the CMS cannot be reached, mail is exchanged with this station\'s local mailbox instead.'**
+  String get bbsWinlinkGatewayHelp;
+
+  /// No description provided for @bbsCustomizeAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Access'**
+  String get bbsCustomizeAccess;
+
+  /// No description provided for @bbsAccessMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Station Access'**
+  String get bbsAccessMode;
+
+  /// No description provided for @bbsAccessOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open to all stations, except those on the deny list'**
+  String get bbsAccessOpen;
+
+  /// No description provided for @bbsAccessAllowListOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only stations on the allow list'**
+  String get bbsAccessAllowListOnly;
+
+  /// No description provided for @bbsAccessHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A callsign without an SSID (N0CALL) matches all of its SSIDs; with an SSID (N0CALL-7) it matches only that one. Applies to radio and web BBS connections. Web callsigns are not verified.'**
+  String get bbsAccessHelp;
+
+  /// No description provided for @bbsAllowList.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow List'**
+  String get bbsAllowList;
+
+  /// No description provided for @bbsDenyList.
+  ///
+  /// In en, this message translates to:
+  /// **'Deny List'**
+  String get bbsDenyList;
+
+  /// No description provided for @bbsAccessCallsign.
+  ///
+  /// In en, this message translates to:
+  /// **'Callsign'**
+  String get bbsAccessCallsign;
+
+  /// No description provided for @bbsAccessAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get bbsAccessAdd;
+
+  /// No description provided for @bbsAccessRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get bbsAccessRemove;
+
+  /// No description provided for @bbsAccessEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No stations'**
+  String get bbsAccessEmpty;
+
+  /// No description provided for @bbsAccessInvalidCallsign.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid callsign'**
+  String get bbsAccessInvalidCallsign;
+
   /// No description provided for @bbsHeaderActive.
   ///
   /// In en, this message translates to:
@@ -8643,6 +8739,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Narrow'**
   String get vfoDialogNarrow;
+
+  /// Tooltip of the button that cycles the repeater offset direction (simplex, +, -) in the frequency mode dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Offset'**
+  String get vfoDialogOffset;
+
+  /// Label of the offset direction button when transmit equals receive frequency (no repeater offset).
+  ///
+  /// In en, this message translates to:
+  /// **'Simplex'**
+  String get vfoDialogSimplex;
+
+  /// Label of the repeater offset amount field (in MHz) in the frequency mode dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Offset (MHz)'**
+  String get vfoDialogOffsetMhz;
+
+  /// Label of the receive (decode) CTCSS/DCS tone picker in the frequency mode dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'RX tone'**
+  String get vfoDialogRxTone;
+
+  /// Label of the transmit (encode) CTCSS/DCS tone picker in the frequency mode dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'TX tone'**
+  String get vfoDialogTxTone;
+
+  /// Error shown when the frequency plus repeater offset is outside the radio's transmit bands.
+  ///
+  /// In en, this message translates to:
+  /// **'Transmit frequency is outside the radio\'s transmit range'**
+  String get vfoDialogTxOutOfRange;
 }
 
 class _AppLocalizationsDelegate

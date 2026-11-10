@@ -10,6 +10,8 @@ Anyone who can reach the port gets a web terminal, enters a callsign (validated
 by the page and again by the server) and is connected to the BBS menu shared
 with radio clients ([BbsMenu]). No authentication is performed, so only the
 text menu is offered: Winlink mail exchange and the CMS relay stay radio-only.
+The BBS access list ([BbsSettings]) applies to the declared callsign, which is
+not verified, so it only keeps out honest stations.
 The BBS file area is offered over HTTP: each session gets a secret token that
 the page uses to download files and upload them (see [BbsWebServer]). The page
 also receives control messages over the WebSocket: a text message that starts
@@ -28,6 +30,7 @@ import '../services/web/bbs_web_server.dart';
 import 'bbs_files.dart';
 import 'bbs_handler.dart';
 import 'bbs_monitor.dart';
+import 'bbs_settings.dart';
 
 class WebBbsHandler {
   WebBbsHandler() : _broker = DataBrokerClient();
@@ -53,6 +56,9 @@ class WebBbsHandler {
 
   /// Per-client menu session state (running game).
   final Map<BbsWebClient, Map<String, Object?>> _sessions = {};
+
+  /// Clients turned away by the access list, until their socket closes.
+  final Set<BbsWebClient> _denied = {};
 
   /// The text menu served to web clients.
   BbsMenu menu = BbsMenu();
@@ -119,6 +125,16 @@ class WebBbsHandler {
   }
 
   void _onClientConnected(BbsWebClient client) {
+    if (!BbsSettings.load().isStationAllowed(client.callsign)) {
+      _denied.add(client);
+      _dispatchControl(
+        'Web access denied for ${client.callsign} (${client.remoteAddress})',
+        client.callsign,
+      );
+      client.sendText(BbsMenu.accessDenied);
+      client.close(1000, 'Access denied');
+      return;
+    }
     BbsMonitor.instance.sessionStarted(
       statsDeviceId,
       client.callsign,
@@ -142,6 +158,7 @@ class WebBbsHandler {
   }
 
   void _onClientDisconnected(BbsWebClient client) {
+    if (_denied.remove(client)) return;
     _pending.remove(client);
     _sessions.remove(client);
     _dispatchControl(
@@ -152,7 +169,7 @@ class WebBbsHandler {
   }
 
   void _onTextMessage(BbsWebClient client, String message) {
-    if (_disposed) return;
+    if (_disposed || _denied.contains(client)) return;
     _updateStats(client.callsign, 1, 0, message.length, 0);
     final lines = message
         .replaceAll('\r\n', '\r')

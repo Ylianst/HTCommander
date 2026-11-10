@@ -92,7 +92,6 @@
   "stationConnectErrorRegion": "この連絡先に設定されたリージョン「{region}」が無線機で見つかりませんでした。連絡先を編集しますか？",
   "stationConnectErrorChannel": "この連絡先に設定されたチャンネル「{channel}」が無線機で見つかりませんでした。連絡先を編集しますか？",
   "stationConnectErrorNoChannel": "この連絡先にはチャンネルが設定されていません。連絡先を編集しますか？",
-
   "aboutCheckForUpdates": "更新を確認",
   "aboutVersionAuthor": "バージョン {version}\nYlian Saint-Hilaire, KK7VZT\nオープンソース、Apache 2.0 ライセンス",
 
@@ -791,6 +790,22 @@
   "bbsAprsLookupHelp": "局は AP <コールサイン> でAPRS局から最後に受信した位置、コメント、気象情報を確認できます。",
   "bbsAprsHeardEnable": "受信したAPRS局の一覧を有効にする",
   "bbsAprsHeardHelp": "局は AH で最近受信したAPRS局を一覧表示できます。",
+  "bbsCustomizeWinlink": "Winlink",
+  "bbsWinlinkGateway": "Winlinkゲートウェイ",
+  "bbsWinlinkGatewayEnable": "Winlinkゲートウェイとして動作する",
+  "bbsWinlinkGatewayHelp": "接続したWinlink局は、自局のコールサインでインターネット経由でWinlink CMSに中継されます。オフの場合やCMSに接続できない場合は、この局のローカルメールボックスとメールを交換します。",
+  "bbsCustomizeAccess": "アクセス",
+  "bbsAccessMode": "局のアクセス",
+  "bbsAccessOpen": "拒否リストの局を除き、すべての局に公開",
+  "bbsAccessAllowListOnly": "許可リストの局のみ",
+  "bbsAccessHelp": "SSIDなしのコールサイン(N0CALL)はすべてのSSIDに一致し、SSID付き(N0CALL-7)はそのSSIDのみに一致します。無線とWebのBBS接続に適用されます。Webのコールサインは検証されません。",
+  "bbsAllowList": "許可リスト",
+  "bbsDenyList": "拒否リスト",
+  "bbsAccessCallsign": "コールサイン",
+  "bbsAccessAdd": "追加",
+  "bbsAccessRemove": "削除",
+  "bbsAccessEmpty": "局がありません",
+  "bbsAccessInvalidCallsign": "有効なコールサインを入力してください",
   "bbsHeaderActive": "BBS - アクティブ",
   "bbsActivate": "有効化",
   "bbsDeactivate": "無効化",
@@ -1609,5 +1624,11 @@
   "vfoDialogDeleteTitle": "周波数を削除",
   "vfoDialogDeleteMessage": "「{name}」を保存済み周波数から削除しますか？",
   "vfoDialogWide": "ワイド",
-  "vfoDialogNarrow": "ナロー"
+  "vfoDialogNarrow": "ナロー",
+  "vfoDialogOffset": "?????",
+  "vfoDialogSimplex": "???????",
+  "vfoDialogOffsetMhz": "????? (MHz)",
+  "vfoDialogRxTone": "RX???",
+  "vfoDialogTxTone": "TX???",
+  "vfoDialogTxOutOfRange": "?????????????????"
 }

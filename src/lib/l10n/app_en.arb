@@ -174,7 +174,6 @@
   "@stationConnectErrorNoChannel": {
     "description": "Message shown when a Winlink station has no channel configured."
   },
-
   "aboutCheckForUpdates": "Check for Updates",
   "@aboutCheckForUpdates": {
     "description": "Button in the About dialog to check for application updates."
@@ -1556,6 +1555,22 @@
   "bbsAprsLookupHelp": "Stations can see the last position, comment and weather heard from an APRS station with AP <callsign>.",
   "bbsAprsHeardEnable": "Enable list of heard APRS stations",
   "bbsAprsHeardHelp": "Stations can list the most recently heard APRS stations with AH.",
+  "bbsCustomizeWinlink": "Winlink",
+  "bbsWinlinkGateway": "Winlink Gateway",
+  "bbsWinlinkGatewayEnable": "Act as a Winlink gateway",
+  "bbsWinlinkGatewayHelp": "Winlink stations that connect are relayed to the Winlink CMS over the Internet using their own callsign. When off, or when the CMS cannot be reached, mail is exchanged with this station's local mailbox instead.",
+  "bbsCustomizeAccess": "Access",
+  "bbsAccessMode": "Station Access",
+  "bbsAccessOpen": "Open to all stations, except those on the deny list",
+  "bbsAccessAllowListOnly": "Only stations on the allow list",
+  "bbsAccessHelp": "A callsign without an SSID (N0CALL) matches all of its SSIDs; with an SSID (N0CALL-7) it matches only that one. Applies to radio and web BBS connections. Web callsigns are not verified.",
+  "bbsAllowList": "Allow List",
+  "bbsDenyList": "Deny List",
+  "bbsAccessCallsign": "Callsign",
+  "bbsAccessAdd": "Add",
+  "bbsAccessRemove": "Remove",
+  "bbsAccessEmpty": "No stations",
+  "bbsAccessInvalidCallsign": "Enter a valid callsign",
   "bbsHeaderActive": "BBS - Active",
   "bbsActivate": "Activate",
   "bbsDeactivate": "Deactivate",
@@ -2748,5 +2763,29 @@
   "vfoDialogNarrow": "Narrow",
   "@vfoDialogNarrow": {
     "description": "Short label of the narrow bandwidth toggle in the frequency mode dialog."
+  },
+  "vfoDialogOffset": "Offset",
+  "@vfoDialogOffset": {
+    "description": "Tooltip of the button that cycles the repeater offset direction (simplex, +, -) in the frequency mode dialog."
+  },
+  "vfoDialogSimplex": "Simplex",
+  "@vfoDialogSimplex": {
+    "description": "Label of the offset direction button when transmit equals receive frequency (no repeater offset)."
+  },
+  "vfoDialogOffsetMhz": "Offset (MHz)",
+  "@vfoDialogOffsetMhz": {
+    "description": "Label of the repeater offset amount field (in MHz) in the frequency mode dialog."
+  },
+  "vfoDialogRxTone": "RX tone",
+  "@vfoDialogRxTone": {
+    "description": "Label of the receive (decode) CTCSS/DCS tone picker in the frequency mode dialog."
+  },
+  "vfoDialogTxTone": "TX tone",
+  "@vfoDialogTxTone": {
+    "description": "Label of the transmit (encode) CTCSS/DCS tone picker in the frequency mode dialog."
+  },
+  "vfoDialogTxOutOfRange": "Transmit frequency is outside the radio's transmit range",
+  "@vfoDialogTxOutOfRange": {
+    "description": "Error shown when the frequency plus repeater offset is outside the radio's transmit bands."
   }
 }

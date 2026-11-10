@@ -92,7 +92,6 @@
   "stationConnectErrorRegion": "在电台上找不到为此联系人配置的分区“{region}”。要编辑该联系人吗？",
   "stationConnectErrorChannel": "在电台上找不到为此联系人配置的信道“{channel}”。要编辑该联系人吗？",
   "stationConnectErrorNoChannel": "尚未为此联系人配置信道。要编辑该联系人吗？",
-
   "aboutCheckForUpdates": "检查更新",
   "aboutVersionAuthor": "版本 {version}\nYlian Saint-Hilaire, KK7VZT\n开源，Apache 2.0 许可证",
 
@@ -791,6 +790,22 @@
   "bbsAprsLookupHelp": "电台可以使用 AP <呼号> 查看从 APRS 电台最后收到的位置、注释和天气。",
   "bbsAprsHeardEnable": "启用已收听 APRS 电台列表",
   "bbsAprsHeardHelp": "电台可以使用 AH 列出最近收听到的 APRS 电台。",
+  "bbsCustomizeWinlink": "Winlink",
+  "bbsWinlinkGateway": "Winlink 网关",
+  "bbsWinlinkGatewayEnable": "作为 Winlink 网关",
+  "bbsWinlinkGatewayHelp": "连接的 Winlink 电台将使用其自己的呼号通过互联网中继到 Winlink CMS。关闭时或无法连接 CMS 时，将与本站的本地邮箱交换邮件。",
+  "bbsCustomizeAccess": "访问",
+  "bbsAccessMode": "电台访问",
+  "bbsAccessOpen": "向所有电台开放，拒绝列表中的除外",
+  "bbsAccessAllowListOnly": "仅允许列表中的电台",
+  "bbsAccessHelp": "不带 SSID 的呼号 (N0CALL) 匹配其所有 SSID；带 SSID (N0CALL-7) 仅匹配该 SSID。适用于无线电和网页 BBS 连接。网页呼号未经验证。",
+  "bbsAllowList": "允许列表",
+  "bbsDenyList": "拒绝列表",
+  "bbsAccessCallsign": "呼号",
+  "bbsAccessAdd": "添加",
+  "bbsAccessRemove": "移除",
+  "bbsAccessEmpty": "没有电台",
+  "bbsAccessInvalidCallsign": "请输入有效的呼号",
   "bbsHeaderActive": "BBS - 活动",
   "bbsActivate": "激活",
   "bbsDeactivate": "停用",
@@ -1609,5 +1624,11 @@
   "vfoDialogDeleteTitle": "删除频率",
   "vfoDialogDeleteMessage": "从已保存的频率中删除“{name}”？",
   "vfoDialogWide": "宽带",
-  "vfoDialogNarrow": "窄带"
+  "vfoDialogNarrow": "窄带",
+  "vfoDialogOffset": "??",
+  "vfoDialogSimplex": "??",
+  "vfoDialogOffsetMhz": "?? (MHz)",
+  "vfoDialogRxTone": "????",
+  "vfoDialogTxTone": "????",
+  "vfoDialogTxOutOfRange": "?????????????"
 }

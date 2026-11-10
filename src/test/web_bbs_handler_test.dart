@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/handlers/bbs_handler.dart';
+import 'package:htcommander/handlers/bbs_settings.dart';
 import 'package:htcommander/handlers/web_bbs_handler.dart';
 import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/services/data_broker_client.dart';
@@ -152,6 +153,20 @@ void main() {
       ws.add('x' * 5000);
       await ws.drain<void>();
       expect(ws.closeCode, 1009);
+    });
+
+    test('turns away stations kept out by the access list', () async {
+      BbsSettings(deniedStations: ['K7ABC']).save(broker);
+      final ws = await connect('k7abc-3');
+      final messages = await ws.cast<String>().toList();
+      expect(messages, [BbsMenu.accessDenied]);
+      expect(ws.closeReason, 'Access denied');
+
+      final allowed = await connect('W1AW');
+      final first = await allowed.cast<String>().first;
+      expect(first, contains('"t":"session"'));
+      await allowed.close();
+      BbsSettings().save(broker);
     });
 
     test('stops when disabled', () async {

@@ -2445,6 +2445,57 @@ class AppLocalizationsHi extends AppLocalizations {
       'स्टेशन AH से हाल ही में सुने गए APRS स्टेशनों की सूची देख सकते हैं।';
 
   @override
+  String get bbsCustomizeWinlink => 'Winlink';
+
+  @override
+  String get bbsWinlinkGateway => 'Winlink गेटवे';
+
+  @override
+  String get bbsWinlinkGatewayEnable => 'Winlink गेटवे के रूप में कार्य करें';
+
+  @override
+  String get bbsWinlinkGatewayHelp =>
+      'जुड़ने वाले Winlink स्टेशन अपने कॉलसाइन से इंटरनेट के माध्यम से Winlink CMS तक रिले किए जाते हैं। बंद होने पर, या CMS उपलब्ध न होने पर, मेल इस स्टेशन के स्थानीय मेलबॉक्स से बदली जाती है।';
+
+  @override
+  String get bbsCustomizeAccess => 'पहुँच';
+
+  @override
+  String get bbsAccessMode => 'स्टेशन पहुँच';
+
+  @override
+  String get bbsAccessOpen =>
+      'अस्वीकृत सूची वालों को छोड़कर सभी स्टेशनों के लिए खुला';
+
+  @override
+  String get bbsAccessAllowListOnly => 'केवल अनुमति सूची के स्टेशन';
+
+  @override
+  String get bbsAccessHelp =>
+      'SSID के बिना कॉलसाइन (N0CALL) उसके सभी SSID से मेल खाता है; SSID के साथ (N0CALL-7) केवल उसी से। रेडियो और वेब BBS कनेक्शन पर लागू। वेब कॉलसाइन सत्यापित नहीं होते।';
+
+  @override
+  String get bbsAllowList => 'अनुमति सूची';
+
+  @override
+  String get bbsDenyList => 'अस्वीकृत सूची';
+
+  @override
+  String get bbsAccessCallsign => 'कॉलसाइन';
+
+  @override
+  String get bbsAccessAdd => 'जोड़ें';
+
+  @override
+  String get bbsAccessRemove => 'हटाएँ';
+
+  @override
+  String get bbsAccessEmpty => 'कोई स्टेशन नहीं';
+
+  @override
+  String get bbsAccessInvalidCallsign => 'मान्य कॉलसाइन दर्ज करें';
+
+  @override
   String get bbsHeaderActive => 'BBS - सक्रिय';
 
   @override
@@ -4800,4 +4851,23 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get vfoDialogNarrow => 'नैरो';
+
+  @override
+  String get vfoDialogOffset => '??????';
+
+  @override
+  String get vfoDialogSimplex => '???????????';
+
+  @override
+  String get vfoDialogOffsetMhz => '?????? (MHz)';
+
+  @override
+  String get vfoDialogRxTone => 'RX ???';
+
+  @override
+  String get vfoDialogTxTone => 'TX ???';
+
+  @override
+  String get vfoDialogTxOutOfRange =>
+      '????????? ??????? ?????? ?? ????????? ???? ?? ???? ??';
 }

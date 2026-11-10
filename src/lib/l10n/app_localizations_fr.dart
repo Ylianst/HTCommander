@@ -2459,6 +2459,58 @@ class AppLocalizationsFr extends AppLocalizations {
       'Les stations peuvent lister les stations APRS entendues le plus récemment avec AH.';
 
   @override
+  String get bbsCustomizeWinlink => 'Winlink';
+
+  @override
+  String get bbsWinlinkGateway => 'Passerelle Winlink';
+
+  @override
+  String get bbsWinlinkGatewayEnable => 'Agir comme passerelle Winlink';
+
+  @override
+  String get bbsWinlinkGatewayHelp =>
+      'Les stations Winlink qui se connectent sont relayées vers le CMS Winlink par Internet avec leur propre indicatif. Si désactivé, ou si le CMS est injoignable, le courrier est échangé avec la boîte locale de cette station.';
+
+  @override
+  String get bbsCustomizeAccess => 'Accès';
+
+  @override
+  String get bbsAccessMode => 'Accès des stations';
+
+  @override
+  String get bbsAccessOpen =>
+      'Ouvert à toutes les stations, sauf celles de la liste de refus';
+
+  @override
+  String get bbsAccessAllowListOnly =>
+      'Seulement les stations de la liste d\'autorisation';
+
+  @override
+  String get bbsAccessHelp =>
+      'Un indicatif sans SSID (N0CALL) correspond à tous ses SSID ; avec un SSID (N0CALL-7), seulement à celui-ci. S\'applique aux connexions radio et web. Les indicatifs web ne sont pas vérifiés.';
+
+  @override
+  String get bbsAllowList => 'Liste d\'autorisation';
+
+  @override
+  String get bbsDenyList => 'Liste de refus';
+
+  @override
+  String get bbsAccessCallsign => 'Indicatif';
+
+  @override
+  String get bbsAccessAdd => 'Ajouter';
+
+  @override
+  String get bbsAccessRemove => 'Retirer';
+
+  @override
+  String get bbsAccessEmpty => 'Aucune station';
+
+  @override
+  String get bbsAccessInvalidCallsign => 'Entrez un indicatif valide';
+
+  @override
   String get bbsHeaderActive => 'BBS - Actif';
 
   @override
@@ -4834,4 +4886,23 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get vfoDialogNarrow => 'Étroit';
+
+  @override
+  String get vfoDialogOffset => 'D?calage';
+
+  @override
+  String get vfoDialogSimplex => 'Simplex';
+
+  @override
+  String get vfoDialogOffsetMhz => 'D?calage (MHz)';
+
+  @override
+  String get vfoDialogRxTone => 'Tonalit? RX';
+
+  @override
+  String get vfoDialogTxTone => 'Tonalit? TX';
+
+  @override
+  String get vfoDialogTxOutOfRange =>
+      'La fr?quence d\'?mission est hors de la plage d\'?mission de la radio';
 }

@@ -2466,6 +2466,57 @@ class AppLocalizationsDe extends AppLocalizations {
       'Stationen können mit AH die zuletzt gehörten APRS-Stationen auflisten.';
 
   @override
+  String get bbsCustomizeWinlink => 'Winlink';
+
+  @override
+  String get bbsWinlinkGateway => 'Winlink-Gateway';
+
+  @override
+  String get bbsWinlinkGatewayEnable => 'Als Winlink-Gateway arbeiten';
+
+  @override
+  String get bbsWinlinkGatewayHelp =>
+      'Verbindende Winlink-Stationen werden mit ihrem eigenen Rufzeichen über das Internet an das Winlink-CMS weitergeleitet. Wenn aus, oder wenn das CMS nicht erreichbar ist, wird die Post mit dem lokalen Postfach dieser Station ausgetauscht.';
+
+  @override
+  String get bbsCustomizeAccess => 'Zugriff';
+
+  @override
+  String get bbsAccessMode => 'Stationszugriff';
+
+  @override
+  String get bbsAccessOpen =>
+      'Offen für alle Stationen, außer denen auf der Sperrliste';
+
+  @override
+  String get bbsAccessAllowListOnly => 'Nur Stationen auf der Erlaubnisliste';
+
+  @override
+  String get bbsAccessHelp =>
+      'Ein Rufzeichen ohne SSID (N0CALL) gilt für alle SSIDs; mit SSID (N0CALL-7) nur für diese. Gilt für Funk- und Web-Verbindungen. Web-Rufzeichen werden nicht überprüft.';
+
+  @override
+  String get bbsAllowList => 'Erlaubnisliste';
+
+  @override
+  String get bbsDenyList => 'Sperrliste';
+
+  @override
+  String get bbsAccessCallsign => 'Rufzeichen';
+
+  @override
+  String get bbsAccessAdd => 'Hinzufügen';
+
+  @override
+  String get bbsAccessRemove => 'Entfernen';
+
+  @override
+  String get bbsAccessEmpty => 'Keine Stationen';
+
+  @override
+  String get bbsAccessInvalidCallsign => 'Gültiges Rufzeichen eingeben';
+
+  @override
   String get bbsHeaderActive => 'BBS - Aktiv';
 
   @override
@@ -4836,4 +4887,23 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get vfoDialogNarrow => 'Schmal';
+
+  @override
+  String get vfoDialogOffset => 'Ablage';
+
+  @override
+  String get vfoDialogSimplex => 'Simplex';
+
+  @override
+  String get vfoDialogOffsetMhz => 'Ablage (MHz)';
+
+  @override
+  String get vfoDialogRxTone => 'RX-Ton';
+
+  @override
+  String get vfoDialogTxTone => 'TX-Ton';
+
+  @override
+  String get vfoDialogTxOutOfRange =>
+      'Sendefrequenz liegt au?erhalb des Sendebereichs des Funkger?ts';
 }

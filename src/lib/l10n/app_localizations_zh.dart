@@ -2369,6 +2369,56 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bbsAprsHeardHelp => '电台可以使用 AH 列出最近收听到的 APRS 电台。';
 
   @override
+  String get bbsCustomizeWinlink => 'Winlink';
+
+  @override
+  String get bbsWinlinkGateway => 'Winlink 网关';
+
+  @override
+  String get bbsWinlinkGatewayEnable => '作为 Winlink 网关';
+
+  @override
+  String get bbsWinlinkGatewayHelp =>
+      '连接的 Winlink 电台将使用其自己的呼号通过互联网中继到 Winlink CMS。关闭时或无法连接 CMS 时，将与本站的本地邮箱交换邮件。';
+
+  @override
+  String get bbsCustomizeAccess => '访问';
+
+  @override
+  String get bbsAccessMode => '电台访问';
+
+  @override
+  String get bbsAccessOpen => '向所有电台开放，拒绝列表中的除外';
+
+  @override
+  String get bbsAccessAllowListOnly => '仅允许列表中的电台';
+
+  @override
+  String get bbsAccessHelp =>
+      '不带 SSID 的呼号 (N0CALL) 匹配其所有 SSID；带 SSID (N0CALL-7) 仅匹配该 SSID。适用于无线电和网页 BBS 连接。网页呼号未经验证。';
+
+  @override
+  String get bbsAllowList => '允许列表';
+
+  @override
+  String get bbsDenyList => '拒绝列表';
+
+  @override
+  String get bbsAccessCallsign => '呼号';
+
+  @override
+  String get bbsAccessAdd => '添加';
+
+  @override
+  String get bbsAccessRemove => '移除';
+
+  @override
+  String get bbsAccessEmpty => '没有电台';
+
+  @override
+  String get bbsAccessInvalidCallsign => '请输入有效的呼号';
+
+  @override
   String get bbsHeaderActive => 'BBS - 活动';
 
   @override
@@ -4651,4 +4701,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vfoDialogNarrow => '窄带';
+
+  @override
+  String get vfoDialogOffset => '??';
+
+  @override
+  String get vfoDialogSimplex => '??';
+
+  @override
+  String get vfoDialogOffsetMhz => '?? (MHz)';
+
+  @override
+  String get vfoDialogRxTone => '????';
+
+  @override
+  String get vfoDialogTxTone => '????';
+
+  @override
+  String get vfoDialogTxOutOfRange => '?????????????';
 }

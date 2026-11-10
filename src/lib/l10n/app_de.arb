@@ -92,7 +92,6 @@
   "stationConnectErrorRegion": "Die für diesen Kontakt konfigurierte Region „{region}“ wurde auf dem Funkgerät nicht gefunden. Möchten Sie den Kontakt bearbeiten?",
   "stationConnectErrorChannel": "Der für diesen Kontakt konfigurierte Kanal „{channel}“ wurde auf dem Funkgerät nicht gefunden. Möchten Sie den Kontakt bearbeiten?",
   "stationConnectErrorNoChannel": "Für diesen Kontakt ist kein Kanal konfiguriert. Möchten Sie den Kontakt bearbeiten?",
-
   "aboutCheckForUpdates": "Nach Updates suchen",
   "aboutVersionAuthor": "Version {version}\nYlian Saint-Hilaire, KK7VZT\nOpen Source, Apache 2.0-Lizenz",
 
@@ -791,6 +790,22 @@
   "bbsAprsLookupHelp": "Stationen können mit AP <Rufzeichen> die zuletzt empfangene Position, den Kommentar und das Wetter einer APRS-Station abrufen.",
   "bbsAprsHeardEnable": "Liste gehörter APRS-Stationen aktivieren",
   "bbsAprsHeardHelp": "Stationen können mit AH die zuletzt gehörten APRS-Stationen auflisten.",
+  "bbsCustomizeWinlink": "Winlink",
+  "bbsWinlinkGateway": "Winlink-Gateway",
+  "bbsWinlinkGatewayEnable": "Als Winlink-Gateway arbeiten",
+  "bbsWinlinkGatewayHelp": "Verbindende Winlink-Stationen werden mit ihrem eigenen Rufzeichen über das Internet an das Winlink-CMS weitergeleitet. Wenn aus, oder wenn das CMS nicht erreichbar ist, wird die Post mit dem lokalen Postfach dieser Station ausgetauscht.",
+  "bbsCustomizeAccess": "Zugriff",
+  "bbsAccessMode": "Stationszugriff",
+  "bbsAccessOpen": "Offen für alle Stationen, außer denen auf der Sperrliste",
+  "bbsAccessAllowListOnly": "Nur Stationen auf der Erlaubnisliste",
+  "bbsAccessHelp": "Ein Rufzeichen ohne SSID (N0CALL) gilt für alle SSIDs; mit SSID (N0CALL-7) nur für diese. Gilt für Funk- und Web-Verbindungen. Web-Rufzeichen werden nicht überprüft.",
+  "bbsAllowList": "Erlaubnisliste",
+  "bbsDenyList": "Sperrliste",
+  "bbsAccessCallsign": "Rufzeichen",
+  "bbsAccessAdd": "Hinzufügen",
+  "bbsAccessRemove": "Entfernen",
+  "bbsAccessEmpty": "Keine Stationen",
+  "bbsAccessInvalidCallsign": "Gültiges Rufzeichen eingeben",
   "bbsHeaderActive": "BBS - Aktiv",
   "bbsActivate": "Aktivieren",
   "bbsDeactivate": "Deaktivieren",
@@ -1609,5 +1624,11 @@
   "vfoDialogDeleteTitle": "Frequenz löschen",
   "vfoDialogDeleteMessage": "\"{name}\" aus den gespeicherten Frequenzen entfernen?",
   "vfoDialogWide": "Breit",
-  "vfoDialogNarrow": "Schmal"
+  "vfoDialogNarrow": "Schmal",
+  "vfoDialogOffset": "Ablage",
+  "vfoDialogSimplex": "Simplex",
+  "vfoDialogOffsetMhz": "Ablage (MHz)",
+  "vfoDialogRxTone": "RX-Ton",
+  "vfoDialogTxTone": "TX-Ton",
+  "vfoDialogTxOutOfRange": "Sendefrequenz liegt au?erhalb des Sendebereichs des Funkger?ts"
 }

@@ -92,7 +92,6 @@
   "stationConnectErrorRegion": "No se encontró en la radio la región «{region}» configurada para este contacto. ¿Desea editar el contacto?",
   "stationConnectErrorChannel": "No se encontró en la radio el canal «{channel}» configurado para este contacto. ¿Desea editar el contacto?",
   "stationConnectErrorNoChannel": "No hay ningún canal configurado para este contacto. ¿Desea editar el contacto?",
-
   "aboutCheckForUpdates": "Buscar actualizaciones",
   "aboutVersionAuthor": "Versión {version}\nYlian Saint-Hilaire, KK7VZT\nCódigo abierto, licencia Apache 2.0",
 
@@ -791,6 +790,22 @@
   "bbsAprsLookupHelp": "Las estaciones pueden ver la última posición, comentario y clima recibidos de una estación APRS con AP <indicativo>.",
   "bbsAprsHeardEnable": "Habilitar lista de estaciones APRS escuchadas",
   "bbsAprsHeardHelp": "Las estaciones pueden listar las estaciones APRS escuchadas más recientemente con AH.",
+  "bbsCustomizeWinlink": "Winlink",
+  "bbsWinlinkGateway": "Pasarela Winlink",
+  "bbsWinlinkGatewayEnable": "Actuar como pasarela Winlink",
+  "bbsWinlinkGatewayHelp": "Las estaciones Winlink que se conectan se retransmiten al CMS de Winlink por Internet con su propio indicativo. Si está desactivado, o si no se puede contactar con el CMS, el correo se intercambia con el buzón local de esta estación.",
+  "bbsCustomizeAccess": "Acceso",
+  "bbsAccessMode": "Acceso de estaciones",
+  "bbsAccessOpen": "Abierto a todas las estaciones, excepto las de la lista de denegación",
+  "bbsAccessAllowListOnly": "Solo las estaciones de la lista de permitidos",
+  "bbsAccessHelp": "Un indicativo sin SSID (N0CALL) coincide con todos sus SSID; con SSID (N0CALL-7) solo con ese. Se aplica a conexiones de radio y web. Los indicativos web no se verifican.",
+  "bbsAllowList": "Lista de permitidos",
+  "bbsDenyList": "Lista de denegación",
+  "bbsAccessCallsign": "Indicativo",
+  "bbsAccessAdd": "Añadir",
+  "bbsAccessRemove": "Quitar",
+  "bbsAccessEmpty": "Ninguna estación",
+  "bbsAccessInvalidCallsign": "Introduzca un indicativo válido",
   "bbsHeaderActive": "BBS - Activo",
   "bbsActivate": "Activar",
   "bbsDeactivate": "Desactivar",
@@ -1609,5 +1624,11 @@
   "vfoDialogDeleteTitle": "Eliminar frecuencia",
   "vfoDialogDeleteMessage": "¿Quitar \"{name}\" de tus frecuencias guardadas?",
   "vfoDialogWide": "Ancho",
-  "vfoDialogNarrow": "Estrecho"
+  "vfoDialogNarrow": "Estrecho",
+  "vfoDialogOffset": "Desplazamiento",
+  "vfoDialogSimplex": "S?mplex",
+  "vfoDialogOffsetMhz": "Desplazamiento (MHz)",
+  "vfoDialogRxTone": "Tono RX",
+  "vfoDialogTxTone": "Tono TX",
+  "vfoDialogTxOutOfRange": "La frecuencia de transmisi?n est? fuera del rango de transmisi?n de la radio"
 }

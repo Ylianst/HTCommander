@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import '../models/station_info.dart';
+import '../radio/radio_models.dart';
 import '../services/data_broker_client.dart';
 
 /// Outcome of resolving a station's stored channel/region against a radio.
@@ -52,6 +53,43 @@ class StationChannelResolution {
       status == StationChannelStatus.channelMissing;
 }
 
+/// True when broker channel map [channel] is a plain FM simplex channel on
+/// [hz]: same RX/TX frequency (no shift), FM both ways and no CTCSS/DCS tone.
+/// Bandwidth is not considered.
+bool channelMatchesFrequency(Map channel, int hz) {
+  if (hz <= 0) return false;
+  return channel['rxFreq'] == hz &&
+      channel['txFreq'] == hz &&
+      (channel['rxSubAudio'] ?? 0) == 0 &&
+      (channel['txSubAudio'] ?? 0) == 0 &&
+      (channel['rxMod'] ?? 0) == RadioModulationType.fm.index &&
+      (channel['txMod'] ?? 0) == RadioModulationType.fm.index;
+}
+
+/// Finds the channel in radio [radioId]'s current region for [station]'s
+/// frequency, preferring the station's stored channel name when several
+/// channels match. Returns the channel id, or -1 when none matches.
+int findStationFrequencyChannel(
+  DataBrokerClient broker,
+  int radioId,
+  StationInfo station,
+) {
+  final channels = broker.getValueDynamic(radioId, 'Channels');
+  if (channels is! List) return -1;
+  int first = -1;
+  for (int i = 0; i < channels.length; i++) {
+    final channel = channels[i];
+    if (channel is! Map) continue;
+    if (!channelMatchesFrequency(channel, station.frequency)) continue;
+    final id = (channel['channelId'] as int?) ?? i;
+    if (station.channel.isNotEmpty && channel['name'] == station.channel) {
+      return id;
+    }
+    if (first < 0) first = id;
+  }
+  return first;
+}
+
 /// Resolves [station]'s stored region/channel against radio [radioId] using the
 /// broker's live `HtStatus`, `RegionNames` and `Channels` values.
 ///
@@ -59,6 +97,11 @@ class StationChannelResolution {
 /// channel in a different region can't be validated here (that region's channel
 /// list isn't loaded); it is reported as [StationChannelStatus.crossRegionPending]
 /// and the radio validates it after switching region.
+///
+/// A station with a [StationInfo.frequency] ignores its stored region: any
+/// channel in the current region on that frequency with no tone and no shift
+/// is used (see [findStationFrequencyChannel]); otherwise the radio tunes
+/// directly to the frequency.
 StationChannelResolution resolveStationChannel(
   DataBrokerClient broker,
   int radioId,
@@ -69,27 +112,12 @@ StationChannelResolution resolveStationChannel(
       (htStatus is Map ? htStatus['currRegion'] as int? : null) ?? 0;
 
   if (station.frequencyHz > 0) {
-    final channels = broker.getValueDynamic(radioId, 'Channels');
-    if (channels is List) {
-      for (int index = 0; index < channels.length; index++) {
-        final channel = channels[index];
-        if (channel is Map &&
-            channel['rxFreq'] == station.frequencyHz &&
-            channel['txFreq'] == station.frequencyHz &&
-            (channel['rxSubAudio'] ?? 0) == 0 &&
-            (channel['txSubAudio'] ?? 0) == 0) {
-          return StationChannelResolution(
-            StationChannelStatus.ok,
-            regionId: currRegion,
-            channelId: (channel['channelId'] as int?) ?? index,
-          );
-        }
-      }
-    }
+    final id = findStationFrequencyChannel(broker, radioId, station);
     return StationChannelResolution(
       StationChannelStatus.ok,
       regionId: currRegion,
-      frequencyHz: station.frequencyHz,
+      channelId: id,
+      frequencyHz: id < 0 ? station.frequencyHz : 0,
     );
   }
 

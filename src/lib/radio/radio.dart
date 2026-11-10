@@ -747,6 +747,9 @@ class Radio implements FirmwareRadio {
       bandwidth: data['wide'] == true
           ? RadioBandwidthType.wide
           : RadioBandwidthType.narrow,
+      txFreqHz: (data['txFreqHz'] as num?)?.toInt(),
+      rxSubAudio: (data['rxSubAudio'] as num?)?.toInt(),
+      txSubAudio: (data['txSubAudio'] as num?)?.toInt(),
     );
   }
 
@@ -758,10 +761,18 @@ class Radio implements FirmwareRadio {
   /// entering the radio's "any frequency" mode if needed. Returns false (and
   /// sends nothing) when the radio is not ready, is locked, or the frequency
   /// is outside the radio's bands for [mod].
+  ///
+  /// [txFreqHz] sets a split/repeater transmit frequency (defaults to
+  /// [freqHz], i.e. simplex) and must be in an FM TX/RX band when it differs.
+  /// [rxSubAudio]/[txSubAudio] set CTCSS (Hz × 100) or DCS tones; when null
+  /// the slot's current tones are kept.
   bool tuneKeypadVfo({
     required int freqHz,
     required RadioModulationType mod,
     required RadioBandwidthType bandwidth,
+    int? txFreqHz,
+    int? rxSubAudio,
+    int? txSubAudio,
   }) {
     if (_state != RadioState.connected || settings == null) return false;
     if (_lockState?.isLocked == true) {
@@ -775,6 +786,15 @@ class Radio implements FirmwareRadio {
       );
       return false;
     }
+    final txHz = txFreqHz ?? freqHz;
+    if (txHz != freqHz &&
+        (mod != RadioModulationType.fm || !isTxFreqAllowed(freqBands, txHz))) {
+      _broker.logError(
+        '[Radio $deviceId] VFO transmit frequency $txHz Hz is outside the '
+        'radio\'s transmit range',
+      );
+      return false;
+    }
     final slot = isKeypadVfoActive ? settings!.channelA : kKeypadVfoChannelId;
     if (!_isVfoChannelId(slot)) return false;
     final base =
@@ -784,7 +804,9 @@ class Radio implements FirmwareRadio {
       base.copyWith(
         channelId: slot,
         rxFreq: freqHz,
-        txFreq: freqHz,
+        txFreq: txHz,
+        rxSubAudio: rxSubAudio,
+        txSubAudio: txSubAudio,
         rxMod: mod,
         txMod: mod,
         bandwidth: bandwidth,

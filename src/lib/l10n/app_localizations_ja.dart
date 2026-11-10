@@ -2396,6 +2396,56 @@ class AppLocalizationsJa extends AppLocalizations {
   String get bbsAprsHeardHelp => '局は AH で最近受信したAPRS局を一覧表示できます。';
 
   @override
+  String get bbsCustomizeWinlink => 'Winlink';
+
+  @override
+  String get bbsWinlinkGateway => 'Winlinkゲートウェイ';
+
+  @override
+  String get bbsWinlinkGatewayEnable => 'Winlinkゲートウェイとして動作する';
+
+  @override
+  String get bbsWinlinkGatewayHelp =>
+      '接続したWinlink局は、自局のコールサインでインターネット経由でWinlink CMSに中継されます。オフの場合やCMSに接続できない場合は、この局のローカルメールボックスとメールを交換します。';
+
+  @override
+  String get bbsCustomizeAccess => 'アクセス';
+
+  @override
+  String get bbsAccessMode => '局のアクセス';
+
+  @override
+  String get bbsAccessOpen => '拒否リストの局を除き、すべての局に公開';
+
+  @override
+  String get bbsAccessAllowListOnly => '許可リストの局のみ';
+
+  @override
+  String get bbsAccessHelp =>
+      'SSIDなしのコールサイン(N0CALL)はすべてのSSIDに一致し、SSID付き(N0CALL-7)はそのSSIDのみに一致します。無線とWebのBBS接続に適用されます。Webのコールサインは検証されません。';
+
+  @override
+  String get bbsAllowList => '許可リスト';
+
+  @override
+  String get bbsDenyList => '拒否リスト';
+
+  @override
+  String get bbsAccessCallsign => 'コールサイン';
+
+  @override
+  String get bbsAccessAdd => '追加';
+
+  @override
+  String get bbsAccessRemove => '削除';
+
+  @override
+  String get bbsAccessEmpty => '局がありません';
+
+  @override
+  String get bbsAccessInvalidCallsign => '有効なコールサインを入力してください';
+
+  @override
   String get bbsHeaderActive => 'BBS - アクティブ';
 
   @override
@@ -4708,4 +4758,22 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get vfoDialogNarrow => 'ナロー';
+
+  @override
+  String get vfoDialogOffset => '?????';
+
+  @override
+  String get vfoDialogSimplex => '???????';
+
+  @override
+  String get vfoDialogOffsetMhz => '????? (MHz)';
+
+  @override
+  String get vfoDialogRxTone => 'RX???';
+
+  @override
+  String get vfoDialogTxTone => 'TX???';
+
+  @override
+  String get vfoDialogTxOutOfRange => '?????????????????';
 }

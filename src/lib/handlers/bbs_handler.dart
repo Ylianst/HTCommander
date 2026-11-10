@@ -10,8 +10,10 @@ This is a two-part port:
     [AX25Session] per calling station, the radio's XARA link, and any other
     [BbsLink] attached through [Bbs.openLink]), runs the bulletin-board
     conversation (M / S / D commands), and acts as a Winlink server,
-    exchanging mail with connecting stations (either locally or by relaying
-    each client to the Winlink CMS gateway). The menu itself ([BbsMenu]) lives
+    exchanging mail with connecting stations (either locally or, when the
+    Winlink gateway setting is on, by relaying each client to the Winlink CMS
+    gateway). Stations the BBS access list keeps out are turned away on
+    connect (see [BbsSettings]). The menu itself ([BbsMenu]) lives
     in bbs_menu.dart, its games in bbs_games.dart.
   * [BbsHandler] is the manager (device 1). It creates/removes [Bbs] instances
     on `CreateBbs` / `RemoveBbs`, locks/unlocks the radio for "BBS" usage, and
@@ -39,6 +41,7 @@ import '../winlink/winlink_utils.dart';
 import 'bbs_files.dart';
 import 'bbs_menu.dart';
 import 'bbs_monitor.dart';
+import 'bbs_settings.dart';
 
 export 'bbs_menu.dart' show BbsMenu, BbsMenuReply, BbsFileTransfer;
 
@@ -519,9 +522,13 @@ class Bbs {
   /// than the built-in AX.25 and XARA ones attach their clients through this,
   /// then report input with [linkReceived] and closure with [closeLink].
   /// With [cmsRelay] false the client is served locally right away, skipping
-  /// the Winlink CMS gateway relay attempt.
-  void openLink(BbsLink link, {bool cmsRelay = true}) =>
-      _onLinkConnected(link, cmsRelay: cmsRelay);
+  /// the Winlink CMS gateway relay attempt. With [checkAccess] false the
+  /// station access list is not applied (the sysop's own local link).
+  void openLink(
+    BbsLink link, {
+    bool cmsRelay = true,
+    bool checkAccess = true,
+  }) => _onLinkConnected(link, cmsRelay: cmsRelay, checkAccess: checkAccess);
 
   /// Feeds data received from a served [link] into the BBS.
   void linkReceived(BbsLink link, Uint8List data) {
@@ -681,8 +688,25 @@ class Bbs {
 
   // ---- connection state -----------------------------------------------------
 
-  void _onLinkConnected(BbsLink link, {bool cmsRelay = true}) {
+  void _onLinkConnected(
+    BbsLink link, {
+    bool cmsRelay = true,
+    bool checkAccess = true,
+  }) {
     if (!_enabled || _disposed || _links.contains(link)) return;
+    final settings = BbsSettings.load();
+    if (checkAccess && !settings.isStationAllowed(link.remoteCallsign)) {
+      _broker.logInfo(
+        '[BBS/$_deviceId] Access denied for ${link.remoteCallsign}',
+      );
+      _dispatchControl(
+        'Access denied for ${link.remoteCallsign}',
+        link.remoteCallsign,
+      );
+      link.send(Uint8List.fromList(utf8.encode(BbsMenu.accessDenied)));
+      _disconnectWhenSent(link);
+      return;
+    }
     if (_links.length >= maxLinks) {
       _dispatchControl(
         'Busy, rejecting ${link.remoteCallsign}',
@@ -711,7 +735,7 @@ class Bbs {
       '${link.protocol == 'XARA' ? ' (XARA)' : ''}',
       link.remoteCallsign,
     );
-    if (cmsRelay) {
+    if (cmsRelay && settings.winlinkGatewayEnabled) {
       unawaited(_attemptCmsRelayConnect(link, link.remoteAddress));
     } else {
       _sendLocalBanner(link);

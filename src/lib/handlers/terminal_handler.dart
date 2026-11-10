@@ -405,7 +405,6 @@ class TerminalHandler {
       _notice(TerminalNotices.channelMissing, {'station': station.toJson()});
       return;
     }
-
     if (station.terminalProtocol.isXara) {
       if (kIsWeb ||
           Platform.isIOS ||
@@ -497,7 +496,7 @@ class TerminalHandler {
     _broker.logInfo('[Terminal] Connecting to the local BBS as $callsign');
     _notice(TerminalNotices.connectedTo, {'callsign': callsign});
     _publish();
-    bbs.openLink(link, cmsRelay: false);
+    bbs.openLink(link, cmsRelay: false, checkAccess: false);
   }
 
   void _closeLocalBbs({bool notify = true}) {
@@ -850,8 +849,8 @@ class TerminalHandler {
     final channel = settings is Map ? settings['channelA'] : null;
     final lockJson = _broker.getValueDynamic(radioId, 'LockState');
     final expectedChannel = resolution.frequencyHz > 0
-      ? (lockJson is Map ? lockJson['channelId'] as int? : null)
-      : resolution.channelId;
+        ? (lockJson is Map ? lockJson['channelId'] as int? : null)
+        : resolution.channelId;
     final reason = lock?.isLocked != true
         ? 'lockNotHeld'
         : lock?.usage != 'Terminal'
@@ -862,9 +861,9 @@ class TerminalHandler {
         ? 'statusUnavailable'
         : region != resolution.regionId
         ? 'regionMismatch'
-          : expectedChannel != null &&
-            expectedChannel >= 0 &&
-            channel != expectedChannel
+        : expectedChannel != null &&
+              expectedChannel >= 0 &&
+              channel != expectedChannel
         ? 'channelMismatch'
         : 'ready';
     return (
@@ -879,6 +878,7 @@ class TerminalHandler {
           'resolution=${resolution.status.name} '
           'contactRegion=${jsonEncode(station.channelRegion)} '
           'contactChannel=${jsonEncode(station.channel)} '
+          'contactFrequency=${station.frequency} '
           'scan=${settings is Map ? settings['scan'] : null} '
           'dualWatch=${settings is Map ? settings['doubleChannel'] : null}',
     );

@@ -36,6 +36,18 @@ class BbsSettings {
   /// The AH command listing recently heard APRS stations.
   bool aprsHeardEnabled;
 
+  /// Relays Winlink clients to the Winlink CMS over the Internet. When off,
+  /// mail is exchanged with the local mailbox only.
+  bool winlinkGatewayEnabled;
+
+  /// Only stations on [allowedStations] may connect; otherwise every station
+  /// except those on [deniedStations] may.
+  bool allowListOnly;
+
+  /// Callsigns, upper case; without an SSID an entry matches every SSID.
+  List<String> allowedStations;
+  List<String> deniedStations;
+
   BbsSettings({
     this.welcomeMessage = defaultWelcomeMessage,
     this.announcementEnabled = false,
@@ -47,10 +59,38 @@ class BbsSettings {
     this.aprsMessagesEnabled = true,
     this.aprsLookupEnabled = false,
     this.aprsHeardEnabled = false,
-  }) : disabledGames = disabledGames ?? {};
+    this.winlinkGatewayEnabled = true,
+    this.allowListOnly = false,
+    List<String>? allowedStations,
+    List<String>? deniedStations,
+  }) : disabledGames = disabledGames ?? {},
+       allowedStations = allowedStations ?? [],
+       deniedStations = deniedStations ?? [];
 
   bool isGameEnabled(String key) =>
       gamesEnabled && !disabledGames.contains(key);
+
+  /// Upper-cases [callsign] and drops a `-0` SSID, which AX.25 treats as none.
+  static String normalizeStation(String callsign) {
+    final call = callsign.trim().toUpperCase();
+    return call.endsWith('-0') ? call.substring(0, call.length - 2) : call;
+  }
+
+  static bool _listMatches(List<String> list, String callsign) {
+    final call = normalizeStation(callsign);
+    final dash = call.indexOf('-');
+    final base = dash < 0 ? call : call.substring(0, dash);
+    for (final entry in list) {
+      final e = normalizeStation(entry);
+      if (e == call || (!e.contains('-') && e == base)) return true;
+    }
+    return false;
+  }
+
+  /// Whether [callsign] may use the BBS under the access list.
+  bool isStationAllowed(String callsign) => allowListOnly
+      ? _listMatches(allowedStations, callsign)
+      : !_listMatches(deniedStations, callsign);
 
   Map<String, dynamic> toJson() => {
     'welcomeMessage': welcomeMessage,
@@ -63,7 +103,16 @@ class BbsSettings {
     'aprsMessagesEnabled': aprsMessagesEnabled,
     'aprsLookupEnabled': aprsLookupEnabled,
     'aprsHeardEnabled': aprsHeardEnabled,
+    'winlinkGatewayEnabled': winlinkGatewayEnabled,
+    'allowListOnly': allowListOnly,
+    'allowedStations': allowedStations,
+    'deniedStations': deniedStations,
   };
+
+  static List<String> _stations(Object? list) => [
+    for (final s in list is List ? list : const [])
+      if (s is String && s.trim().isNotEmpty) normalizeStation(s),
+  ];
 
   static BbsSettings fromJson(Map<String, dynamic> json) {
     final d = BbsSettings();
@@ -75,8 +124,10 @@ class BbsSettings {
       callsignLookupEnabled:
           json['callsignLookupEnabled'] as bool? ?? d.callsignLookupEnabled,
       maxUploadBytes:
-          ((json['maxUploadBytes'] as num?)?.toInt() ?? d.maxUploadBytes)
-              .clamp(1, maxUploadBytesLimit),
+          ((json['maxUploadBytes'] as num?)?.toInt() ?? d.maxUploadBytes).clamp(
+            1,
+            maxUploadBytesLimit,
+          ),
       gamesEnabled: json['gamesEnabled'] as bool? ?? d.gamesEnabled,
       disabledGames: {
         for (final g in json['disabledGames'] as List? ?? const [])
@@ -87,6 +138,11 @@ class BbsSettings {
       aprsLookupEnabled:
           json['aprsLookupEnabled'] as bool? ?? d.aprsLookupEnabled,
       aprsHeardEnabled: json['aprsHeardEnabled'] as bool? ?? d.aprsHeardEnabled,
+      winlinkGatewayEnabled:
+          json['winlinkGatewayEnabled'] as bool? ?? d.winlinkGatewayEnabled,
+      allowListOnly: json['allowListOnly'] as bool? ?? d.allowListOnly,
+      allowedStations: _stations(json['allowedStations']),
+      deniedStations: _stations(json['deniedStations']),
     );
   }
 

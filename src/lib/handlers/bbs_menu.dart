@@ -98,6 +98,10 @@ class BbsMenu {
 
   static const String banner = 'Handy-Talky Commander BBS\r[M] for menu\r';
 
+  /// Sent to stations the access list keeps out, before disconnecting.
+  static const String accessDenied =
+      'Handy-Talky Commander BBS\rAccess denied, goodbye.\r';
+
   /// Prompt sent after every reply.
   static const String prompt = '>\r';
 
@@ -318,9 +322,7 @@ class BbsMenu {
     if (settings.aprsHeardEnabled) {
       sb.write('[AH] [n]        APRS stations heard\r');
     }
-    sb.write(
-      '[L]ast [n]      Stations that connected (${store.visitCount})\r',
-    );
+    sb.write('[L]ast [n]      Stations that connected (${store.visitCount})\r');
     if (files.isAvailable) {
       sb.write('[F]iles [n]     List files (${files.list().length})\r');
       if (transfer != BbsFileTransfer.none) {
@@ -555,12 +557,11 @@ class BbsMenu {
     if (!RegExp(r'^[A-Z0-9/\-]{3,12}$').hasMatch(call)) {
       return 'Usage: AP <callsign>\r';
     }
-    final matches =
-        _heardPackets().where((p) {
-          final source = _displayCall(p.sourceCallsignWithId);
-          return source == call ||
-              (!call.contains('-') && _baseCall(source) == call);
-        }).toList()..sort((a, b) => a.packet!.time.compareTo(b.packet!.time));
+    final matches = _heardPackets().where((p) {
+      final source = _displayCall(p.sourceCallsignWithId);
+      return source == call ||
+          (!call.contains('-') && _baseCall(source) == call);
+    }).toList()..sort((a, b) => a.packet!.time.compareTo(b.packet!.time));
     if (matches.isEmpty) return 'No APRS station $call has been heard.\r';
 
     final now = _clock();

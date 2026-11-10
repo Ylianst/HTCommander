@@ -2431,6 +2431,57 @@ class AppLocalizationsEn extends AppLocalizations {
       'Stations can list the most recently heard APRS stations with AH.';
 
   @override
+  String get bbsCustomizeWinlink => 'Winlink';
+
+  @override
+  String get bbsWinlinkGateway => 'Winlink Gateway';
+
+  @override
+  String get bbsWinlinkGatewayEnable => 'Act as a Winlink gateway';
+
+  @override
+  String get bbsWinlinkGatewayHelp =>
+      'Winlink stations that connect are relayed to the Winlink CMS over the Internet using their own callsign. When off, or when the CMS cannot be reached, mail is exchanged with this station\'s local mailbox instead.';
+
+  @override
+  String get bbsCustomizeAccess => 'Access';
+
+  @override
+  String get bbsAccessMode => 'Station Access';
+
+  @override
+  String get bbsAccessOpen =>
+      'Open to all stations, except those on the deny list';
+
+  @override
+  String get bbsAccessAllowListOnly => 'Only stations on the allow list';
+
+  @override
+  String get bbsAccessHelp =>
+      'A callsign without an SSID (N0CALL) matches all of its SSIDs; with an SSID (N0CALL-7) it matches only that one. Applies to radio and web BBS connections. Web callsigns are not verified.';
+
+  @override
+  String get bbsAllowList => 'Allow List';
+
+  @override
+  String get bbsDenyList => 'Deny List';
+
+  @override
+  String get bbsAccessCallsign => 'Callsign';
+
+  @override
+  String get bbsAccessAdd => 'Add';
+
+  @override
+  String get bbsAccessRemove => 'Remove';
+
+  @override
+  String get bbsAccessEmpty => 'No stations';
+
+  @override
+  String get bbsAccessInvalidCallsign => 'Enter a valid callsign';
+
+  @override
   String get bbsHeaderActive => 'BBS - Active';
 
   @override
@@ -4781,4 +4832,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vfoDialogNarrow => 'Narrow';
+
+  @override
+  String get vfoDialogOffset => 'Offset';
+
+  @override
+  String get vfoDialogSimplex => 'Simplex';
+
+  @override
+  String get vfoDialogOffsetMhz => 'Offset (MHz)';
+
+  @override
+  String get vfoDialogRxTone => 'RX tone';
+
+  @override
+  String get vfoDialogTxTone => 'TX tone';
+
+  @override
+  String get vfoDialogTxOutOfRange =>
+      'Transmit frequency is outside the radio\'s transmit range';
 }

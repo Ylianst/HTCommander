@@ -273,6 +273,10 @@ class _TerminalTabState extends State<TerminalTab>
       stationType: StationType.terminal,
     );
     if (station == null) return;
+    _connectTo(radioId, station);
+  }
+
+  void _connectTo(int radioId, StationInfo station) {
     _awaitingConnect = true;
     _command('TerminalConnect', <String, Object?>{
       'RadioId': radioId,

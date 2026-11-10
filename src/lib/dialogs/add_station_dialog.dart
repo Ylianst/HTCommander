@@ -975,7 +975,7 @@ class _StationDialogState extends State<_StationDialog> {
       textCapitalization: _isSimpleContact || _isMeshCore
           ? TextCapitalization.none
           : TextCapitalization.characters,
-        inputFormatters: _isSimpleContact || _isMeshCore
+      inputFormatters: _isSimpleContact || _isMeshCore
           ? null
           : const [CallsignInputFormatter()],
       style: _isMeshCore ? const TextStyle(fontFamily: 'monospace') : null,

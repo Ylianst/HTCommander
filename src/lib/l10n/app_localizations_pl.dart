@@ -2461,6 +2461,57 @@ class AppLocalizationsPl extends AppLocalizations {
       'Stacje mogą wyświetlić ostatnio słyszane stacje APRS poleceniem AH.';
 
   @override
+  String get bbsCustomizeWinlink => 'Winlink';
+
+  @override
+  String get bbsWinlinkGateway => 'Bramka Winlink';
+
+  @override
+  String get bbsWinlinkGatewayEnable => 'Działaj jako bramka Winlink';
+
+  @override
+  String get bbsWinlinkGatewayHelp =>
+      'Łączące się stacje Winlink są przekazywane do CMS Winlink przez Internet z ich własnym znakiem. Gdy wyłączone lub CMS jest nieosiągalny, poczta jest wymieniana z lokalną skrzynką tej stacji.';
+
+  @override
+  String get bbsCustomizeAccess => 'Dostęp';
+
+  @override
+  String get bbsAccessMode => 'Dostęp stacji';
+
+  @override
+  String get bbsAccessOpen =>
+      'Otwarte dla wszystkich stacji poza listą zablokowanych';
+
+  @override
+  String get bbsAccessAllowListOnly => 'Tylko stacje z listy dozwolonych';
+
+  @override
+  String get bbsAccessHelp =>
+      'Znak bez SSID (N0CALL) pasuje do wszystkich jego SSID; z SSID (N0CALL-7) tylko do tego. Dotyczy połączeń radiowych i webowych. Znaki webowe nie są weryfikowane.';
+
+  @override
+  String get bbsAllowList => 'Lista dozwolonych';
+
+  @override
+  String get bbsDenyList => 'Lista zablokowanych';
+
+  @override
+  String get bbsAccessCallsign => 'Znak';
+
+  @override
+  String get bbsAccessAdd => 'Dodaj';
+
+  @override
+  String get bbsAccessRemove => 'Usuń';
+
+  @override
+  String get bbsAccessEmpty => 'Brak stacji';
+
+  @override
+  String get bbsAccessInvalidCallsign => 'Wpisz poprawny znak';
+
+  @override
   String get bbsHeaderActive => 'BBS - Aktywny';
 
   @override
@@ -4837,4 +4888,23 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get vfoDialogNarrow => 'Wąski';
+
+  @override
+  String get vfoDialogOffset => 'Przesuni?cie';
+
+  @override
+  String get vfoDialogSimplex => 'Simpleks';
+
+  @override
+  String get vfoDialogOffsetMhz => 'Przesuni?cie (MHz)';
+
+  @override
+  String get vfoDialogRxTone => 'Ton RX';
+
+  @override
+  String get vfoDialogTxTone => 'Ton TX';
+
+  @override
+  String get vfoDialogTxOutOfRange =>
+      'Cz?stotliwo?? nadawania jest poza zakresem nadawania radia';
 }

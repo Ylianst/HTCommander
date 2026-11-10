@@ -76,7 +76,6 @@
   "stationConnectErrorRegion": "La regione \"{region}\" configurata per questo contatto non è stata trovata sulla radio. Vuoi modificare il contatto?",
   "stationConnectErrorChannel": "Il canale \"{channel}\" configurato per questo contatto non è stato trovato sulla radio. Vuoi modificare il contatto?",
   "stationConnectErrorNoChannel": "Nessun canale è configurato per questo contatto. Vuoi modificare il contatto?",
-
   "aboutCheckForUpdates": "Verifica aggiornamenti",
   "aboutVersionAuthor": "Versione {version}\nYlian Saint-Hilaire, KK7VZT\nOpen Source, licenza Apache 2.0",
 
@@ -783,6 +782,22 @@
   "bbsAprsLookupHelp": "Le stazioni possono vedere l'ultima posizione, il commento e il meteo ricevuti da una stazione APRS con AP <nominativo>.",
   "bbsAprsHeardEnable": "Abilita elenco stazioni APRS ascoltate",
   "bbsAprsHeardHelp": "Le stazioni possono elencare le stazioni APRS ascoltate più di recente con AH.",
+  "bbsCustomizeWinlink": "Winlink",
+  "bbsWinlinkGateway": "Gateway Winlink",
+  "bbsWinlinkGatewayEnable": "Funziona come gateway Winlink",
+  "bbsWinlinkGatewayHelp": "Le stazioni Winlink che si collegano vengono inoltrate al CMS Winlink via Internet con il proprio nominativo. Se disattivato, o se il CMS non è raggiungibile, la posta viene scambiata con la casella locale di questa stazione.",
+  "bbsCustomizeAccess": "Accesso",
+  "bbsAccessMode": "Accesso stazioni",
+  "bbsAccessOpen": "Aperto a tutte le stazioni, tranne quelle nella lista di blocco",
+  "bbsAccessAllowListOnly": "Solo le stazioni nella lista consentiti",
+  "bbsAccessHelp": "Un nominativo senza SSID (N0CALL) corrisponde a tutti i suoi SSID; con SSID (N0CALL-7) solo a quello. Vale per le connessioni radio e web. I nominativi web non sono verificati.",
+  "bbsAllowList": "Lista consentiti",
+  "bbsDenyList": "Lista di blocco",
+  "bbsAccessCallsign": "Nominativo",
+  "bbsAccessAdd": "Aggiungi",
+  "bbsAccessRemove": "Rimuovi",
+  "bbsAccessEmpty": "Nessuna stazione",
+  "bbsAccessInvalidCallsign": "Inserisci un nominativo valido",
   "bbsHeaderActive": "BBS - Attivo",
   "bbsActivate": "Attiva",
   "bbsDeactivate": "Disattiva",
@@ -1501,5 +1516,11 @@
   "vfoDialogDeleteTitle": "Elimina frequenza",
   "vfoDialogDeleteMessage": "Rimuovere \"{name}\" dalle frequenze salvate?",
   "vfoDialogWide": "Larga",
-  "vfoDialogNarrow": "Stretta"
+  "vfoDialogNarrow": "Stretta",
+  "vfoDialogOffset": "Offset",
+  "vfoDialogSimplex": "Simplex",
+  "vfoDialogOffsetMhz": "Offset (MHz)",
+  "vfoDialogRxTone": "Tono RX",
+  "vfoDialogTxTone": "Tono TX",
+  "vfoDialogTxOutOfRange": "La frequenza di trasmissione ? fuori dalla gamma di trasmissione della radio"
 }

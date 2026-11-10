@@ -256,7 +256,8 @@ const tools = [
         type: 'object',
         description:
           'Ad-hoc station instead of contact: {Callsign, TerminalProtocol (0 raw AX.25, 1 AX.25 ' +
-          'session, 2 APRS, 4 XARA narrow, 5 XARA wide), Channel, AX25Destination, AX25Path}',
+          'session, 2 APRS, 4 XARA narrow, 5 XARA wide), Channel, Frequency (Hz; picks a ' +
+          'tone-less simplex channel on that frequency), AX25Destination, AX25Path}',
       },
     },
     ['radio'],

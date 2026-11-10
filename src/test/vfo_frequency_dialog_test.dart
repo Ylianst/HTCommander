@@ -96,6 +96,103 @@ void main() {
     find.ancestor(of: find.text('Tune'), matching: find.byType(ElevatedButton)),
   );
 
+  final freqField = find.byType(TextField).first;
+
+  Map<String, Object?> tune(
+    int freqHz, {
+    bool am = false,
+    bool wide = false,
+    int? txFreqHz,
+    int rxSubAudio = 0,
+    int txSubAudio = 0,
+  }) => {
+    'freqHz': freqHz,
+    'am': am,
+    'wide': wide,
+    'txFreqHz': txFreqHz ?? freqHz,
+    'rxSubAudio': rxSubAudio,
+    'txSubAudio': txSubAudio,
+  };
+
+  Future<void> pickTone(WidgetTester tester, String label, String tone) async {
+    await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, label));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text(tone),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text(tone).last);
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('tunes with a repeater offset and tones', (tester) async {
+    await open(tester);
+    await tester.enterText(freqField, '146.94');
+    await tester.tap(find.text('Simplex'));
+    await tester.pump();
+    expect(find.text('+'), findsOneWidget);
+    await tester.tap(find.text('+'));
+    await tester.pump();
+    await pickTone(tester, 'TX tone', '100.0 Hz');
+    await pickTone(tester, 'RX tone', 'DCS-023N/047I');
+    await tester.tap(find.text('Tune'));
+    expect(
+      commands.single,
+      tune(146940000, txFreqHz: 146340000, rxSubAudio: 23, txSubAudio: 10000),
+    );
+  });
+
+  testWidgets('blocks offsets that land outside the TX bands', (tester) async {
+    await open(tester);
+    await tester.enterText(freqField, '173.0');
+    await tester.tap(find.text('Simplex'));
+    await tester.pump();
+    expect(tuneButton(tester).onPressed, isNotNull);
+    await tester.enterText(find.byType(TextField).at(1), '2');
+    await tester.pump();
+    expect(tuneButton(tester).onPressed, isNull);
+    expect(
+      find.text("Transmit frequency is outside the radio's transmit range"),
+      findsOneWidget,
+    );
+    await tester.enterText(find.byType(TextField).at(1), '');
+    await tester.pump();
+    expect(tuneButton(tester).onPressed, isNull);
+  });
+
+  testWidgets('seeds offset and tones from the VFO slot and hides them in AM', (
+    tester,
+  ) async {
+    broker.dispatch(
+      deviceId: _deviceId,
+      name: 'VfoChannels',
+      data: [
+        {
+          'channelId': 252,
+          'rxFreq': 442100000,
+          'txFreq': 447100000,
+          'txSubAudio': 8850,
+          'rxSubAudio': 8850,
+        },
+      ],
+    );
+    await open(tester);
+    expect(find.text('442.100'), findsOneWidget);
+    expect(find.text('5'), findsOneWidget);
+    expect(find.text('88.5 Hz'), findsNWidgets(2));
+    await tester.tap(find.text('Tune'));
+    expect(
+      commands.single,
+      tune(442100000, txFreqHz: 447100000, rxSubAudio: 8850, txSubAudio: 8850),
+    );
+
+    await tester.tap(find.text('FM'));
+    await tester.pump();
+    expect(find.text('TX tone'), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
+  });
+
   testWidgets('shows the current VFO frequency and tunes in range', (
     tester,
   ) async {
@@ -103,16 +200,16 @@ void main() {
     expect(find.text('Frequency Mode'), findsOneWidget);
     expect(find.text('146.520'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), '147.0');
+    await tester.enterText(freqField, '147.0');
     await tester.pump();
     await tester.tap(find.text('Tune'));
-    expect(commands.single, {'freqHz': 147000000, 'am': false, 'wide': false});
+    expect(commands.single, tune(147000000));
   });
 
   testWidgets('blocks frequencies outside the radio bands', (tester) async {
     await open(tester);
     for (final text in ['200', '300.5', '600', '120']) {
-      await tester.enterText(find.byType(TextField), text);
+      await tester.enterText(freqField, text);
       await tester.pump();
       expect(tuneButton(tester).onPressed, isNull, reason: text);
       expect(
@@ -131,11 +228,11 @@ void main() {
 
   testWidgets('step buttons tune and stop at the band edge', (tester) async {
     await open(tester);
-    await tester.enterText(find.byType(TextField), '173.9875');
+    await tester.enterText(freqField, '173.9875');
     await tester.pump();
     await tester.tap(find.byTooltip('Step up'));
     await tester.pump();
-    expect(commands.single, {'freqHz': 174000000, 'am': false, 'wide': false});
+    expect(commands.single, tune(174000000));
     final stepUp = tester.widget<IconButton>(
       find.ancestor(
         of: find.byIcon(Icons.chevron_right),
@@ -177,7 +274,7 @@ void main() {
     expect(find.text('No saved frequencies'), findsOneWidget);
 
     // Save 120 MHz AM wide under a custom name.
-    await tester.enterText(find.byType(TextField), '120');
+    await tester.enterText(freqField, '120');
     await tester.tap(find.text('FM'));
     await tester.tap(find.text('Narrow'));
     await tester.pump();
@@ -194,12 +291,12 @@ void main() {
     expect(stored, contains('"freqHz":120000000'));
 
     // Change the editor, then tap the saved entry to restore and tune it.
-    await tester.enterText(find.byType(TextField), '146.52');
+    await tester.enterText(freqField, '146.52');
     await tester.tap(find.text('AM'));
     await tester.pump();
     await tester.tap(find.text('Tower'));
     await tester.pump();
-    expect(commands.single, {'freqHz': 120000000, 'am': true, 'wide': true});
+    expect(commands.single, tune(120000000, am: true, wide: true));
     expect(find.text('120.000'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Rename'));

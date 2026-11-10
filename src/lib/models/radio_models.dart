@@ -332,12 +332,16 @@ class RadioChannelInfo {
   final RadioModulationType txMod;
   final RadioModulationType rxMod;
   final RadioBandwidthType bandwidth;
+  final int txSubAudio;
+  final int rxSubAudio;
 
   RadioChannelInfo({
     required this.channelId,
     this.name = '',
     this.rxFreq = 0,
     this.txFreq = 0,
+    this.txSubAudio = 0,
+    this.rxSubAudio = 0,
     this.scan = false,
     this.txDisable = false,
     this.mute = false,
@@ -358,6 +362,8 @@ class RadioChannelInfo {
       name: json['name'] as String? ?? json['name_str'] as String? ?? '',
       rxFreq: json['rxFreq'] as int? ?? json['rx_freq'] as int? ?? 0,
       txFreq: json['txFreq'] as int? ?? json['tx_freq'] as int? ?? 0,
+      txSubAudio: json['txSubAudio'] as int? ?? 0,
+      rxSubAudio: json['rxSubAudio'] as int? ?? 0,
       scan: json['scan'] as bool? ?? false,
       txDisable:
           json['txDisable'] as bool? ?? json['tx_disable'] as bool? ?? false,
@@ -375,6 +381,8 @@ class RadioChannelInfo {
     'name': name,
     'rxFreq': rxFreq,
     'txFreq': txFreq,
+    'txSubAudio': txSubAudio,
+    'rxSubAudio': rxSubAudio,
     'scan': scan,
     'txDisable': txDisable,
     'mute': mute,
@@ -383,12 +391,52 @@ class RadioChannelInfo {
     'bandwidth': bandwidth == RadioBandwidthType.wide ? 1 : 0,
   };
 
-  /// Compact mode caption for a keypad VFO slot, e.g. "VFO · FM · Narrow".
+  /// Compact mode caption for a keypad VFO slot, e.g. "VFO · FM · Narrow", plus
+  /// any repeater offset and tones (e.g. "· +0.6 · T 100.0").
   String vfoCaption(String vfoLabel) {
     final mod = rxMod == RadioModulationType.am ? 'AM' : 'FM';
     final bw = bandwidth == RadioBandwidthType.wide ? 'Wide' : 'Narrow';
-    return '$vfoLabel · $mod · $bw';
+    final extra = offsetToneSummary(
+      offsetHz: txFreq > 0 ? txFreq - rxFreq : 0,
+      rxSubAudio: rxSubAudio,
+      txSubAudio: txSubAudio,
+    );
+    return '$vfoLabel · $mod · $bw${extra.isEmpty ? '' : ' · $extra'}';
   }
+}
+
+/// Short label for a sub-audio value: CTCSS (Hz × 100, >= 1000) as "100.0",
+/// DCS codes (< 1000) as "D023". Empty for 0 (none).
+String subAudioLabel(int value) {
+  if (value <= 0) return '';
+  if (value >= 1000) return (value / 100).toStringAsFixed(1);
+  return 'D${value.toString().padLeft(3, '0')}';
+}
+
+/// Signed repeater offset in MHz without trailing zeros, e.g. "+0.6", "-5".
+String formatOffsetMhz(int offsetHz) {
+  var s = (offsetHz.abs() / 1000000).toStringAsFixed(4);
+  s = s.replaceFirst(RegExp(r'\.?0+$'), '');
+  return '${offsetHz < 0 ? '-' : '+'}$s';
+}
+
+/// Compact offset/tone summary, e.g. "+0.6 · TSQL 100.0" or "-5 · T 88.5".
+/// "T" is the transmit (encode) tone, "R" the receive (decode) tone, and
+/// "TSQL" both when they match. Empty when simplex with no tones.
+String offsetToneSummary({
+  required int offsetHz,
+  required int rxSubAudio,
+  required int txSubAudio,
+}) {
+  final parts = <String>[];
+  if (offsetHz != 0) parts.add(formatOffsetMhz(offsetHz));
+  if (txSubAudio > 0 && txSubAudio == rxSubAudio) {
+    parts.add('TSQL ${subAudioLabel(txSubAudio)}');
+  } else {
+    if (txSubAudio > 0) parts.add('T ${subAudioLabel(txSubAudio)}');
+    if (rxSubAudio > 0) parts.add('R ${subAudioLabel(rxSubAudio)}');
+  }
+  return parts.join(' · ');
 }
 
 /// Parses a radio's `VfoChannels` broker value (a list of channel maps) into a

@@ -767,14 +767,14 @@ class _RadioChannelDialogState extends State<RadioChannelDialog> {
   Widget _toneDropdown(int value, ValueChanged<int> onChanged) {
     final noneLabel = AppLocalizations.of(context).commonNone;
     return DropdownButtonFormField<int>(
-      initialValue: _toneValues.contains(value) ? value : 0,
+      initialValue: kSubAudioToneValues.contains(value) ? value : 0,
       isExpanded: true,
       decoration: _inputDecoration(),
       items: [
-        for (int i = 0; i < _toneOptions.length; i++)
+        for (int i = 0; i < kSubAudioToneOptions.length; i++)
           DropdownMenuItem(
-              value: _toneValues[i],
-              child: Text(i == 0 ? noneLabel : _toneOptions[i])),
+              value: kSubAudioToneValues[i],
+              child: Text(i == 0 ? noneLabel : kSubAudioToneOptions[i])),
       ],
       onChanged: (v) => onChanged(v ?? 0),
     );
@@ -985,10 +985,14 @@ const List<String> _dcsLabels = [
 ];
 
 /// Display labels for the tone dropdown ("None" + CTCSS + DCS).
-final List<String> _toneOptions = ['None', ..._ctcssHzLabels, ..._dcsLabels];
+final List<String> kSubAudioToneOptions = [
+  'None',
+  ..._ctcssHzLabels,
+  ..._dcsLabels,
+];
 
-/// Sub-audio encoded values matching [_toneOptions] index for index.
-final List<int> _toneValues = [
+/// Sub-audio encoded values matching [kSubAudioToneOptions] index for index.
+final List<int> kSubAudioToneValues = [
   0,
   for (final label in _ctcssHzLabels)
     (double.parse(label.split(' ').first) * 100).round(),

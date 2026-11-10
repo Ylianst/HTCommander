@@ -165,6 +165,12 @@ void main() {
   test('frequency-only Winlink contact requests direct VFO tuning', () async {
     final radio = FakeXaraRadio(209);
     final client = WinlinkClient();
+    var channelWrites = 0;
+    radio.b.subscribe(
+      deviceId: radio.id,
+      name: 'WriteChannel',
+      callback: (_, _, _) => channelWrites++,
+    );
     try {
       ui.dispatch(
         deviceId: 1,
@@ -178,6 +184,7 @@ void main() {
       expect(errors, isEmpty);
       expect(radio.lock!.frequencyHz, 145050000);
       expect(radio.lock!.channelId, -1);
+      expect(channelWrites, 0);
       expect(radio.commands.take(2), ['SetLock', 'XaraConnect']);
     } finally {
       client.dispose();

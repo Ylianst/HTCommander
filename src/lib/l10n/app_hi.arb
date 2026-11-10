@@ -92,7 +92,6 @@
   "stationConnectErrorRegion": "इस संपर्क के लिए कॉन्फ़िगर किया गया क्षेत्र '{region}' रेडियो पर नहीं मिला। क्या आप संपर्क संपादित करना चाहेंगे?",
   "stationConnectErrorChannel": "इस संपर्क के लिए कॉन्फ़िगर किया गया चैनल '{channel}' रेडियो पर नहीं मिला। क्या आप संपर्क संपादित करना चाहेंगे?",
   "stationConnectErrorNoChannel": "इस संपर्क के लिए कोई चैनल कॉन्फ़िगर नहीं किया गया है। क्या आप संपर्क संपादित करना चाहेंगे?",
-
   "aboutCheckForUpdates": "अपडेट के लिए जाँचें",
   "aboutVersionAuthor": "संस्करण {version}\nYlian Saint-Hilaire, KK7VZT\nओपन सोर्स, Apache 2.0 लाइसेंस",
 
@@ -791,6 +790,22 @@
   "bbsAprsLookupHelp": "स्टेशन AP <कॉलसाइन> से किसी APRS स्टेशन से अंतिम बार प्राप्त स्थिति, टिप्पणी और मौसम देख सकते हैं।",
   "bbsAprsHeardEnable": "सुने गए APRS स्टेशनों की सूची सक्षम करें",
   "bbsAprsHeardHelp": "स्टेशन AH से हाल ही में सुने गए APRS स्टेशनों की सूची देख सकते हैं।",
+  "bbsCustomizeWinlink": "Winlink",
+  "bbsWinlinkGateway": "Winlink गेटवे",
+  "bbsWinlinkGatewayEnable": "Winlink गेटवे के रूप में कार्य करें",
+  "bbsWinlinkGatewayHelp": "जुड़ने वाले Winlink स्टेशन अपने कॉलसाइन से इंटरनेट के माध्यम से Winlink CMS तक रिले किए जाते हैं। बंद होने पर, या CMS उपलब्ध न होने पर, मेल इस स्टेशन के स्थानीय मेलबॉक्स से बदली जाती है।",
+  "bbsCustomizeAccess": "पहुँच",
+  "bbsAccessMode": "स्टेशन पहुँच",
+  "bbsAccessOpen": "अस्वीकृत सूची वालों को छोड़कर सभी स्टेशनों के लिए खुला",
+  "bbsAccessAllowListOnly": "केवल अनुमति सूची के स्टेशन",
+  "bbsAccessHelp": "SSID के बिना कॉलसाइन (N0CALL) उसके सभी SSID से मेल खाता है; SSID के साथ (N0CALL-7) केवल उसी से। रेडियो और वेब BBS कनेक्शन पर लागू। वेब कॉलसाइन सत्यापित नहीं होते।",
+  "bbsAllowList": "अनुमति सूची",
+  "bbsDenyList": "अस्वीकृत सूची",
+  "bbsAccessCallsign": "कॉलसाइन",
+  "bbsAccessAdd": "जोड़ें",
+  "bbsAccessRemove": "हटाएँ",
+  "bbsAccessEmpty": "कोई स्टेशन नहीं",
+  "bbsAccessInvalidCallsign": "मान्य कॉलसाइन दर्ज करें",
   "bbsHeaderActive": "BBS - सक्रिय",
   "bbsActivate": "सक्रिय करें",
   "bbsDeactivate": "निष्क्रिय करें",
@@ -1609,5 +1624,11 @@
   "vfoDialogDeleteTitle": "फ़्रीक्वेंसी हटाएँ",
   "vfoDialogDeleteMessage": "\"{name}\" को सहेजी गई फ़्रीक्वेंसी से हटाएँ?",
   "vfoDialogWide": "वाइड",
-  "vfoDialogNarrow": "नैरो"
+  "vfoDialogNarrow": "नैरो",
+  "vfoDialogOffset": "??????",
+  "vfoDialogSimplex": "???????????",
+  "vfoDialogOffsetMhz": "?????? (MHz)",
+  "vfoDialogRxTone": "RX ???",
+  "vfoDialogTxTone": "TX ???",
+  "vfoDialogTxOutOfRange": "????????? ??????? ?????? ?? ????????? ???? ?? ???? ??"
 }

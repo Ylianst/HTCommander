@@ -49,6 +49,10 @@ class StationInfo {
   /// (older contacts or free-text channels). Used to switch the radio to the
   /// correct region before a Terminal / Winlink connection.
   String channelRegion;
+
+  /// Alias for contacts created before the frequency field was named in Hz.
+  int get frequency => frequencyHz;
+  set frequency(int value) => frequencyHz = value;
   String ax25Destination;
 
   /// Optional AX.25 digipeater path used when opening a connected-mode session
@@ -84,8 +88,9 @@ class StationInfo {
     this.aprsRoute = '',
     this.terminalProtocol = TerminalProtocol.x25Session,
     this.channel = '',
-    this.frequencyHz = 0,
+    int? frequencyHz,
     this.channelRegion = '',
+    int frequency = 0,
     this.ax25Destination = '',
     this.ax25Path = '',
     this.waitForConnection = false,
@@ -93,7 +98,7 @@ class StationInfo {
     this.modem = 'Hardware',
     this.avatarIcon,
     this.avatarImage,
-  });
+  }) : frequencyHz = frequencyHz ?? frequency;
 
   /// Callsign with a trailing `-0` SSID removed (matches C# `CallsignNoZero`).
   String get callsignNoZero {
@@ -113,6 +118,7 @@ class StationInfo {
     String? channel,
     int? frequencyHz,
     String? channelRegion,
+    int? frequency,
     String? ax25Destination,
     String? ax25Path,
     bool? waitForConnection,
@@ -129,8 +135,9 @@ class StationInfo {
       aprsRoute: aprsRoute ?? this.aprsRoute,
       terminalProtocol: terminalProtocol ?? this.terminalProtocol,
       channel: channel ?? this.channel,
-      frequencyHz: frequencyHz ?? this.frequencyHz,
+      frequencyHz: frequencyHz ?? frequency ?? this.frequencyHz,
       channelRegion: channelRegion ?? this.channelRegion,
+      frequency: frequency ?? this.frequency,
       ax25Destination: ax25Destination ?? this.ax25Destination,
       ax25Path: ax25Path ?? this.ax25Path,
       waitForConnection: waitForConnection ?? this.waitForConnection,
@@ -154,6 +161,7 @@ class StationInfo {
       'Channel': channel,
       'FrequencyHz': frequencyHz,
       'ChannelRegion': channelRegion,
+      'Frequency': frequency,
       'AX25Destination': ax25Destination,
       'AX25Path': ax25Path,
       'WaitForConnection': waitForConnection,
@@ -217,13 +225,15 @@ class StationInfo {
         json['TerminalProtocol'] ?? json['terminalProtocol'],
       ),
       channel: (json['Channel'] ?? json['channel'] ?? '').toString(),
-      frequencyHz:
-          int.tryParse(
-            (json['FrequencyHz'] ?? json['frequencyHz'] ?? 0).toString(),
-          ) ??
-          0,
+      frequencyHz: _parseFrequency(
+        json['FrequencyHz'] ??
+            json['frequencyHz'] ??
+            json['Frequency'] ??
+            json['frequency'],
+      ),
       channelRegion: (json['ChannelRegion'] ?? json['channelRegion'] ?? '')
           .toString(),
+      frequency: _parseFrequency(json['Frequency'] ?? json['frequency']),
       ax25Destination:
           (json['AX25Destination'] ?? json['ax25Destination'] ?? '').toString(),
       ax25Path: (json['AX25Path'] ?? json['ax25Path'] ?? '').toString(),
@@ -242,6 +252,12 @@ class StationInfo {
   static String? _nonEmptyOrNull(Object? raw) {
     final s = raw?.toString() ?? '';
     return (s.isEmpty || s == 'null') ? null : s;
+  }
+
+  /// Parses a stored frequency in Hz; anything invalid or negative is 0.
+  static int _parseFrequency(Object? raw) {
+    final v = raw is num ? raw.toInt() : int.tryParse(raw?.toString() ?? '');
+    return (v == null || v < 0) ? 0 : v;
   }
 
   /// Normalizes a stored modem value, defaulting to `'Hardware'`.
@@ -276,6 +292,7 @@ class StationInfo {
       sb.writeln('Channel=${station.channel}');
       sb.writeln('FrequencyHz=${station.frequencyHz}');
       sb.writeln('ChannelRegion=${station.channelRegion}');
+      sb.writeln('Frequency=${station.frequency}');
       sb.writeln('AX25Destination=${station.ax25Destination}');
       sb.writeln('AX25Path=${station.ax25Path}');
       sb.writeln('AuthPassword=${station.authPassword ?? ''}');
@@ -338,6 +355,9 @@ class StationInfo {
             break;
           case 'ChannelRegion':
             current.channelRegion = value;
+            break;
+          case 'Frequency':
+            current.frequency = _parseFrequency(value);
             break;
           case 'AX25Destination':
             current.ax25Destination = value;

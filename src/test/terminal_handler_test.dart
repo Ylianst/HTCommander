@@ -181,6 +181,12 @@ void main() {
   });
 
   test('station frequency without a matching channel requests VFO tuning', () {
+    var channelWrites = 0;
+    bus.subscribe(
+      deviceId: radioId,
+      name: 'WriteChannel',
+      callback: (_, _, _) => channelWrites++,
+    );
     final contact = station(
       TerminalProtocol.rawX25,
     ).copyWith(frequencyHz: 145050000, channel: '');
@@ -196,6 +202,8 @@ void main() {
     );
     handler.connect(radioId, contact);
     expect(lock!.frequencyHz, 145050000);
+    expect(lock!.channelId, -1);
+    expect(channelWrites, 0);
     expect(state()['status'], 'connected');
   });
 

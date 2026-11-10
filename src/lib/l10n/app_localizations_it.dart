@@ -2463,6 +2463,58 @@ class AppLocalizationsIt extends AppLocalizations {
       'Le stazioni possono elencare le stazioni APRS ascoltate più di recente con AH.';
 
   @override
+  String get bbsCustomizeWinlink => 'Winlink';
+
+  @override
+  String get bbsWinlinkGateway => 'Gateway Winlink';
+
+  @override
+  String get bbsWinlinkGatewayEnable => 'Funziona come gateway Winlink';
+
+  @override
+  String get bbsWinlinkGatewayHelp =>
+      'Le stazioni Winlink che si collegano vengono inoltrate al CMS Winlink via Internet con il proprio nominativo. Se disattivato, o se il CMS non è raggiungibile, la posta viene scambiata con la casella locale di questa stazione.';
+
+  @override
+  String get bbsCustomizeAccess => 'Accesso';
+
+  @override
+  String get bbsAccessMode => 'Accesso stazioni';
+
+  @override
+  String get bbsAccessOpen =>
+      'Aperto a tutte le stazioni, tranne quelle nella lista di blocco';
+
+  @override
+  String get bbsAccessAllowListOnly =>
+      'Solo le stazioni nella lista consentiti';
+
+  @override
+  String get bbsAccessHelp =>
+      'Un nominativo senza SSID (N0CALL) corrisponde a tutti i suoi SSID; con SSID (N0CALL-7) solo a quello. Vale per le connessioni radio e web. I nominativi web non sono verificati.';
+
+  @override
+  String get bbsAllowList => 'Lista consentiti';
+
+  @override
+  String get bbsDenyList => 'Lista di blocco';
+
+  @override
+  String get bbsAccessCallsign => 'Nominativo';
+
+  @override
+  String get bbsAccessAdd => 'Aggiungi';
+
+  @override
+  String get bbsAccessRemove => 'Rimuovi';
+
+  @override
+  String get bbsAccessEmpty => 'Nessuna stazione';
+
+  @override
+  String get bbsAccessInvalidCallsign => 'Inserisci un nominativo valido';
+
+  @override
   String get bbsHeaderActive => 'BBS - Attivo';
 
   @override
@@ -4827,4 +4879,23 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get vfoDialogNarrow => 'Stretta';
+
+  @override
+  String get vfoDialogOffset => 'Offset';
+
+  @override
+  String get vfoDialogSimplex => 'Simplex';
+
+  @override
+  String get vfoDialogOffsetMhz => 'Offset (MHz)';
+
+  @override
+  String get vfoDialogRxTone => 'Tono RX';
+
+  @override
+  String get vfoDialogTxTone => 'Tono TX';
+
+  @override
+  String get vfoDialogTxOutOfRange =>
+      'La frequenza di trasmissione ? fuori dalla gamma di trasmissione della radio';
 }
