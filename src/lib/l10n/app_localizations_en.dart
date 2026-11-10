@@ -4832,23 +4832,4 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vfoDialogNarrow => 'Narrow';
-
-  @override
-  String get vfoDialogOffset => 'Offset';
-
-  @override
-  String get vfoDialogSimplex => 'Simplex';
-
-  @override
-  String get vfoDialogOffsetMhz => 'Offset (MHz)';
-
-  @override
-  String get vfoDialogRxTone => 'RX tone';
-
-  @override
-  String get vfoDialogTxTone => 'TX tone';
-
-  @override
-  String get vfoDialogTxOutOfRange =>
-      'Transmit frequency is outside the radio\'s transmit range';
 }

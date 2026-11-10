@@ -4758,22 +4758,4 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get vfoDialogNarrow => 'ナロー';
-
-  @override
-  String get vfoDialogOffset => '?????';
-
-  @override
-  String get vfoDialogSimplex => '???????';
-
-  @override
-  String get vfoDialogOffsetMhz => '????? (MHz)';
-
-  @override
-  String get vfoDialogRxTone => 'RX???';
-
-  @override
-  String get vfoDialogTxTone => 'TX???';
-
-  @override
-  String get vfoDialogTxOutOfRange => '?????????????????';
 }

@@ -1624,11 +1624,5 @@
   "vfoDialogDeleteTitle": "周波数を削除",
   "vfoDialogDeleteMessage": "「{name}」を保存済み周波数から削除しますか？",
   "vfoDialogWide": "ワイド",
-  "vfoDialogNarrow": "ナロー",
-  "vfoDialogOffset": "?????",
-  "vfoDialogSimplex": "???????",
-  "vfoDialogOffsetMhz": "????? (MHz)",
-  "vfoDialogRxTone": "RX???",
-  "vfoDialogTxTone": "TX???",
-  "vfoDialogTxOutOfRange": "?????????????????"
+  "vfoDialogNarrow": "ナロー"
 }

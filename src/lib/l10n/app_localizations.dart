@@ -8739,42 +8739,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Narrow'**
   String get vfoDialogNarrow;
-
-  /// Tooltip of the button that cycles the repeater offset direction (simplex, +, -) in the frequency mode dialog.
-  ///
-  /// In en, this message translates to:
-  /// **'Offset'**
-  String get vfoDialogOffset;
-
-  /// Label of the offset direction button when transmit equals receive frequency (no repeater offset).
-  ///
-  /// In en, this message translates to:
-  /// **'Simplex'**
-  String get vfoDialogSimplex;
-
-  /// Label of the repeater offset amount field (in MHz) in the frequency mode dialog.
-  ///
-  /// In en, this message translates to:
-  /// **'Offset (MHz)'**
-  String get vfoDialogOffsetMhz;
-
-  /// Label of the receive (decode) CTCSS/DCS tone picker in the frequency mode dialog.
-  ///
-  /// In en, this message translates to:
-  /// **'RX tone'**
-  String get vfoDialogRxTone;
-
-  /// Label of the transmit (encode) CTCSS/DCS tone picker in the frequency mode dialog.
-  ///
-  /// In en, this message translates to:
-  /// **'TX tone'**
-  String get vfoDialogTxTone;
-
-  /// Error shown when the frequency plus repeater offset is outside the radio's transmit bands.
-  ///
-  /// In en, this message translates to:
-  /// **'Transmit frequency is outside the radio\'s transmit range'**
-  String get vfoDialogTxOutOfRange;
 }
 
 class _AppLocalizationsDelegate

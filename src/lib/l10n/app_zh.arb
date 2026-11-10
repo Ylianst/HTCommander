@@ -1624,11 +1624,5 @@
   "vfoDialogDeleteTitle": "删除频率",
   "vfoDialogDeleteMessage": "从已保存的频率中删除“{name}”？",
   "vfoDialogWide": "宽带",
-  "vfoDialogNarrow": "窄带",
-  "vfoDialogOffset": "??",
-  "vfoDialogSimplex": "??",
-  "vfoDialogOffsetMhz": "?? (MHz)",
-  "vfoDialogRxTone": "????",
-  "vfoDialogTxTone": "????",
-  "vfoDialogTxOutOfRange": "?????????????"
+  "vfoDialogNarrow": "窄带"
 }

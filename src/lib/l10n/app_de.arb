@@ -1624,11 +1624,5 @@
   "vfoDialogDeleteTitle": "Frequenz löschen",
   "vfoDialogDeleteMessage": "\"{name}\" aus den gespeicherten Frequenzen entfernen?",
   "vfoDialogWide": "Breit",
-  "vfoDialogNarrow": "Schmal",
-  "vfoDialogOffset": "Ablage",
-  "vfoDialogSimplex": "Simplex",
-  "vfoDialogOffsetMhz": "Ablage (MHz)",
-  "vfoDialogRxTone": "RX-Ton",
-  "vfoDialogTxTone": "TX-Ton",
-  "vfoDialogTxOutOfRange": "Sendefrequenz liegt au?erhalb des Sendebereichs des Funkger?ts"
+  "vfoDialogNarrow": "Schmal"
 }

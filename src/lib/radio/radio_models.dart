@@ -1165,14 +1165,6 @@ List<RadioFreqBand> freqBandsFor(
 bool isFreqAllowed(List<RadioFreqBand> bands, int hz, RadioModulationType m) =>
     hz > 0 && freqBandsFor(bands, m).any((b) => b.contains(hz));
 
-/// True when [hz] lies within an FM TX/RX band (mod 2), so the radio can
-/// transmit on it. Falls back to [kDefaultFreqBands] like [freqBandsFor].
-bool isTxFreqAllowed(List<RadioFreqBand> bands, int hz) =>
-    hz > 0 &&
-    (bands.isEmpty ? kDefaultFreqBands : bands).any(
-      (b) => b.mod == 2 && b.contains(hz),
-    );
-
 /// Radio lock state - for exclusive operations
 class RadioLockState {
   bool isLocked;

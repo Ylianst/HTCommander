@@ -1624,11 +1624,5 @@
   "vfoDialogDeleteTitle": "Usuń częstotliwość",
   "vfoDialogDeleteMessage": "Usunąć \"{name}\" z zapisanych częstotliwości?",
   "vfoDialogWide": "Szeroki",
-  "vfoDialogNarrow": "Wąski",
-  "vfoDialogOffset": "Przesuni?cie",
-  "vfoDialogSimplex": "Simpleks",
-  "vfoDialogOffsetMhz": "Przesuni?cie (MHz)",
-  "vfoDialogRxTone": "Ton RX",
-  "vfoDialogTxTone": "Ton TX",
-  "vfoDialogTxOutOfRange": "Cz?stotliwo?? nadawania jest poza zakresem nadawania radia"
+  "vfoDialogNarrow": "Wąski"
 }
