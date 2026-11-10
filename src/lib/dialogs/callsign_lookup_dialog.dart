@@ -15,6 +15,7 @@ import '../l10n/app_localizations.dart';
 import '../models/station_info.dart';
 import '../services/callsign_lookup_service.dart';
 import '../services/data_broker_client.dart';
+import '../utils/callsign_input_formatter.dart';
 
 /// Standalone offline callsign lookup dialog.
 ///
@@ -264,7 +265,7 @@ class _CallsignLookupDialogState extends State<CallsignLookupDialog> {
           autofocus: true,
           textInputAction: TextInputAction.search,
           textCapitalization: TextCapitalization.characters,
-          inputFormatters: [UpperCaseTextFormatter()],
+          inputFormatters: const [CallsignInputFormatter()],
           decoration: _inputDecoration(labelText: l10n.cslFieldCallsign)
               .copyWith(
                 suffixIcon: IconButton(

@@ -14,8 +14,9 @@ import 'package:htcommander/services/data_broker.dart';
 /// Regression coverage for issue #59: opening the settings dialog on desktop
 /// (Windows) must build and lay out every tab without throwing or overflowing.
 void main() {
-  testWidgets('settings dialog builds every tab on Windows without overflow',
-      (tester) async {
+  testWidgets('settings dialog builds every tab on Windows without overflow', (
+    tester,
+  ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     tester.view.physicalSize = const Size(1400, 1800);
     tester.view.devicePixelRatio = 1;
@@ -52,6 +53,33 @@ void main() {
       );
       await tester.pump();
       expect(tester.takeException(), isNull, reason: 'initial build');
+
+      final callsign = find.byWidgetPredicate(
+        (widget) => widget is TextField && widget.controller?.text == 'KK7ABC',
+      );
+      await tester.enterText(callsign, 'KK7VZT7');
+      await tester.pump();
+      expect(find.text('KK7VZT-7'), findsOneWidget);
+      final stationId = find.byWidgetPredicate(
+        (widget) =>
+            widget is DropdownButtonFormField<int> &&
+            widget.key == const ValueKey(7),
+      );
+      expect(stationId, findsOneWidget);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'KK7VZT-7'),
+        'KK7VZT15',
+      );
+      await tester.pump();
+      expect(find.text('KK7VZT-15'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is DropdownButtonFormField<int> &&
+              widget.key == const ValueKey(15),
+        ),
+        findsOneWidget,
+      );
 
       final tabs = find.byType(Tab);
       final count = tabs.evaluate().length;

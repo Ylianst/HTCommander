@@ -20,6 +20,7 @@ import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
 import '../radio/radio_models.dart';
 import '../services/data_broker_client.dart';
+import '../utils/callsign_input_formatter.dart';
 import 'dialog_utils.dart';
 import 'radio_settings_panel.dart';
 
@@ -202,6 +203,7 @@ class IdentSettingsPanelState extends State<IdentSettingsPanel>
           inputFormatters: [
             // Allow letters, numbers, dash (-), slash (/) and space.
             FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9/\- ]')),
+            const CallsignInputFormatter(),
           ],
           decoration: InputDecoration(
             labelText: l10n.beaconCallsignHint,

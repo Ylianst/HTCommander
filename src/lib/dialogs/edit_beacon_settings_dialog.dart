@@ -17,6 +17,7 @@ import '../aprs/aprs_symbols.dart';
 import '../services/bluetooth_service.dart';
 import '../services/data_broker_client.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/callsign_input_formatter.dart';
 import 'aprs_symbol_picker_dialog.dart';
 import 'dialog_utils.dart';
 import 'radio_settings_panel.dart';
@@ -616,10 +617,7 @@ class BeaconSettingsPanelState extends State<BeaconSettingsPanel>
             textCapitalization: TextCapitalization.characters,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9-]')),
-              TextInputFormatter.withFunction(
-                (oldValue, newValue) =>
-                    newValue.copyWith(text: newValue.text.toUpperCase()),
-              ),
+              const CallsignInputFormatter(),
             ],
             decoration: _inputDecoration(
               hintText: l10n.beaconCallsignHint,
@@ -670,10 +668,7 @@ class BeaconSettingsPanelState extends State<BeaconSettingsPanel>
             textCapitalization: TextCapitalization.characters,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9,\- ]')),
-              TextInputFormatter.withFunction(
-                (oldValue, newValue) =>
-                    newValue.copyWith(text: newValue.text.toUpperCase()),
-              ),
+              const CallsignInputFormatter(),
             ],
             decoration: _inputDecoration(
               hintText: 'WIDE1-1,WIDE2-1',

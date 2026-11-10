@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../utils/callsign_input_formatter.dart';
 import 'app_settings.dart';
 import 'dialog_utils.dart';
 
@@ -105,6 +106,7 @@ class _AprsRouteDialogState extends State<AprsRouteDialog> {
           const SizedBox(height: 4),
           TextField(
             controller: _pathController,
+            inputFormatters: const [CallsignInputFormatter()],
             decoration: InputDecoration(
               filled: true,
               fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,

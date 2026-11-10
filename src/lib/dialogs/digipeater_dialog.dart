@@ -16,6 +16,7 @@ import '../models/radio_models.dart';
 import '../radio/ax25_address.dart';
 import '../services/data_broker_client.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/callsign_input_formatter.dart';
 import 'dialog_utils.dart';
 
 /// Shows the digipeater configuration dialog. Lets the user enable the APRS
@@ -407,10 +408,7 @@ class _DigipeaterDialogState extends State<DigipeaterDialog> {
             textCapitalization: TextCapitalization.characters,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9,\-\s]')),
-              TextInputFormatter.withFunction(
-                (oldValue, newValue) =>
-                    newValue.copyWith(text: newValue.text.toUpperCase()),
-              ),
+              const CallsignInputFormatter(),
             ],
             decoration: _inputDecoration(
               hintText: l10n.digipeaterAliasesHint,

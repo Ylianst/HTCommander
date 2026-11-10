@@ -71,6 +71,10 @@ void main() {
         expect(find.text('Software AFSK 1200'), findsNothing);
 
         if (!editing) {
+          final callsign = find.widgetWithText(TextField, 'N1RMS-10');
+          await tester.enterText(callsign, 'KK7VZT7');
+          await tester.pump();
+          expect(find.text('KK7VZT-7'), findsOneWidget);
           final frequency = find.byWidgetPredicate(
             (widget) =>
                 widget is TextField &&
@@ -94,14 +98,15 @@ void main() {
         final ok = find.widgetWithText(ElevatedButton, 'OK');
         expect(tester.widget<ElevatedButton>(ok).onPressed, isNull);
         expect(find.textContaining('up to two'), findsOneWidget);
-        await tester.enterText(path, 'N9DIG,N8DIG');
+        await tester.enterText(path, 'N9DIG7,N8DIG15');
         await tester.pump();
         await tester.ensureVisible(ok);
         await tester.tap(ok);
         await tester.pumpAndSettle();
         expect(saved!.stationType, StationType.winlink);
         expect(saved!.terminalProtocol, protocol);
-        expect(saved!.ax25Path, 'N9DIG,N8DIG');
+        expect(saved!.callsign, editing ? 'N1RMS-10' : 'KK7VZT-7');
+        expect(saved!.ax25Path, 'N9DIG-7,N8DIG-15');
         expect(saved!.modem, 'Hardware');
         expect(saved!.frequencyHz, 145050000);
         expect(saved!.channel, isEmpty);

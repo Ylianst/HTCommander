@@ -32,6 +32,7 @@ import '../services/tts_service.dart';
 import '../services/winlink_gateway_service.dart';
 import '../services/sherpa_model_manager.dart';
 import '../widgets/contact_avatar.dart';
+import '../utils/callsign_input_formatter.dart';
 import '../utils/map_tile_source.dart';
 import 'app_settings.dart';
 import 'aprs_route_dialog.dart';
@@ -452,7 +453,14 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   void _onCallSignChanged() {
     setState(() {
-      _settings.callSign = _callSignController.text.toUpperCase();
+      final parts = _callSignController.text.toUpperCase().split('-');
+      _settings.callSign = parts.first;
+      if (parts.length == 2) {
+        final ssid = int.tryParse(parts.last);
+        if (ssid != null && ssid >= 0 && ssid <= 15) {
+          _settings.stationId = ssid;
+        }
+      }
       if (_settings.callSign.length < 3) {
         _settings.allowTransmit = false;
       }
@@ -1567,13 +1575,9 @@ class _SettingsDialogState extends State<SettingsDialog>
                             textCapitalization: TextCapitalization.characters,
                             inputFormatters: [
                               FilteringTextInputFormatter.allow(
-                                RegExp(r'[A-Za-z0-9]'),
+                                RegExp(r'[A-Za-z0-9-]'),
                               ),
-                              TextInputFormatter.withFunction(
-                                (oldValue, newValue) => newValue.copyWith(
-                                  text: newValue.text.toUpperCase(),
-                                ),
-                              ),
+                              const CallsignInputFormatter(),
                             ],
                           ),
                         ],
@@ -1591,6 +1595,7 @@ class _SettingsDialogState extends State<SettingsDialog>
                           ),
                           const SizedBox(height: 4),
                           DropdownButtonFormField<int>(
+                            key: ValueKey(_settings.stationId),
                             initialValue: _settings.stationId,
                             decoration: _inputDecoration(),
                             items: List.generate(
@@ -1603,7 +1608,21 @@ class _SettingsDialogState extends State<SettingsDialog>
                               ),
                             ),
                             onChanged: (value) {
-                              setState(() => _settings.stationId = value ?? 0);
+                              setState(() {
+                                _settings.stationId = value ?? 0;
+                                if (_callSignController.text.contains('-')) {
+                                  _callSignController.value = TextEditingValue(
+                                    text:
+                                        '${_settings.callSign}-${_settings.stationId}',
+                                    selection: TextSelection.collapsed(
+                                      offset:
+                                          _settings.callSign.length +
+                                          1 +
+                                          _settings.stationId.toString().length,
+                                    ),
+                                  );
+                                }
+                              });
                             },
                           ),
                         ],

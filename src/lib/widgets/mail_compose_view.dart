@@ -10,6 +10,7 @@ import '../dialogs/dialog_utils.dart';
 import '../l10n/app_localizations.dart';
 import '../models/station_info.dart';
 import '../services/data_broker_client.dart';
+import '../utils/callsign_input_formatter.dart';
 import 'contact_avatar.dart';
 
 /// A file attached to a composed message, carrying the file name and its raw
@@ -88,6 +89,8 @@ class MailComposeViewState extends State<MailComposeView> {
   late final TextEditingController _ccController;
   late final TextEditingController _subjectController;
   late final TextEditingController _bodyController;
+  final _toFormatter = CallsignRecipientInputFormatter();
+  final _ccFormatter = CallsignRecipientInputFormatter();
 
   bool _messageChanged = false;
 
@@ -505,6 +508,7 @@ class MailComposeViewState extends State<MailComposeView> {
         const SizedBox(height: 4),
         TextField(
           controller: _toController,
+          inputFormatters: [_toFormatter],
           onEditingComplete: () {
             _toController.text = _cleanString(_toController.text);
           },
@@ -539,6 +543,7 @@ class MailComposeViewState extends State<MailComposeView> {
           const SizedBox(height: 4),
           TextField(
             controller: _ccController,
+            inputFormatters: [_ccFormatter],
             onEditingComplete: () {
               _ccController.text = _cleanString(_ccController.text);
             },

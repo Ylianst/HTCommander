@@ -46,6 +46,7 @@ import '../models/station_info.dart';
 import '../radio/radio_models.dart' as radio;
 import '../radio/ax25_packet.dart';
 import '../utils/channel_share.dart';
+import '../utils/callsign_input_formatter.dart';
 import '../utils/comms_export.dart';
 import '../dialogs/message_details_dialog.dart' show CommsMessageDetails;
 
@@ -4214,6 +4215,7 @@ class _AprsTabState extends State<AprsTab>
                     Expanded(
                       child: TextField(
                         controller: _destinationController,
+                        inputFormatters: const [CallsignInputFormatter()],
                         style: const TextStyle(fontSize: 14),
                         decoration: const InputDecoration(
                           contentPadding: EdgeInsets.symmetric(horizontal: 8),

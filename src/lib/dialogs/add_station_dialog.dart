@@ -18,6 +18,7 @@ import '../models/radio_models.dart';
 import '../radio/ax25_address.dart';
 import '../services/data_broker_client.dart';
 import '../services/callsign_lookup_service.dart';
+import '../utils/callsign_input_formatter.dart';
 import '../widgets/contact_avatar.dart';
 
 /// Shows the add / edit station dialog. When [existing] is provided the dialog
@@ -974,24 +975,15 @@ class _StationDialogState extends State<_StationDialog> {
       textCapitalization: _isSimpleContact || _isMeshCore
           ? TextCapitalization.none
           : TextCapitalization.characters,
+        inputFormatters: _isSimpleContact || _isMeshCore
+          ? null
+          : const [CallsignInputFormatter()],
       style: _isMeshCore ? const TextStyle(fontFamily: 'monospace') : null,
       decoration: _inputDecoration(
         labelText: label,
         errorText: errorText,
         hintText: _isMeshCore ? l10n.meshPublicKeyHint : null,
       ),
-      onChanged: (value) {
-        // Only callsigns are force-uppercased; phone/email/keys keep casing.
-        if (!_isSimpleContact && !_isMeshCore) {
-          final upper = value.toUpperCase();
-          if (upper != value) {
-            _callsignController.value = _callsignController.value.copyWith(
-              text: upper,
-              selection: TextSelection.collapsed(offset: upper.length),
-            );
-          }
-        }
-      },
     );
   }
 
@@ -1118,21 +1110,13 @@ class _StationDialogState extends State<_StationDialog> {
         TextField(
           controller: _ax25DestController,
           textCapitalization: TextCapitalization.characters,
+          inputFormatters: const [CallsignInputFormatter()],
           decoration: _inputDecoration(
             labelText: l10n.stationAx25Destination,
             errorText: _ax25DestController.text.isNotEmpty && !_ax25DestValid
                 ? l10n.stationAx25Invalid
                 : null,
           ),
-          onChanged: (value) {
-            final upper = value.toUpperCase();
-            if (upper != value) {
-              _ax25DestController.value = _ax25DestController.value.copyWith(
-                text: upper,
-                selection: TextSelection.collapsed(offset: upper.length),
-              );
-            }
-          },
         ),
       ],
       if (_terminalProtocol == TerminalProtocol.x25Session ||
@@ -1168,6 +1152,7 @@ class _StationDialogState extends State<_StationDialog> {
     return TextField(
       controller: _ax25PathController,
       textCapitalization: TextCapitalization.characters,
+      inputFormatters: const [CallsignInputFormatter()],
       decoration: _inputDecoration(
         labelText: l10n.stationAx25Path,
         errorText: _ax25PathController.text.isNotEmpty && !_ax25PathValid
@@ -1176,16 +1161,7 @@ class _StationDialogState extends State<_StationDialog> {
                   : l10n.stationAx25PathInvalid)
             : null,
       ),
-      onChanged: (value) {
-        final upper = value.toUpperCase();
-        if (upper != value) {
-          _ax25PathController.value = _ax25PathController.value.copyWith(
-            text: upper,
-            selection: TextSelection.collapsed(offset: upper.length),
-          );
-        }
-        setState(() {});
-      },
+      onChanged: (_) => setState(() {}),
     );
   }
 

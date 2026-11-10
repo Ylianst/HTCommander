@@ -10,6 +10,47 @@ import 'package:htcommander/l10n/app_localizations.dart';
 import 'package:htcommander/widgets/mail_compose_view.dart';
 
 void main() {
+  testWidgets('recipient fields format callsigns without changing emails', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: MailComposeView(isEdit: false, onSend: (_) {}, onExit: (_) {}),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final to = find.byType(TextField).first;
+    await tester.enterText(to, 'KK7VZT7');
+    expect(tester.widget<TextField>(to).controller!.text, 'KK7VZT-7');
+    await tester.enterText(to, 'KK7VZT-7@example.com');
+    expect(
+      tester.widget<TextField>(to).controller!.text,
+      'KK7VZT7@example.com',
+    );
+    await tester.enterText(to, 'Mixed.Case@example.com;N1ABC15');
+    expect(
+      tester.widget<TextField>(to).controller!.text,
+      'Mixed.Case@example.com;N1ABC-15',
+    );
+
+    await tester.tap(
+      find.widgetWithText(
+        TextButton,
+        AppLocalizations.of(tester.element(to)).mailAddCc,
+      ),
+    );
+    await tester.pumpAndSettle();
+    final cc = find.byType(TextField).at(1);
+    await tester.enterText(cc, 'KK7VZT7');
+    expect(tester.widget<TextField>(cc).controller!.text, 'KK7VZT-7');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('message field fills available desktop height and resizes', (
     tester,
   ) async {
