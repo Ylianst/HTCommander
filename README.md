@@ -50,6 +50,17 @@ Handi-Talky Commander has a lot of features. There are the features available on
 - [Address book](https://ylianst.github.io/HTCommanderSite/features/address-book.html). Store your APRS, Winlink and Terminal contacts in the address book to quick access.
 - [Terminal support](https://ylianst.github.io/HTCommanderSite/features/terminal.html). Communicate in packet mode with other stations, users or BBS'es.
 - [BBS support](https://ylianst.github.io/HTCommanderSite/features/bbs.html). Built-in very basic BBS and acts as a Winlink gateway.
+  BBS games include Micro Trader (`G TRADER`): buy and sell Food, Parts, and
+  Meds between four space stations. Manage a 20-unit cargo hold and fuel over
+  10 flights. Use `HELP` for commands, `MARKET` for prices and routes, and
+  `FINISH` to cash out early. Remaining cargo sells at local prices when the
+  run ends; profit is the final credits minus the starting 500 credits.
+  Packet Adventure (`G ADVENTURE`) is a text adventure about restoring a remote
+  repeater. Explore with `N/S/E/W`, collect and use tools with `TAKE` and `USE`,
+  and `READ NOTE` for clues. `HELP` lists commands and `HINT` suggests the next
+  objective. There is no move or time limit.
+  Games last for the current connection; sysops can disable them individually
+  in BBS customization.
 - [Packet Capture](https://ylianst.github.io/HTCommanderSite/features/capture.html). Use this application to capture and decode packets with the built-in packet capture feature.
 - [GPS Support](https://ylianst.github.io/HTCommanderSite/features/gps.html). Support for the radio's built in GPS if you have radio firmware that supports it.
 - [Torrent file exchange](https://ylianst.github.io/HTCommanderSite/features/torrent.html). Many-to-many file exchange with a torrent file transfer system over 1200 Baud FM-AFSK.
