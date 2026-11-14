@@ -4,6 +4,8 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/dialogs/vfo_frequency_dialog.dart';
@@ -98,99 +100,76 @@ void main() {
 
   final freqField = find.byType(TextField).first;
 
-  Map<String, Object?> tune(
-    int freqHz, {
-    bool am = false,
-    bool wide = false,
-    int? txFreqHz,
-    int rxSubAudio = 0,
-    int txSubAudio = 0,
-  }) => {
-    'freqHz': freqHz,
-    'am': am,
-    'wide': wide,
-    'txFreqHz': txFreqHz ?? freqHz,
-    'rxSubAudio': rxSubAudio,
-    'txSubAudio': txSubAudio,
-  };
+  Map<String, Object?> tune(int freqHz, {bool am = false, bool wide = false}) =>
+      {'freqHz': freqHz, 'am': am, 'wide': wide};
 
-  Future<void> pickTone(WidgetTester tester, String label, String tone) async {
-    await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, label));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text(tone),
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.tap(find.text(tone).last);
-    await tester.pumpAndSettle();
-  }
+  testWidgets(
+    'ignores stale VFO shift and tones and offers no controls for them',
+    (tester) async {
+      broker.dispatch(
+        deviceId: _deviceId,
+        name: 'VfoChannels',
+        data: [
+          {
+            'channelId': 252,
+            'rxFreq': 442100000,
+            'txFreq': 447100000,
+            'txSubAudio': 8850,
+            'rxSubAudio': 8850,
+          },
+        ],
+      );
+      await open(tester);
+      expect(find.text('442.100'), findsOneWidget);
+      expect(find.text('Simplex'), findsNothing);
+      expect(find.text('Offset (MHz)'), findsNothing);
+      expect(find.text('RX tone'), findsNothing);
+      expect(find.text('TX tone'), findsNothing);
+      expect(find.text('88.5 Hz'), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byType(DropdownButtonFormField<int>), findsNothing);
+      await tester.tap(find.text('Tune'));
+      expect(commands.single, tune(442100000));
 
-  testWidgets('tunes with a repeater offset and tones', (tester) async {
-    await open(tester);
-    await tester.enterText(freqField, '146.94');
-    await tester.tap(find.text('Simplex'));
-    await tester.pump();
-    expect(find.text('+'), findsOneWidget);
-    await tester.tap(find.text('+'));
-    await tester.pump();
-    await pickTone(tester, 'TX tone', '100.0 Hz');
-    await pickTone(tester, 'RX tone', 'DCS-023N/047I');
-    await tester.tap(find.text('Tune'));
-    expect(
-      commands.single,
-      tune(146940000, txFreqHz: 146340000, rxSubAudio: 23, txSubAudio: 10000),
-    );
-  });
+      await tester.tap(find.text('FM'));
+      await tester.pump();
+      expect(find.text('TX tone'), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
+    },
+  );
 
-  testWidgets('blocks offsets that land outside the TX bands', (tester) async {
-    await open(tester);
-    await tester.enterText(freqField, '173.0');
-    await tester.tap(find.text('Simplex'));
-    await tester.pump();
-    expect(tuneButton(tester).onPressed, isNotNull);
-    await tester.enterText(find.byType(TextField).at(1), '2');
-    await tester.pump();
-    expect(tuneButton(tester).onPressed, isNull);
-    expect(
-      find.text("Transmit frequency is outside the radio's transmit range"),
-      findsOneWidget,
-    );
-    await tester.enterText(find.byType(TextField).at(1), '');
-    await tester.pump();
-    expect(tuneButton(tester).onPressed, isNull);
-  });
-
-  testWidgets('seeds offset and tones from the VFO slot and hides them in AM', (
+  testWidgets('loads old saved frequencies without shift or tones', (
     tester,
   ) async {
     broker.dispatch(
-      deviceId: _deviceId,
-      name: 'VfoChannels',
-      data: [
+      deviceId: 0,
+      name: 'VfoFrequencies',
+      data: jsonEncode([
         {
-          'channelId': 252,
-          'rxFreq': 442100000,
-          'txFreq': 447100000,
-          'txSubAudio': 8850,
-          'rxSubAudio': 8850,
+          'name': 'Legacy',
+          'freqHz': 146940000,
+          'am': false,
+          'wide': true,
+          'offsetHz': -600000,
+          'rxSubAudio': 23,
+          'txSubAudio': 10000,
         },
-      ],
+      ]),
     );
     await open(tester);
-    expect(find.text('442.100'), findsOneWidget);
-    expect(find.text('5'), findsOneWidget);
-    expect(find.text('88.5 Hz'), findsNWidgets(2));
-    await tester.tap(find.text('Tune'));
-    expect(
-      commands.single,
-      tune(442100000, txFreqHz: 447100000, rxSubAudio: 8850, txSubAudio: 8850),
-    );
-
-    await tester.tap(find.text('FM'));
+    expect(find.text('146.940 MHz · FM · 25 kHz (Wide)'), findsOneWidget);
+    await tester.tap(find.text('Legacy'));
     await tester.pump();
-    expect(find.text('TX tone'), findsNothing);
-    expect(find.byType(TextField), findsOneWidget);
+    expect(commands.single, tune(146940000, wide: true));
+
+    await tester.tap(find.byTooltip('Rename'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Simple');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(jsonDecode(broker.getValue<String>(0, 'VfoFrequencies')!), [
+      {'name': 'Simple', 'freqHz': 146940000, 'am': false, 'wide': true},
+    ]);
   });
 
   testWidgets('shows the current VFO frequency and tunes in range', (
@@ -288,7 +267,9 @@ void main() {
     expect(find.text('Tower'), findsOneWidget);
     expect(commands, isEmpty);
     final stored = broker.getValue<String>(0, 'VfoFrequencies')!;
-    expect(stored, contains('"freqHz":120000000'));
+    expect(jsonDecode(stored), [
+      {'name': 'Tower', 'freqHz': 120000000, 'am': true, 'wide': true},
+    ]);
 
     // Change the editor, then tap the saved entry to restore and tune it.
     await tester.enterText(freqField, '146.52');

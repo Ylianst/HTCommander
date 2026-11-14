@@ -4888,23 +4888,4 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get vfoDialogNarrow => 'Wąski';
-
-  @override
-  String get vfoDialogOffset => 'Przesuni?cie';
-
-  @override
-  String get vfoDialogSimplex => 'Simpleks';
-
-  @override
-  String get vfoDialogOffsetMhz => 'Przesuni?cie (MHz)';
-
-  @override
-  String get vfoDialogRxTone => 'Ton RX';
-
-  @override
-  String get vfoDialogTxTone => 'Ton TX';
-
-  @override
-  String get vfoDialogTxOutOfRange =>
-      'Cz?stotliwo?? nadawania jest poza zakresem nadawania radia';
 }

@@ -68,6 +68,18 @@ class BbsGames {
       'Beat the BBS at tic-tac-toe',
       TicTacToeGame.new,
     ),
+    _GameInfo(
+      'TRADER',
+      'Micro Trader',
+      'Trade cargo between space stations',
+      MicroTraderGame.new,
+    ),
+    _GameInfo(
+      'ADVENTURE',
+      'Packet Adventure',
+      'Restore a remote repeater',
+      PacketAdventureGame.new,
+    ),
   ];
 
   static const String _quitHint = 'Type QUIT to leave the game.\r';
@@ -379,6 +391,440 @@ class MorseQuizGame implements BbsGame {
     _round++;
     if (!isOver) return '$result$_question';
     return '${result}Score: $_score/${_questions.length}.\r';
+  }
+}
+
+// ---- Packet Adventure ------------------------------------------------------
+
+enum _AdventureRoom { trail, cabin, workshop, shack, mast }
+
+/// A small, forgiving adventure with tools and clues to restore a repeater.
+class PacketAdventureGame implements BbsGame {
+  PacketAdventureGame(math.Random random)
+    : _accessCode = '${100 + random.nextInt(900)}';
+
+  static const String _help =
+      'LOOK, N/S/E/W (or GO NORTH/SOUTH/EAST/WEST)\r'
+      'TAKE <item>, USE <item>, EXAMINE <item>, INVENTORY\r'
+      'CODE <digits>, TRANSMIT, HINT, HELP, QUIT\r'
+      'Restore the repeater and send a test packet. No move or time limit.\r';
+  static const Map<_AdventureRoom, Map<String, _AdventureRoom>> _routes = {
+    _AdventureRoom.trail: {'NORTH': _AdventureRoom.cabin},
+    _AdventureRoom.cabin: {
+      'SOUTH': _AdventureRoom.trail,
+      'EAST': _AdventureRoom.workshop,
+      'NORTH': _AdventureRoom.shack,
+    },
+    _AdventureRoom.workshop: {'WEST': _AdventureRoom.cabin},
+    _AdventureRoom.shack: {
+      'SOUTH': _AdventureRoom.cabin,
+      'EAST': _AdventureRoom.mast,
+    },
+    _AdventureRoom.mast: {'WEST': _AdventureRoom.shack},
+  };
+  static const Map<String, String> _directions = {
+    'N': 'NORTH',
+    'S': 'SOUTH',
+    'E': 'EAST',
+    'W': 'WEST',
+  };
+  static const Map<String, String> _itemDescriptions = {
+    'KEY': 'A brass key tagged "radio shack".',
+    'BATTERY': 'A charged battery module for the repeater.',
+    'FUSE': 'A replacement fuse module for the repeater.',
+    'CABLE': 'A replacement antenna cable for the mast.',
+  };
+
+  final String _accessCode;
+  final Set<String> _inventory = {};
+  final Map<String, _AdventureRoom> _items = {
+    'BATTERY': _AdventureRoom.trail,
+    'KEY': _AdventureRoom.workshop,
+    'FUSE': _AdventureRoom.workshop,
+    'CABLE': _AdventureRoom.workshop,
+  };
+  _AdventureRoom _room = _AdventureRoom.trail;
+  bool _unlocked = false;
+  bool _batteryInstalled = false;
+  bool _fuseInstalled = false;
+  bool _cableInstalled = false;
+  bool _controllerReady = false;
+  bool _over = false;
+
+  @override
+  bool get isOver => _over;
+
+  bool get _powered => _batteryInstalled && _fuseInstalled;
+
+  @override
+  String start() =>
+      'A storm silenced Pine Ridge repeater. Restore its packet link!\r'
+      '$_help${_look()}';
+
+  String _look() {
+    final description = switch (_room) {
+      _AdventureRoom.trail =>
+        'Trailhead: a supply crate sits beside the path to the cabin.',
+      _AdventureRoom.cabin =>
+        'Cabin: a NOTE lies on the desk. The radio shack is north'
+            '${_unlocked ? ' (unlocked)' : ' (locked)'}.',
+      _AdventureRoom.workshop =>
+        'Workshop: spare repeater modules are stored here.',
+      _AdventureRoom.shack =>
+        'Radio shack: the REPEATER is ${_powered ? 'powered' : 'without power'}.'
+            ' The antenna mast is east.',
+      _AdventureRoom.mast =>
+        'Antenna mast: the antenna cable is '
+            '${_cableInstalled ? 'replaced' : 'damaged'}.',
+    };
+    final items = _items.entries
+        .where((entry) => entry.value == _room)
+        .map((entry) => entry.key)
+        .join(', ');
+    return '$description\r'
+        '${items.isEmpty ? '' : 'Items: $items\r'}'
+        'Exits: ${_routes[_room]!.keys.join(', ')}\r';
+  }
+
+  @override
+  String play(String input) {
+    if (_over) return 'This adventure has ended.\r';
+    final words = input.trim().toUpperCase().split(RegExp(r'\s+'));
+    final command = words.first;
+    final arg = words.skip(1).join(' ');
+    final direction = _directions[command] ?? command;
+    if (arg.isEmpty && _directions.containsValue(direction)) {
+      return _go(direction);
+    }
+    switch (command) {
+      case '':
+      case 'LOOK':
+      case 'L':
+        return arg.isEmpty ? _look() : _examine(arg);
+      case 'HELP':
+        return arg.isEmpty ? _help : 'Use HELP without arguments.\r';
+      case 'INVENTORY':
+      case 'I':
+        if (arg.isNotEmpty) return 'Use INVENTORY without arguments.\r';
+        return _inventory.isEmpty
+            ? 'You are carrying nothing.\r'
+            : 'Carrying: ${_inventory.join(', ')}\r';
+      case 'GO':
+        return _go(_directions[arg] ?? arg);
+      case 'TAKE':
+      case 'GET':
+        if (_inventory.contains(arg)) return 'You already have $arg.\r';
+        if (!_items.containsKey(arg) || _items[arg] != _room) {
+          return 'No such item here. Use LOOK to see items.\r';
+        }
+        _items.remove(arg);
+        _inventory.add(arg);
+        return 'Taken: $arg.\r';
+      case 'EXAMINE':
+      case 'READ':
+        return _examine(arg);
+      case 'USE':
+        return _use(arg);
+      case 'CODE':
+        if (_room != _AdventureRoom.shack) {
+          return 'The controller is in the radio shack.\r';
+        }
+        if (!_powered) return 'The controller needs power first.\r';
+        if (arg != _accessCode) {
+          return 'Code rejected. Read the NOTE in the cabin.\r';
+        }
+        _controllerReady = true;
+        return 'Controller unlocked. Send a test with TRANSMIT.\r';
+      case 'TRANSMIT':
+        if (arg.isNotEmpty) return 'Use TRANSMIT without arguments.\r';
+        if (_room != _AdventureRoom.shack) {
+          return 'Send the test packet from the radio shack.\r';
+        }
+        if (!_powered) return 'The repeater needs a BATTERY and FUSE.\r';
+        if (!_cableInstalled) return 'The antenna CABLE needs replacing.\r';
+        if (!_controllerReady) {
+          return 'Unlock the controller with CODE <digits>.\r';
+        }
+        _over = true;
+        return 'Test packet sent... ACK from the valley BBS!\r'
+            'Pine Ridge repeater is back online. You win!\r';
+      case 'HINT':
+        return arg.isEmpty ? _hint() : 'Use HINT without arguments.\r';
+      default:
+        return 'Unknown command. Type HELP for adventure commands.\r';
+    }
+  }
+
+  String _go(String direction) {
+    final destination = _routes[_room]![direction];
+    if (destination == null) return 'No exit that way. Use LOOK for exits.\r';
+    if (destination == _AdventureRoom.shack && !_unlocked) {
+      return 'The radio shack is locked. Find a KEY and USE KEY in the cabin.\r';
+    }
+    _room = destination;
+    return _look();
+  }
+
+  String _examine(String item) {
+    if (item == 'NOTE' && _room == _AdventureRoom.cabin) {
+      return 'NOTE: Spares are in the workshop; battery at the trailhead.\r'
+          'USE BATTERY and USE FUSE in the shack; USE CABLE at the mast.\r'
+          'Controller code: $_accessCode. Enter CODE $_accessCode in the shack,\r'
+          'then TRANSMIT a test packet after all repairs.\r';
+    }
+    if (item == 'REPEATER' && _room == _AdventureRoom.shack) {
+      return 'Battery: ${_batteryInstalled ? 'installed' : 'missing'}; '
+          'fuse: ${_fuseInstalled ? 'installed' : 'blown'}.\r'
+          'Antenna cable: ${_cableInstalled ? 'replaced' : 'damaged'}; '
+          'controller: ${_controllerReady ? 'ready' : 'locked'}.\r';
+    }
+    if (_inventory.contains(item) || _items[item] == _room) {
+      return '${_itemDescriptions[item]}\r';
+    }
+    return 'Nothing by that name here. Try LOOK or INVENTORY.\r';
+  }
+
+  String _use(String item) {
+    if (!_inventory.contains(item)) return 'You are not carrying that item.\r';
+    final location = switch (item) {
+      'KEY' => _AdventureRoom.cabin,
+      'BATTERY' || 'FUSE' => _AdventureRoom.shack,
+      'CABLE' => _AdventureRoom.mast,
+      _ => null,
+    };
+    if (_room != location) {
+      return 'That item cannot be used here. EXAMINE $item for a clue.\r';
+    }
+    switch (item) {
+      case 'KEY':
+        if (_unlocked) return 'The radio shack is already unlocked.\r';
+        _unlocked = true;
+        return 'You unlock the radio shack door to the north.\r';
+      case 'BATTERY':
+        _batteryInstalled = true;
+      case 'FUSE':
+        _fuseInstalled = true;
+      case 'CABLE':
+        _cableInstalled = true;
+    }
+    _inventory.remove(item);
+    return '$item installed.\r'
+        '${_powered && _room == _AdventureRoom.shack ? 'The controller lights up. Enter CODE <digits>.\r' : ''}';
+  }
+
+  String _hint() {
+    if (!_unlocked) {
+      return 'From the cabin, go EAST to the workshop for the KEY.\r'
+          'Return WEST and USE KEY to unlock the shack to the NORTH.\r';
+    }
+    if (!_batteryInstalled) {
+      return 'TAKE BATTERY at the trailhead, south of the cabin.\r'
+          'USE BATTERY in the radio shack.\r';
+    }
+    if (!_fuseInstalled) {
+      return 'TAKE FUSE in the workshop; USE FUSE in the radio shack.\r';
+    }
+    if (!_cableInstalled) {
+      return 'TAKE CABLE in the workshop; USE CABLE at the mast, east of the shack.\r';
+    }
+    if (!_controllerReady) {
+      return 'READ NOTE in the cabin for the controller CODE. Enter it in the shack.\r';
+    }
+    return 'Return to the radio shack and TRANSMIT the test packet!\r';
+  }
+}
+
+// ---- Micro Trader ----------------------------------------------------------
+
+/// Trade cargo for up to ten flights. Prices change only on arrival.
+class MicroTraderGame implements BbsGame {
+  MicroTraderGame(this._random) {
+    _updatePrices();
+  }
+
+  static const int maxFlights = 10;
+  static const int cargoCapacity = 20;
+  static const int tankCapacity = 6;
+  static const int fuelPrice = 5;
+  static const int startingCredits = 500;
+  static const List<String> _stations = ['Outpost', 'Forge', 'Haven', 'Relay'];
+  static const List<String> _goods = ['Food', 'Parts', 'Meds'];
+  static const List<List<int>> _basePrices = [
+    [12, 38, 55],
+    [26, 20, 70],
+    [18, 45, 30],
+    [22, 30, 45],
+  ];
+
+  static const String _help =
+      'BUY <good> <qty>, SELL <good> <qty>\r'
+      'JUMP <station>, FUEL <qty>, MARKET, STATUS, HELP, FINISH\r'
+      'Goods/stations: name or number. Fuel: 5 credits/unit.\r'
+      'Each flight uses the listed fuel. No time limit per turn.\r'
+      'After 10 flights (or FINISH), cargo sells at local prices.\r'
+      'Score = credits minus starting 500. Unused fuel has no resale value.\r';
+
+  final math.Random _random;
+  final List<int> _cargo = [0, 0, 0];
+  late List<int> _prices;
+  int _station = 0;
+  int _credits = startingCredits;
+  int _fuel = 4;
+  int _flights = 0;
+  bool _over = false;
+
+  @override
+  bool get isOver => _over;
+
+  int get _load => _cargo.fold(0, (sum, quantity) => sum + quantity);
+
+  String get _status =>
+      '${_stations[_station]} | Flights $_flights/$maxFlights | '
+      'Credits $_credits\r'
+      'Cargo $_load/$cargoCapacity | Fuel $_fuel/$tankCapacity\r';
+
+  String get _market {
+    final text = StringBuffer(_status);
+    for (var i = 0; i < _goods.length; i++) {
+      text.write(
+        '${i + 1} ${_goods[i]}: ${_prices[i]} cr, aboard ${_cargo[i]}\r',
+      );
+    }
+    text.write('Stations (fuel):\r');
+    for (var i = 0; i < _stations.length; i++) {
+      if (i != _station) {
+        text.write('${i + 1} ${_stations[i]} (${(i - _station).abs()})\r');
+      }
+    }
+    return text.toString();
+  }
+
+  @override
+  String start() =>
+      'Buy low, sell high! You have 500 credits and 10 flights.\r'
+      '$_help$_market';
+
+  @override
+  String play(String input) {
+    if (_over) return 'This trading run has ended.\r';
+    final args = input.trim().toUpperCase().split(RegExp(r'\s+'));
+    final command = args.first;
+    if (args.length == 1) {
+      switch (command) {
+        case 'HELP':
+          return _help;
+        case 'STATUS':
+          return _status;
+        case '':
+        case 'MARKET':
+          return _market;
+        case 'FINISH':
+          return _finish('Trading run complete.');
+      }
+    }
+    switch (command) {
+      case 'BUY':
+      case 'SELL':
+        return _trade(args, buying: command == 'BUY');
+      case 'FUEL':
+        return _refuel(args);
+      case 'JUMP':
+        return _jump(args);
+      default:
+        return 'Unknown command. Type HELP for trading commands.\r';
+    }
+  }
+
+  int? _index(String input, List<String> names) {
+    final number = int.tryParse(input);
+    if (number != null && number >= 1 && number <= names.length) {
+      return number - 1;
+    }
+    final index = names.indexWhere((name) => name.toUpperCase() == input);
+    return index < 0 ? null : index;
+  }
+
+  String _trade(List<String> args, {required bool buying}) {
+    final verb = buying ? 'BUY' : 'SELL';
+    if (args.length != 3) return 'Use $verb <good> <positive qty>.\r';
+    final good = _index(args[1], _goods);
+    final quantity = int.tryParse(args[2]);
+    if (good == null) return 'Unknown good. Use Food, Parts, Meds or 1-3.\r';
+    if (quantity == null || quantity <= 0) {
+      return 'Enter a positive whole quantity.\r';
+    }
+    if (buying) {
+      if (quantity > cargoCapacity - _load) return 'Not enough cargo space.\r';
+      // Compare before multiplying, so very large input cannot overflow.
+      if (quantity > _credits ~/ _prices[good]) {
+        return 'Not enough credits.\r';
+      }
+      _credits -= quantity * _prices[good];
+      _cargo[good] += quantity;
+    } else {
+      if (quantity > _cargo[good]) {
+        return 'Not enough ${_goods[good]} aboard.\r';
+      }
+      _credits += quantity * _prices[good];
+      _cargo[good] -= quantity;
+    }
+    return '${buying ? 'Bought' : 'Sold'} $quantity ${_goods[good]} '
+        'for ${quantity * _prices[good]} credits.\r$_status';
+  }
+
+  String _refuel(List<String> args) {
+    if (args.length != 2) return 'Use FUEL <positive qty>.\r';
+    final quantity = int.tryParse(args[1]);
+    if (quantity == null || quantity <= 0) {
+      return 'Enter a positive whole quantity.\r';
+    }
+    if (quantity > tankCapacity - _fuel) return 'Not enough tank space.\r';
+    if (quantity > _credits ~/ fuelPrice) return 'Not enough credits.\r';
+    _credits -= quantity * fuelPrice;
+    _fuel += quantity;
+    return 'Added $quantity fuel for ${quantity * fuelPrice} credits.\r$_status';
+  }
+
+  String _jump(List<String> args) {
+    if (args.length != 2) return 'Use JUMP <station name or number>.\r';
+    final destination = _index(args[1], _stations);
+    if (destination == null) {
+      return 'Unknown station. Type MARKET for routes.\r';
+    }
+    if (destination == _station) return 'You are already at that station.\r';
+    final cost = (destination - _station).abs();
+    if (_fuel < cost) return 'Not enough fuel; need $cost. Use FUEL <qty>.\r';
+    _fuel -= cost;
+    _station = destination;
+    _flights++;
+    _updatePrices();
+    final arrival = 'Arrived at ${_stations[_station]}.\r';
+    if (_flights >= maxFlights) {
+      return '$arrival${_finish('Flight limit reached.')}';
+    }
+    if (_fuel == 0 && _credits < fuelPrice && _load == 0) {
+      return '$arrival${_finish('Stranded without fuel or tradeable cargo.')}';
+    }
+    return '$arrival$_market';
+  }
+
+  void _updatePrices() {
+    _prices = [
+      for (final base in _basePrices[_station]) base + _random.nextInt(9) - 4,
+    ];
+  }
+
+  String _finish(String reason) {
+    var cargoValue = 0;
+    for (var i = 0; i < _cargo.length; i++) {
+      cargoValue += _cargo[i] * _prices[i];
+      _cargo[i] = 0;
+    }
+    _credits += cargoValue;
+    _over = true;
+    final profit = _credits - startingCredits;
+    return '$reason Cargo sold for $cargoValue credits.\r'
+        'Final credits: $_credits. Profit: $profit.\r';
   }
 }
 

@@ -1624,11 +1624,5 @@
   "vfoDialogDeleteTitle": "Eliminar frecuencia",
   "vfoDialogDeleteMessage": "¿Quitar \"{name}\" de tus frecuencias guardadas?",
   "vfoDialogWide": "Ancho",
-  "vfoDialogNarrow": "Estrecho",
-  "vfoDialogOffset": "Desplazamiento",
-  "vfoDialogSimplex": "S?mplex",
-  "vfoDialogOffsetMhz": "Desplazamiento (MHz)",
-  "vfoDialogRxTone": "Tono RX",
-  "vfoDialogTxTone": "Tono TX",
-  "vfoDialogTxOutOfRange": "La frecuencia de transmisi?n est? fuera del rango de transmisi?n de la radio"
+  "vfoDialogNarrow": "Estrecho"
 }

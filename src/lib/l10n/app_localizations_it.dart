@@ -4879,23 +4879,4 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get vfoDialogNarrow => 'Stretta';
-
-  @override
-  String get vfoDialogOffset => 'Offset';
-
-  @override
-  String get vfoDialogSimplex => 'Simplex';
-
-  @override
-  String get vfoDialogOffsetMhz => 'Offset (MHz)';
-
-  @override
-  String get vfoDialogRxTone => 'Tono RX';
-
-  @override
-  String get vfoDialogTxTone => 'Tono TX';
-
-  @override
-  String get vfoDialogTxOutOfRange =>
-      'La frequenza di trasmissione ? fuori dalla gamma di trasmissione della radio';
 }

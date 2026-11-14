@@ -4701,22 +4701,4 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vfoDialogNarrow => '窄带';
-
-  @override
-  String get vfoDialogOffset => '??';
-
-  @override
-  String get vfoDialogSimplex => '??';
-
-  @override
-  String get vfoDialogOffsetMhz => '?? (MHz)';
-
-  @override
-  String get vfoDialogRxTone => '????';
-
-  @override
-  String get vfoDialogTxTone => '????';
-
-  @override
-  String get vfoDialogTxOutOfRange => '?????????????';
 }

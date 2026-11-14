@@ -2763,29 +2763,5 @@
   "vfoDialogNarrow": "Narrow",
   "@vfoDialogNarrow": {
     "description": "Short label of the narrow bandwidth toggle in the frequency mode dialog."
-  },
-  "vfoDialogOffset": "Offset",
-  "@vfoDialogOffset": {
-    "description": "Tooltip of the button that cycles the repeater offset direction (simplex, +, -) in the frequency mode dialog."
-  },
-  "vfoDialogSimplex": "Simplex",
-  "@vfoDialogSimplex": {
-    "description": "Label of the offset direction button when transmit equals receive frequency (no repeater offset)."
-  },
-  "vfoDialogOffsetMhz": "Offset (MHz)",
-  "@vfoDialogOffsetMhz": {
-    "description": "Label of the repeater offset amount field (in MHz) in the frequency mode dialog."
-  },
-  "vfoDialogRxTone": "RX tone",
-  "@vfoDialogRxTone": {
-    "description": "Label of the receive (decode) CTCSS/DCS tone picker in the frequency mode dialog."
-  },
-  "vfoDialogTxTone": "TX tone",
-  "@vfoDialogTxTone": {
-    "description": "Label of the transmit (encode) CTCSS/DCS tone picker in the frequency mode dialog."
-  },
-  "vfoDialogTxOutOfRange": "Transmit frequency is outside the radio's transmit range",
-  "@vfoDialogTxOutOfRange": {
-    "description": "Error shown when the frequency plus repeater offset is outside the radio's transmit bands."
   }
 }

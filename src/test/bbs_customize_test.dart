@@ -86,11 +86,17 @@ void main() {
   });
 
   test('individual games can be turned off', () {
-    BbsSettings(disabledGames: {'GUESS', 'HANGMAN', 'MORSE'}).save(broker);
+    BbsSettings(
+      disabledGames: {'GUESS', 'HANGMAN', 'MORSE', 'TRADER', 'ADVENTURE'},
+    ).save(broker);
     final session = <String, Object?>{};
     final list = run('G', session: session);
     expect(list, contains('Tic-tac-toe'));
     expect(list, isNot(contains('Hangman')));
+    expect(list, isNot(contains('Micro Trader')));
+    expect(run('G TRADER', session: session), contains('not found'));
+    expect(list, isNot(contains('Packet Adventure')));
+    expect(run('G ADVENTURE', session: session), contains('not found'));
     expect(run('G 1', session: session), contains('Tic-tac-toe'));
   });
 

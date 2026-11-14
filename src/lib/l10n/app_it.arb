@@ -1516,11 +1516,5 @@
   "vfoDialogDeleteTitle": "Elimina frequenza",
   "vfoDialogDeleteMessage": "Rimuovere \"{name}\" dalle frequenze salvate?",
   "vfoDialogWide": "Larga",
-  "vfoDialogNarrow": "Stretta",
-  "vfoDialogOffset": "Offset",
-  "vfoDialogSimplex": "Simplex",
-  "vfoDialogOffsetMhz": "Offset (MHz)",
-  "vfoDialogRxTone": "Tono RX",
-  "vfoDialogTxTone": "Tono TX",
-  "vfoDialogTxOutOfRange": "La frequenza di trasmissione ? fuori dalla gamma di trasmissione della radio"
+  "vfoDialogNarrow": "Stretta"
 }

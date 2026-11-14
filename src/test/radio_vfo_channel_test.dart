@@ -135,7 +135,7 @@ void main() {
     expect(published[252]!.vfoCaption('VFO'), 'VFO · AM · Wide');
   });
 
-  test('the VFO caption shows the offset and tones', () async {
+  test('the VFO caption ignores unsupported offset and tones', () async {
     final channel = RadioChannelInfo(
       channelId: 252,
       rxFreq: 442100000,
@@ -150,11 +150,7 @@ void main() {
     );
     expect(
       published[252]!.vfoCaption('VFO'),
-      'VFO · FM · Narrow · +5 · TSQL 88.5',
-    );
-    expect(
-      ui.offsetToneSummary(offsetHz: -600000, rxSubAudio: 23, txSubAudio: 6700),
-      '-0.6 · T 67.0 · R D023',
+      'VFO · FM · Narrow',
     );
   });
 
@@ -325,16 +321,24 @@ void main() {
       expect(written.channelA, 4);
     });
 
-    test('writes a repeater offset and tones into the slot', () async {
+    test('retuning clears stale shift and tones but preserves slot flags', () async {
       await ready();
+      await receive(_enterVfoSettings);
+      radio.vfoChannels[252] = RadioChannelInfo(
+        channelId: 252,
+        rxFreq: 442100000,
+        txFreq: 447100000,
+        rxSubAudio: 23,
+        txSubAudio: 10000,
+        txAtMaxPower: true,
+        preDeEmphBypass: true,
+      );
+      transport.sent.clear();
       expect(
         radio.tuneKeypadVfo(
           freqHz: 146940000,
           mod: RadioModulationType.fm,
           bandwidth: RadioBandwidthType.wide,
-          txFreqHz: 146340000,
-          rxSubAudio: 23,
-          txSubAudio: 10000,
         ),
         isTrue,
       );
@@ -345,30 +349,13 @@ void main() {
         Uint8List.fromList([0, 0, 0, 0, 0, ...payload]),
       );
       expect(written.rxFreq, 146940000);
-      expect(written.txFreq, 146340000);
-      expect(written.rxSubAudio, 23);
-      expect(written.txSubAudio, 10000);
-    });
-
-    test('rejects offsets outside the TX bands or in AM', () async {
-      await ready();
-      for (final (rx, tx, mod) in [
-        (173900000, 174900000, RadioModulationType.fm),
-        (146520000, 300000000, RadioModulationType.fm),
-        (120000000, 121000000, RadioModulationType.am),
-      ]) {
-        expect(
-          radio.tuneKeypadVfo(
-            freqHz: rx,
-            mod: mod,
-            bandwidth: RadioBandwidthType.narrow,
-            txFreqHz: tx,
-          ),
-          isFalse,
-          reason: '$rx -> $tx',
-        );
-      }
-      expect(sentMatching(writeChannel), isEmpty);
+      expect(written.txFreq, 146940000);
+      expect(written.rxSubAudio, 0);
+      expect(written.txSubAudio, 0);
+      expect(written.txAtMaxPower, isTrue);
+      expect(written.preDeEmphBypass, isTrue);
+      expect(written.bandwidth, RadioBandwidthType.wide);
+      expect(sentMatching(writeSettings), isEmpty);
     });
 
     test('broker VfoTune and VfoExit drive the radio', () async {
@@ -376,11 +363,29 @@ void main() {
       broker.dispatch(
         deviceId: radio.deviceId,
         name: 'VfoTune',
-        data: {'freqHz': 145500000, 'am': false, 'wide': false},
+        data: {
+          'freqHz': 145500000,
+          'am': false,
+          'wide': false,
+          // Old callers must not re-enable the unsupported experiment.
+          'txFreqHz': 144900000,
+          'rxSubAudio': 23,
+          'txSubAudio': 10000,
+        },
         store: false,
       );
       expect(sentMatching(writeChannel), hasLength(1));
       expect(sentMatching(writeSettings), hasLength(1));
+      final payload = RadioUtils.hexStringToByteArray(
+        sentMatching(writeChannel).single,
+      )!.sublist(8);
+      final written = RadioChannelInfo.fromBytes(
+        Uint8List.fromList([0, 0, 0, 0, 0, ...payload]),
+      );
+      expect(written.rxFreq, 145500000);
+      expect(written.txFreq, 145500000);
+      expect(written.rxSubAudio, 0);
+      expect(written.txSubAudio, 0);
     });
   });
 }

@@ -4,13 +4,12 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 
 Tunes the radio's keypad frequency (VFO) mode, the mode the radio enters when
-`*` is held. Tuning dispatches `VfoTune` (`{freqHz, am, wide}` plus, while
-[kVfoOffsetToneEnabled], `txFreqHz`, `rxSubAudio` and `txSubAudio` for a
-repeater offset and CTCSS/DCS tones) and leaving the mode dispatches `VfoExit`
+`*` is held. Tuning dispatches `VfoTune` (`{freqHz, am, wide}`)
+and leaving the mode dispatches `VfoExit`
 to the Radio handler, which writes the VFO memory slot and selects it as
 channel A. Frequencies are only accepted inside the bands the radio reports
-(`FreqRanges`) for the selected modulation; an offset transmit frequency must
-be in an FM TX/RX band. The user's saved frequencies are persisted on device 0
+(`FreqRanges`) for the selected modulation. Frequency mode uses equal RX/TX
+frequencies without tones. The user's saved frequencies are persisted on device 0
 under `VfoFrequencies`.
 */
 
@@ -24,14 +23,6 @@ import '../models/radio_models.dart' as ui;
 import '../radio/radio_models.dart';
 import '../services/data_broker_client.dart';
 import 'dialog_utils.dart';
-import 'radio_channel_dialog.dart'
-    show kSubAudioToneOptions, kSubAudioToneValues;
-
-/// Experimental: repeater offset and CTCSS/DCS tone support in frequency mode.
-/// The firmware's keypad VFO slot is not yet confirmed to honour a split TX
-/// frequency or tones; set to false to hide the controls and send plain
-/// simplex tunes (the radio then keeps whatever tones the slot already has).
-const bool kVfoOffsetToneEnabled = true;
 
 /// Tuning step sizes offered by the step buttons, in Hz.
 const List<int> _stepOptionsHz = [5000, 6250, 10000, 12500, 25000, 100000];
@@ -46,18 +37,11 @@ class _SavedFreq {
   final bool am;
   final bool wide;
 
-  /// Signed transmit offset from [freqHz] (0 = simplex).
-  final int offsetHz;
-  final int rxSubAudio;
-  final int txSubAudio;
   _SavedFreq({
     required this.name,
     required this.freqHz,
     required this.am,
     required this.wide,
-    this.offsetHz = 0,
-    this.rxSubAudio = 0,
-    this.txSubAudio = 0,
   });
 
   Map<String, Object?> toJson() => {
@@ -65,9 +49,6 @@ class _SavedFreq {
     'freqHz': freqHz,
     'am': am,
     'wide': wide,
-    if (offsetHz != 0) 'offsetHz': offsetHz,
-    if (rxSubAudio != 0) 'rxSubAudio': rxSubAudio,
-    if (txSubAudio != 0) 'txSubAudio': txSubAudio,
   };
 
   static _SavedFreq? fromJson(Object? json) {
@@ -79,9 +60,6 @@ class _SavedFreq {
       freqHz: freq,
       am: json['am'] as bool? ?? false,
       wide: json['wide'] as bool? ?? false,
-      offsetHz: (json['offsetHz'] as num?)?.toInt() ?? 0,
-      rxSubAudio: (json['rxSubAudio'] as num?)?.toInt() ?? 0,
-      txSubAudio: (json['txSubAudio'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -108,9 +86,6 @@ class _VfoFrequencyDialog extends StatefulWidget {
 class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
   final DataBrokerClient _broker = DataBrokerClient();
   final TextEditingController _freqController = TextEditingController();
-  final TextEditingController _offsetController = TextEditingController(
-    text: '0.6',
-  );
 
   List<RadioFreqBand> _bands = const [];
   Map<int, ui.RadioChannelInfo> _vfoChannels = {};
@@ -120,10 +95,6 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
   bool _wide = false;
   int _stepHz = 12500;
 
-  /// Offset direction: -1 (TX below RX), 0 (simplex) or +1 (TX above RX).
-  int _offsetDir = 0;
-  int _rxTone = 0;
-  int _txTone = 0;
   List<_SavedFreq> _saved = [];
 
   @override
@@ -133,7 +104,6 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
     _loadSaved();
     _initFields();
     _freqController.addListener(() => setState(() {}));
-    _offsetController.addListener(() => setState(() {}));
     _broker.subscribeMultiple(
       deviceId: widget.deviceId,
       names: ['Settings', 'VfoChannels', 'FreqRanges', 'Channels'],
@@ -145,7 +115,6 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
   void dispose() {
     _broker.dispose();
     _freqController.dispose();
-    _offsetController.dispose();
     super.dispose();
   }
 
@@ -192,45 +161,8 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
       _am = source.rxMod == ui.RadioModulationType.am;
       _wide = source.bandwidth == ui.RadioBandwidthType.wide;
       _freqController.text = _formatMhz(source.rxFreq);
-      _setOffsetAndTones(
-        source.txFreq > 0 ? source.txFreq - source.rxFreq : 0,
-        source.rxSubAudio,
-        source.txSubAudio,
-      );
     }
   }
-
-  void _setOffsetAndTones(int offsetHz, int rxTone, int txTone) {
-    _offsetDir = offsetHz.sign;
-    if (offsetHz != 0) {
-      _offsetController.text = ui.formatOffsetMhz(offsetHz).substring(1);
-    }
-    _rxTone = kSubAudioToneValues.contains(rxTone) ? rxTone : 0;
-    _txTone = kSubAudioToneValues.contains(txTone) ? txTone : 0;
-  }
-
-  /// Offset and tones only apply to FM (AM bands are receive-only).
-  bool get _offsetToneActive => kVfoOffsetToneEnabled && !_am;
-
-  /// The signed transmit offset in Hz, 0 for simplex, or null when an offset
-  /// direction is chosen but the amount does not parse.
-  int? get _offsetHz {
-    if (!_offsetToneActive || _offsetDir == 0) return 0;
-    final mhz = double.tryParse(
-      _offsetController.text.trim().replaceAll(',', '.'),
-    );
-    if (mhz == null || mhz <= 0) return null;
-    return _offsetDir * (mhz * 1000000).round();
-  }
-
-  /// True when the transmit frequency for receive frequency [hz] is usable.
-  bool _txAllowed(int hz) {
-    final offset = _offsetHz;
-    if (offset == null) return false;
-    return offset == 0 || isTxFreqAllowed(_bands, hz + offset);
-  }
-
-  bool _canTune(int? hz) => _allowed(hz) && _txAllowed(hz!);
 
   RadioModulationType get _mod =>
       _am ? RadioModulationType.am : RadioModulationType.fm;
@@ -273,7 +205,7 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
 
   void _tune([int? hz]) {
     final freqHz = hz ?? _enteredHz;
-    if (!_canTune(freqHz)) return;
+    if (!_allowed(freqHz)) return;
     _broker.dispatch(
       deviceId: widget.deviceId,
       name: 'VfoTune',
@@ -281,11 +213,6 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
         'freqHz': freqHz,
         'am': _am,
         'wide': _wide,
-        if (kVfoOffsetToneEnabled) ...{
-          'txFreqHz': freqHz! + _offsetHz!,
-          'rxSubAudio': _offsetToneActive ? _rxTone : 0,
-          'txSubAudio': _offsetToneActive ? _txTone : 0,
-        },
       },
       store: false,
     );
@@ -295,7 +222,7 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
     final base = _enteredHz ?? _vfoChannel?.rxFreq;
     if (base == null) return;
     final next = base + direction * _stepHz;
-    if (!_canTune(next)) return;
+    if (!_allowed(next)) return;
     _freqController.text = _formatMhz(next);
     _tune(next);
   }
@@ -347,13 +274,7 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
   String _savedCaption(BuildContext context, _SavedFreq f) {
     final l10n = AppLocalizations.of(context);
     final bw = f.wide ? l10n.cdBandwidthWide : l10n.cdBandwidthNarrow;
-    final extra = ui.offsetToneSummary(
-      offsetHz: f.offsetHz,
-      rxSubAudio: f.rxSubAudio,
-      txSubAudio: f.txSubAudio,
-    );
-    return '${_formatMhz(f.freqHz)} MHz · ${f.am ? 'AM' : 'FM'} · $bw'
-        '${extra.isEmpty ? '' : ' · $extra'}';
+    return '${_formatMhz(f.freqHz)} MHz · ${f.am ? 'AM' : 'FM'} · $bw';
   }
 
   /// Loads a saved entry into the editor and tunes the radio to it.
@@ -362,14 +283,13 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
       _am = f.am;
       _wide = f.wide;
       _freqController.text = _formatMhz(f.freqHz);
-      _setOffsetAndTones(f.offsetHz, f.rxSubAudio, f.txSubAudio);
     });
     _tune(f.freqHz);
   }
 
   Future<void> _addSaved() async {
     final hz = _enteredHz;
-    if (hz == null || !_canTune(hz)) return;
+    if (hz == null || !_allowed(hz)) return;
     final defaultName = '${_formatMhz(hz)} MHz';
     final name = await _promptName(defaultName);
     if (name == null || !mounted) return;
@@ -380,9 +300,6 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
           freqHz: hz,
           am: _am,
           wide: _wide,
-          offsetHz: _offsetHz ?? 0,
-          rxSubAudio: _offsetToneActive ? _rxTone : 0,
-          txSubAudio: _offsetToneActive ? _txTone : 0,
         ),
       );
     });
@@ -486,9 +403,7 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
   Widget _buildBody(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final hz = _enteredHz;
-    final rxValid = _allowed(hz);
-    final txValid = !rxValid || _txAllowed(hz!);
-    final valid = rxValid && txValid;
+    final valid = _allowed(hz);
     final showError = _freqController.text.trim().isNotEmpty && !valid;
     final allowed = freqBandsFor(_bands, _mod).map(_bandText).join(', ');
     final controls = <Widget>[
@@ -497,7 +412,7 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
           IconButton(
             tooltip: l10n.vfoDialogStepDown,
             icon: const Icon(Icons.chevron_left),
-            onPressed: _canTune((hz ?? 0) - _stepHz) ? () => _step(-1) : null,
+            onPressed: _allowed((hz ?? 0) - _stepHz) ? () => _step(-1) : null,
           ),
           Expanded(
             child: TextField(
@@ -522,7 +437,7 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
           IconButton(
             tooltip: l10n.vfoDialogStepUp,
             icon: const Icon(Icons.chevron_right),
-            onPressed: _canTune((hz ?? 0) + _stepHz) ? () => _step(1) : null,
+            onPressed: _allowed((hz ?? 0) + _stepHz) ? () => _step(1) : null,
           ),
           const SizedBox(width: 4),
           ElevatedButton(
@@ -536,8 +451,6 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
       Text(
         !showError
             ? l10n.vfoDialogAllowed(allowed)
-            : rxValid
-            ? l10n.vfoDialogTxOutOfRange
             : l10n.vfoDialogOutOfRange,
         style: DialogStyles.bodyStyle.copyWith(
           fontSize: 12,
@@ -569,7 +482,6 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
           }),
         ],
       ),
-      if (_offsetToneActive) ..._buildOffsetToneControls(context, hz),
       const SizedBox(height: 4),
       _buildSavedHeader(context, valid),
     ];
@@ -595,103 +507,6 @@ class _VfoFrequencyDialogState extends State<_VfoFrequencyDialog> {
           ),
         );
       },
-    );
-  }
-
-  /// Repeater offset (direction + amount) and RX/TX CTCSS/DCS tone pickers.
-  List<Widget> _buildOffsetToneControls(BuildContext context, int? hz) {
-    final l10n = AppLocalizations.of(context);
-    final offsetLabel = switch (_offsetDir) {
-      1 => '+',
-      -1 => '−',
-      _ => l10n.vfoDialogSimplex,
-    };
-    final offsetInvalid = _offsetDir != 0 && _offsetHz == null;
-    return [
-      const SizedBox(height: 12),
-      Row(
-        children: [
-          _toggleButton(l10n.vfoDialogOffset, offsetLabel, () {
-            setState(() {
-              _offsetDir = switch (_offsetDir) {
-                0 => 1,
-                1 => -1,
-                _ => 0,
-              };
-              // Suggest the usual 70 cm split the first time an offset is
-              // picked on UHF.
-              if (_offsetDir == 1 &&
-                  _offsetController.text == '0.6' &&
-                  (hz ?? 0) >= 400000000) {
-                _offsetController.text = '5';
-              }
-            });
-          }),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 2,
-            child: TextField(
-              controller: _offsetController,
-              enabled: _offsetDir != 0,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-              ],
-              decoration: DialogStyles.inputDecoration(
-                context,
-                labelText: l10n.vfoDialogOffsetMhz,
-                invalid: offsetInvalid,
-              ),
-              onSubmitted: (_) => _tune(),
-            ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 12),
-      Row(
-        children: [
-          Expanded(
-            child: _toneDropdown(
-              l10n.vfoDialogRxTone,
-              _rxTone,
-              (v) => setState(() => _rxTone = v),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _toneDropdown(
-              l10n.vfoDialogTxTone,
-              _txTone,
-              (v) => setState(() => _txTone = v),
-            ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 4),
-    ];
-  }
-
-  Widget _toneDropdown(String label, int value, ValueChanged<int> onChanged) {
-    final noneLabel = AppLocalizations.of(context).commonNone;
-    return DropdownButtonFormField<int>(
-      // Re-key so a programmatic change (saved entry) updates the field.
-      key: ValueKey('$label-$value'),
-      initialValue: value,
-      isExpanded: true,
-      decoration: DialogStyles.inputDecoration(context, labelText: label),
-      items: [
-        for (int i = 0; i < kSubAudioToneOptions.length; i++)
-          DropdownMenuItem(
-            value: kSubAudioToneValues[i],
-            child: Text(
-              i == 0 ? noneLabel : kSubAudioToneOptions[i],
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-      ],
-      onChanged: (v) => onChanged(v ?? 0),
     );
   }
 

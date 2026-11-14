@@ -952,23 +952,21 @@ them outside the channel list, publishes them as `VfoChannels`, and requests
 typed frequency instead of a blank VFO.
 
 Tapping VFO A opens a Frequency Mode dialog. Tuning sends `WRITE_RF_CH` for
-slot 252 (RX frequency, AM/FM, wide/narrow) and, when not already in the
+slot 252 (RX = TX frequency, no tones, AM/FM, wide/narrow) and, when not already in the
 mode, a settings write with channel A = 252. Exiting writes channel A back to
 the last regular channel seen (0 if unknown). Frequencies are only accepted
 inside the `READ_FREQ_RANGE` bands for the chosen modulation (AM only in AM RX
 bands, FM in FM RX or FM TX/RX bands), using the channel editor's fallback
 limits until the radio reports them.
 
-**Experimental:** for FM the dialog also offers a repeater offset (simplex,
-+ or −, amount in MHz) and RX/TX CTCSS/DCS tones. These go into the same
-slot-252 record as a regular memory channel would use them: `txFreq` = RX ±
-offset, plus `rxSubAudio`/`txSubAudio`. An offset TX frequency must fall in an
-FM TX/RX band. It is not yet confirmed whether the firmware honours a split TX
-frequency or tones in keypad VFO mode, or keeps them when the user retypes a
-frequency on the radio. The feature can be turned off with
-`kVfoOffsetToneEnabled` in
-[vfo_frequency_dialog.dart](../../src/lib/dialogs/vfo_frequency_dialog.dart);
-the dialog then sends simplex tunes only, as before.
+The keypad frequency mode does not support separate RX/TX frequencies
+(repeater shift) or CTCSS/DCS tones. The experimental shift and tone controls
+were removed after testing showed they did not work. Tuning clears any stale
+shift and tones in the slot. Saved frequencies retain their name, frequency,
+modulation and bandwidth; shift/tone fields in older saved entries are ignored
+and omitted when the list is next saved. Use a programmed channel for repeater
+offsets and tones. This limitation does not change the separate
+`FREQ_MODE_SET_PAR` satellite mode described above.
 
 ### freqModeStatusChanged (14) layout
 

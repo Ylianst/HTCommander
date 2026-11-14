@@ -1624,11 +1624,5 @@
   "vfoDialogDeleteTitle": "Supprimer la fréquence",
   "vfoDialogDeleteMessage": "Retirer « {name} » de vos fréquences enregistrées ?",
   "vfoDialogWide": "Large",
-  "vfoDialogNarrow": "Étroit",
-  "vfoDialogOffset": "D?calage",
-  "vfoDialogSimplex": "Simplex",
-  "vfoDialogOffsetMhz": "D?calage (MHz)",
-  "vfoDialogRxTone": "Tonalit? RX",
-  "vfoDialogTxTone": "Tonalit? TX",
-  "vfoDialogTxOutOfRange": "La fr?quence d'?mission est hors de la plage d'?mission de la radio"
+  "vfoDialogNarrow": "Étroit"
 }
