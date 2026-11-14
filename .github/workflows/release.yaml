@@ -45,6 +45,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
+          flutter-version: 3.47.9
 
       - name: Install dependencies
         working-directory: src
@@ -317,11 +318,12 @@ jobs:
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
+          flutter-version: 3.47.9
 
       - name: Set up Flutter (arm64)
         if: matrix.arch == 'arm64'
         run: |
-          git clone https://github.com/flutter/flutter.git --depth 1 --branch stable "$HOME/flutter"
+          git clone https://github.com/flutter/flutter.git --depth 1 --branch 3.47.9 "$HOME/flutter"
           git config --global --add safe.directory "$HOME/flutter"
           echo "$HOME/flutter/bin" >> "$GITHUB_PATH"
           "$HOME/flutter/bin/flutter" --version
@@ -582,6 +584,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
+          flutter-version: 3.47.9
 
       - name: Install dependencies
         working-directory: src
@@ -884,6 +887,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
+          flutter-version: 3.47.9
 
       - name: Decode Android keystore
         working-directory: src/android/app
@@ -943,6 +947,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
+          flutter-version: 3.47.9
 
       - name: Install dependencies
         working-directory: src
@@ -990,6 +995,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
+          flutter-version: 3.47.9
 
       - name: Install dependencies
         working-directory: src
