@@ -146,6 +146,13 @@ class _MailTabState extends State<MailTab>
   String? _transferStatus;
   // Persistent error shown in the bottom panel until the user dismisses it.
   String? _errorMessage;
+  // Whether the local Winlink client is in a session (not relayed to hosted
+  // web clients, which rely on [_transferStatus] instead).
+  bool _winlinkBusy = false;
+
+  /// A sync is running, so Connect is disabled until it ends or is cancelled.
+  bool get _syncInProgress =>
+      _winlinkBusy || (_transferStatus?.isNotEmpty ?? false);
 
   final DataBrokerClient _broker = DataBrokerClient();
 
@@ -172,10 +179,19 @@ class _MailTabState extends State<MailTab>
       name: 'WinlinkStateMessage',
       callback: _onWinlinkStateMessage,
     );
+    // Stored error state: set by a failed sync, cleared by a new sync or by
+    // dismissing it here.
     _broker.subscribe(
       deviceId: 1,
-      name: 'WinlinkError',
+      name: 'WinlinkLastError',
       callback: _onWinlinkError,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkBusy',
+      callback: (_, _, data) {
+        if (mounted) setState(() => _winlinkBusy = data == true);
+      },
     );
     _broker.subscribe(
       deviceId: DataBroker.allDevices,
@@ -195,11 +211,17 @@ class _MailTabState extends State<MailTab>
       callback: _onShowListRequested,
     );
     _loadStations();
-    // Pick up any status that was already set before this tab was built.
+    // Pick up any status / error that was already set before this tab was
+    // built (e.g. a sync started from the Map tab).
     final initialStatus = _broker.getValueDynamic(1, 'WinlinkStateMessage');
     if (initialStatus is String && initialStatus.isNotEmpty) {
       _transferStatus = initialStatus;
     }
+    final initialError = _broker.getValueDynamic(1, 'WinlinkLastError');
+    if (initialError is String && initialError.isNotEmpty) {
+      _errorMessage = initialError;
+    }
+    _winlinkBusy = _broker.getValue<bool>(1, 'WinlinkBusy', false) ?? false;
     _loadMails();
   }
 
@@ -256,9 +278,9 @@ class _MailTabState extends State<MailTab>
 
   void _onWinlinkError(int deviceId, String name, Object? data) {
     if (!mounted) return;
-    if (data is String && data.isNotEmpty) {
-      setState(() => _errorMessage = data);
-    }
+    setState(
+      () => _errorMessage = (data is String && data.isNotEmpty) ? data : null,
+    );
   }
 
   void _onStationsChanged(int deviceId, String name, Object? data) {
@@ -404,6 +426,7 @@ class _MailTabState extends State<MailTab>
 
   void _dismissError() {
     setState(() => _errorMessage = null);
+    _broker.dispatch(deviceId: 1, name: 'WinlinkLastError', data: null);
   }
 
   /// Removes a leading, case-insensitive "SMTP:" prefix that Winlink adds to
@@ -1895,7 +1918,9 @@ class _MailTabState extends State<MailTab>
                   height: 28,
                   child: Builder(
                     builder: (buttonContext) => ElevatedButton(
-                      onPressed: () => _onConnect(buttonContext),
+                      onPressed: _syncInProgress
+                          ? null
+                          : () => _onConnect(buttonContext),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         textStyle: const TextStyle(fontSize: 12),

@@ -9,7 +9,7 @@ import 'dart:io' show FileSystemException;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'tab_visibility.dart';
@@ -24,8 +24,6 @@ import '../aprs/packet_data_type.dart';
 import '../callsign/callsign_record.dart';
 import '../dialogs/add_station_dialog.dart';
 import '../dialogs/callsign_lookup_dialog.dart';
-import '../dialogs/channel_context_menu.dart';
-import '../dialogs/channel_details_dialog.dart';
 import '../gps/gps_data.dart';
 import '../l10n/app_localizations.dart';
 import '../meshcore/meshcore_manager.dart' show meshCoreDeviceId;
@@ -39,15 +37,16 @@ import '../satellite/satellite_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/callsign_lookup_service.dart';
+import '../services/host_bridge.dart';
 import 'callsign_license_line.dart';
 import 'contact_avatar.dart';
 import '../services/window_service.dart';
 import '../services/winlink_gateway_service.dart';
 import '../winlink/winlink_gateway.dart';
+import '../winlink/winlink_gateway_options.dart';
 import '../utils/map_tile_downloader.dart';
 import '../utils/map_tile_provider.dart';
 import '../utils/map_tile_source.dart';
-import '../utils/channel_colors.dart';
 import '../utils/num_parsing.dart';
 import 'radiosonde_marker.dart';
 import 'sarsat_marker.dart';
@@ -281,6 +280,10 @@ class _MapTabState extends State<MapTab>
   /// (only once zoomed in enough to keep the marker count reasonable).
   bool _showWinlinkGateways = false;
 
+  /// Whether a Winlink session is running (host `WinlinkBusy`). A new sync
+  /// request is ignored meanwhile, so the gateway Sync mail button is disabled.
+  bool _winlinkBusy = false;
+
   /// Tunable bands (MHz, with modulation 0=FM/1=AM/2=DMR) aggregated across all
   /// connected radios (READ_FREQ_RANGE). Used to grey out Winlink gateways the
   /// radio cannot tune. Empty falls back to the built-in FM VHF/UHF limits.
@@ -480,6 +483,34 @@ class _MapTabState extends State<MapTab>
       name: WinlinkGatewayService.updatedEvent,
       callback: (_, _, _) {
         if (mounted && _showWinlinkGateways) setState(() {});
+      },
+    );
+    // The gateway Sync mail button follows the Mail tab's requirements, the
+    // running Winlink session and which radios are free.
+    _winlinkBusy = _broker.getValue<bool>(1, 'WinlinkBusy', false) ?? false;
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'WinlinkBusy',
+      callback: (_, _, data) {
+        if (mounted) setState(() => _winlinkBusy = data == true);
+      },
+    );
+    _broker.subscribeMultiple(
+      deviceId: 0,
+      names: const [
+        'AllowTransmit',
+        'WinlinkPassword',
+        HostBridge.hostCredentialsValue,
+      ],
+      callback: (_, _, _) {
+        if (mounted && _selectedWinlinkCallsign != null) setState(() {});
+      },
+    );
+    _broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'LockState',
+      callback: (_, _, _) {
+        if (mounted && _selectedWinlinkCallsign != null) setState(() {});
       },
     );
 
@@ -2320,12 +2351,7 @@ class _MapTabState extends State<MapTab>
       return const []; // Camera not laid out yet.
     }
     if (zoom < 6) return const [];
-    final gateways = service.withinBounds(
-      bounds.south,
-      bounds.west,
-      bounds.north,
-      bounds.east,
-    );
+    final gateways = _gatewaysWithin(bounds);
     final markers = <Marker>[];
     final isDark = Theme.of(context).brightness == Brightness.dark;
     for (final gw in gateways.take(400)) {
@@ -2472,6 +2498,19 @@ class _MapTabState extends State<MapTab>
               ],
             ),
           ),
+        if (_canSyncMail)
+          PopupMenuItem<String>(
+            value: 'syncMail',
+            height: 40,
+            enabled: _canSyncMailWith(gw),
+            child: Row(
+              children: [
+                const Icon(Icons.sync, size: 18),
+                const SizedBox(width: 8),
+                Text(l10n.mapWinlinkSyncMail),
+              ],
+            ),
+          ),
         PopupMenuItem<String>(
           value: 'center',
           height: 40,
@@ -2499,13 +2538,10 @@ class _MapTabState extends State<MapTab>
     if (!mounted) return;
     switch (action) {
       case 'addWinlink':
-        _addContactFrom(
-          StationInfo(
-            callsign: gw.callsign,
-            stationType: StationType.winlink,
-            frequencyHz: gw.channels.isEmpty ? 0 : gw.channels.first.frequencyHz,
-          ),
-        );
+        _addWinlinkContact(gw, _menuPositionAt(globalPosition));
+        break;
+      case 'syncMail':
+        _syncMailWith(gw, _menuPositionAt(globalPosition));
         break;
       case 'center':
         _mapController.move(
@@ -2527,118 +2563,183 @@ class _MapTabState extends State<MapTab>
     final db = WinlinkGatewayService.instance.database;
     if (db == null) return null;
     for (final g in db.gateways) {
-      if (g.callsign == cs) return g;
+      if (g.callsign == cs) return _usableGateway(g);
     }
     return null;
   }
 
-  /// True when [gw] offers only VARA FM and this platform can run the XARA
-  /// software modem (it needs the audio channel, unavailable on web and iOS).
-  bool _varaFmOnly(WinlinkGateway gw) =>
-      !kIsWeb &&
-      defaultTargetPlatform != TargetPlatform.iOS &&
-      gw.channels.isNotEmpty &&
-      gw.channels.every((c) => c.supportsVaraFm && !c.supportsPacket);
+  /// [gw] as shown on this platform: XARA frequencies are dropped where the
+  /// XARA modem can't run (web, iOS). Null when nothing usable is left.
+  WinlinkGateway? _usableGateway(WinlinkGateway gw) =>
+      usableWinlinkGateway(gw, xaraAvailable: winlinkXaraSupported);
 
-  /// Builds a radio channel for a gateway frequency: simplex FM named
-  /// after the gateway callsign-stationid.
-  radio.RadioChannelInfo _winlinkChannel(WinlinkGateway gw, int freqHz) {
-    return radio.RadioChannelInfo(
-      channelId: 0,
-      name: gw.callsign,
-      rxFreq: freqHz,
-      txFreq: freqHz,
-      rxMod: radio.RadioModulationType.fm,
-      txMod: radio.RadioModulationType.fm,
-      bandwidth: radio.RadioBandwidthType.wide,
-      txAtMaxPower: true,
+  /// Usable gateways (see [_usableGateway]) inside [b].
+  List<WinlinkGateway> _gatewaysWithin(LatLngBounds b) => [
+    for (final g in WinlinkGatewayService.instance.withinBounds(
+      b.south,
+      b.west,
+      b.north,
+      b.east,
+    ))
+      ?_usableGateway(g),
+  ];
+
+  /// The frequency / protocol combinations [gw] can be reached on here.
+  List<WinlinkGatewayOption> _gatewayOptions(WinlinkGateway gw) =>
+      winlinkGatewayOptions(gw, xaraAvailable: winlinkXaraSupported);
+
+  /// Lets the user pick one of [options] in a menu at [position], or returns
+  /// the only usable one without asking. Options failing [enabled] are listed
+  /// greyed out.
+  Future<WinlinkGatewayOption?> _pickGatewayOption(
+    RelativeRect position,
+    List<WinlinkGatewayOption> options, {
+    bool Function(WinlinkGatewayOption option)? enabled,
+  }) async {
+    final usable = enabled == null ? options : options.where(enabled).toList();
+    if (usable.length <= 1) return usable.isEmpty ? null : usable.first;
+    final l10n = AppLocalizations.of(context);
+    return showMenu<WinlinkGatewayOption>(
+      context: context,
+      position: position,
+      items: [
+        PopupMenuItem<WinlinkGatewayOption>(
+          enabled: false,
+          height: 28,
+          child: Text(
+            l10n.mapWinlinkChooseFrequency,
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ),
+        const PopupMenuDivider(height: 8),
+        for (final option in options)
+          PopupMenuItem<WinlinkGatewayOption>(
+            value: option,
+            height: 40,
+            enabled: usable.contains(option),
+            child: Text(option.label),
+          ),
+      ],
     );
   }
 
-  /// The draggable "channel rectangle" for one gateway frequency. Dragging it
-  /// onto a radio slot programs the channel; right-click copies its share
-  /// string (same as the radio tab).
-  Widget _buildWinlinkChannelTile(
+  /// Menu position over the widget of [anchor] (e.g. an info-card button).
+  RelativeRect _menuPositionOver(BuildContext anchor) {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final box = anchor.findRenderObject() as RenderBox;
+    return RelativeRect.fromRect(
+      box.localToGlobal(Offset.zero, ancestor: overlay) & box.size,
+      Offset.zero & overlay.size,
+    );
+  }
+
+  /// Global XARA bandwidth used for new XARA Winlink stations.
+  bool get _xaraWide =>
+      DataBroker.getValue<bool>(0, 'XaraWide', false) ?? false;
+
+  /// Adds [gw] as a Winlink contact on the frequency and protocol the user
+  /// picks (asked only when the gateway offers more than one).
+  Future<void> _addWinlinkContact(
     WinlinkGateway gw,
-    WinlinkGatewayChannel gatewayChannel,
-  ) {
-    final freqHz = gatewayChannel.frequencyHz;
-    final channel = _winlinkChannel(gw, freqHz);
-    final palette = ChannelPalette.of(context);
-    Widget tile({bool dragging = false}) {
-      return Container(
-        width: 96,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-        decoration: BoxDecoration(
-          color: dragging ? palette.selected : palette.base,
-          borderRadius: BorderRadius.circular(3),
-          border: Border.all(
-            color: dragging ? palette.borderHighlight : palette.border,
-            width: dragging ? 1.5 : 0.5,
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              gw.callsign,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: palette.onChannel,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              '${(freqHz / 1000000).toStringAsFixed(3)} MHz',
-              style: TextStyle(fontSize: 9, color: palette.onChannelSecondary),
-            ),
-            Text(
-              gatewayChannel.modeLabel,
-              style: TextStyle(fontSize: 9, color: palette.onChannelSecondary),
-            ),
-          ],
-        ),
-      );
-    }
+    RelativeRect position,
+  ) async {
+    final option = await _pickGatewayOption(position, _gatewayOptions(gw));
+    if (option == null || !mounted) return;
+    await _addContactFrom(option.toStation(gw.callsign, xaraWide: _xaraWide));
+  }
 
-    // A frequency the radio cannot tune is greyed out and not draggable.
-    if (!_isFreqHzSupported(freqHz)) {
-      return Tooltip(
-        message: "Outside the radio's supported frequency ranges",
-        child: Opacity(opacity: 0.4, child: tile()),
-      );
-    }
+  /// Mail sync needs the same as the Mail tab: transmit allowed and a Winlink
+  /// password set.
+  bool get _canSyncMail =>
+      (DataBroker.getValue<int>(0, 'AllowTransmit', 0) ?? 0) == 1 &&
+      HostBridge.isCredentialSet('WinlinkPassword');
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.grab,
-      child: Draggable<radio.RadioChannelInfo>(
-        data: channel,
-        dragAnchorStrategy: pointerDragAnchorStrategy,
-        feedback: Material(
-          color: Colors.transparent,
-          child: Opacity(opacity: 0.9, child: tile(dragging: true)),
-        ),
-        childWhenDragging: Opacity(opacity: 0.4, child: tile()),
-        child: GestureDetector(
-          onSecondaryTapDown: (d) => showChannelContextMenu(
-            context: context,
-            globalPosition: d.globalPosition,
-            channel: channel,
-            onDetails: () =>
-                showChannelDetailsDialog(context, channel: channel),
+  /// Connected radios that are not locked and can tune [hz] (FM), by id with
+  /// their display name.
+  List<({int id, String name})> _freeRadiosFor(int hz) {
+    final radios = _broker.getValueDynamic(_aprsDeviceId, 'ConnectedRadios');
+    if (radios is! List) return const [];
+    final result = <({int id, String name})>[];
+    for (final r in radios) {
+      if (r is! Map) continue;
+      final id = r['DeviceId'] as int? ?? r['deviceId'] as int?;
+      if (id == null || id <= 0) continue;
+      final lock = _broker.getValueDynamic(id, 'LockState');
+      if (lock is Map &&
+          ((lock['isLocked'] ?? lock['IsLocked']) as bool? ?? false)) {
+        continue;
+      }
+      final bands = radio.parseFreqBands(
+        _broker.getValueDynamic(id, 'FreqRanges'),
+      );
+      if (!radio.isFreqAllowed(bands, hz, radio.RadioModulationType.fm)) {
+        continue;
+      }
+      final name = r['FriendlyName'] as String?;
+      result.add((
+        id: id,
+        name: name?.isNotEmpty == true ? name! : 'Radio $id',
+      ));
+    }
+    return result;
+  }
+
+  /// Whether a mail sync with [gw] can start now: no Winlink session running
+  /// and a free radio can tune one of its frequencies.
+  bool _canSyncMailWith(WinlinkGateway gw) =>
+      !_winlinkBusy &&
+      _gatewayOptions(gw).any((o) => _freeRadiosFor(o.frequencyHz).isNotEmpty);
+
+  /// Syncs Winlink mail with [gw] without adding it to the contacts: asks for
+  /// the frequency / protocol and the radio when there is a choice, starts the
+  /// sync and brings the Mail tab forward to show its progress.
+  Future<void> _syncMailWith(WinlinkGateway gw, RelativeRect position) async {
+    final option = await _pickGatewayOption(
+      position,
+      _gatewayOptions(gw),
+      enabled: (o) => _freeRadiosFor(o.frequencyHz).isNotEmpty,
+    );
+    if (option == null || !mounted) return;
+    final radios = _freeRadiosFor(option.frequencyHz);
+    if (radios.isEmpty) return;
+    var radioId = radios.first.id;
+    if (radios.length > 1) {
+      final l10n = AppLocalizations.of(context);
+      final picked = await showMenu<int>(
+        context: context,
+        position: position,
+        items: [
+          PopupMenuItem<int>(
+            enabled: false,
+            height: 28,
+            child: Text(
+              l10n.mapWinlinkChooseRadio,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
           ),
-          onLongPressStart: (d) => showChannelContextMenu(
-            context: context,
-            globalPosition: d.globalPosition,
-            channel: channel,
-            onDetails: () =>
-                showChannelDetailsDialog(context, channel: channel),
-          ),
-          child: tile(),
-        ),
-      ),
+          const PopupMenuDivider(height: 8),
+          for (final r in radios)
+            PopupMenuItem<int>(value: r.id, height: 40, child: Text(r.name)),
+        ],
+      );
+      if (picked == null || !mounted) return;
+      radioId = picked;
+    }
+    if (_winlinkBusy) return;
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'WinlinkSync',
+      data: {
+        'RadioId': radioId,
+        'Station': option.toStation(gw.callsign, xaraWide: _xaraWide),
+      },
+      store: false,
+    );
+    _broker.dispatch(
+      deviceId: 0,
+      name: 'RequestSelectTab',
+      data: 'Mail',
+      store: false,
     );
   }
 
@@ -2697,9 +2798,9 @@ class _MapTabState extends State<MapTab>
     );
   }
 
-  /// Bottom overlay for a selected Winlink gateway: a draggable channel
-  /// rectangle (one per frequency) on the left, then callsign, distance, and
-  /// frequencies. Mirrors the APRS station info bar.
+  /// Bottom overlay for a selected Winlink gateway: callsign, distance and
+  /// frequencies, with add-contact and sync-mail actions. Mirrors the APRS
+  /// station info bar.
   Widget _buildWinlinkInfoCard(WinlinkGateway gw) {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
@@ -2721,22 +2822,12 @@ class _MapTabState extends State<MapTab>
         margin: EdgeInsets.zero,
         color: scheme.surface.withValues(alpha: 0.95),
         child: _buildInfoCardLayout(
-          // Channel rectangle(s) — drag onto a radio to program. Stacked
-          // vertically so multiple frequencies sit one above the other.
-          leading: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 100),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (int i = 0; i < gw.channels.length; i++) ...[
-                    if (i > 0) const SizedBox(height: 4),
-                    _buildWinlinkChannelTile(gw, gw.channels[i]),
-                  ],
-                ],
-              ),
-            ),
+          leading: Icon(
+            Icons.cell_tower,
+            size: 32,
+            color: _isGatewaySupported(gw)
+                ? const Color(0xFF6A1B9A)
+                : Colors.grey,
           ),
           details: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2744,12 +2835,6 @@ class _MapTabState extends State<MapTab>
             children: [
               Row(
                 children: [
-                  const Icon(
-                    Icons.cell_tower,
-                    size: 14,
-                    color: Color(0xFF6A1B9A),
-                  ),
-                  const SizedBox(width: 4),
                   Flexible(
                     child: Text(
                       gw.callsign,
@@ -2811,19 +2896,28 @@ class _MapTabState extends State<MapTab>
           ),
           actions: [
             if (!_hasContactOfType(gw.callsign, StationType.winlink))
-              IconButton(
-                tooltip: l10n.mapStationAddWinlink,
-                icon: const Icon(Icons.person_add_alt, size: 20),
-                onPressed: () => _addContactFrom(
-                  StationInfo(
-                    callsign: gw.callsign,
-                    stationType: StationType.winlink,
-                    frequencyHz: gw.channels.isEmpty
-                      ? 0
-                      : gw.channels.first.frequencyHz,
-                    modem: _varaFmOnly(gw) ? 'XARA' : 'Hardware',
-                  ),
+              Builder(
+                builder: (button) => IconButton(
+                  tooltip: l10n.mapStationAddWinlink,
+                  icon: const Icon(Icons.person_add_alt, size: 20),
+                  onPressed: () =>
+                      _addWinlinkContact(gw, _menuPositionOver(button)),
                 ),
+              ),
+            if (_canSyncMail)
+              Builder(
+                builder: (button) {
+                  final canSync = _canSyncMailWith(gw);
+                  return IconButton(
+                    tooltip: canSync
+                        ? l10n.mapWinlinkSyncMail
+                        : l10n.mapWinlinkSyncUnavailable,
+                    icon: const Icon(Icons.sync, size: 20),
+                    onPressed: canSync
+                        ? () => _syncMailWith(gw, _menuPositionOver(button))
+                        : null,
+                  );
+                },
               ),
             IconButton(
               tooltip: 'Center on map',
@@ -3221,10 +3315,8 @@ class _MapTabState extends State<MapTab>
 
     // Winlink gateways are only drawn (and so only pickable) at zoom >= 6.
     if (_showWinlinkGateways && camera.zoom >= 6) {
-      final svc = WinlinkGatewayService.instance;
-      if (svc.isAvailable) {
-        final b = camera.visibleBounds;
-        for (final g in svc.withinBounds(b.south, b.west, b.north, b.east)) {
+      if (WinlinkGatewayService.instance.isAvailable) {
+        for (final g in _gatewaysWithin(camera.visibleBounds)) {
           final Offset o = camera.latLngToScreenOffset(
             LatLng(g.latitude, g.longitude),
           );

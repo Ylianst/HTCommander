@@ -2992,6 +2992,19 @@ class AppLocalizationsIt extends AppLocalizations {
   String get mapStationsHere => 'Stazioni qui';
 
   @override
+  String get mapWinlinkSyncMail => 'Sincronizza posta';
+
+  @override
+  String get mapWinlinkSyncUnavailable =>
+      'Nessuna radio libera pu? raggiungere questo gateway oppure ? gi? in corso una sincronizzazione della posta';
+
+  @override
+  String get mapWinlinkChooseFrequency => 'Frequenza e protocollo';
+
+  @override
+  String get mapWinlinkChooseRadio => 'Radio';
+
+  @override
   String get aprsNoChannel => 'Nessuna radio con un canale APRS è disponibile';
 
   @override

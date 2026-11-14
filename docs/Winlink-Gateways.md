@@ -137,6 +137,17 @@ unchanged.
 Gateway icons and their position pointers use light purple in dark mode for
 visibility, keeping the existing deep purple in light mode. Gateways outside
 the connected radios' tuning ranges remain gray, using a lighter gray in dark mode.
-This directory change does not implement or automatically select a modem.
+On web and iOS, where the XARA modem cannot run, XARA-FM frequencies are hidden
+and gateways that only offer XARA-FM are not shown.
+
+Selecting a gateway shows its callsign, distance and frequencies. Gateways are
+reached by frequency, so no radio channel needs to be created first. **Add
+Winlink** saves the gateway as a Winlink contact and **Sync mail** starts a
+Winlink mail sync with it without saving a contact; both ask for the
+frequency and protocol (Packet or XARA) when the gateway offers more than one.
+XARA uses the XARA Wide setting. Sync mail needs transmit enabled and a Winlink
+password. It only offers frequencies a free (unlocked) connected radio can
+tune, asks which radio to use when several qualify, and opens the Mail tab to
+show progress. It is disabled while another mail sync is running.
 Run the
 tests with `python src\tools\test_build_winlink_db.py`.

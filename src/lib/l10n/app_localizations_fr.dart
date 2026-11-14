@@ -2990,6 +2990,19 @@ class AppLocalizationsFr extends AppLocalizations {
   String get mapStationsHere => 'Stations ici';
 
   @override
+  String get mapWinlinkSyncMail => 'Synchroniser le courrier';
+
+  @override
+  String get mapWinlinkSyncUnavailable =>
+      'Aucune radio libre ne peut joindre cette passerelle, ou une synchronisation du courrier est d?j? en cours';
+
+  @override
+  String get mapWinlinkChooseFrequency => 'Fr?quence et protocole';
+
+  @override
+  String get mapWinlinkChooseRadio => 'Radio';
+
+  @override
   String get aprsNoChannel =>
       'Aucune radio avec un canal APRS n\'est disponible';
 
