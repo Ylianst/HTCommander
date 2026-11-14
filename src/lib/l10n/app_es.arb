@@ -948,6 +948,10 @@
   "mapStationAddContact": "Añadir contacto",
   "mapStationAddWinlink": "Añadir Winlink",
   "mapStationsHere": "Estaciones aquí",
+  "mapWinlinkSyncMail": "Sincronizar correo",
+  "mapWinlinkSyncUnavailable": "Ninguna radio libre puede alcanzar esta pasarela o ya hay una sincronizaci?n de correo en curso",
+  "mapWinlinkChooseFrequency": "Frecuencia y protocolo",
+  "mapWinlinkChooseRadio": "Radio",
 
   "aprsNoChannel": "No hay ninguna radio con un canal APRS disponible",
   "aprsNoLoadedChannels": "No hay ninguna radio con canales cargados disponible",

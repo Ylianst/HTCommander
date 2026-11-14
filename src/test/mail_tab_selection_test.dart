@@ -178,6 +178,38 @@ void main() {
     expect(moves, isEmpty);
   }, variant: desktop);
 
+  testWidgets('a sync started before the tab was built shows its status', (
+    tester,
+  ) async {
+    probe.dispatch(deviceId: 1, name: 'WinlinkBusy', data: true);
+    probe.dispatch(
+      deviceId: 1,
+      name: 'WinlinkStateMessage',
+      data: 'Connecting to KG4MRA-10 via radio...',
+    );
+    await pumpTab(tester, [mail(1, 'Inbox')]);
+
+    expect(find.text('Connecting to KG4MRA-10 via radio...'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Cancel'), findsOneWidget);
+    final connect = tester.widget<ElevatedButton>(
+      find.widgetWithText(ElevatedButton, 'Connect'),
+    );
+    expect(connect.onPressed, isNull);
+
+    probe.dispatch(deviceId: 1, name: 'WinlinkBusy', data: false);
+    probe.dispatch(deviceId: 1, name: 'WinlinkStateMessage', data: null);
+    await tester.pump();
+    expect(find.widgetWithText(OutlinedButton, 'Cancel'), findsNothing);
+    expect(
+      tester
+          .widget<ElevatedButton>(
+            find.widgetWithText(ElevatedButton, 'Connect'),
+          )
+          .onPressed,
+      isNotNull,
+    );
+  }, variant: desktop);
+
   testWidgets('Ctrl+A then Delete in Trash permanently deletes all', (
     tester,
   ) async {

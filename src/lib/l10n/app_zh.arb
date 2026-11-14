@@ -948,6 +948,10 @@
   "mapStationAddContact": "添加联系人",
   "mapStationAddWinlink": "添加 Winlink",
   "mapStationsHere": "此处的台站",
+  "mapWinlinkSyncMail": "????",
+  "mapWinlinkSyncUnavailable": "??????????????????????",
+  "mapWinlinkChooseFrequency": "?????",
+  "mapWinlinkChooseRadio": "??",
 
   "aprsNoChannel": "没有带 APRS 信道的电台可用",
   "aprsNoLoadedChannels": "没有已加载信道的电台可用",

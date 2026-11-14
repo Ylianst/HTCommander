@@ -5356,6 +5356,30 @@ abstract class AppLocalizations {
   /// **'Stations Here'**
   String get mapStationsHere;
 
+  /// No description provided for @mapWinlinkSyncMail.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync mail'**
+  String get mapWinlinkSyncMail;
+
+  /// No description provided for @mapWinlinkSyncUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No free radio can reach this gateway, or a mail sync is already running'**
+  String get mapWinlinkSyncUnavailable;
+
+  /// No description provided for @mapWinlinkChooseFrequency.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequency and protocol'**
+  String get mapWinlinkChooseFrequency;
+
+  /// No description provided for @mapWinlinkChooseRadio.
+  ///
+  /// In en, this message translates to:
+  /// **'Radio'**
+  String get mapWinlinkChooseRadio;
+
   /// No description provided for @aprsNoChannel.
   ///
   /// In en, this message translates to:

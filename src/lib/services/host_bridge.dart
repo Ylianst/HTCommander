@@ -17,6 +17,7 @@ hosted mode for testing against a running host from an ordinary dev build.
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../aprs/aprs_conversation.dart' show clearAprsConversationEvent;
+import 'data_broker.dart';
 
 /// Helpers for detecting the HTCommander-hosted web deployment.
 class HostBridge {
@@ -91,6 +92,17 @@ class HostBridge {
           e.key,
     ]..sort();
     return names;
+  }
+
+  /// Whether credential setting [name] (e.g. `WinlinkPassword`) is set. The
+  /// hosted web UI never receives credential values, so it checks the names
+  /// the host publishes in [hostCredentialsValue] instead.
+  static bool isCredentialSet(String name) {
+    if (isHosted) {
+      final set = DataBroker.getValueDynamic(0, hostCredentialsValue);
+      return set is List && set.contains(name);
+    }
+    return (DataBroker.getValue<String>(0, name, '') ?? '').isNotEmpty;
   }
 
   /// Whether a device-0 setting is shared between the host and the browser.

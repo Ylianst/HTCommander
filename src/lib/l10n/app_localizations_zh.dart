@@ -2884,6 +2884,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mapStationsHere => '此处的台站';
 
   @override
+  String get mapWinlinkSyncMail => '????';
+
+  @override
+  String get mapWinlinkSyncUnavailable => '??????????????????????';
+
+  @override
+  String get mapWinlinkChooseFrequency => '?????';
+
+  @override
+  String get mapWinlinkChooseRadio => '??';
+
+  @override
   String get aprsNoChannel => '没有带 APRS 信道的电台可用';
 
   @override

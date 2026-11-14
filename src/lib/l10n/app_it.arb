@@ -940,6 +940,10 @@
   "mapStationAddContact": "Aggiungi contatto",
   "mapStationAddWinlink": "Aggiungi Winlink",
   "mapStationsHere": "Stazioni qui",
+  "mapWinlinkSyncMail": "Sincronizza posta",
+  "mapWinlinkSyncUnavailable": "Nessuna radio libera pu? raggiungere questo gateway oppure ? gi? in corso una sincronizzazione della posta",
+  "mapWinlinkChooseFrequency": "Frequenza e protocollo",
+  "mapWinlinkChooseRadio": "Radio",
 
   "aprsNoChannel": "Nessuna radio con un canale APRS è disponibile",
   "aprsNoLoadedChannels": "Nessuna radio con canali caricati è disponibile",

@@ -1623,17 +1623,8 @@ class _MainFormState extends State<MainForm>
 
   /// Whether a Winlink password is set. The hosted web UI never receives the
   /// host's credentials, only which ones are configured.
-  bool _readWinlinkPasswordSet() {
-    if (HostBridge.isHosted) {
-      final set = DataBroker.getValueDynamic(
-        0,
-        HostBridge.hostCredentialsValue,
-      );
-      return set is List && set.contains('WinlinkPassword');
-    }
-    return (DataBroker.getValue<String>(0, 'WinlinkPassword', '') ?? '')
-        .isNotEmpty;
-  }
+  bool _readWinlinkPasswordSet() =>
+      HostBridge.isCredentialSet('WinlinkPassword');
 
   /// Load settings from DataBroker (device 0).
   void _loadSettingsFromBroker() {

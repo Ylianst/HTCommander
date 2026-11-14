@@ -1793,6 +1793,10 @@
   "mapStationAddContact": "Add Contact",
   "mapStationAddWinlink": "Add Winlink",
   "mapStationsHere": "Stations Here",
+  "mapWinlinkSyncMail": "Sync mail",
+  "mapWinlinkSyncUnavailable": "No free radio can reach this gateway, or a mail sync is already running",
+  "mapWinlinkChooseFrequency": "Frequency and protocol",
+  "mapWinlinkChooseRadio": "Radio",
 
   "aprsNoChannel": "No radio with an APRS channel is available",
   "aprsNoLoadedChannels": "No radio with loaded channels is available",

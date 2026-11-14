@@ -948,6 +948,10 @@
   "mapStationAddContact": "Kontakt hinzufügen",
   "mapStationAddWinlink": "Winlink hinzufügen",
   "mapStationsHere": "Stationen hier",
+  "mapWinlinkSyncMail": "E-Mail synchronisieren",
+  "mapWinlinkSyncUnavailable": "Kein freies Funkger?t erreicht dieses Gateway oder eine E-Mail-Synchronisierung l?uft bereits",
+  "mapWinlinkChooseFrequency": "Frequenz und Protokoll",
+  "mapWinlinkChooseRadio": "Funkger?t",
 
   "aprsNoChannel": "Kein Funkgerät mit APRS-Kanal verfügbar",
   "aprsNoLoadedChannels": "Kein Funkgerät mit geladenen Kanälen verfügbar",

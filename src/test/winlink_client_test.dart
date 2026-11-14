@@ -9,6 +9,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:htcommander/models/station_info.dart';
+import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/services/data_broker_client.dart';
 import 'package:htcommander/winlink/winlink_client.dart';
 import 'package:htcommander/winlink/winlink_mail.dart';
@@ -33,6 +35,38 @@ Future<void> _waitFor(
 }
 
 void main() {
+  test('a failed sync keeps its error but clears the busy status', () {
+    final broker = DataBrokerClient();
+    final client = WinlinkClient();
+    try {
+      broker.dispatch(
+        deviceId: 1,
+        name: 'WinlinkSync',
+        data: {
+          'RadioId': 5,
+          'Station': StationInfo(callsign: 'KG4MRA-10'),
+        },
+        store: false,
+      );
+      // Stored, so a Mail tab built afterwards still shows the error and no
+      // stale "in progress" status line.
+      expect(broker.getValueDynamic(1, 'WinlinkLastError'), isNotEmpty);
+      expect(broker.getValueDynamic(1, 'WinlinkStateMessage'), isNull);
+
+      broker.dispatch(
+        deviceId: 1,
+        name: 'WinlinkSync',
+        data: {'Server': ''},
+        store: false,
+      );
+      expect(broker.getValueDynamic(1, 'WinlinkLastError'), isNull);
+    } finally {
+      client.dispose();
+      broker.dispose();
+      DataBroker.clearDevice(1);
+    }
+  });
+
   test('waits for more proposals or FQ after receiving mail', () async {
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     final acceptedSocket = Completer<Socket>();

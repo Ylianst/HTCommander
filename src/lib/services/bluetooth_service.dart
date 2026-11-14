@@ -543,13 +543,12 @@ class BluetoothService {
   }
 
   /// Applies a Winlink transfer status message pushed by the host (empty clears
-  /// the status).
+  /// the status). Stored so a Mail tab built later still shows it.
   void _onHostWinlinkState(String message) {
     _broker.dispatch(
       deviceId: 1,
       name: 'WinlinkStateMessage',
       data: message.isEmpty ? null : message,
-      store: false,
     );
   }
 
@@ -562,6 +561,7 @@ class BluetoothService {
       data: message,
       store: false,
     );
+    _broker.dispatch(deviceId: 1, name: 'WinlinkLastError', data: message);
   }
 
   /// Applies the host's airplane (Dump1090) snapshot by republishing it on the
@@ -626,6 +626,7 @@ class BluetoothService {
   void _onLocalWinlinkSync(int deviceId, String name, Object? data) {
     final transport = _hostTransport;
     if (transport == null || data is! Map) return;
+    _broker.dispatch(deviceId: 1, name: 'WinlinkLastError', data: null);
     final server = data['Server'];
     if (server is String && server.isNotEmpty) {
       transport.sendWinlinkSync(<String, Object?>{

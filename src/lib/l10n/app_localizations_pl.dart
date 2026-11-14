@@ -2995,6 +2995,19 @@ class AppLocalizationsPl extends AppLocalizations {
   String get mapStationsHere => 'Stacje tutaj';
 
   @override
+  String get mapWinlinkSyncMail => 'Synchronizuj poczt?';
+
+  @override
+  String get mapWinlinkSyncUnavailable =>
+      '?aden wolny radiotelefon nie si?ga tej bramki lub synchronizacja poczty ju? trwa';
+
+  @override
+  String get mapWinlinkChooseFrequency => 'Cz?stotliwo?? i protok??';
+
+  @override
+  String get mapWinlinkChooseRadio => 'Radiotelefon';
+
+  @override
   String get aprsNoChannel => 'Brak radiotelefonu z kanałem APRS';
 
   @override

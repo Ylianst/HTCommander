@@ -2996,6 +2996,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get mapStationsHere => 'Stationen hier';
 
   @override
+  String get mapWinlinkSyncMail => 'E-Mail synchronisieren';
+
+  @override
+  String get mapWinlinkSyncUnavailable =>
+      'Kein freies Funkger?t erreicht dieses Gateway oder eine E-Mail-Synchronisierung l?uft bereits';
+
+  @override
+  String get mapWinlinkChooseFrequency => 'Frequenz und Protokoll';
+
+  @override
+  String get mapWinlinkChooseRadio => 'Funkger?t';
+
+  @override
   String get aprsNoChannel => 'Kein Funkgerät mit APRS-Kanal verfügbar';
 
   @override

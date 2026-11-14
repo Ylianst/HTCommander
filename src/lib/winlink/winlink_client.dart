@@ -153,6 +153,9 @@ class WinlinkClient {
     // Ignore if we are already busy (not disconnected)
     if (_currentState != WinlinkConnectionState.disconnected) return;
 
+    // A new attempt replaces the error shown for the previous one.
+    _broker.dispatch(deviceId: 1, name: 'WinlinkLastError', data: null);
+
     // Start sync - data should contain server info or radio/station info
     // Expected for TCP: { Server: "server.winlink.org", Port: 8772, UseTls: true }
     // Expected for Radio: { RadioId: int, Station: StationInfo }
@@ -813,12 +816,9 @@ class WinlinkClient {
     if (msg != null && msg.isNotEmpty) {
       _addToDebugHistory(_remoteAddress, false, msg, isStateMessage: true);
     }
-    _broker.dispatch(
-      deviceId: 1,
-      name: 'WinlinkStateMessage',
-      data: msg,
-      store: false,
-    );
+    // Stored so a Mail tab built after the sync started (e.g. one opened by
+    // the Map's Sync mail) still shows the status and its Cancel button.
+    _broker.dispatch(deviceId: 1, name: 'WinlinkStateMessage', data: msg);
   }
 
   /// Reports an error condition. The message is recorded in the debug history
@@ -830,18 +830,21 @@ class WinlinkClient {
     if (msg.isNotEmpty) {
       _addToDebugHistory(_remoteAddress, false, msg, isStateMessage: true);
     }
-    _broker.dispatch(
-      deviceId: 1,
-      name: 'WinlinkStateMessage',
-      data: msg,
-      store: false,
-    );
+    _broker.dispatch(deviceId: 1, name: 'WinlinkStateMessage', data: msg);
     _broker.dispatch(
       deviceId: 1,
       name: 'WinlinkError',
       data: msg,
       store: false,
     );
+    // Stored copy for the Mail tab, which may be built only after the error
+    // (e.g. a sync started from the Map); cleared on dismiss or a new sync.
+    _broker.dispatch(deviceId: 1, name: 'WinlinkLastError', data: msg);
+    // Without a session nothing else clears the status, which would leave the
+    // Mail tab showing a busy status line after e.g. a failed XARA start.
+    if (_currentState == WinlinkConnectionState.disconnected) {
+      _stateMessage(null);
+    }
   }
 
   void _setConnectionState(WinlinkConnectionState state) {
@@ -860,12 +863,9 @@ class WinlinkClient {
       );
 
       final isBusy = state != WinlinkConnectionState.disconnected;
-      _broker.dispatch(
-        deviceId: 1,
-        name: 'WinlinkBusy',
-        data: isBusy,
-        store: false,
-      );
+      // Stored so UIs built later (e.g. the map's Sync mail button) know a
+      // session is already running.
+      _broker.dispatch(deviceId: 1, name: 'WinlinkBusy', data: isBusy);
 
       if (state == WinlinkConnectionState.disconnected) {
         _sessionState.clear();

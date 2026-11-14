@@ -2953,6 +2953,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mapStationsHere => 'Stations Here';
 
   @override
+  String get mapWinlinkSyncMail => 'Sync mail';
+
+  @override
+  String get mapWinlinkSyncUnavailable =>
+      'No free radio can reach this gateway, or a mail sync is already running';
+
+  @override
+  String get mapWinlinkChooseFrequency => 'Frequency and protocol';
+
+  @override
+  String get mapWinlinkChooseRadio => 'Radio';
+
+  @override
   String get aprsNoChannel => 'No radio with an APRS channel is available';
 
   @override
