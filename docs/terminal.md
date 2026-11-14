@@ -6,6 +6,15 @@ Like the older days of modems and BBS's, Handi-Talky Commander has a built-in Te
 
 To get started, just go on the terminal tab and hit connect on the upper right to add a new connection profile or connect to an existing one. You will need to specify the remote station and the type of protocol to use: Raw AX.25, Raw AX.25 (Compressed), APRS, AX.25 Session, XARA Narrow, or XARA Wide. You will also select on what channel to connect to. Once the profile is created, the radio will automatically be set to the right channel and "locked" to that channel until you disconnect the terminal or you change the channel on the radio itself.
 
+The locked radio's virtual VFO B shows the connected station and cumulative
+**In / Out** byte counts. While connecting, waiting for an incoming connection,
+or disconnecting, it shows only that state, without byte counts. Counts appear
+only while connected and reset for each connection
+and include protocol payload bytes (UTF-8 text, line endings, compressed data,
+APRS message headers, and YAPP file-transfer traffic), but not AX.25 framing or
+retransmissions. Outgoing bytes count when queued, not when acknowledged.
+Traffic on other radios and the radio-less local BBS do not affect the display.
+
 ## Connecting to a BBS using XARA
 
 In the address book, add a **Terminal** contact with the BBS callsign (including its SSID), choose **XARA Narrow** or **XARA Wide** as the terminal protocol, and select the BBS channel/region. An optional digipeater path can contain up to two callsigns. XARA uses its own connected-mode protocol; no separate AX.25 modem selection is needed.

@@ -1169,6 +1169,7 @@ bool isFreqAllowed(List<RadioFreqBand> bands, int hz, RadioModulationType m) =>
 class RadioLockState {
   bool isLocked;
   String? usage;
+  int lockId;
   int regionId;
   int channelId;
 
@@ -1181,6 +1182,7 @@ class RadioLockState {
   RadioLockState({
     this.isLocked = false,
     this.usage,
+    this.lockId = 0,
     this.regionId = -1,
     this.channelId = -1,
     this.modem,
@@ -1190,6 +1192,7 @@ class RadioLockState {
   Map<String, dynamic> toJson() => {
     'isLocked': isLocked,
     'usage': usage,
+    'lockId': lockId,
     'regionId': regionId,
     'channelId': channelId,
     'modem': modem,
@@ -1200,6 +1203,7 @@ class RadioLockState {
     return RadioLockState(
       isLocked: json['isLocked'] as bool? ?? json['IsLocked'] as bool? ?? false,
       usage: json['usage'] as String? ?? json['Usage'] as String?,
+      lockId: json['lockId'] as int? ?? 0,
       regionId: json['regionId'] as int? ?? json['RegionId'] as int? ?? -1,
       channelId: json['channelId'] as int? ?? json['ChannelId'] as int? ?? -1,
       modem: json['modem'] as String? ?? json['Modem'] as String?,

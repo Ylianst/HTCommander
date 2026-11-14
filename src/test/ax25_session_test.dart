@@ -318,6 +318,8 @@ void main() {
       a.packetLength = 64;
       b.packetLength = 64;
       final bRx = _Collector()..bind(b);
+      var queuedBytes = 0;
+      a.onDataQueued = (_, count) => queuedBytes += count;
 
       addTearDown(() {
         a.dispose();
@@ -348,6 +350,8 @@ void main() {
           reason: 'data must be reassembled correctly and in order');
       expect(bridge.droppedFrames, greaterThan(0),
           reason: 'the test should actually have dropped some frames');
+      expect(queuedBytes, payload.length,
+          reason: 'segmentation and retries must not inflate queued bytes');
     }, timeout: const Timeout(Duration(seconds: 40)));
 
     test('answers a retransmitted DISC after teardown so the peer can finish',

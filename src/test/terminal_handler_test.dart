@@ -10,6 +10,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 //
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/handlers/terminal_handler.dart';
@@ -31,6 +32,8 @@ void main() {
   final notices = <Map>[];
   final sent = <AX25Packet>[];
   final commands = <String>[];
+  final statuses = <int, SetLockStatusData>{};
+  var lockId = 0;
 
   Map state() => DataBroker.getValueDynamic(1, 'TerminalState')! as Map;
 
@@ -42,6 +45,8 @@ void main() {
     notices.clear();
     sent.clear();
     commands.clear();
+    statuses.clear();
+    lockId = 0;
     bus = DataBrokerClient();
     bus.dispatch(deviceId: 0, name: 'CallSign', data: 'N0CALL');
     bus.dispatch(deviceId: 0, name: 'StationId', data: 0);
@@ -77,9 +82,14 @@ void main() {
         bus.dispatch(
           deviceId: radioId,
           name: 'LockState',
-          data: {'isLocked': true, 'usage': 'Terminal'},
+          data: {'isLocked': true, 'usage': 'Terminal', 'lockId': ++lockId},
         );
       },
+    );
+    bus.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'SetLockStatus',
+      callback: (id, _, data) => statuses[id] = data! as SetLockStatusData,
     );
     bus.subscribe(
       deviceId: radioId,
@@ -255,6 +265,133 @@ void main() {
     expect(notices.last['kind'], 'disconnected');
   });
 
+  test('radio status counts peer payload bytes and resets on reconnect', () {
+    final contact = station(TerminalProtocol.rawX25);
+    handler.connect(radioId, contact);
+    expect(statuses[radioId]!.text, 'N1ABC-1\nIn: 0 B  Out: 0 B');
+    final text = 'caf${String.fromCharCode(0xe9)}';
+    handler.send(text);
+    expect(statuses[radioId]!.text, 'N1ABC-1\nIn: 0 B  Out: 5 B');
+
+    const otherId = radioId + 1;
+    bus.dispatch(
+      deviceId: otherId,
+      name: 'LockState',
+      data: {'isLocked': true, 'usage': 'Terminal', 'lockId': 50},
+    );
+    bus.dispatch(
+      deviceId: 1,
+      name: 'ConnectedRadios',
+      data: [
+        {'DeviceId': otherId},
+        {'DeviceId': radioId},
+      ],
+    );
+    expect(handler.activeRadioId, radioId);
+    void receive(int id, String peer) {
+      final reply = AX25Packet(
+        addresses: [AX25Address.parse('N0CALL')!, AX25Address.parse(peer)!],
+        data: utf8.encode('reply'),
+      )..pid = 241;
+      bus.dispatch(
+        deviceId: id,
+        name: 'UniqueDataFrame',
+        data: TncDataFragment(
+          finalFragment: true,
+          fragmentId: 0,
+          data: reply.toByteArray(),
+          channelId: 2,
+          regionId: 0,
+          incoming: true,
+          radioDeviceId: id,
+        ),
+        store: false,
+      );
+    }
+
+    receive(otherId, 'N1ABC-1');
+    receive(radioId, 'N2XYZ');
+    expect(statuses[radioId]!.text, 'N1ABC-1\nIn: 0 B  Out: 5 B');
+    receive(radioId, 'N1ABC-1');
+    expect(statuses[radioId]!.text, 'N1ABC-1\nIn: 5 B  Out: 5 B');
+    expect(statuses.containsKey(otherId), false);
+
+    bus.dispatch(deviceId: otherId, name: 'LockState', data: null);
+    bus.dispatch(
+      deviceId: 1,
+      name: 'ConnectedRadios',
+      data: [
+        {'DeviceId': radioId},
+      ],
+    );
+    handler.disconnect();
+    final previousLock = statuses[radioId]!.lockId;
+    handler.connect(radioId, contact);
+    expect(statuses[radioId]!.text, 'N1ABC-1\nIn: 0 B  Out: 0 B');
+    expect(statuses[radioId]!.lockId, isNot(previousLock));
+    addTearDown(() => DataBroker.clearDevice(otherId));
+  });
+
+  test(
+    'incoming sessions count text and YAPP bytes without duplicate RX',
+    () async {
+      handler.waitForConnection(radioId);
+      expect(
+        statuses[radioId]!.text,
+        'Waiting for connection...',
+      );
+      void receive(int type, {Uint8List? data, int nr = 0}) {
+        final packet = AX25Packet(
+          addresses: [
+            AX25Address.parse('N0CALL')!,
+            AX25Address.parse('N1ABC-1')!,
+          ],
+          type: type,
+          command: true,
+          pollFinal: type == FrameType.uFrameSabm,
+          data: data,
+          nr: nr,
+        );
+        bus.dispatch(
+          deviceId: radioId,
+          name: 'UniqueDataFrame',
+          data: TncDataFragment(
+            finalFragment: true,
+            fragmentId: 0,
+            data: packet.toByteArray(),
+            channelId: 2,
+            regionId: 0,
+            incoming: true,
+            radioDeviceId: radioId,
+          ),
+          store: false,
+        );
+      }
+
+      receive(FrameType.uFrameSabm);
+      expect(statuses[radioId]!.text, 'N1ABC-1\nIn: 0 B  Out: 0 B');
+      handler.send('x');
+      expect(statuses[radioId]!.text, 'N1ABC-1\nIn: 0 B  Out: 2 B');
+      await Future<void>.delayed(Duration.zero);
+      receive(
+        FrameType.iFrame,
+        data: Uint8List.fromList(utf8.encode('ok\r')),
+        nr: 1,
+      );
+      expect(statuses[radioId]!.text, 'N1ABC-1\nIn: 3 B  Out: 2 B');
+      receive(
+        FrameType.iFrame,
+        data: Uint8List.fromList(utf8.encode('ok\r')),
+        nr: 1,
+      );
+      expect(statuses[radioId]!.text, 'N1ABC-1\nIn: 3 B  Out: 2 B');
+      handler.sendFile('tiny.bin', Uint8List.fromList([1, 2, 3]));
+      expect(statuses[radioId]!.text, 'N1ABC-1\nIn: 3 B  Out: 4 B');
+      handler.disconnect();
+      expect(statuses[radioId]!.text, 'Disconnecting from N1ABC-1...');
+    },
+  );
+
   test('APRS messages are addressed to the padded callsign', () {
     command('TerminalConnect', {
       'RadioId': radioId,
@@ -263,6 +400,43 @@ void main() {
     command('TerminalSend', {'Text': 'test'});
     expect(sent.single.dataStr, ':N1ABC-1  :test');
     expect(sent.single.pid, 240);
+    expect(statuses[radioId]!.text, 'N1ABC-1\nIn: 0 B  Out: 15 B');
+  });
+
+  test('compressed Terminal traffic counts the compressed payload size', () {
+    handler.connect(radioId, station(TerminalProtocol.rawX25Compress));
+    final text = List.filled(200, 'A').join();
+    handler.send(text);
+    final payload = sent.single.data!;
+    expect(sent.single.pid, 243);
+    expect(payload.length, lessThan(utf8.encode(text).length));
+    expect(
+      statuses[radioId]!.text,
+      'N1ABC-1\nIn: 0 B  Out: ${payload.length} B',
+    );
+    final reply = AX25Packet(
+      addresses: [AX25Address.parse('N0CALL')!, AX25Address.parse('N1ABC-1')!],
+      data: payload,
+    )..pid = 243;
+    bus.dispatch(
+      deviceId: radioId,
+      name: 'UniqueDataFrame',
+      data: TncDataFragment(
+        finalFragment: true,
+        fragmentId: 0,
+        data: reply.toByteArray(),
+        channelId: 2,
+        regionId: 0,
+        incoming: true,
+        radioDeviceId: radioId,
+      ),
+      store: false,
+    );
+    expect(texts.last['text'], text);
+    expect(
+      statuses[radioId]!.text,
+      'N1ABC-1\nIn: ${payload.length} B  Out: ${payload.length} B',
+    );
   });
 
   test('an AX.25 session refuses text until connected', () {
@@ -276,6 +450,7 @@ void main() {
     // Text is refused until the session is up.
     command('TerminalSend', {'Text': 'x'});
     expect(notices.last['kind'], 'notConnected');
+    expect(statuses[radioId]!.text, 'Connecting to N1ABC-1...');
     command('TerminalDisconnect');
     expect(state()['status'], 'idle');
     expect(commands.last, 'SetUnlock');
@@ -296,6 +471,7 @@ void main() {
     expect(notices.last['kind'], 'channelMissing');
     expect((notices.last['station'] as Map)['Channel'], 'NOPE');
     expect(commands, isEmpty);
+    expect(statuses, isEmpty);
     expect(state()['status'], 'idle');
   });
 
@@ -306,6 +482,7 @@ void main() {
     test('connects without a radio and serves the BBS menu', () {
       command('TerminalConnectLocalBbs');
       expect(commands, isEmpty);
+      expect(statuses, isEmpty);
       expect(state()['status'], 'connected');
       expect(state()['remote'], 'N0CALL');
       expect(state()['protocol'], localBbsProtocol);

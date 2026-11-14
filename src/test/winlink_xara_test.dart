@@ -15,7 +15,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/models/station_info.dart';
-import 'package:htcommander/radio/radio.dart' show SetLockData;
+import 'package:htcommander/radio/radio.dart' show SetLockData, SetLockStatusData;
 import 'package:htcommander/services/data_broker_client.dart';
 import 'package:htcommander/winlink/winlink_client.dart';
 
@@ -36,6 +36,7 @@ class FakeXaraRadio {
   final DataBrokerClient b = DataBrokerClient();
   final List<String> commands = <String>[];
   final List<int> sent = <int>[];
+  final List<SetLockStatusData> statuses = [];
   Map<Object?, Object?>? connect;
   SetLockData? lock;
   bool answer = true;
@@ -75,10 +76,16 @@ class FakeXaraRadio {
             'isLocked': true,
             'usage': 'Winlink',
             'channelId': 3,
+            'lockId': id,
           },
           store: true,
         );
       },
+    );
+    b.subscribe(
+      deviceId: id,
+      name: 'SetLockStatus',
+      callback: (_, _, data) => statuses.add(data! as SetLockStatusData),
     );
     b.subscribe(
       deviceId: id,
@@ -234,6 +241,31 @@ void main() {
     } finally {
       client.dispose();
       radio.dispose();
+    }
+  });
+
+  test('Winlink status is sent only to the radio used for the session', () async {
+    final radio = FakeXaraRadio(220);
+    final other = FakeXaraRadio(221);
+    final client = WinlinkClient();
+    try {
+      ui.dispatch(
+        deviceId: 1,
+        name: 'WinlinkSync',
+        data: {'RadioId': radio.id, 'Station': gateway()},
+      );
+      expect(await waitFor(() => states.contains('CONNECTED')), true);
+      expect(radio.statuses.map((s) => s.text), contains('Connected to N1RMS-10'));
+      expect(radio.statuses.every((s) => s.lockId == radio.id), true);
+      expect(other.statuses, isEmpty);
+      radio.event('disconnected');
+      expect(await waitFor(() => states.contains('DISCONNECTED')), true);
+      expect(radio.statuses.last.text, '');
+      expect(other.statuses, isEmpty);
+    } finally {
+      client.dispose();
+      radio.dispose();
+      other.dispose();
     }
   });
 

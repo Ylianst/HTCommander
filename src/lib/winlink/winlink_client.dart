@@ -131,6 +131,7 @@ class WinlinkClient {
 
   // Radio lock fields for X25 transport
   int _lockedRadioId = -1;
+  int _radioLockId = 0;
 
   // AX25Session for X25 transport
   AX25Session? _ax25Session;
@@ -242,6 +243,10 @@ class WinlinkClient {
       data: lockData,
       store: false,
     );
+    final lock = _broker.getValue<Map<String, dynamic>>(radioId, 'LockState');
+    _radioLockId = lock?['usage'] == 'Winlink'
+        ? (lock?['lockId'] as int? ?? 0)
+        : 0;
 
     // Clear debug history for new session
     _broker.dispatch(
@@ -428,6 +433,7 @@ class WinlinkClient {
         store: false,
       );
       _lockedRadioId = -1;
+      _radioLockId = 0;
     }
   }
 
@@ -812,6 +818,23 @@ class WinlinkClient {
     }
   }
 
+  void _radioStatus(String? msg) {
+    if (_lockedRadioId <= 0 || _radioLockId == 0 ||
+        _transportType == WinlinkTransportType.tcp) {
+      return;
+    }
+    _broker.dispatch(
+      deviceId: _lockedRadioId,
+      name: 'SetLockStatus',
+      data: SetLockStatusData(
+        usage: 'Winlink',
+        lockId: _radioLockId,
+        text: msg ?? '',
+      ),
+      store: false,
+    );
+  }
+
   void _stateMessage(String? msg) {
     if (msg != null && msg.isNotEmpty) {
       _addToDebugHistory(_remoteAddress, false, msg, isStateMessage: true);
@@ -819,6 +842,7 @@ class WinlinkClient {
     // Stored so a Mail tab built after the sync started (e.g. one opened by
     // the Map's Sync mail) still shows the status and its Cancel button.
     _broker.dispatch(deviceId: 1, name: 'WinlinkStateMessage', data: msg);
+    _radioStatus(msg);
   }
 
   /// Reports an error condition. The message is recorded in the debug history
@@ -831,6 +855,7 @@ class WinlinkClient {
       _addToDebugHistory(_remoteAddress, false, msg, isStateMessage: true);
     }
     _broker.dispatch(deviceId: 1, name: 'WinlinkStateMessage', data: msg);
+    _radioStatus(msg);
     _broker.dispatch(
       deviceId: 1,
       name: 'WinlinkError',

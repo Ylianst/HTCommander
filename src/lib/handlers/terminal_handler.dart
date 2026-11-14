@@ -137,6 +137,9 @@ class TerminalHandler {
   final Map<int, RadioLockState> _lockStates = {};
   StationInfo? _station;
   int _radioId = -1;
+  int _radioLockId = 0;
+  int _bytesIn = 0;
+  int _bytesOut = 0;
 
   AX25Session? _session;
   YappTransfer? _yapp;
@@ -214,6 +217,13 @@ class TerminalHandler {
 
   /// The radio locked to Terminal usage, or -1.
   int get activeRadioId {
+    final ownLock = _lockStates[_radioId];
+    if (_connectedRadios.contains(_radioId) &&
+        ownLock != null &&
+        ownLock.isLocked &&
+        ownLock.usage == 'Terminal') {
+      return _radioId;
+    }
     for (final radioId in _connectedRadios) {
       final lock = _lockStates[radioId];
       if (lock != null && lock.isLocked && lock.usage == 'Terminal') {
@@ -302,6 +312,49 @@ class TerminalHandler {
               },
       },
     );
+    _publishRadioStatus();
+  }
+
+  void _captureRadioLock() {
+    if (_radioLockId != 0 || _radioId <= 0) return;
+    final lock = _broker.getValue<Map<String, dynamic>>(_radioId, 'LockState');
+    if (lock?['isLocked'] == true && lock?['usage'] == 'Terminal') {
+      _radioLockId = lock?['lockId'] as int? ?? 0;
+    }
+  }
+
+  void _publishRadioStatus() {
+    if (_disposed || _localLink != null || _radioId <= 0 || _radioLockId == 0) {
+      return;
+    }
+    final current = status;
+    if (current == TerminalStatus.idle) return;
+    final peer = _station?.callsign ?? _remote ?? '';
+    final label = switch (current) {
+      TerminalStatus.connected => peer,
+      TerminalStatus.connecting => 'Connecting to $peer...',
+      TerminalStatus.waiting => 'Waiting for connection...',
+      TerminalStatus.disconnecting => 'Disconnecting from $peer...',
+      TerminalStatus.idle => '',
+    };
+    _broker.dispatch(
+      deviceId: _radioId,
+      name: 'SetLockStatus',
+      data: SetLockStatusData(
+        usage: 'Terminal',
+        lockId: _radioLockId,
+        text: current == TerminalStatus.connected
+            ? '$label\nIn: $_bytesIn B  Out: $_bytesOut B'
+            : label,
+      ),
+      store: false,
+    );
+  }
+
+  void _countBytes({int incoming = 0, int outgoing = 0}) {
+    _bytesIn += incoming;
+    _bytesOut += outgoing;
+    _publishRadioStatus();
   }
 
   void _notice(String kind, [Map<String, Object?> args = const {}]) {
@@ -428,6 +481,9 @@ class TerminalHandler {
 
     _station = station;
     _radioId = radioId;
+    _radioLockId = 0;
+    _bytesIn = 0;
+    _bytesOut = 0;
     _lockedOnce = false;
     _xaraState = station.terminalProtocol.isXara
         ? _XaraState.waitingForLock
@@ -452,6 +508,7 @@ class TerminalHandler {
       ),
       store: false,
     );
+    _captureRadioLock();
 
     _broker.logInfo(
       '[Terminal] Connecting to station ${station.callsign} on radio '
@@ -671,12 +728,14 @@ class TerminalHandler {
           _notice(TerminalNotices.notConnected);
           return;
         }
+        final bytes = Uint8List.fromList(utf8.encode('$text\r'));
         _broker.dispatch(
           deviceId: _radioId,
           name: 'XaraSend',
-          data: Uint8List.fromList(utf8.encode('$text\r')),
+          data: bytes,
           store: false,
         );
+        _countBytes(outgoing: bytes.length);
     }
 
     _text(
@@ -767,6 +826,7 @@ class TerminalHandler {
         _radioId = -1;
       }
       if (deviceId == _radioId && lock.isLocked && lock.usage == 'Terminal') {
+        _captureRadioLock();
         _lockedOnce = true;
       }
     } else if (data == null) {
@@ -1056,6 +1116,7 @@ class TerminalHandler {
     session.acceptIncoming = false;
     session.onStateChanged = _onSessionStateChanged;
     session.onDataReceived = _onSessionDataReceived;
+    session.onDataQueued = _onSessionDataQueued;
     session.onError = _onSessionError;
     _session = session;
     _attachYapp(session);
@@ -1074,6 +1135,9 @@ class TerminalHandler {
     }
     _session?.dispose();
 
+    _radioLockId = 0;
+    _bytesIn = 0;
+    _bytesOut = 0;
     _broker.dispatch(
       deviceId: radioId,
       name: 'SetLock',
@@ -1086,12 +1150,14 @@ class TerminalHandler {
     session.stationIdOverride = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
     session.onStateChanged = _onSessionStateChanged;
     session.onDataReceived = _onSessionDataReceived;
+    session.onDataQueued = _onSessionDataQueued;
     session.onError = _onSessionError;
     _session = session;
     _attachYapp(session);
 
     _station = null;
     _radioId = radioId;
+    _captureRadioLock();
     _lockedOnce = false;
     _waiting = true;
     _remote = null;
@@ -1154,13 +1220,21 @@ class TerminalHandler {
   }
 
   void _onSessionDataReceived(AX25Session sender, Uint8List data) {
+    if (!identical(sender, _session)) return;
+    _countBytes(incoming: data.length);
     // Give the YAPP engine first chance at the data; if it consumes the bytes
     // as protocol traffic, don't show them as terminal text.
     if (_yapp?.processIncomingData(data) == true) return;
-    _receivedText(data);
+    _receivedText(data, countBytes: false);
   }
 
-  void _receivedText(Uint8List data) {
+  void _onSessionDataQueued(AX25Session sender, int byteCount) {
+    if (!identical(sender, _session)) return;
+    _countBytes(outgoing: byteCount);
+  }
+
+  void _receivedText(Uint8List data, {bool countBytes = true}) {
+    if (countBytes) _countBytes(incoming: data.length);
     _text(
       outgoing: false,
       from: _station?.callsign ?? _remote ?? 'UNKNOWN',
@@ -1226,6 +1300,9 @@ class TerminalHandler {
       name: 'TransmitDataFrame',
       data: TransmitDataFrameData(packet: packet, channelId: -1, regionId: -1),
       store: false,
+    );
+    _countBytes(
+      outgoing: packet.data?.length ?? utf8.encode(packet.dataStr ?? '').length,
     );
   }
 
@@ -1342,6 +1419,9 @@ class TerminalHandler {
       text = packet.dataStr;
     }
     if (text != null && text.isNotEmpty) {
+      if (_isPeer(fromCallsign)) {
+        _countBytes(incoming: packet.data?.length ?? utf8.encode(text).length);
+      }
       _text(outgoing: false, from: fromCallsign, to: _myCallsign, text: text);
     }
   }
@@ -1367,6 +1447,11 @@ class TerminalHandler {
       messageContent = messageContent.substring(0, authIndex);
     }
     if (messageContent.isNotEmpty) {
+      if (_isPeer(fromCallsign)) {
+        _countBytes(
+          incoming: packet.data?.length ?? utf8.encode(aprsData).length,
+        );
+      }
       _text(
         outgoing: false,
         from: fromCallsign,
@@ -1374,5 +1459,17 @@ class TerminalHandler {
         text: messageContent,
       );
     }
+  }
+
+  bool _isPeer(String callsign) {
+    final station = _station;
+    if (station == null) return false;
+    final peer =
+        station.terminalProtocol != TerminalProtocol.aprs &&
+            station.ax25Destination.isNotEmpty
+        ? station.ax25Destination
+        : station.callsign;
+    return AX25Address.parse(callsign)?.callSignWithId ==
+        AX25Address.parse(peer)?.callSignWithId;
   }
 }

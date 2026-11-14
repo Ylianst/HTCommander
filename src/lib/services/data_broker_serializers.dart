@@ -8,7 +8,7 @@ import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../handlers/bbs_handler.dart';
 import '../models/aircraft.dart';
-import '../radio/radio.dart' show SetLockData, SetUnlockData;
+import '../radio/radio.dart' show SetLockData, SetUnlockData, SetLockStatusData;
 import '../radio/tnc_data_fragment.dart';
 import '../satellite/satellite_models.dart';
 import '../winlink/winlink_client.dart';
@@ -56,6 +56,19 @@ void registerBrokerSerializers() {
     'setUnlock',
     (value) => {'usage': value.usage},
     (json) => SetUnlockData(usage: json['usage'] as String),
+  );
+  DataBroker.registerSerializer<SetLockStatusData>(
+    'setLockStatus',
+    (value) => {
+      'usage': value.usage,
+      'lockId': value.lockId,
+      'text': value.text,
+    },
+    (json) => SetLockStatusData(
+      usage: json['usage'] as String,
+      lockId: json['lockId'] as int,
+      text: json['text'] as String,
+    ),
   );
 
   // Airplanes are dispatched as `List<Aircraft>` and the map tab rebuilds them

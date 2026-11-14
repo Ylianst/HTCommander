@@ -385,6 +385,7 @@ class _XaraBbsLink extends BbsLink {
 /// gateway over its own connection; otherwise mail is exchanged locally.
 class Bbs {
   final int _deviceId;
+  late final int _lockId;
   final int channelId;
   final int regionId;
   final DataBrokerClient _broker = DataBrokerClient();
@@ -465,6 +466,8 @@ class Bbs {
   ];
 
   Bbs(this._deviceId, {this.channelId = -1, this.regionId = -1}) {
+    final lock = _broker.getValue<Map<String, dynamic>>(_deviceId, 'LockState');
+    _lockId = lock?['usage'] == 'BBS' ? (lock?['lockId'] as int? ?? 0) : 0;
     // XARA links are only reported when XARA is this radio's software modem.
     _broker.subscribe(
       deviceId: _deviceId,
@@ -504,6 +507,18 @@ class Bbs {
   }
 
   void _dispatchControl(String message, [String callsign = '']) {
+    if (!_disposed && _lockId > 0) {
+      _broker.dispatch(
+        deviceId: _deviceId,
+        name: 'SetLockStatus',
+        data: SetLockStatusData(
+          usage: 'BBS',
+          lockId: _lockId,
+          text: callsign.isEmpty ? message : '$callsign: $message',
+        ),
+        store: false,
+      );
+    }
     _broker.dispatch(
       deviceId: 0,
       name: 'BbsControlMessage',

@@ -65,6 +65,19 @@ Handi-Talky Commander has a lot of features. There are the features available on
 - [GPS Support](https://ylianst.github.io/HTCommanderSite/features/gps.html). Support for the radio's built in GPS if you have radio firmware that supports it.
 - [Torrent file exchange](https://ylianst.github.io/HTCommanderSite/features/torrent.html). Many-to-many file exchange with a torrent file transfer system over 1200 Baud FM-AFSK.
 
+While a radio is locked to a usage, its virtual display replaces VFO B with a
+small status area. It starts blank and shows the latest Winlink, BBS, Torrent,
+or Terminal activity for that specific radio, not activity on other radios or non-radio
+connections. BBS messages identify the active station. Unlocking restores VFO B;
+disconnecting or acquiring a new lock clears the previous message.
+
+Usage handlers publish status with the per-radio `SetLockStatus` broker command:
+`SetLockStatusData(usage: ..., lockId: ..., text: ...)`, with `store: false`.
+Capture `lockId` from that radio's `LockState` when the operation starts.
+Only the matching active owner and lock session can update it; empty text clears
+it. The radio publishes the latest text on `LockStatus`, stored in broker memory
+for panel recreation and detached windows, but not persisted across restarts.
+
 The following features are available on Windows, Linux, macOS, Android.
 
 - [Bluetooth Audio](https://ylianst.github.io/HTCommanderSite/features/bluetooth-audio.html). Uses audio connectivity to listen and transmit with your computer speakers, microphone or headset.

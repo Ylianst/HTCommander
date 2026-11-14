@@ -81,6 +81,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   bool _gpsEnabled = false;
   RadioPosition? _position;
   RadioLockState? _lockState;
+  String _lockStatus = '';
   // Live satellite tracking data while the radio is locked in 'Satellite'
   // usage, pushed ~1s by the satellite handler. Used to label VFO A with the
   // bird name and its Doppler-corrected downlink frequency.
@@ -643,6 +644,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
     _gpsEnabled = false;
     _position = null;
     _lockState = null;
+    _lockStatus = '';
     _satelliteName = '';
     _satelliteRxFreqHz = 0;
     _satelliteTrack = null;
@@ -721,6 +723,7 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
         'GpsEnabled',
         'Position',
         'LockState',
+        'LockStatus',
         'SatelliteTrackUpdate',
       ],
       callback: _onBrokerEvent,
@@ -799,6 +802,8 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
       'LockState',
       (json) => RadioLockState.fromJson(json),
     );
+    _lockStatus =
+        _broker.getValue<String>(widget.deviceId, 'LockStatus') ?? '';
 
     _audioPathActive =
         _broker.getValue<bool>(widget.deviceId, 'AudioPathActive') ?? false;
@@ -1013,10 +1018,13 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
           }
           break;
         case 'LockState':
-          if (data is Map<String, dynamic>) {
-            _lockState = RadioLockState.fromJson(data);
-            if (!_isSatelliteMode) _satelliteTrack = null;
-          }
+          _lockState = data is Map<String, dynamic>
+              ? RadioLockState.fromJson(data)
+              : null;
+          if (!_isSatelliteMode) _satelliteTrack = null;
+          break;
+        case 'LockStatus':
+          _lockStatus = data as String? ?? '';
           break;
         case 'SatelliteTrackUpdate':
           if (data is SatelliteTrackParams) {
@@ -3256,6 +3264,29 @@ class _RadioPanelControlState extends State<RadioPanelControl> {
   }
 
   Widget _buildVfo2Row() {
+    if (_lockState?.isLocked ?? false) {
+      return SizedBox(
+        key: const ValueKey('radioLockStatus'),
+        height: 46,
+        width: double.infinity,
+        child: Tooltip(
+          message: _lockStatus,
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Text(
+              _lockStatus,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: _inactiveColor,
+                fontSize: 12,
+                height: 1.2,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     if (_vfo2Label.isEmpty && _vfo2Freq.isEmpty) {
       // Reserve the same vertical space VFO 2 occupies when populated (the
       // 32px label SizedBox plus the ~14px frequency/status row) so the GPS

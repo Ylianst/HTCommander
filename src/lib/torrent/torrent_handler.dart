@@ -403,10 +403,10 @@ class TorrentHandler {
     final packet = AX25Packet.decode(data);
     if (packet == null) return;
     _broker.logInfo('[Torrent] Received torrent frame from radio $deviceId');
-    processFrame(packet);
+    processFrame(packet, radioId: data.incoming ? deviceId : null);
   }
 
-  void processFrame(AX25Packet p) {
+  void processFrame(AX25Packet p, {int? radioId}) {
     if ((p.pid != _pidControl && p.pid != _pidData) ||
         p.addresses.length != 1) {
       return;
@@ -415,13 +415,31 @@ class TorrentHandler {
     if (payload == null) return;
 
     if (p.pid == _pidControl) {
-      _processControlFrame(p, payload);
+      _processControlFrame(p, payload, radioId);
     } else {
-      _processDataBlock(p, payload);
+      _processDataBlock(p, payload, radioId);
     }
   }
 
-  void _processControlFrame(AX25Packet p, Uint8List payload) {
+  void _publishRadioStatus(int? radioId, String text) {
+    if (radioId == null) return;
+    final lock = _lockStates[radioId];
+    if (lock == null ||
+        lock['usage'] != 'Torrent' ||
+        lock['isLocked'] != true) {
+      return;
+    }
+    final lockId = lock['lockId'] as int? ?? 0;
+    if (lockId == 0) return;
+    _broker.dispatch(
+      deviceId: radioId,
+      name: 'SetLockStatus',
+      data: SetLockStatusData(usage: 'Torrent', lockId: lockId, text: text),
+      store: false,
+    );
+  }
+
+  void _processControlFrame(AX25Packet p, Uint8List payload, int? radioId) {
     final reader = _BinReader(payload);
     String callsign = p.addresses[0].address;
     int stationId = p.addresses[0].ssid;
@@ -451,6 +469,7 @@ class TorrentHandler {
             '(removing station: ${xFile != null})',
           );
           if (xFile != null) stations.remove(xFile);
+          _publishRadioStatus(radioId, 'Heard $callsign-$stationId');
           break;
         case 4: // Advertised Files
           final sId = reader.bytes(12);
@@ -490,6 +509,7 @@ class TorrentHandler {
               'completed=${sFile.completed})',
             );
           }
+          _publishRadioStatus(radioId, 'File list from $callsign-$stationId');
           break;
         case 5: // Short Id
           shortId = reader.bytes(6);
@@ -543,11 +563,12 @@ class TorrentHandler {
         _pidData,
         tag: tag,
         deadline: DateTime.now().add(const Duration(seconds: 60)),
+        status: 'Sharing ${file.fileName}',
       );
     }
   }
 
-  void _processDataBlock(AX25Packet p, Uint8List payload) {
+  void _processDataBlock(AX25Packet p, Uint8List payload, int? radioId) {
     if (payload.length < 8) return;
     final callsign = p.addresses[0].address;
     final stationId = p.addresses[0].ssid;
@@ -574,6 +595,7 @@ class TorrentHandler {
         blockNumber,
         block,
         lastBlock,
+        radioId,
       );
     } else {
       _storeFileBlock(
@@ -583,6 +605,7 @@ class TorrentHandler {
         blockNumber,
         block,
         lastBlock,
+        radioId,
       );
     }
   }
@@ -594,6 +617,7 @@ class TorrentHandler {
     int blockNumber,
     Uint8List block,
     bool lastBlock,
+    int? radioId,
   ) {
     for (final file in stations) {
       if (file.callsign != callsign ||
@@ -621,6 +645,14 @@ class TorrentHandler {
           file.mode = TorrentMode.error;
         }
         _publishStationUpdate(file);
+        _publishRadioStatus(
+          radioId,
+          r == 2
+              ? 'File list verification failed: $callsign-$stationId'
+              : file.completed
+              ? 'File list received: $callsign-$stationId'
+              : 'Receiving file list: $callsign-$stationId',
+        );
       }
       return;
     }
@@ -638,6 +670,7 @@ class TorrentHandler {
     int blockNumber,
     Uint8List block,
     bool lastBlock,
+    int? radioId,
   ) {
     TorrentFile? mfile;
     for (final file in files) {
@@ -686,6 +719,15 @@ class TorrentHandler {
       }
       _persistFile(mfile);
       _publishFileUpdate(mfile);
+      final percent = mfile.receivedBlocks * 100 ~/ mfile.totalBlocks;
+      _publishRadioStatus(
+        radioId,
+        r == 2
+            ? 'Verification failed: ${mfile.fileName}'
+            : mfile.completed
+            ? 'Received ${mfile.fileName}'
+            : 'Receiving ${mfile.fileName}: $percent%',
+      );
     }
   }
 
@@ -751,6 +793,11 @@ class TorrentHandler {
       _pidControl,
       tag: 'TorrentRequest',
       deadline: DateTime.now().add(const Duration(seconds: 30)),
+      status: discovery
+          ? 'Discovering peers...'
+          : requests.isNotEmpty
+          ? 'Requesting ${requests.length} block range(s)...'
+          : 'Advertising files...',
     );
   }
 
@@ -825,6 +872,7 @@ class TorrentHandler {
     int pid, {
     String? tag,
     DateTime? deadline,
+    String? status,
   }) {
     if (_lockedTorrentRadios.isEmpty) return;
     final callsign =
@@ -864,6 +912,7 @@ class TorrentHandler {
         ),
         store: false,
       );
+      if (status != null) _publishRadioStatus(radioId, status);
     }
   }
 

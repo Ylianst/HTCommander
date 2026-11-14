@@ -26,6 +26,7 @@ class TerminalRadio {
   final commands = <String>[];
   final logs = <String>[];
   final sent = <int>[];
+  final statuses = <SetLockStatusData>[];
   SetLockData? lock;
   Map? connect;
   bool applyLock = true;
@@ -79,6 +80,7 @@ class TerminalRadio {
             data: radio_models.RadioLockState(
               isLocked: true,
               usage: lock!.usage,
+              lockId: 1,
               regionId: 0,
               channelId: 3,
               modem: lock!.modem,
@@ -87,6 +89,11 @@ class TerminalRadio {
           );
         }
       },
+    );
+    broker.subscribe(
+      deviceId: radioId,
+      name: 'SetLockStatus',
+      callback: (_, _, data) => statuses.add(data! as SetLockStatusData),
     );
     broker.subscribe(
       deviceId: radioId,
@@ -217,6 +224,7 @@ void main() {
       expect(radio.lock!.xaraWide, protocol == TerminalProtocol.xaraWide);
       expect(radio.connect!['Remote'], 'N1BBS-1');
       expect(radio.connect!['Vias'], ['N9DIG', 'N8DIG-2']);
+      expect(radio.statuses.last.text, 'Connecting to N1BBS-1...');
       expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
 
       radio.event('connected', id: radioId + 1);
@@ -233,8 +241,13 @@ void main() {
       await tester.pump();
       expect(utf8.decode(radio.sent), 'HELP\r');
       expect(radio.commands, isNot(contains('TransmitDataFrame')));
+      expect(radio.statuses.last.text, 'N1BBS-1\nIn: 19 B  Out: 5 B');
 
+      radio.answerDisconnect = false;
       await tester.tap(find.text('Disconnect'));
+      await tester.pumpAndSettle();
+      expect(radio.statuses.last.text, 'Disconnecting from N1BBS-1...');
+      radio.event('disconnected');
       await tester.pumpAndSettle();
       expect(
         radio.commands,
@@ -477,11 +490,7 @@ void main() {
         );
       }
       if (reason == 'statusUnavailable') {
-        radio.broker.dispatch(
-          deviceId: radioId,
-          name: 'HtStatus',
-          data: null,
-        );
+        radio.broker.dispatch(deviceId: radioId, name: 'HtStatus', data: null);
       }
       if (reason == 'lockOwnedByOtherUsage') {
         await tester.pumpWidget(app(const TerminalTab()));

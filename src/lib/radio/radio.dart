@@ -137,8 +137,25 @@ class SetUnlockData {
   SetUnlockData({required this.usage});
 }
 
+/// Status for one radio's current lock. Capture [lockId] from LockState when
+/// starting an operation, so late callbacks cannot update a subsequent lock.
+class SetLockStatusData {
+  final String usage;
+  final int lockId;
+  final String text;
+
+  const SetLockStatusData({
+    required this.usage,
+    required this.lockId,
+    required this.text,
+  });
+}
+
 /// Main Radio class for managing radio connections and communication
 class Radio implements FirmwareRadio {
+  static int _nextLockId = 0;
+  String _lockStatus = '';
+
   final int deviceId;
   final String macAddress;
   String _friendlyName = '';
@@ -463,6 +480,11 @@ class Radio implements FirmwareRadio {
       deviceId: deviceId,
       name: 'SetUnlock',
       callback: _onSetUnlockEvent,
+    );
+    _broker.subscribe(
+      deviceId: deviceId,
+      name: 'SetLockStatus',
+      callback: _onSetLockStatusEvent,
     );
 
     // Live satellite-tracking frames from the SatelliteHandler, applied only
@@ -957,6 +979,39 @@ class Radio implements FirmwareRadio {
     }
   }
 
+  void _publishNewLock() {
+    _lockState!.lockId = ++_nextLockId;
+    _clearLockStatus();
+    _dispatch('LockState', _lockState!.toJson());
+  }
+
+  void _clearLockStatus() {
+    _lockStatus = '';
+    _dispatch('LockStatus', '');
+  }
+
+  void _onSetLockStatusEvent(int devId, String name, Object? data) {
+    if (devId != deviceId) return;
+    if (data is! SetLockStatusData) {
+      _broker.logError('[Radio $deviceId] SetLockStatus rejected: invalid payload');
+      return;
+    }
+    final lock = _lockState;
+    if (lock == null ||
+        !lock.isLocked ||
+        lock.usage != data.usage ||
+        lock.lockId != data.lockId) {
+      _broker.logInfo(
+        '[Radio $deviceId] SetLockStatus rejected: inactive owner/session '
+        '${data.usage}/${data.lockId}',
+      );
+      return;
+    }
+    if (_lockStatus == data.text) return;
+    _lockStatus = data.text;
+    _dispatch('LockStatus', _lockStatus);
+  }
+
   void _onSetLockEvent(int devId, String name, dynamic data) {
     if (devId != deviceId) return;
     if (data is! SetLockData) return;
@@ -1012,7 +1067,7 @@ class Radio implements FirmwareRadio {
         xaraWide: lockData.xaraWide,
       );
       _resetSatelliteTuning();
-      _dispatch('LockState', _lockState!.toJson());
+      _publishNewLock();
       _debug("Radio locked for '${lockData.usage}' tracking");
       return;
     }
@@ -1067,7 +1122,7 @@ class Radio implements FirmwareRadio {
       xaraWide: lockData.xaraWide,
     );
 
-    _dispatch('LockState', _lockState!.toJson());
+    _publishNewLock();
     _debug(
       "Radio locked for usage '${lockData.usage}' - Region: $targetRegionId, "
       "Channel: $targetChannelId, Modem: ${lockData.modem ?? 'global'}",
@@ -1117,6 +1172,7 @@ class Radio implements FirmwareRadio {
     if (kSatelliteLockUsages.contains(unlockData.usage)) {
       stopFreqMode();
       _lockState = null;
+      _clearLockStatus();
       _dispatch('LockState', RadioLockState(isLocked: false).toJson());
       _syncAudioRelayLock();
       return;
@@ -1139,6 +1195,7 @@ class Radio implements FirmwareRadio {
     );
 
     _lockState = null;
+    _clearLockStatus();
 
     final unlockedState = RadioLockState(
       isLocked: false,
@@ -1165,10 +1222,11 @@ class Radio implements FirmwareRadio {
         regionId: -1,
         channelId: -1,
       );
-      _dispatch('LockState', _lockState!.toJson());
+      _publishNewLock();
       _debug('Radio locked for Audio Relay');
     } else if (lock?.usage == kAudioRelayLockUsage) {
       _lockState = null;
+      _clearLockStatus();
       _dispatch('LockState', RadioLockState(isLocked: false).toJson());
       _debug('Radio unlocked from Audio Relay');
     }
@@ -1206,6 +1264,7 @@ class Radio implements FirmwareRadio {
     _lockState = RadioLockState(
       isLocked: true,
       usage: lock.usage,
+      lockId: lock.lockId,
       regionId: lock.regionId,
       channelId: ch.channelId,
       modem: lock.modem,
@@ -1742,6 +1801,8 @@ class Radio implements FirmwareRadio {
     _dispatch('AprsPath', null);
     _dispatch('AllChannelsLoaded', false);
     _dispatch('GpsEnabled', false);
+    _lockState = null;
+    _clearLockStatus();
     _dispatch('LockState', null);
     _dispatch('Volume', 0);
     _dispatch('BatteryAsPercentage', 0);
@@ -1761,7 +1822,6 @@ class Radio implements FirmwareRadio {
     _tncFragmentQueue.clear();
     _tncFragmentInFlight = false;
     _tncFragmentInFlightCancelled = false;
-    _lockState = null;
     _resetSatelliteTuning();
     _satelliteRxActive = false;
     _gpsEnabled = false;

@@ -179,6 +179,11 @@ void main() {
       name: 'BbsControlMessage',
       callback: (_, _, data) => control.add(data! as BbsControlMessageData),
     );
+    broker.dispatch(
+      deviceId: id,
+      name: 'LockState',
+      data: {'isLocked': true, 'usage': 'BBS', 'lockId': 12},
+    );
     bbs = Bbs(id)..enabled = true;
   });
 
@@ -232,6 +237,40 @@ void main() {
       bbs.ax25Session('N2XYZ-3')!.currentState,
       AX25ConnectionState.connected,
     );
+  });
+
+  test('status identifies only stations on its owning radio', () {
+    const otherId = id + 1;
+    broker.dispatch(
+      deviceId: otherId,
+      name: 'LockState',
+      data: {'isLocked': true, 'usage': 'BBS', 'lockId': 13},
+    );
+    final other = Bbs(otherId)..enabled = true;
+    addTearDown(() {
+      other.dispose();
+      DataBroker.clearDevice(otherId);
+    });
+    final messages = <int, SetLockStatusData>{};
+    broker.subscribe(
+      deviceId: DataBroker.allDevices,
+      name: 'SetLockStatus',
+      callback: (radioId, _, data) => messages[radioId] = data! as SetLockStatusData,
+    );
+    final one = _TestLink('N1ABC');
+    final two = _TestLink('N2XYZ');
+    bbs.openLink(one, cmsRelay: false);
+    bbs.openLink(two, cmsRelay: false);
+    expect(messages[id]!.text, contains('N2XYZ'));
+    expect(messages[id]!.lockId, 12);
+    final saved = messages[id];
+    other.openLink(_TestLink('N3XYZ'), cmsRelay: false);
+    expect(messages[otherId]!.text, contains('N3XYZ'));
+    expect(messages[otherId]!.lockId, 13);
+    expect(messages[id], same(saved));
+    bbs.closeLink(one);
+    expect(messages[id]!.text, 'N1ABC: Disconnected');
+    expect(messages[otherId]!.text, contains('N3XYZ'));
   });
 
   test('frames addressed to other stations are left alone', () async {

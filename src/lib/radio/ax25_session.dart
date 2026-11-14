@@ -125,6 +125,10 @@ class AX25Session {
   /// Raised when reassembled I-frame data is received from the remote station.
   AX25DataReceivedHandler? onDataReceived;
 
+  /// Raised once for application bytes queued on an established link, before
+  /// segmentation and without counting retransmissions.
+  void Function(AX25Session sender, int byteCount)? onDataQueued;
+
   /// Raised when UI-frame data is received (connectionless data).
   AX25DataReceivedHandler? onUiDataReceived;
 
@@ -1063,7 +1067,9 @@ class AX25Session {
     _trace('Send (${info.length} bytes)');
     if (info.isEmpty) return;
     if (addresses == null) return;
+    final connected = currentState == AX25ConnectionState.connected;
     _dlDataRequest(_pidNoLayer3, info);
+    if (connected) onDataQueued?.call(this, info.length);
   }
 
   void _dlDataRequest(int pid, Uint8List data) {

@@ -10,6 +10,11 @@ Right now, the BBS acts as a private Winlink email gateway and has as support fo
 
 The BBS tab will show statistics in real-time on what stations are using the BBS and how many bytes and packets have been sent and received.
 
+While a radio is locked to BBS, the VFO B area of its virtual display shows
+that radio's latest session status, prefixed with the station's callsign.
+Sessions on other radios, the local terminal, or the HTTP BBS do not affect it.
+The area starts blank when locked and returns to normal VFO B when unlocked.
+
 The **Traffic** panel at the bottom of the BBS tab shows the BBS conversations live. Next to "Traffic", a drop-down lists every active session, whatever the way the station is connected: AX.25 or XARA over a radio, the local terminal ("Local"), or the HTTP BBS ("Web"), with the time each session started. Pick "All Sessions" to see everything, or a session to follow only that station; a green dot marks sessions with new lines you have not seen yet. A session that just ended stays on screen, marked "ended", until you pick another one. You can also right-click a station in the list and choose "Show Session Traffic". The panel includes what was said before it was opened (the last 2,000 lines), including in a detached BBS window.
 
 ## Menu commands
