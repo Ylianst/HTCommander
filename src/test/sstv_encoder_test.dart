@@ -79,6 +79,23 @@ void main() {
     expect(pcm, expectedPcm);
   }, skip: !nativeSstvSupported);
 
+  test('full-size native PCM survives the audio-isolate handoff', () async {
+    final pixels = Int32List(320 * 240)..fillRange(0, 320 * 240, 0xff123456);
+    final expected = Encoder(
+      32000,
+    ).encodePcm16(pixels, 320, 240, 'Robot 36 Color', silenceSamples: 64000);
+    final pcm = await Isolate.run(
+      () => Encoder(
+        32000,
+      ).encodePcm16(pixels, 320, 240, 'Robot 36 Color', silenceSamples: 64000),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    final transferred = TransferableTypedData.fromList([
+      pcm,
+    ]).materialize().asUint8List();
+    expect(transferred, expected);
+  }, skip: !nativeSstvSupported);
+
   test('SIMD PCM handles bipolar rails and odd-length output tails', () {
     for (final rate in [7600, 44100]) {
       final samples = Encoder(rate, useSimd: true).encodeRobot36(_pixels, 7, 5);

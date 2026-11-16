@@ -196,26 +196,18 @@ after a silence prefix, and PCM agreement within one quantization step.
 
 ### Output ownership and peak memory
 
-Completed native audio is returned as a typed-data view of its allocation,
-instead of copying the entire waveform into a second Dart buffer. A native
-finalizer releases the allocation when the returned data and its buffer views
-are no longer reachable; callers do not need to dispose it. Failed encodes free
-their output immediately. Tests cover retained float/PCM views, subsequent
-encodes and resets, and output views surviving the encoding isolate's exit.
-Web/iOS fallback behavior is unchanged.
+Completed native audio is copied into Dart-owned typed data before the native
+allocation is freed. Returning a finalizer-backed native view proved unsafe
+when the encoding isolate exited: full-size Robot 36 output could crash the
+application after Send. The copy keeps float/PCM results and their buffer views
+valid across `compute`/`Isolate.run` and the subsequent audio-isolate handoff.
+Failed encodes also free their native output immediately.
 
-Fresh-process Windows x64 AOT measurements for PD 290 at 32 kHz:
-
-| Output | Previous peak RSS | Ownership-transfer peak RSS | Output size |
-| --- | ---: | ---: | ---: |
-| PCM16, including two-second silence | 49.66 MiB | 31.93 MiB | 17.80 MiB |
-| Float | 155.46 MiB | 84.83 MiB | 70.71 MiB |
-
-These are whole-process peak resident-memory measurements, not just output
-sizes. Removing the duplicate allocation saved approximately one output
-buffer's worth of peak memory; the returned waveform itself has not shrunk.
-In repeated paired timing runs, native float encoding improved from about
-15-16 ms to 13 ms for Robot 36 and 117-125 ms to 100-103 ms for PD 290.
+This temporarily requires both output buffers in memory. The timing figures
+above predate this safety copy; rerun the benchmark for current measurements.
+Tests cover retained views, subsequent encodes and resets, and a full-size
+32 kHz Robot 36 encode with its silence prefix surviving worker exit and
+transfer to the audio path. Web/iOS fallback behavior is unchanged.
 PCM timings varied, so no additional PCM throughput improvement is claimed.
 
 The benchmark's memory options encode only native PD 290, without first

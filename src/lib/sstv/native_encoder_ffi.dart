@@ -83,13 +83,9 @@ external int _encode(
       throw StateError('Native SSTV encoder failed (status $status)');
     }
     final endPhase = position.value;
-    // The returned buffer owns the allocation, including through buffer views.
-    return (
-      output.asTypedList(byteCount, finalizer: malloc.nativeFree),
-      endPhase,
-    );
-  } catch (_) {
+    // Isolate.run/compute may outlive the worker's native allocation.
+    return (Uint8List.fromList(output.asTypedList(byteCount)), endPhase);
+  } finally {
     malloc.free(output);
-    rethrow;
   }
 }, malloc);
