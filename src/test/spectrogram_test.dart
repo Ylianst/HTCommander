@@ -287,6 +287,55 @@ void main() {
   });
 
   for (final roll in [false, true]) {
+    test('packed updates preserve independent caller buffers (roll=$roll)', () {
+      final actual = _generator(17);
+      final reference = SpectrogramGenerator(
+        sampleRate: 160,
+        fftSize: 16,
+        stepSize: 4,
+        useNative: false,
+      )..setFixedWidth(17);
+      addTearDown(actual.dispose);
+      addTearDown(reference.dispose);
+      var offset = 0;
+      for (final width in [17, 31, 9]) {
+        actual.setFixedWidth(width);
+        reference.setFixedWidth(width);
+        final buffers = List.generate(
+          2,
+          (_) => Uint8List(width * actual.height * 4),
+        );
+        final expected = List.generate(
+          2,
+          (_) => Uint8List(width * reference.height * 4),
+        );
+        for (var i = 0; i < buffers.length; i++) {
+          buffers[i].fillRange(0, buffers[i].length, 37 + i * 86);
+          expected[i].setAll(0, buffers[i]);
+        }
+        for (final length in [23, 12, 8, 36, 16, 8192, 4, 20]) {
+          final samples = _samples(length, offset);
+          offset += length;
+          final pcm = Uint8List(length * 2);
+          final data = ByteData.sublistView(pcm);
+          for (var i = 0; i < length; i++) {
+            data.setInt16(i * 2, samples[i].round(), Endian.little);
+          }
+          actual.addPcm16(pcm);
+          reference.addPcm16(pcm);
+          final count = math.max(0, reference.fftsToProcess);
+          actual.process();
+          reference.process();
+          for (var i = 0; i < buffers.length; i++) {
+            _render(actual, buffers[i], roll: roll, newColumnCount: count);
+            _render(reference, expected[i], roll: roll, newColumnCount: count);
+            expect(buffers[i], orderedEquals(expected[i]));
+            actual.getPeak();
+          }
+        }
+      }
+    });
+
     test('incremental pixels match full rendering (roll=$roll)', () {
       for (final width in [17, 31]) {
         final generator = _generator(width);

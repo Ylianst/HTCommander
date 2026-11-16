@@ -88,7 +88,6 @@ external void _peak(Pointer<Void> context, Pointer<Double> result);
     Double,
     Int32,
     Int32,
-    Int32,
   )
 >(symbol: 'ht_spectrogram_render', assetId: _asset)
 external int _render(
@@ -98,7 +97,6 @@ external int _render(
   double intensity,
   double dbScale,
   int decibel,
-  int roll,
   int count,
 );
 
@@ -227,8 +225,9 @@ final class _Spectrogram implements NativeSpectrogram, Finalizable {
     bool roll,
     int count,
   ) {
-    final bytes = width * height * 4;
-    RangeError.checkValidRange(0, bytes, rgba.length);
+    final w = width;
+    RangeError.checkValidRange(0, w * height * 4, rgba.length);
+    final bytes = count * height * 4;
     _ensure(bytes + 768);
     final colors = _storage + bytes;
     final tables = colors.asTypedList(768);
@@ -236,7 +235,6 @@ final class _Spectrogram implements NativeSpectrogram, Finalizable {
     tables.setAll(256, colormap.g);
     tables.setAll(512, colormap.b);
     final pixels = _storage.asTypedList(bytes);
-    if (count < width) pixels.setRange(0, bytes, rgba);
     _check(
       _render(
         _alive,
@@ -245,11 +243,37 @@ final class _Spectrogram implements NativeSpectrogram, Finalizable {
         intensity,
         dbScale,
         decibel ? 1 : 0,
-        roll ? 1 : 0,
         count,
       ),
     );
-    rgba.setRange(0, bytes, pixels);
+    if (!roll && count == w) {
+      rgba.setRange(0, bytes, pixels);
+      return;
+    }
+
+    final rowBytes = w * 4;
+    final newBytes = count * 4;
+    final firstColumn = roll ? (w - count + nextColumn) % w : w - count;
+    final available = w - firstColumn;
+    final firstBytes = (count < available ? count : available) * 4;
+    final wrappedBytes = newBytes - firstBytes;
+    for (var row = 0; row < height; row++) {
+      final start = row * rowBytes;
+      if (!roll) {
+        rgba.setRange(
+          start,
+          start + rowBytes - newBytes,
+          rgba,
+          start + newBytes,
+        );
+      }
+      final destination = start + firstColumn * 4;
+      final source = row * newBytes;
+      rgba.setRange(destination, destination + firstBytes, pixels, source);
+      if (wrappedBytes > 0) {
+        rgba.setRange(start, start + wrappedBytes, pixels, source + firstBytes);
+      }
+    }
   }
 
   @override

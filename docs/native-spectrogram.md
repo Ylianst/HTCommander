@@ -2,7 +2,7 @@
 
 On Windows, Linux, macOS, and Android, the spectrogram batches windowing,
 FFT, magnitude extraction, history management, logarithmic scaling, colormap
-lookup, and incremental scrolling in the existing XARA native asset. PCM is
+lookup in the existing XARA native asset. PCM is
 uploaded once per input block rather than sending each overlapping FFT window
 across FFI. FFT plans, sample storage, history columns, and upload/render
 buffers are reused. The FFT uses the existing baseline SSE2/NEON kernel.
@@ -17,7 +17,13 @@ The controller disposes native storage when reconfigured or closed. Standalone
 generator users should call `dispose()`; native finalizers also protect
 unreachable instances. Rendering preserves the caller's existing pixels for
 incremental updates, including scroll/roll modes, resized histories, and
-settings changes.
+settings changes. The native renderer returns only newly colored columns in
+packed RGBA rows; Dart scrolls the caller's cached pixels or overwrites the
+wrapped roll-mode spans. No previous-frame pixels are uploaded across FFI,
+and incremental readback is `newColumnCount * height * 4` bytes instead of a
+full frame. The output-only staging buffer can safely reuse PCM upload storage.
+Full renders still transfer one complete frame, and Flutter image creation and
+GPU upload are unchanged.
 
 ## Validation and measurement
 

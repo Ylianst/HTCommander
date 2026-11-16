@@ -190,21 +190,15 @@ void ht_spectrogram_peak(void* context, double* result) {
 }
 int32_t ht_spectrogram_render(void* context, uint8_t* rgba,
     const uint8_t* colors, double intensity, double db_scale, int32_t decibel,
-    int32_t roll, int32_t count) {
+    int32_t count) {
   if (!context || !rgba || !colors) return -1;
   auto& s = *static_cast<Spectrogram*>(context);
   const size_t width = s.columns.size();
   if (count < 0 || size_t(count) > width) return -1;
   if (!count || !s.height) return 0;
-  if (!roll && size_t(count) < width) {
-    for (int row = 0; row < s.height; ++row) {
-      uint8_t* dst = rgba + size_t(row) * width * 4;
-      std::memmove(dst, dst + size_t(count) * 4, (width - count) * 4);
-    }
-  }
   const double log_mul = 20.0 / std::log(10.0);
   for (size_t source = width - count; source < width; ++source) {
-    const size_t col = roll ? (source + s.next()) % width : source;
+    const size_t col = source - (width - count);
     const auto& values = s.columns[(s.head + source) % width];
     for (int row = 0; row < s.height; ++row) {
       double value = values[row];
@@ -214,7 +208,7 @@ int32_t ht_spectrogram_render(void* context, uint8_t* rgba,
       if (value < 0.0) value = 0.0;
       if (!std::isfinite(value)) return -3;
       const int v = static_cast<int>(value);
-      const size_t pixel = (size_t(s.height - 1 - row) * width + col) * 4;
+      const size_t pixel = (size_t(s.height - 1 - row) * count + col) * 4;
       rgba[pixel] = colors[v];
       rgba[pixel + 1] = colors[256 + v];
       rgba[pixel + 2] = colors[512 + v];

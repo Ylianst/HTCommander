@@ -18,7 +18,8 @@ HT_XARA_EXPORT int32_t ht_spectrogram_next(void* context);
 HT_XARA_EXPORT void ht_spectrogram_roll_reset(void* context, int32_t offset);
 HT_XARA_EXPORT void ht_spectrogram_clear(void* context);
 HT_XARA_EXPORT void ht_spectrogram_peak(void* context, double* result);
+// Writes the newest count columns as packed, top-down RGBA rows.
 HT_XARA_EXPORT int32_t ht_spectrogram_render(void* context, uint8_t* rgba,
     const uint8_t* colors, double intensity, double db_scale, int32_t decibel,
-    int32_t roll, int32_t count);
+    int32_t count);
 }
