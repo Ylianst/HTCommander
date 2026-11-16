@@ -782,7 +782,7 @@ class Radio implements FirmwareRadio {
   /// is outside the radio's bands for [mod].
   ///
   /// The keypad frequency mode only supports equal RX/TX frequencies without
-  /// tones. Clear any stale offset and tones in the slot when tuning.
+  /// tones. Clear any stale offset, tones and mute flag when tuning.
   bool tuneKeypadVfo({
     required int freqHz,
     required RadioModulationType mod,
@@ -815,6 +815,7 @@ class Radio implements FirmwareRadio {
         rxMod: mod,
         txMod: mod,
         bandwidth: bandwidth,
+        mute: false,
       ),
     );
     if (settings!.channelA != slot) {
@@ -1095,6 +1096,7 @@ class Radio implements FirmwareRadio {
           txMod: RadioModulationType.fm,
           bandwidth: RadioBandwidthType.wide,
           txAtMaxPower: true,
+          mute: lockData.usage == 'Winlink',
         ),
       );
     }
@@ -2219,9 +2221,7 @@ class Radio implements FirmwareRadio {
     // NOAA weather channels (curr_ch_id >= 254) are never muted; they cover a
     // range of sub-channels, so any id at or above 254 is NOAA, not just 254.
     if (htStatus!.currChId >= 254) return false;
-    if (htStatus!.currChId >= channels!.length) return true;
-    if (channels![htStatus!.currChId] == null) return true;
-    return channels![htStatus!.currChId]!.mute;
+    return channelById(htStatus!.currChId)?.mute ?? true;
   }
 
   // GPS management

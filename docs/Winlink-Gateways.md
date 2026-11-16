@@ -149,5 +149,7 @@ XARA uses the XARA Wide setting. Sync mail needs transmit enabled and a Winlink
 password. It only offers frequencies a free (unlocked) connected radio can
 tune, asks which radio to use when several qualify, and opens the Mail tab to
 show progress. It is disabled while another mail sync is running.
+Frequency-based Winlink tuning enables mute on the VFO slot to silence modem
+audio; normal VFO tuning disables mute again.
 Run the
 tests with `python src\tools\test_build_winlink_db.py`.

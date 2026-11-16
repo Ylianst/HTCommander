@@ -154,6 +154,20 @@ void main() {
     );
   });
 
+  test('VFO audio follows the slot mute flag', () async {
+    radio.htStatus = RadioHtStatus.fromBytes(
+      Uint8List.fromList([0, 0, 0, 0, 0, 0, 0xC0, 0, 0x3C]),
+    );
+    expect(radio.htStatus!.currChId, 252);
+    expect(radio.isOnMuteChannel(), isTrue);
+    for (final mute in [false, true]) {
+      final channel = RadioChannelInfo(channelId: 252, mute: mute);
+      final payload = Uint8List.fromList([0, ...channel.toByteArray()]);
+      await receive('FF01001A0002800D${RadioUtils.bytesToHex(payload)}');
+      expect(radio.isOnMuteChannel(), mute);
+    }
+  });
+
   group('tuning keypad VFO mode', () {
     // READ_FREQ_RANGE reply: 108-136 AM RX, 136-174 FM TX/RX, 300-550 FM RX,
     // 400-520 FM TX/RX.
@@ -232,6 +246,7 @@ void main() {
         expect(written.txFreq, 145050000);
         expect(written.rxSubAudio, 0);
         expect(written.txSubAudio, 0);
+        expect(written.mute, isFalse);
         final settingsFrame = RadioUtils.hexStringToByteArray(
           sentMatching(writeSettings).single,
         )!;
@@ -261,6 +276,31 @@ void main() {
         expect(radio.lockUsage, isNull);
       },
     );
+
+    test('Winlink station lock writes a muted VFO slot', () async {
+      await ready();
+      radio.htStatus = RadioHtStatus.fromBytes(Uint8List(9));
+      radio.vfoChannels[252] = RadioChannelInfo(
+        channelId: 252,
+        mute: false,
+      );
+      broker.dispatch(
+        deviceId: radio.deviceId,
+        name: 'SetLock',
+        data: SetLockData(usage: 'Winlink', frequencyHz: 145050000),
+        store: false,
+      );
+      final frame = RadioUtils.hexStringToByteArray(
+        sentMatching(writeChannel).single,
+      )!;
+      final written = RadioChannelInfo.fromBytes(
+        Uint8List.fromList([0, 0, 0, 0, 0, ...frame.sublist(8)]),
+      );
+      expect(written.channelId, 252);
+      expect(written.rxFreq, 145050000);
+      expect(written.txFreq, 145050000);
+      expect(written.mute, isTrue);
+    });
 
     test('retuning while in the mode only rewrites the slot', () async {
       await ready();
@@ -332,6 +372,7 @@ void main() {
         txSubAudio: 10000,
         txAtMaxPower: true,
         preDeEmphBypass: true,
+        mute: true,
       );
       transport.sent.clear();
       expect(
@@ -354,6 +395,7 @@ void main() {
       expect(written.txSubAudio, 0);
       expect(written.txAtMaxPower, isTrue);
       expect(written.preDeEmphBypass, isTrue);
+      expect(written.mute, isFalse);
       expect(written.bandwidth, RadioBandwidthType.wide);
       expect(sentMatching(writeSettings), isEmpty);
     });

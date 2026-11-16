@@ -962,7 +962,8 @@ limits until the radio reports them.
 The keypad frequency mode does not support separate RX/TX frequencies
 (repeater shift) or CTCSS/DCS tones. The experimental shift and tone controls
 were removed after testing showed they did not work. Tuning clears any stale
-shift and tones in the slot. Saved frequencies retain their name, frequency,
+shift and tones in the slot and disables mute for normal listening. VFO audio
+follows the slot's mute flag. Saved frequencies retain their name, frequency,
 modulation and bandwidth; shift/tone fields in older saved entries are ignored
 and omitted when the list is next saved. Use a programmed channel for repeater
 offsets and tones. This limitation does not change the separate
