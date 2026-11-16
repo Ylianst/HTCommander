@@ -948,6 +948,14 @@ class AppLocalizationsPl extends AppLocalizations {
   String get settingsUseStationIdWinlink => 'Użyj ID stacji dla Winlink';
 
   @override
+  String get settingsWinlinkGzipCompression =>
+      'Używaj kompresji GZIP ze zgodnymi stacjami';
+
+  @override
+  String get settingsWinlinkGzipCompressionHelp =>
+      'GZIP jest używany tylko wtedy, gdy druga stacja również go obsługuje. Pozostałe stacje nadal używają standardowej kompresji Winlink.';
+
+  @override
   String get settingsEchoLinkIntro =>
       'Skonfiguruj EchoLink, aby rozmawiać z innymi stacjami przez internet.';
 

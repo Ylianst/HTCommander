@@ -334,6 +334,8 @@
   "settingsPassword": "Password",
   "settingsPasswordFor": "Password per {account}",
   "settingsUseStationIdWinlink": "Usa l'ID stazione per Winlink",
+  "settingsWinlinkGzipCompression": "Usa la compressione GZIP con le stazioni compatibili",
+  "settingsWinlinkGzipCompressionHelp": "GZIP viene usato solo se anche l'altra stazione lo supporta. Tutte le altre stazioni continuano a usare la compressione Winlink standard.",
 
   "settingsEchoLinkIntro": "Configura EchoLink per parlare con altre stazioni tramite internet.",
   "settingsEchoLinkAccount": "Account EchoLink",

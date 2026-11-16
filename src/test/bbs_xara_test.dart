@@ -22,8 +22,12 @@ import 'package:htcommander/radio/software_modem.dart';
 import 'package:htcommander/radio/tnc_data_fragment.dart';
 import 'package:htcommander/radio/xara_capture.dart';
 import 'package:htcommander/radio/xara_modem.dart';
+import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/services/data_broker_client.dart';
+import 'package:htcommander/winlink/mail_store.dart';
 import 'package:htcommander/winlink/winlink_gateway_relay.dart';
+import 'package:htcommander/winlink/winlink_mail.dart';
+import 'package:htcommander/winlink/winlink_proposal.dart';
 
 Future<bool> waitFor(
   bool Function() done, {
@@ -77,10 +81,12 @@ class FakeXara {
     'wide': false,
   });
 
-  void receive(String s) => b.dispatch(
+  void receive(String s) => receiveBytes(utf8.encode(s));
+
+  void receiveBytes(List<int> data) => b.dispatch(
     deviceId: id,
     name: 'XaraDataReceived',
-    data: Uint8List.fromList(utf8.encode(s)),
+    data: Uint8List.fromList(data),
     store: false,
   );
 
@@ -154,7 +160,7 @@ void main() {
     try {
       xara.connectFrom('N1ABC-5');
       expect(await waitFor(() => xara.text.contains('[M] for menu')), isTrue);
-      expect(xara.text, contains('[WL2K-5.0-B2FWIHJM\$]'));
+      expect(xara.text, contains('[WL2K-5.0-B2FWIHJMG\$]'));
       expect(bbs.links.firstOrNull?.remoteCallsign, 'N1ABC-5');
       expect(bbs.links.firstOrNull?.remoteAddress, 'N1ABC');
       expect(control, contains('Connected to N1ABC-5 (XARA)'));
@@ -210,6 +216,116 @@ void main() {
       }
     },
   );
+
+  group('Winlink GZIP', () {
+    String checksumLine(String lines) {
+      final sum = lines.codeUnits.fold<int>(0, (t, c) => t + c);
+      final hex = ((-sum) & 0xFF).toRadixString(16).padLeft(2, '0');
+      return 'F> ${hex.toUpperCase()}\r';
+    }
+
+    late MailStore store;
+    setUp(() {
+      store = MailStore()
+        ..addMail(
+          WinLinkMail()
+            ..mid = 'OUTBOX000002'
+            ..from = 'N0CALL'
+            ..to = 'N1ABC'
+            ..subject = 'For N1ABC'
+            ..body = 'Hello N1ABC'
+            ..mailbox = 'Outbox',
+        );
+      DataBroker.addDataHandler('MailStore', store);
+    });
+    tearDown(() {
+      store.dispose();
+      ui.dispatch(deviceId: 0, name: WinlinkGzip.settingName, data: 1);
+    });
+
+    test('a station without G gets standard FC mail', () async {
+      final xara = FakeXara(410);
+      final bbs = Bbs(410)..enabled = true;
+      try {
+        xara.connectFrom('N1ABC');
+        expect(await waitFor(() => xara.text.endsWith('>\r')), isTrue);
+        xara.receive('[RMS Express-1.7.28.0-B2FHM\$]\rFF\r');
+        expect(await waitFor(() => xara.text.contains('F> ')), isTrue);
+        expect(xara.text, contains('FC EM OUTBOX000002 '));
+        expect(xara.text, isNot(contains('FD ')));
+      } finally {
+        bbs.dispose();
+        xara.dispose();
+      }
+    });
+
+    test('exchanges FD mail with a station that advertises G', () async {
+      final added = <WinLinkMail>[];
+      ui.subscribe(
+        deviceId: 0,
+        name: 'MailAdd',
+        callback: (_, _, d) => added.add(d! as WinLinkMail),
+      );
+      final xara = FakeXara(411);
+      final bbs = Bbs(411)..enabled = true;
+      try {
+        xara.connectFrom('N1ABC');
+        expect(await waitFor(() => xara.text.endsWith('>\r')), isTrue);
+        expect(xara.text, contains('[WL2K-5.0-B2FWIHJMG\$]\r'));
+
+        final inbound = WinLinkMail()
+          ..mid = 'INBOUND00002'
+          ..from = 'N1ABC'
+          ..to = 'N0CALL'
+          ..subject = 'GZIP in'
+          ..body = 'Compressed with GZIP';
+        final enc = WinLinkMail.encodeMailToBlocks(
+          inbound,
+          compression: WinlinkCompressionType.gzip,
+        );
+        final line =
+            '${WinlinkProposal.format(compression: WinlinkCompressionType.gzip, mid: inbound.mid!, uncompressedSize: enc.uncompressedSize, compressedSize: enc.compressedSize)}\r';
+        xara.sent.clear();
+        xara.receive('[Pat-0.16.0-B2FHMG\$]\r$line${checksumLine(line)}');
+        expect(await waitFor(() => xara.text.contains('FS Y\r')), isTrue);
+
+        xara.sent.clear();
+        for (final block in enc.blocks!) {
+          xara.receiveBytes(block);
+        }
+        expect(await waitFor(() => added.isNotEmpty), isTrue);
+        expect(added.single.body, 'Compressed with GZIP');
+
+        // Our reply turn proposes the queued mail with GZIP, too.
+        expect(await waitFor(() => xara.text.contains('F> ')), isTrue);
+        final proposal = RegExp(
+          r'FD EM OUTBOX000002 \d+ \d+ 0\r',
+        ).firstMatch(xara.text)!.group(0)!;
+        expect(xara.text, contains(checksumLine(proposal)));
+      } finally {
+        bbs.dispose();
+        xara.dispose();
+      }
+    });
+
+    test('when disabled, keeps the legacy banner and defers FD', () async {
+      ui.dispatch(deviceId: 0, name: WinlinkGzip.settingName, data: 0);
+      final xara = FakeXara(412);
+      final bbs = Bbs(412)..enabled = true;
+      try {
+        xara.connectFrom('N1ABC');
+        expect(await waitFor(() => xara.text.endsWith('>\r')), isTrue);
+        expect(xara.text, contains('[WL2K-5.0-B2FWIHJM\$]\r'));
+
+        const line = 'FD EM INBOUND00003 100 80 0\r';
+        xara.receive('[Pat-0.16.0-B2FHMG\$]\r$line${checksumLine(line)}');
+        expect(await waitFor(() => xara.text.contains('FS H\r')), isTrue);
+      } finally {
+        bbs.dispose();
+        xara.dispose();
+      }
+    });
+  });
 
   test('our own outgoing XARA connects and other radios are ignored', () async {
     final xara = FakeXara(403);

@@ -350,6 +350,8 @@
     }
   },
   "settingsUseStationIdWinlink": "Winlink के लिए स्टेशन ID का उपयोग करें",
+  "settingsWinlinkGzipCompression": "संगत स्टेशनों के साथ GZIP संपीड़न का उपयोग करें",
+  "settingsWinlinkGzipCompressionHelp": "GZIP का उपयोग केवल तभी होता है जब दूसरा स्टेशन भी इसका समर्थन करता है। अन्य सभी स्टेशन मानक Winlink संपीड़न का उपयोग करते रहते हैं।",
 
   "settingsEchoLinkIntro": "इंटरनेट पर अन्य स्टेशनों से बात करने के लिए EchoLink कॉन्फ़िगर करें।",
   "settingsEchoLinkAccount": "EchoLink खाता",

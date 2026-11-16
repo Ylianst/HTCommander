@@ -917,6 +917,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsUseStationIdWinlink => '为 Winlink 使用台站 ID';
 
   @override
+  String get settingsWinlinkGzipCompression => '与兼容的台站使用 GZIP 压缩';
+
+  @override
+  String get settingsWinlinkGzipCompressionHelp =>
+      '仅当对方台站也支持时才使用 GZIP。其他台站继续使用标准 Winlink 压缩。';
+
+  @override
   String get settingsEchoLinkIntro => '配置 EchoLink 以通过互联网与其他台站通话。';
 
   @override

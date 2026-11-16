@@ -357,6 +357,16 @@ launch worldwide twice a day.
 
 ---
 
+## Winlink Messaging
+
+1. **[GZIP Over Winlink: A Small Extension With Some Important Edges](winlink-gzip-compression.md)**
+   A source-backed look at wl2k-go's experimental `G` SID flag and `FD`
+   proposals and the unchanged B2F framing, followed by how HTCommander's client
+   and local BBS negotiate GZIP per session while staying fully compatible with
+   LZHUF-only stations and never inventing capabilities in CMS relay mode.
+
+---
+
 ## Data & Storage
 
 How HTCommander packs large datasets into small, fast, self-contained files.

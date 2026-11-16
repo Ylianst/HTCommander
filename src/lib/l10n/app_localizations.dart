@@ -1804,6 +1804,18 @@ abstract class AppLocalizations {
   /// **'Use Station ID for Winlink'**
   String get settingsUseStationIdWinlink;
 
+  /// No description provided for @settingsWinlinkGzipCompression.
+  ///
+  /// In en, this message translates to:
+  /// **'Use GZIP compression with compatible stations'**
+  String get settingsWinlinkGzipCompression;
+
+  /// No description provided for @settingsWinlinkGzipCompressionHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'GZIP is only used when the other station also supports it. All other stations keep using standard Winlink compression.'**
+  String get settingsWinlinkGzipCompressionHelp;
+
   /// No description provided for @settingsEchoLinkIntro.
   ///
   /// In en, this message translates to:

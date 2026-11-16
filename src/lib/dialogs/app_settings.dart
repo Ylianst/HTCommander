@@ -2,6 +2,7 @@ import '../services/data_broker.dart';
 import '../services/locale_controller.dart';
 import '../services/theme_controller.dart';
 import '../utils/map_tile_source.dart';
+import '../winlink/winlink_proposal.dart';
 
 /// Settings data model
 class AppSettings {
@@ -58,6 +59,7 @@ class AppSettings {
   // Winlink tab
   String winlinkPassword;
   bool winlinkUseStationId;
+  bool winlinkGzipCompression;
 
   // EchoLink tab
   String echoLinkPassword;
@@ -219,6 +221,7 @@ class AppSettings {
     this.voicePitch = 1.0,
     this.winlinkPassword = '',
     this.winlinkUseStationId = false,
+    this.winlinkGzipCompression = true,
     this.echoLinkPassword = '',
     this.echoLinkLocation = '',
     this.echoLinkProxyEnabled = true,
@@ -282,6 +285,7 @@ class AppSettings {
     double? voicePitch,
     String? winlinkPassword,
     bool? winlinkUseStationId,
+    bool? winlinkGzipCompression,
     String? echoLinkPassword,
     String? echoLinkLocation,
     bool? echoLinkProxyEnabled,
@@ -345,6 +349,8 @@ class AppSettings {
       voicePitch: voicePitch ?? this.voicePitch,
       winlinkPassword: winlinkPassword ?? this.winlinkPassword,
       winlinkUseStationId: winlinkUseStationId ?? this.winlinkUseStationId,
+      winlinkGzipCompression:
+          winlinkGzipCompression ?? this.winlinkGzipCompression,
       echoLinkPassword: echoLinkPassword ?? this.echoLinkPassword,
       echoLinkLocation: echoLinkLocation ?? this.echoLinkLocation,
       echoLinkProxyEnabled: echoLinkProxyEnabled ?? this.echoLinkProxyEnabled,
@@ -454,6 +460,8 @@ class AppSettings {
           DataBroker.getValue<String>(0, 'WinlinkPassword', '') ?? '',
       winlinkUseStationId:
           (DataBroker.getValue<int>(0, 'WinlinkUseStationId', 0) ?? 0) == 1,
+      winlinkGzipCompression:
+          (DataBroker.getValue<int>(0, WinlinkGzip.settingName, 1) ?? 1) == 1,
       echoLinkPassword:
           DataBroker.getValue<String>(0, 'EchoLinkPassword', '') ?? '',
       echoLinkLocation:
@@ -606,6 +614,11 @@ class AppSettings {
       deviceId: 0,
       name: 'WinlinkUseStationId',
       data: winlinkUseStationId ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: WinlinkGzip.settingName,
+      data: winlinkGzipCompression ? 1 : 0,
     );
     DataBroker.dispatch(
       deviceId: 0,

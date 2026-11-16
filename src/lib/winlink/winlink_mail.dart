@@ -8,6 +8,9 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart' show GZipDecoder, GZipEncoder;
+
+import 'winlink_proposal.dart';
 import 'winlink_utils.dart';
 
 /// A file attached to a [WinLinkMail].
@@ -70,6 +73,9 @@ class WinLinkMailEncodeResult {
 
   final List<Uint8List>? blocks;
   final int uncompressedSize;
+
+  /// Size of the compressed payload, excluding the B2F block framing. This is
+  /// the value carried by the proposal line.
   final int compressedSize;
 }
 
@@ -93,7 +99,15 @@ class WinLinkMail {
   String mailbox = 'Inbox';
 
   /// Decodes a sequence of B2F blocks into a [WinLinkMail].
-  static WinLinkMailDecodeResult decodeBlocksToEmail(Uint8List? block) {
+  ///
+  /// [compression] must match the proposal the blocks were accepted for. For
+  /// GZIP, [expectedSize] (the proposal's uncompressed size) is required: it
+  /// bounds the decompression and must match the decoded length exactly.
+  static WinLinkMailDecodeResult decodeBlocksToEmail(
+    Uint8List? block, {
+    WinlinkCompressionType compression = WinlinkCompressionType.lzhuf,
+    int? expectedSize,
+  }) {
     if (block == null || block.isEmpty) {
       return WinLinkMailDecodeResult(null, false, 0);
     }
@@ -154,6 +168,19 @@ class WinLinkMail {
     }
 
     // Decompress the mail
+    final Uint8List? decoded = compression == WinlinkCompressionType.gzip
+        ? _gzipDecode(payload, expectedSize)
+        : _lzhufDecode(payload);
+    if (decoded == null) return WinLinkMailDecodeResult(null, true, 0);
+
+    // Decode the mail
+    final mail = deserializeMail(decoded);
+    if (mail == null) return WinLinkMailDecodeResult(null, true, 0);
+    return WinLinkMailDecodeResult(mail, false, ptr);
+  }
+
+  static Uint8List? _lzhufDecode(Uint8List payload) {
+    if (payload.length < 6) return null;
     final expectedLength =
         payload[2] +
         (payload[3] << 8) +
@@ -169,24 +196,36 @@ class WinLinkMail {
     } catch (_) {
       decoded = null;
     }
-    if (decoded == null || decoded.count != expectedLength) {
-      return WinLinkMailDecodeResult(null, true, 0);
-    }
-
-    // Decode the mail
-    final mail = deserializeMail(decoded.data);
-    if (mail == null) return WinLinkMailDecodeResult(null, true, 0);
-    return WinLinkMailDecodeResult(mail, false, ptr);
+    if (decoded == null || decoded.count != expectedLength) return null;
+    return decoded.data;
   }
 
-  /// Encodes [mail] into a list of 128-byte B2F blocks.
-  static WinLinkMailEncodeResult encodeMailToBlocks(WinLinkMail mail) {
+  static Uint8List? _gzipDecode(Uint8List payload, int? expectedSize) {
+    if (expectedSize == null || expectedSize <= 0) return null;
+    try {
+      final data = const GZipDecoder().decodeBytes(
+        payload,
+        verify: true,
+        throwOnError: true,
+        maxOutputSize: expectedSize,
+      );
+      return data.length == expectedSize ? data : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Encodes [mail] into a list of 128-byte B2F blocks, compressing the
+  /// payload with [compression].
+  static WinLinkMailEncodeResult encodeMailToBlocks(
+    WinLinkMail mail, {
+    WinlinkCompressionType compression = WinlinkCompressionType.lzhuf,
+  }) {
     final uncompressedMail = serializeMail(mail);
     final uncompressedSize = uncompressedMail.length;
-    final payloadBuf = WinlinkCompression.encode(
-      uncompressedMail,
-      prependCRC: true,
-    );
+    final payloadBuf = compression == WinlinkCompressionType.gzip
+        ? const GZipEncoder().encodeBytes(uncompressedMail, level: 9)
+        : WinlinkCompression.encode(uncompressedMail, prependCRC: true);
     final subjectBuf = utf8.encode(mail.subject ?? '');
     final blocks = <Uint8List>[];
 
@@ -212,7 +251,6 @@ class WinLinkMail {
     memoryStream.addByte(WinLinkChecksum.computeChecksum(payloadBuf));
 
     final output = memoryStream.toBytes();
-    final compressedSize = output.length;
 
     // Break the output into 128 byte blocks
     int outputPtr = 0;
@@ -224,7 +262,7 @@ class WinLinkMail {
       outputPtr += blockSize;
     }
 
-    return WinLinkMailEncodeResult(blocks, uncompressedSize, compressedSize);
+    return WinLinkMailEncodeResult(blocks, uncompressedSize, payloadBuf.length);
   }
 
   static Uint8List serializeMail(WinLinkMail mail) {

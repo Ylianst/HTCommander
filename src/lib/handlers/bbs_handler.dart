@@ -37,6 +37,7 @@ import '../services/notification_service.dart';
 import '../winlink/mail_store.dart';
 import '../winlink/winlink_gateway_relay.dart';
 import '../winlink/winlink_mail.dart';
+import '../winlink/winlink_proposal.dart';
 import '../winlink/winlink_utils.dart';
 import 'bbs_files.dart';
 import 'bbs_menu.dart';
@@ -956,11 +957,16 @@ class Bbs {
   void _sendLocalBanner(BbsLink session) {
     session.sessionState['wlRelayMode'] = false;
     session.sessionState['wlChallenge'] = WinlinkSecurity.generateChallenge();
+    // Snapshot for the whole session: GZIP is only advertised, accepted and
+    // sent when it was enabled at the time this banner went out.
+    final gzip = WinlinkGzip.isEnabled(_broker);
+    session.sessionState['wlGzip'] = gzip;
 
     final sb = StringBuffer();
     sb.write(BbsMenu.banner);
     sb.write(session.sessionState['bbsWelcome'] ?? '');
-    sb.write('[WL2K-5.0-B2FWIHJM\$]\r');
+    const sid = '[WL2K-5.0-B2FWIHJM\$]';
+    sb.write('${gzip ? WinlinkGzip.addGzipFlag(sid) : sid}\r');
 
     final winlinkPassword =
         _broker.getValue<String>(0, 'WinlinkPassword', '') ?? '';
@@ -1363,6 +1369,12 @@ class Bbs {
       if (str.isEmpty) continue;
       _dispatchTraffic(session.remoteCallsign, false, str.trim());
 
+      // Remember whether the station's SID advertises the GZIP extension.
+      if (WinlinkGzip.sidCapabilities(str) != null) {
+        session.sessionState['wlRemoteGzip'] = WinlinkGzip.sidSupportsGzip(str);
+        continue;
+      }
+
       String key = str.toUpperCase();
       String value = '';
       final i = str.indexOf(' ');
@@ -1386,11 +1398,11 @@ class Bbs {
           _dispatchControl('Authentication Failed', session.remoteCallsign);
           _broker.logInfo('[BBS/$_deviceId] Winlink Auth Failed');
         }
-      } else if (key == 'FC') {
-        // Winlink mail proposal.
+      } else if (key == 'FC' || key == 'FD') {
+        // Winlink mail proposal (FC = LZHUF, FD = GZIP).
         final proposals =
             (session.sessionState['wlMailProp'] as List<String>?) ?? <String>[];
-        proposals.add(value);
+        proposals.add(str);
         session.sessionState['wlMailProp'] = proposals;
       } else if (key == 'F>') {
         // Proposals completed — respond with accept/reject for each.
@@ -1399,40 +1411,23 @@ class Bbs {
           final proposals = session.sessionState['wlMailProp'] as List<String>;
           final proposals2 = <String>[];
           if (proposals.isNotEmpty) {
-            int checksum = 0;
-            for (final proposal in proposals) {
-              final proposalBin = ascii.encode('FC $proposal\r');
-              for (final b in proposalBin) {
-                checksum += b;
-              }
-            }
-            checksum = (-checksum) & 0xFF;
+            final checksum = (-WinlinkProposal.byteSum(proposals)) & 0xFF;
             if (_hex2(checksum) == value) {
               final response = StringBuffer();
               int acceptedProposalCount = 0;
-              for (final proposal in proposals) {
-                final proposalSplit = proposal.split(' ');
-                if (proposalSplit.length >= 5 &&
-                    proposalSplit[0] == 'EM' &&
-                    proposalSplit[1].length == 12) {
-                  final mFullLen = int.tryParse(proposalSplit[2]);
-                  final mCompLen = int.tryParse(proposalSplit[3]);
-                  final mUnknown = int.tryParse(proposalSplit[4]);
-                  if (mFullLen != null &&
-                      mCompLen != null &&
-                      mUnknown != null) {
-                    if (_weHaveEmail(proposalSplit[1])) {
-                      response.write('N');
-                    } else {
-                      response.write('Y');
-                      proposals2.add(proposal);
-                      acceptedProposalCount++;
-                    }
-                  } else {
-                    response.write('H');
-                  }
-                } else {
+              final gzipAllowed = session.sessionState['wlGzip'] == true;
+              for (final line in proposals) {
+                final proposal = WinlinkProposal.parse(line);
+                if (proposal == null ||
+                    (proposal.compression == WinlinkCompressionType.gzip &&
+                        !gzipAllowed)) {
                   response.write('H');
+                } else if (_weHaveEmail(proposal.mid)) {
+                  response.write('N');
+                } else {
+                  response.write('Y');
+                  proposals2.add(line);
+                  acceptedProposalCount++;
                 }
               }
               _sessionSend(session, 'FS $response\r');
@@ -1591,6 +1586,11 @@ class Bbs {
     int mailSendCount = 0;
 
     String connectedCallsign = session.remoteAddress;
+    final compression =
+        session.sessionState['wlGzip'] == true &&
+            session.sessionState['wlRemoteGzip'] == true
+        ? WinlinkCompressionType.gzip
+        : WinlinkCompressionType.lzhuf;
 
     final mailStore = DataBroker.getDataHandler<MailStore>('MailStore');
     final mails = mailStore?.getAllMails() ?? <WinLinkMail>[];
@@ -1609,13 +1609,16 @@ class Bbs {
       );
       if (!isForStation) continue;
 
-      final enc = WinLinkMail.encodeMailToBlocks(mail);
+      final enc = WinLinkMail.encodeMailToBlocks(
+        mail,
+        compression: compression,
+      );
       final blocks = enc.blocks;
       if (blocks != null) {
         proposedMails.add(mail);
         proposedMailsBinary.add(blocks);
         final proposal =
-            'FC EM ${mail.mid} ${enc.uncompressedSize} ${enc.compressedSize} 0\r';
+            '${WinlinkProposal.format(compression: compression, mid: mail.mid!, uncompressedSize: enc.uncompressedSize, compressedSize: enc.compressedSize)}\r';
         sb.write(proposal);
         final proposalBin = ascii.encode(proposal);
         for (final b in proposalBin) {
@@ -1676,16 +1679,16 @@ class Bbs {
     if (proposals.isEmpty || blocks.isEmpty) return true;
 
     // Decode the proposal.
-    final proposalSplit = proposals[0].split(' ');
-    if (proposalSplit.length < 4) return true; // Invalid proposal format.
-    final mid = proposalSplit[1];
+    final proposal = WinlinkProposal.parse(proposals[0]);
+    if (proposal == null) return _failMailDecode(session, proposals[0]);
+    final mid = proposal.mid;
 
-    final result = WinLinkMail.decodeBlocksToEmail(Uint8List.fromList(blocks));
-    if (result.fail) {
-      _dispatchControl('Failed to decode mail.', session.remoteCallsign);
-      _broker.logError('[BBS/$_deviceId] Failed to decode mail $mid');
-      return true;
-    }
+    final result = WinLinkMail.decodeBlocksToEmail(
+      Uint8List.fromList(blocks),
+      compression: proposal.compression,
+      expectedSize: proposal.uncompressedSize,
+    );
+    if (result.fail) return _failMailDecode(session, mid);
     final mail = result.mail;
     if (mail == null) return false;
 
@@ -1727,6 +1730,18 @@ class Bbs {
     );
 
     return proposals.isEmpty;
+  }
+
+  /// Drops the station without acknowledging an undecodable mail, so that the
+  /// sender keeps it and retries later instead of treating it as delivered.
+  bool _failMailDecode(BbsLink session, String mid) {
+    _dispatchControl('Failed to decode mail.', session.remoteCallsign);
+    _broker.logError('[BBS/$_deviceId] Failed to decode mail $mid');
+    // Keep swallowing the rest of the binary stream while disconnecting.
+    session.sessionState.remove('wlMailProp');
+    session.sessionState['wlMailBinary'] = <int>[];
+    session.disconnect();
+    return false;
   }
 
   bool _weHaveEmail(String mid) {

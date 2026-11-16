@@ -949,6 +949,14 @@ class AppLocalizationsEs extends AppLocalizations {
       'Usar el ID de estación para Winlink';
 
   @override
+  String get settingsWinlinkGzipCompression =>
+      'Usar compresión GZIP con estaciones compatibles';
+
+  @override
+  String get settingsWinlinkGzipCompressionHelp =>
+      'GZIP solo se usa cuando la otra estación también lo admite. Las demás estaciones siguen usando la compresión estándar de Winlink.';
+
+  @override
   String get settingsEchoLinkIntro =>
       'Configure EchoLink para comunicarse con otras estaciones a través de internet.';
 

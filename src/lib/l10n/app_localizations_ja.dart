@@ -927,6 +927,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsUseStationIdWinlink => 'Winlink に局 ID を使用';
 
   @override
+  String get settingsWinlinkGzipCompression => '対応局とは GZIP 圧縮を使用';
+
+  @override
+  String get settingsWinlinkGzipCompressionHelp =>
+      'GZIP は相手局も対応している場合にのみ使用されます。その他の局とは標準の Winlink 圧縮を使い続けます。';
+
+  @override
   String get settingsEchoLinkIntro => 'インターネット経由で他の局と通信するために EchoLink を設定します。';
 
   @override

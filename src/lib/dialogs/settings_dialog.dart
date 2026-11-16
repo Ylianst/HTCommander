@@ -3172,6 +3172,35 @@ class _SettingsDialogState extends State<SettingsDialog>
                     ),
                   ],
                 ),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _settings.winlinkGzipCompression,
+                      onChanged: (value) {
+                        setState(
+                          () =>
+                              _settings.winlinkGzipCompression = value ?? true,
+                        );
+                      },
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(
+                          () => _settings.winlinkGzipCompression =
+                              !_settings.winlinkGzipCompression,
+                        ),
+                        child: Text(l10n.settingsWinlinkGzipCompression),
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 48),
+                  child: Text(
+                    l10n.settingsWinlinkGzipCompressionHelp,
+                    style: _secondaryStyle(),
+                  ),
+                ),
               ],
             ),
           ),

@@ -350,6 +350,8 @@
     }
   },
   "settingsUseStationIdWinlink": "Stations-ID für Winlink verwenden",
+  "settingsWinlinkGzipCompression": "GZIP-Komprimierung mit kompatiblen Stationen verwenden",
+  "settingsWinlinkGzipCompressionHelp": "GZIP wird nur verwendet, wenn die Gegenstation es ebenfalls unterstützt. Alle anderen Stationen verwenden weiterhin die Standard-Winlink-Komprimierung.",
 
   "settingsEchoLinkIntro": "Konfigurieren Sie EchoLink, um über das Internet mit anderen Stationen zu kommunizieren.",
   "settingsEchoLinkAccount": "EchoLink-Konto",

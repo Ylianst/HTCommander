@@ -7,13 +7,16 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/models/station_info.dart';
 import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/services/data_broker_client.dart';
+import 'package:htcommander/winlink/mail_store.dart';
 import 'package:htcommander/winlink/winlink_client.dart';
 import 'package:htcommander/winlink/winlink_mail.dart';
+import 'package:htcommander/winlink/winlink_proposal.dart';
 
 int _commandCount(String transcript, String command) =>
     RegExp('(?:^|\\r)$command\\r').allMatches(transcript).length;
@@ -32,6 +35,73 @@ Future<void> _waitFor(
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   expect(predicate(), isTrue, reason: failureMessage());
+}
+
+/// A fake Winlink server end of a client TCP session.
+class _Peer {
+  _Peer._(this.server, this.socket) {
+    socket.listen(raw.add);
+  }
+
+  final ServerSocket server;
+  final Socket socket;
+  final BytesBuilder raw = BytesBuilder();
+
+  /// Everything received so far; latin1 keeps binary bytes one-to-one.
+  String get text => latin1.decode(raw.toBytes());
+
+  static Future<_Peer> connect(WinlinkClient client) async {
+    final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final accepted = Completer<Socket>();
+    server.listen(accepted.complete);
+    expect(
+      await client.connectTcp(
+        InternetAddress.loopbackIPv4.address,
+        server.port,
+      ),
+      isTrue,
+    );
+    return _Peer._(server, await accepted.future);
+  }
+
+  Future<void> send(String text) => sendBytes(latin1.encode(text));
+
+  Future<void> sendBytes(List<int> data) async {
+    socket.add(data);
+    await socket.flush();
+  }
+
+  Future<void> close() async {
+    socket.destroy();
+    await server.close();
+  }
+}
+
+/// Registers an in-memory mail store holding one outbound message.
+MailStore _storeWithOutboxMail(String mid) {
+  final store = MailStore()
+    ..addMail(
+      WinLinkMail()
+        ..mid = mid
+        ..from = 'N0CALL'
+        ..to = 'W1AW'
+        ..subject = 'Outbound'
+        ..body = 'Outbound body, ' * 30
+        ..mailbox = 'Outbox',
+    );
+  DataBroker.addDataHandler('MailStore', store);
+  return store;
+}
+
+/// Total size of the STX payload bytes in a B2F frame.
+int _framedPayloadLength(Uint8List framed) {
+  var ptr = 0;
+  var length = 0;
+  while (ptr < framed.length && framed[ptr] != 4) {
+    if (framed[ptr] == 2) length += framed[ptr + 1];
+    ptr += 2 + framed[ptr + 1];
+  }
+  return length;
 }
 
 void main() {
@@ -176,5 +246,136 @@ void main() {
       peer?.destroy();
       await server.close();
     }
+  });
+
+  group('GZIP negotiation', () {
+    const mid = 'OUTBOX000001';
+
+    tearDown(() {
+      DataBroker.dispatch(deviceId: 0, name: WinlinkGzip.settingName, data: 1);
+      DataBroker.clearDevice(1);
+    });
+
+    test('keeps the standard SID and LZHUF with a non-GZIP server', () async {
+      final store = _storeWithOutboxMail(mid);
+      final client = WinlinkClient();
+      final peer = await _Peer.connect(client);
+      try {
+        await peer.send('[WL2K-5.0-B2FWIHJM\$]\rCMS >\r');
+        await _waitFor(
+          () => peer.text.contains('F> '),
+          () => 'No proposals received: ${peer.text}',
+        );
+        expect(peer.text, startsWith('[RMS Express-1.7.28.0-B2FHM\$]\r'));
+        expect(peer.text, contains('FC EM $mid '));
+        expect(peer.text, isNot(contains('FD ')));
+      } finally {
+        client.dispose();
+        store.dispose();
+        await peer.close();
+      }
+    });
+
+    test('exchanges GZIP mail with a server that advertises it', () async {
+      final store = _storeWithOutboxMail(mid);
+      final received = <WinLinkMail>[];
+      final broker = DataBrokerClient()
+        ..subscribe(
+          deviceId: 0,
+          name: 'MailAdd',
+          callback: (_, _, data) => received.add(data! as WinLinkMail),
+        );
+      final client = WinlinkClient();
+      final peer = await _Peer.connect(client);
+      try {
+        await peer.send('[Pat-0.16.0-B2FHMG\$]\rCMS >\r');
+        await _waitFor(
+          () => peer.text.contains('F> '),
+          () => 'No proposals received: ${peer.text}',
+        );
+        expect(peer.text, startsWith('[RMS Express-1.7.28.0-B2FHMG\$]\r'));
+        final proposal = RegExp(
+          'FD EM $mid (\\d+) (\\d+) 0\\r',
+        ).firstMatch(peer.text)!;
+        expect(peer.text, contains('F> ${_checksumHex(proposal.group(0)!)}\r'));
+
+        // Accept it; the client must send a GZIP payload of the proposed size.
+        final frameStart = peer.raw.length;
+        await peer.send('FS Y\r');
+        final uncompressedSize = int.parse(proposal.group(1)!);
+        WinLinkMailDecodeResult? sent;
+        await _waitFor(() {
+          final bytes = peer.raw.toBytes().sublist(frameStart);
+          sent = WinLinkMail.decodeBlocksToEmail(
+            bytes,
+            compression: WinlinkCompressionType.gzip,
+            expectedSize: uncompressedSize,
+          );
+          return sent!.mail != null;
+        }, () => 'Outbound GZIP mail not decodable');
+        expect(sent!.mail!.mid, mid);
+        expect(
+          _framedPayloadLength(peer.raw.toBytes().sublist(frameStart)),
+          int.parse(proposal.group(2)!),
+        );
+
+        // Now propose a GZIP message to the client.
+        final inbound = WinLinkMail()
+          ..mid = 'INBOUND00001'
+          ..from = 'W1AW'
+          ..to = 'N0CALL'
+          ..subject = 'Inbound'
+          ..body = 'Inbound GZIP body';
+        final encoded = WinLinkMail.encodeMailToBlocks(
+          inbound,
+          compression: WinlinkCompressionType.gzip,
+        );
+        final line =
+            '${WinlinkProposal.format(compression: WinlinkCompressionType.gzip, mid: inbound.mid!, uncompressedSize: encoded.uncompressedSize, compressedSize: encoded.compressedSize)}\r';
+        await peer.send('${line}F> ${_checksumHex(line)}\r');
+        await _waitFor(
+          () => peer.text.contains('FS Y\r'),
+          () => 'FD proposal not accepted: ${peer.text}',
+        );
+        for (final block in encoded.blocks!) {
+          await peer.sendBytes(block);
+        }
+        await _waitFor(
+          () => received.isNotEmpty && peer.text.endsWith('FF\r'),
+          () => 'Inbound GZIP mail not received: ${peer.text}',
+        );
+        expect(received.single.mid, 'INBOUND00001');
+        expect(received.single.body, 'Inbound GZIP body');
+      } finally {
+        client.dispose();
+        broker.dispose();
+        store.dispose();
+        await peer.close();
+      }
+    });
+
+    test('when disabled, keeps the standard SID and defers FD', () async {
+      DataBroker.dispatch(deviceId: 0, name: WinlinkGzip.settingName, data: 0);
+      final client = WinlinkClient();
+      final peer = await _Peer.connect(client);
+      try {
+        await peer.send('[Pat-0.16.0-B2FHMG\$]\rCMS >\r');
+        await _waitFor(
+          () => peer.text.contains('FF\r'),
+          () => 'Initial FF not received: ${peer.text}',
+        );
+        expect(peer.text, startsWith('[RMS Express-1.7.28.0-B2FHM\$]\r'));
+
+        const line = 'FD EM INBOUND00001 100 80 0\r';
+        await peer.send('${line}F> ${_checksumHex(line)}\r');
+        await _waitFor(
+          () => peer.text.contains('FS H\r'),
+          () => 'FD proposal not deferred: ${peer.text}',
+        );
+      } finally {
+        client.dispose();
+        await peer.close();
+      }
+    });
   });
 }
