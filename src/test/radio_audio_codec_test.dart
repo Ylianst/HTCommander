@@ -304,6 +304,83 @@ void main() {
     expect(packets.single.pcm, expected);
   });
 
+  test('bulk spans preserve framing across scan and input boundaries', () {
+    final payload = Uint8List(700)..fillRange(0, 700, 0x11);
+    for (final offset in [14, 15, 254, 255, 510, 511, 699]) {
+      payload[offset] = offset.isEven ? 0x7d : 0x7e;
+    }
+    final frame = SbcEncoder().encode(_signal(128, 42), null, _frame())!;
+    final expected = SbcDecoder().decode(frame).pcmLeft;
+    final wire = Uint8List.fromList([
+      ..._packet(2, payload),
+      ..._packet(3, frame),
+    ]);
+    for (final chunk in [15, 16, 255, 256, 257, wire.length]) {
+      codec.resetReceiver();
+      final packets = <ReceivedRadioAudio>[];
+      for (int offset = 0; offset < wire.length; offset += chunk) {
+        packets.addAll(
+          _receive(
+            codec,
+            Uint8List.sublistView(
+              wire,
+              offset,
+              math.min(offset + chunk, wire.length),
+            ),
+          ),
+        );
+      }
+      expect(packets.map((p) => p.command), [2, 3], reason: 'chunk=$chunk');
+      expect(packets.map((p) => p.error), [0, 0]);
+      expect(packets.first.payloadBytes, payload.length);
+      expect(packets.first.pcm, isEmpty);
+      expect(packets.last.pcm, expected);
+    }
+  });
+
+  test('bulk and escaped bytes respect the exact packet limit', () {
+    final frame = SbcEncoder().encode(_signal(128, 12), null, _frame())!;
+    final expected = SbcDecoder().decode(frame).pcmLeft;
+    for (final overflow in [false, true]) {
+      for (final escapedLast in [false, true]) {
+        codec.resetReceiver();
+        final length = 65535 + (overflow ? 1 : 0);
+        final payload = Uint8List(length)..fillRange(0, length, 0x11);
+        payload[0] = 0x7d;
+        if (escapedLast) payload[length - 1] = 0x7e;
+        final packets = _receive(
+          codec,
+          Uint8List.fromList([..._packet(2, payload), ..._packet(3, frame)]),
+        );
+        expect(packets.map((p) => p.command), [overflow ? -1 : 2, 3]);
+        expect(packets.map((p) => p.error), [overflow ? 5 : 0, 0]);
+        expect(packets.first.payloadBytes, 65535);
+        expect(packets.first.rejectedBytes, overflow ? 65536 : 0);
+        expect(packets.last.pcm, expected);
+      }
+    }
+  });
+
+  test('dangling escape at the packet limit is not reported as overflow', () {
+    final payload = Uint8List(65535)..fillRange(0, 65535, 0x11);
+    final prefix = _packet(2, payload);
+    final frame = SbcEncoder().encode(_signal(128, 12), null, _frame())!;
+    final packets = _receive(
+      codec,
+      Uint8List.fromList([
+        ...prefix.take(prefix.length - 1),
+        0x7d,
+        0x7e,
+        ..._packet(3, frame),
+      ]),
+    );
+    expect(packets.map((p) => p.error), [6, 0]);
+    expect(packets.first.command, -1);
+    expect(packets.first.payloadBytes, 65535);
+    expect(packets.first.rejectedBytes, 65535);
+    expect(packets.last.pcm, SbcDecoder().decode(frame).pcmLeft);
+  });
+
   test('coalesced end changes decode mask before next packet', () {
     final frame = _frame();
     final encoder = SbcEncoder();

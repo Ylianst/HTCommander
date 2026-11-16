@@ -214,10 +214,13 @@ framing and data-handling work and are not directly comparable.
 
 ### Further CPU optimization
 
-The shared codec now replaces division-based signed shifts with portable
-unsigned-shift arithmetic that preserves negative rounding exactly. Bit readers
-and writers use reservoirs instead of processing every bit individually.
-These changes benefit encoding and decoding on every supported audio platform.
+The shared codec replaces division-based signed shifts with a compiler-checked
+arithmetic shift. C++17 leaves negative signed shifts implementation-defined,
+so a compile-time check verifies negative odd values round downward before
+selecting that fast path. Other targets retain the portable unsigned-shift
+implementation. Bit readers and writers use reservoirs instead of processing
+every bit individually. These changes benefit encoding and decoding on every
+supported audio platform.
 
 The encoder's cosine transform additionally uses SSE2 on x86/x64 targets with
 SSE2 enabled, or NEON on ARM targets with NEON enabled. Other targets retain the
@@ -249,6 +252,47 @@ estimates. This native-only comparison has a different scope from the earlier
 Dart-versus-native AOT table; the absolute times should not be compared between
 tables. These are shared-host x64 results, not measured ARM speedups or
 end-to-end transmission gains.
+
+### Checked shifts and bulk receive parsing
+
+A further pass found that emulating signed shifts still generated expensive
+branches on the measured compiler. Using its checked arithmetic shift removes
+those branches without changing fixed-point rounding.
+
+Receive framing now copies runs of ordinary bytes with `memcpy`, rather than
+updating parser state for every byte. Both delimiter and escape searches are
+bounded to 256 bytes, preventing escape-heavy input from causing repeated
+unbounded scans. Short input, pending escapes, packet delimiters, and recovery
+continue through the existing scalar parser.
+
+Bulk copies never exceed remaining packet capacity. Once full, the scalar path
+handles the next byte, preserving the exact overflow-consumption boundary and
+the distinction between overflow and a dangling escape. Each completed packet
+still returns to Dart before the next packet's decode mask is evaluated.
+
+The final packaged Windows x64 DLL was compared with the immediately preceding
+packaged DLL using nine interleaved trials, with the benchmark thread pinned to
+one allowed logical CPU. Each operation processed 61.44 seconds of deterministic
+audio. Medians below are millions of per-thread CPU cycles:
+
+| Native operation | Previous | Optimized | Reduction |
+| --- | ---: | ---: | ---: |
+| Encode + frame, loudness | 94.057 | 50.265 | 46.6% |
+| Encode + frame, SNR | 99.131 | 51.547 | 48.0% |
+| Unframe + decode, loudness | 100.666 | 48.461 | 51.9% |
+| Unframe + decode, SNR | 106.049 | 50.322 | 52.5% |
+| Receive parsing only, loudness stream | 3.793 | 0.383 | 89.9% |
+| Receive parsing only, SNR stream | 3.893 | 0.370 | 90.5% |
+
+These are additional reductions relative to the preceding optimized native
+codec, not relative to Dart. Parser-only measurements disable SBC decoding;
+their percentage is not an end-to-end receive improvement. Dart/FFI copies and
+Bluetooth I/O remain excluded, ARM performance is unmeasured, and RF throughput
+is unchanged. Extra filter-bank SIMD and direct transmit-buffer writes did not
+show sufficiently consistent benefits to include in this pass.
+
+Both changes stay inside synchronous codec calls: no threads, platform-channel
+calls, or scheduling handoffs are added.
 
 ### Smaller buffers and fewer PCM copies
 
@@ -282,20 +326,23 @@ stalls.
 
 Validation includes native-versus-Dart byte/PCM comparisons, all SBC channel
 modes and sample rates, mSBC, split/coalesced framing, malformed input, synthesis
-state/reset behavior, and background-isolate loading. The focused codec and
-audio/modem suites cover 70 passing tests on Windows, along with Windows and web
-builds. One XARA beacon timeout during concurrent builds passed when the XARA
-suite was rerun without those builds. New regression cases cover growing PCM
-and format buffers, output lifetimes, PCM ownership, monitoring, and prepared
-wire equivalence.
+state/reset behavior, and background-isolate loading. The latest fast-path
+update passes 56 focused codec/audio tests, targeted analysis, and the Windows
+application build. Three new cases cover scan/input boundaries, exact packet
+capacity with ordinary and escaped bytes, and dangling escapes at capacity.
+Existing cases cover growing PCM and format buffers, output lifetimes, PCM
+ownership, monitoring, prepared wire equivalence, and XARA through SBC. The
+earlier integration also passed a web build.
 
-Native checks produce the same result hash under MSVC SSE2, Linux SSE2 and
-scalar builds with ASan/UBSan, and an ARM64 NEON executable run under QEMU.
-They exercise extreme signed shifts, randomized bit packing, 10,000 generated
-SBC/mSBC configurations (skipping invalid combinations), split framing, and
-maximum-packet PCM capacity. Emulation verifies ARM64 arithmetic, not
-real-device performance. Android and macOS application packaging and
-physical-radio stress tests still require those platforms.
+Native comparisons against the previous codec pass 10,209 cases, including
+10,094 valid generated SBC/mSBC configurations, plus 64,640 signed-shift checks.
+They compare wire bytes, PCM, consumed input, packet metadata, and errors,
+including split/coalesced packets, escape-heavy input, overflow, and recovery.
+MSVC SSE2 and Linux SSE2/scalar builds produce the same result hash; both Linux
+variants pass ASan/UBSan. Earlier SIMD/buffer validation additionally checked
+maximum-packet PCM capacity and ran ARM64 NEON under QEMU. Android and macOS
+application packaging, updated ARM execution, and physical-radio stress tests
+still require follow-up on those targets.
 
 ## One ownership model for all four platforms
 

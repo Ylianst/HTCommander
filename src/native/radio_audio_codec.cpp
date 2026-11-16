@@ -28,10 +28,14 @@ namespace {
 using namespace ht_sbc;
 constexpr size_t kPacketLimit = 65536;
 
-// Unsigned shifts preserve Dart's rounding for negative values without division.
+// Check the target's C++17 negative-shift behavior before using its fast path.
 int64_t asr(int64_t v, int n) {
-  return v >= 0 ? static_cast<int64_t>(static_cast<uint64_t>(v) >> n) :
-                 -1 - static_cast<int64_t>(~static_cast<uint64_t>(v) >> n);
+  if constexpr ((int64_t{-3} >> 1) == -2) {
+    return v >> n;
+  } else {
+    return v >= 0 ? static_cast<int64_t>(static_cast<uint64_t>(v) >> n) :
+                   -1 - static_cast<int64_t>(~static_cast<uint64_t>(v) >> n);
+  }
 }
 int16_t sat(int64_t v) {
   return static_cast<int16_t>(std::max<int64_t>(-32768, std::min<int64_t>(32767, v)));
@@ -503,6 +507,24 @@ int32_t ht_audio_receive(HtAudioCodec* c, const uint8_t* bytes, int32_t length,
   try {
     c->pcm.clear(); c->formats.clear();
     for (int32_t i = 0; i < length; ++i) {
+      if (length - i >= 16 && c->started && !c->escaped && !c->discarding &&
+          c->packetSize < kPacketLimit && bytes[i] != 0x7d && bytes[i] != 0x7e) {
+        const uint8_t* first = bytes + i;
+        // Bound both searches so escape-heavy input cannot cause long rescans.
+        const size_t remaining = std::min<size_t>(256, static_cast<size_t>(length - i));
+        const auto* flag = static_cast<const uint8_t*>(std::memchr(first, 0x7e, remaining));
+        size_t count = flag ? static_cast<size_t>(flag - first) : remaining;
+        const auto* escape = static_cast<const uint8_t*>(std::memchr(first, 0x7d, count));
+        if (escape) count = static_cast<size_t>(escape - first);
+        count = std::min(count, kPacketLimit - c->packetSize);
+        if (count != 0) {
+          std::memcpy(c->packet.data() + c->packetSize, first, count);
+          c->packetSize += count;
+          i += static_cast<int32_t>(count) - 1;
+          result->consumed = i + 1;
+          continue;
+        }
+      }
       const uint8_t b = bytes[i];
       result->consumed = i + 1;
       if (b == 0x7e) {
