@@ -3,12 +3,17 @@
 *Implementation and design notes, November 2026.*
 
 **Implementation update:** modem data and SSTV now have a prepared-job path:
-the Dart audio isolate encodes the complete waveform, and a persistent native
+the Dart audio isolate prepares the complete waveform, and a persistent native
 sender owns pacing, ordered writes, cancellation, and the end marker. Native
 implementations are included for Windows, Android, macOS, and Linux. Live voice
 and explicitly held streams retain their streaming path; web and iOS are
 unchanged. Platform builds and receiver-side stress testing remain essential;
 the architecture alone is not evidence that radio dropouts have been eliminated.
+
+**Native codec update:** preparation and reception now use one shared C++ SBC
+codec and Bluetooth framer on all four audio platforms. Encoding and framing
+share a batched FFI entry point; parsing, unescaping, and decoding share another.
+The persistent transmit workers and their ownership rules remain unchanged.
 
 When a voice transmission briefly stutters, the listener may still understand
 it. When a modem waveform or SSTV image stutters, the receiver loses something
@@ -16,8 +21,8 @@ it cannot necessarily reconstruct: symbols, synchronization, or part of a scan
 line. A busy computer should not turn a correctly generated waveform into an
 interrupted transmission.
 
-HTCommander already moves SBC encoding and transmit pacing into a background
-Dart isolate. That was an important improvement, but it does not make the entire
+HTCommander originally moved SBC encoding and transmit pacing into a background
+Dart isolate. That was an important improvement, but it did not make the entire
 path to the radio independent of platform-thread scheduling. This proposal takes
 the next step: prepare a complete data transmission, then let one native sender
 own its timing and Bluetooth writes.
@@ -34,8 +39,9 @@ Bluetooth Classic RFCOMM audio connection.
 
 The important implementation points are:
 
-- [AudioEngine](../../src/lib/radio/audio_engine.dart) owns SBC encoding and
-  pacing in a dedicated Dart isolate.
+- [AudioEngine](../../src/lib/radio/audio_engine.dart) coordinates native SBC
+  conversion and prepared jobs from a dedicated Dart isolate, and still paces
+  live voice.
 - [RadioAudio](../../src/lib/radio/radio_audio.dart) hands PCM to that isolate.
 - [SoftwareModem](../../src/lib/radio/software_modem.dart) marks modem
   transmissions with `isDataFrame`.
@@ -105,9 +111,10 @@ Outside the timing-critical path:
   Progress, history, recording, and optional local monitoring
 ```
 
-Keep the existing Dart SBC encoder initially. Moving encoding to native code is
-not necessary to remove it from the real-time sending loop and would introduce
-an additional codec implementation to maintain.
+The first prepared-job implementation kept the existing Dart SBC encoder.
+Moving encoding to native code was not necessary to remove it from the
+real-time sending loop. The subsequent shared-codec implementation reduces
+preparation cost and receive-side work without changing the sender contract.
 
 Each prepared job should contain the framed bytes, packet boundaries, and the
 number of PCM samples represented by each packet. Pace by samples, not encoded
@@ -128,6 +135,167 @@ Preparing SBC can add startup delay. Keep preparation cancellable and repeat the
 existing channel-busy/deadline checks before committing a modem transmission to
 the sender. Moving work earlier must not accidentally cause a transmission over
 a station that started speaking while preparation was running.
+
+## One native codec, with fused Bluetooth framing
+
+The shared [C++ implementation](../../src/native/radio_audio_codec.cpp) exports a
+small [C ABI](../../src/native/radio_audio_codec.h). The
+[Dart bindings](../../src/lib/sbc/radio_audio_codec_native.dart) call it directly
+from the audio isolate. These are synchronous FFI calls on the calling thread:
+there is no new codec thread, platform-channel request, or platform-specific
+codec implementation.
+
+The transmit operation accepts little-endian PCM and returns the final escaped
+Bluetooth byte stream, batch lengths, and sample counts together. It preserves
+the existing wire format: 32 kHz mono, 16 blocks, eight subbands, bitpool 18,
+six SBC frames per full packet, and four packets per full write. Modem data uses
+SNR allocation; voice and SSTV use loudness allocation.
+
+Prepared jobs convert up to 98,304 PCM bytes per FFI call: 16 full write batches,
+or 1.536 seconds of audio. The Dart isolate yields between these chunks so
+cancellation and radio-state changes can still be handled. Live voice converts
+one write batch at a time. An incomplete 256-byte PCM frame remains with the
+Dart caller, preserving streamed-chunk behavior.
+
+Receive input is copied into reusable native input storage, rather than a
+growing Dart list that is shifted for every packet. Native parsing retains
+split delimiters and escape sequences across calls, bounds an unfinished
+packet to 64 KiB, and reports malformed input explicitly. One completed packet
+can contain multiple SBC frames; they are decoded in the same native call.
+A valid decoded prefix survives a bad trailing frame.
+
+The receive API deliberately returns one packet at a time. Dart re-evaluates
+half-duplex state before decoding the next packet, including when an end marker
+and opposite-direction audio arrive in one Bluetooth chunk. Ignored TX echoes
+or RX packets do not advance synthesis history. The decoder retains support for
+four/eight subbands, all SBC sample rates and channel modes, and mSBC; the
+existing left-channel playback behavior is unchanged.
+
+Filter history and codec work buffers are reused within a per-engine context.
+There are no per-SBC-frame Dart codec objects or separate Dart escaping passes.
+Returned PCM and transmit bytes are copied into owned Dart typed arrays before
+native output storage is reused, which keeps asynchronous sends and receive
+pre-roll safe. Resetting receive framing does not reset the transmit encoder.
+Native load or API failures are explicit errors, not silent Dart-codec fallback.
+
+### Building the same source on each platform
+
+The application [native-asset build hook](../../src/hook/build.dart) compiles
+the same C++17 source and bundles its library through Dart/Flutter:
+
+| Platform | Native codec build | Bluetooth sender |
+| --- | --- | --- |
+| Windows | MSVC, packaged DLL | Existing persistent COM/MTA worker |
+| Linux | Target C++ toolchain, shared library | Existing persistent socket writer |
+| Android | NDK Clang for the target ABI; statically linked C++ runtime | Existing persistent socket writer |
+| macOS | Apple Clang and libc++ | Existing RFCOMM owner thread/run loop |
+
+This avoids four copies of the codec or manual platform-specific codec build
+lists. The build hook tracks the shared headers as well as the source, so table
+changes invalidate cached builds. Web does not import FFI; iOS and web do not
+build this radio-audio library.
+
+### Measured cost and SIMD
+
+The initial Windows x64 AOT comparison processed the same 60-second PCM clip
+with both allocation modes, three trials each. These timings include Bluetooth
+framing/unframing and typed-array handling, but no Bluetooth I/O:
+
+| Path | Dart median | Native median | Approximate speedup |
+| --- | ---: | ---: | ---: |
+| Encode + frame, loudness | 745 ms | 157 ms | 4.7x |
+| Encode + frame, SNR | 967 ms | 213 ms | 4.5x |
+| Unframe + decode, loudness | 637 ms | 161 ms | 4.0x |
+| Unframe + decode, SNR | 675 ms | 176 ms | 3.8x |
+
+These are measurements from one shared Windows host, not performance promises
+for every CPU or platform. Earlier codec-only timings exclude the additional
+framing and data-handling work and are not directly comparable.
+
+### Further CPU optimization
+
+The shared codec now replaces division-based signed shifts with portable
+unsigned-shift arithmetic that preserves negative rounding exactly. Bit readers
+and writers use reservoirs instead of processing every bit individually.
+These changes benefit encoding and decoding on every supported audio platform.
+
+The encoder's cosine transform additionally uses SSE2 on x86/x64 targets with
+SSE2 enabled, or NEON on ARM targets with NEON enabled. Other targets retain the
+scalar implementation; selection happens at compile time, without requiring
+AVX2 or a runtime dispatch layer. Windows/Linux x64 and Intel Macs use SSE2;
+Apple Silicon and ARM64 Android/Linux builds use NEON. ARM32 uses NEON only when
+enabled by its target toolchain.
+
+The fixed-point output remains exact. A compile-time coefficient-bound check
+proves that the transform's narrower 32-bit accumulators, including rounding,
+cannot overflow for saturated 16-bit inputs. The scalar implementation uses the
+same bounds and arithmetic.
+
+A second Windows x64 measurement compared the previous native DLL with the
+optimized DLL packaged by the Windows application build. Each operation
+processed 61.44 seconds of deterministic PCM, with five interleaved trials.
+These are median native-call wall times, excluding Dart/FFI copies and Bluetooth
+I/O:
+
+| Native operation | Previous | Optimized | Thread-cycle reduction |
+| --- | ---: | ---: | ---: |
+| Encode + frame, loudness | 86.489 ms | 50.644 ms | 41.4% |
+| Encode + frame, SNR | 91.700 ms | 51.836 ms | 43.4% |
+| Unframe + decode, loudness | 86.156 ms | 53.442 ms | 38.0% |
+| Unframe + decode, SNR | 90.970 ms | 58.088 ms | 36.4% |
+
+Cycle reductions use Windows per-thread cycle counters, not elapsed-time
+estimates. This native-only comparison has a different scope from the earlier
+Dart-versus-native AOT table; the absolute times should not be compared between
+tables. These are shared-host x64 results, not measured ARM speedups or
+end-to-end transmission gains.
+
+### Smaller buffers and fewer PCM copies
+
+- Receive PCM storage starts at 1,536 bytes instead of eagerly reserving
+  2,097,152 bytes for every context. It grows as needed and is reused. Explicit
+  growth limits prevent vector capacity overshoot beyond the existing 2 MiB
+  worst-case PCM requirement.
+- The fixed 16 KiB receive-format array becomes a small reusable vector,
+  initially reserving four entries (16 bytes). It still reports every unique
+  format in first-seen order and clears the list between packets.
+- On the measured Windows x64 build, the context structure itself shrinks from
+  82,880 to 66,520 bytes, separately from its allocated buffers. These are
+  structure sizes and allocation capacities, not guaranteed RSS reductions.
+- PCM materialized from `TransferableTypedData` is already exclusively owned by
+  the audio isolate and no longer needs another whole-clip snapshot. Public
+  callers with ordinary byte arrays still receive snapshot semantics.
+- Local transmit monitoring queues byte views of engine-owned PCM rather than
+  eagerly copying the entire clip into another sample array. This avoids that
+  allocation but retains the original backing buffer until monitoring drains.
+- Recording/observer messages no longer make an extra temporary byte copy
+  immediately before `TransferableTypedData` makes its required transfer copy.
+
+Native output snapshots remain intentional: asynchronous sends and receive
+pre-roll can outlive the next codec call. The Windows build hook also enables
+C++ exception unwinding so allocation failures clean up correctly.
+
+Faster codec work reduces CPU and preparation delay; keeping it out of the
+prepared sender's pacing loop is still what removes the per-batch Dart
+scheduling dependency. It does not prevent OS scheduling or Bluetooth-stack
+stalls.
+
+Validation includes native-versus-Dart byte/PCM comparisons, all SBC channel
+modes and sample rates, mSBC, split/coalesced framing, malformed input, synthesis
+state/reset behavior, and background-isolate loading. The focused codec and
+audio/modem suites cover 70 passing tests on Windows, along with Windows and web
+builds. One XARA beacon timeout during concurrent builds passed when the XARA
+suite was rerun without those builds. New regression cases cover growing PCM
+and format buffers, output lifetimes, PCM ownership, monitoring, and prepared
+wire equivalence.
+
+Native checks produce the same result hash under MSVC SSE2, Linux SSE2 and
+scalar builds with ASan/UBSan, and an ARM64 NEON executable run under QEMU.
+They exercise extreme signed shifts, randomized bit packing, 10,000 generated
+SBC/mSBC configurations (skipping invalid combinations), split framing, and
+maximum-packet PCM capacity. Emulation verifies ARM64 arithmetic, not
+real-device performance. Android and macOS application packaging and
+physical-radio stress tests still require those platforms.
 
 ## One ownership model for all four platforms
 

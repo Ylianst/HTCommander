@@ -62,6 +62,9 @@ dependencies:
   desktop_drop: ^0.7.1
   libserialport: ^0.3.0+1
   ffi: ^2.0.0
+  code_assets: ^2.1.0
+  hooks: ^2.2.0
+  native_toolchain_c: ^0.19.5
   flutter_tts: ^4.2.5
   record: ^7.1.1
   sherpa_onnx: ^1.13.3

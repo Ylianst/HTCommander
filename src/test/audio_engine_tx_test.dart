@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -153,6 +154,85 @@ Uint8List _pcm(List<double> samples) {
 
 void main() {
   group('prepared native transmissions', () {
+    for (final transferred in [false, true]) {
+      test(
+        'preserves PCM ownership and monitored bytes, transferred=$transferred',
+        () async {
+          final expected = _pcm(
+            List.generate(64000, (i) => 0.3 * math.sin(i * 0.3)),
+          );
+          final source = Uint8List(expected.length + 7)
+            ..setRange(3, 3 + expected.length, expected);
+          final played = BytesBuilder(copy: false);
+          final reported = BytesBuilder(copy: false);
+          final playbackDone = Completer<void>();
+          final transmitDone = Completer<void>();
+          PreparedAudioJob? submitted;
+          final engine = AudioEngine(
+            (event) {
+              if (event['evt'] == 'play') {
+                played.add(
+                  (event['pcm']! as TransferableTypedData)
+                      .materialize()
+                      .asUint8List(),
+                );
+                if (played.length == expected.length) playbackDone.complete();
+              } else if (event['evt'] == 'audioData') {
+                reported.add(
+                  (event['pcm']! as TransferableTypedData)
+                      .materialize()
+                      .asUint8List(),
+                );
+              } else if (event['evt'] == 'txState' &&
+                  event['transmitting'] == false) {
+                transmitDone.complete();
+              }
+            },
+            btSendPrepared: (job) async {
+              submitted = job;
+              return PreparedAudioResult(
+                cancelled: false,
+                samplesSent: job.samples.reduce((a, b) => a + b),
+              );
+            },
+            btCancelPrepared: (_) async {},
+          );
+          addTearDown(() => engine.handleCommand({'cmd': 'shutdown'}));
+          if (transferred) {
+            await engine.handleCommand({
+              'cmd': 'tx',
+              'pcm': TransferableTypedData.fromList([
+                Uint8List.sublistView(source, 3, 3 + expected.length),
+              ]),
+              'playLocally': true,
+              'isBulkData': true,
+            });
+          } else {
+            engine.transmitVoice(
+              source,
+              3,
+              expected.length,
+              true,
+              isBulkData: true,
+            );
+          }
+          source.fillRange(0, source.length, 0);
+          await Future.wait([
+            transmitDone.future,
+            playbackDone.future,
+          ]).timeout(const Duration(seconds: 5));
+          expect(played.takeBytes(), expected);
+          expect(reported.takeBytes(), expected);
+          final reference = _Tx(prepared: true);
+          addTearDown(
+            () => reference.engine.handleCommand({'cmd': 'shutdown'}),
+          );
+          await reference.send(expected, data: false, bulk: true);
+          expect(submitted!.data, reference.jobs.single.data);
+        },
+      );
+    }
+
     for (final data in [false, true]) {
       test(
         'prepares identical ${data ? "modem" : "SSTV"} bytes in one job',
