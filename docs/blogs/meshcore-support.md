@@ -76,6 +76,21 @@ platform needs the PIN shown on the device (123456 on boards without a screen):
 
 **Forget Pairing** is offered on Windows, Android and Linux.
 
+On Windows, each MeshCore BLE connection attempt first checks Windows' cached
+connected-device list, then listens passively for the selected device's
+advertisements for up to three seconds if it is not already connected.
+If it is not seen,
+HTCommander reports it as unavailable and uses the existing reconnect backoff
+(5 seconds, doubling to a maximum of one minute), without attempting pairing or
+GATT discovery. This avoids repeatedly initiating BLE connections to a powered-off
+companion on the same adapter that carries the radio's Bluetooth audio. A device
+seen advertising still follows the normal PIN pairing and connection flow.
+Turning off MeshCore or disconnecting during the availability check prevents
+that attempt from progressing to pairing. Adapter/scan errors are reported,
+not treated as proof the companion is off. Passive scanning still shares the
+adapter; hardware listening tests remain necessary to verify coexistence on
+each Bluetooth chipset.
+
 Incoming **direct** MeshCore messages raise the same system notification as
 APRS messages addressed to our station: only while HTCommander is not in the
 foreground, and only when **Message Notifications** is enabled. Group and

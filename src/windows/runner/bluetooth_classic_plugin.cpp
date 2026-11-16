@@ -18,6 +18,7 @@
 
 // C++/WinRT headers from the Windows SDK.
 #include <winrt/Windows.Devices.Bluetooth.h>
+#include <winrt/Windows.Devices.Bluetooth.Advertisement.h>
 #include <winrt/Windows.Devices.Bluetooth.Rfcomm.h>
 #include <winrt/Windows.Devices.Enumeration.h>
 #include <winrt/Windows.Devices.Radios.h>
@@ -506,6 +507,9 @@ struct BluetoothClassicPlugin::Impl {
       const std::string& address,
       const std::string& pin,
       std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
+  void DoBleIsAvailable(
+      const std::string& address,
+      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
   void DoBleUnpair(
       const std::string& address,
       std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
@@ -836,6 +840,13 @@ void BluetoothClassicPlugin::Impl::HandleMethodCall(
       conn->audio_job = std::move(job);
     }
     conn->audio_wake.notify_all();
+  } else if (method == "bleIsAvailable") {
+    auto* addr = GetArg("address");
+    if (!addr || !std::holds_alternative<std::string>(*addr)) {
+      result->Error("INVALID_ARGS", "Missing BLE address");
+      return;
+    }
+    DoBleIsAvailable(std::get<std::string>(*addr), std::move(result));
   } else if (method == "blePair") {
     auto* addr = GetArg("address");
     auto* pin = GetArg("pin");
@@ -1331,6 +1342,77 @@ void BluetoothClassicPlugin::Impl::DoSendAudio(
     } catch (...) {
       if (conn->playback) conn->playback->SetTransmitting(false);
       res->Success(flutter::EncodableValue(false));
+    }
+    winrt::uninit_apartment();
+  }).detach();
+}
+
+void BluetoothClassicPlugin::Impl::DoBleIsAvailable(
+    const std::string& address,
+    std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+  auto res = std::shared_ptr<
+      flutter::MethodResult<flutter::EncodableValue>>(std::move(result));
+  std::thread([address, res] {
+    winrt::init_apartment(winrt::apartment_type::multi_threaded);
+    try {
+      namespace adv = winrt::Windows::Devices::Bluetooth::Advertisement;
+      struct ScanState {
+        std::mutex mutex;
+        std::condition_variable changed;
+        bool found = false;
+        bool stopped = false;
+        bt::BluetoothError error = bt::BluetoothError::Success;
+      };
+      const auto target = ParseMac(address);
+      // Reuse an OS connection without requiring advertisements from a
+      // peripheral that may stop advertising while connected to Windows.
+      const auto selector =
+          bt::BluetoothLEDevice::GetDeviceSelectorFromBluetoothAddress(target) +
+          L" AND System.Devices.Aep.IsConnected:=System.StructuredQueryType.Boolean#True";
+      const bool connected =
+          denum::DeviceInformation::FindAllAsync(selector).get().Size() != 0;
+      auto state = std::make_shared<ScanState>();
+      state->found = connected;
+      adv::BluetoothLEAdvertisementWatcher watcher;
+      watcher.ScanningMode(adv::BluetoothLEScanningMode::Passive);
+      auto received = watcher.Received(
+          winrt::auto_revoke,
+          [target, state](const adv::BluetoothLEAdvertisementWatcher&,
+                          const adv::BluetoothLEAdvertisementReceivedEventArgs& args) {
+            if (args.BluetoothAddress() != target) return;
+            std::lock_guard<std::mutex> lock(state->mutex);
+            state->found = true;
+            state->changed.notify_one();
+          });
+      auto stopped = watcher.Stopped(
+          winrt::auto_revoke,
+          [state](const adv::BluetoothLEAdvertisementWatcher&,
+                  const adv::BluetoothLEAdvertisementWatcherStoppedEventArgs& args) {
+            std::lock_guard<std::mutex> lock(state->mutex);
+            state->stopped = true;
+            state->error = args.Error();
+            state->changed.notify_one();
+          });
+      if (!connected) watcher.Start();
+      std::unique_lock<std::mutex> lock(state->mutex);
+      state->changed.wait_for(lock, std::chrono::seconds(3), [&] {
+        return state->found || state->stopped;
+      });
+      const bool found = state->found;
+      const bool interrupted = state->stopped;
+      const auto error = state->error;
+      lock.unlock();
+      if (!connected) watcher.Stop();
+      if (interrupted) {
+        throw std::runtime_error(
+            "BLE availability scan stopped (Bluetooth error " +
+            std::to_string(static_cast<int>(error)) + ")");
+      }
+      res->Success(flutter::EncodableValue(found));
+    } catch (const winrt::hresult_error& error) {
+      res->Error("BLE_SCAN_FAILED", winrt::to_string(error.message()));
+    } catch (const std::exception& error) {
+      res->Error("BLE_SCAN_FAILED", error.what());
     }
     winrt::uninit_apartment();
   }).detach();

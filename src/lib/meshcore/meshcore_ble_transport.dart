@@ -181,9 +181,29 @@ class MeshCoreBleTransport implements MeshCoreTransport {
     String remoteId, {
     String pin = '',
     void Function(String message)? onStatus,
+    bool Function()? isCancelled,
   }) async {
     await _ensureAndroidPermissions();
     if (_isWindows) {
+      // Avoid repeated GATT connection attempts to an offline companion on
+      // the adapter that also carries the radio's real-time RFCOMM audio.
+      final available = await _nativeChannel.invokeMethod<bool>(
+        'bleIsAvailable',
+        {'address': remoteId},
+      );
+      if (isCancelled?.call() ?? false) {
+        throw const MeshCoreException('MeshCore connection cancelled.');
+      }
+      if (available == null) {
+        throw const MeshCoreException(
+          'MeshCore availability check returned no result.',
+        );
+      }
+      if (!available) {
+        throw const MeshCoreException(
+          'MeshCore device is not advertising. It may be off or out of range.',
+        );
+      }
       onStatus?.call('pairing');
       final status =
           await _nativeChannel.invokeMethod<String>('blePair', {
@@ -208,6 +228,9 @@ class MeshCoreBleTransport implements MeshCoreTransport {
       await meshCoreLinuxPair(remoteId, pin);
     }
 
+    if (isCancelled?.call() ?? false) {
+      throw const MeshCoreException('MeshCore connection cancelled.');
+    }
     onStatus?.call('connecting');
     final device = BluetoothDevice.fromId(remoteId);
     await device.connect(

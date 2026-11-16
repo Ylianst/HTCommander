@@ -316,6 +316,7 @@ class MeshCoreManager {
         return MeshCoreBleTransport.connect(
           id,
           pin: pin,
+          isCancelled: () => gen != _generation,
           onStatus: (s) {
             if (gen == _generation) {
               _setState(
