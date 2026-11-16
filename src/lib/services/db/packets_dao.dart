@@ -78,8 +78,10 @@ class PacketsDao {
     await _db.delete(_table);
   }
 
-  /// Adds the `aprs_hidden` column to a database created before schema v3.
+  /// Adds `aprs_hidden` if missing; older schema labels can already have it.
   static Future<void> addAprsHiddenColumn(DatabaseExecutor db) async {
+    final columns = await db.rawQuery('PRAGMA table_info($_table)');
+    if (columns.any((column) => column['name'] == 'aprs_hidden')) return;
     await db.execute(
       'ALTER TABLE $_table ADD COLUMN aprs_hidden INTEGER NOT NULL DEFAULT 0',
     );

@@ -23,7 +23,8 @@ In addition, there is support for text-to-speech (TTS) using the Microsoft Speec
 
 ## Live Window and Stored History
 
-The live Comms window initially keeps at most 1,000 messages, including any
+Saved Comms history is restored automatically at startup. The live Comms window
+initially keeps at most 1,000 messages, including any
 current partial decode. Older persisted entries are not deleted when the live
 window advances. Scroll to the top of the conversation and select **Show more**
 to load older entries in 200-entry pages directly into the same tab. Your scroll

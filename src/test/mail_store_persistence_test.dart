@@ -163,35 +163,44 @@ void main() {
     expect((await db.mails.all()).single.mid, replacement.mid);
   });
 
-  test('upgrades a version 4 database without losing stored history', () async {
-    await db.comms.insert(DecodedTextEntry(text: 'retained'));
-    final path = '${directory.path}${Platform.pathSeparator}htcommander.db';
-    await db.db.execute('VACUUM INTO ?', [path]);
-    await AppDatabase.close();
-    final legacy = await databaseFactoryFfi.openDatabase(path);
-    for (final table in ['mail_messages', 'mail_attachments', 'mail_state']) {
-      await legacy.execute('DROP TABLE $table');
-    }
-    await legacy.setVersion(4);
-    await legacy.close();
+  for (final version in [1, 4]) {
+    test(
+      'upgrades a version $version database without losing stored history',
+      () async {
+        await db.comms.insert(DecodedTextEntry(text: 'retained'));
+        final path = '${directory.path}${Platform.pathSeparator}htcommander.db';
+        await db.db.execute('VACUUM INTO ?', [path]);
+        await AppDatabase.close();
+        final legacy = await databaseFactoryFfi.openDatabase(path);
+        for (final table in [
+          'mail_messages',
+          'mail_attachments',
+          'mail_state',
+        ]) {
+          await legacy.execute('DROP TABLE $table');
+        }
+        await legacy.setVersion(version);
+        await legacy.close();
 
-    const channel = MethodChannel('plugins.flutter.io/path_provider');
-    final messenger =
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    messenger.setMockMethodCallHandler(channel, (call) async {
-      if (call.method == 'getApplicationSupportDirectory') {
-        return directory.path;
-      }
-      throw MissingPluginException();
-    });
-    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
-    await AppDatabase.open();
-    final upgraded = AppDatabase.instance!;
-    expect(await upgraded.db.getVersion(), 5);
-    expect((await upgraded.comms.recent(10)).single.text, 'retained');
-    await upgraded.mails.save([mail('upgraded')], <String>{});
-    expect((await upgraded.mails.all()).single.mid, 'upgraded');
-  });
+        const channel = MethodChannel('plugins.flutter.io/path_provider');
+        final messenger =
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          if (call.method == 'getApplicationSupportDirectory') {
+            return directory.path;
+          }
+          throw MissingPluginException();
+        });
+        addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+        await AppDatabase.open();
+        final upgraded = AppDatabase.instance!;
+        expect(await upgraded.db.getVersion(), 5);
+        expect((await upgraded.comms.recent(10)).single.text, 'retained');
+        await upgraded.mails.save([mail('upgraded')], <String>{});
+        expect((await upgraded.mails.all()).single.mid, 'upgraded');
+      },
+    );
+  }
 
   test(
     'database-unavailable fallback flushes the latest coalesced snapshot',
