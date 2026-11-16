@@ -31,8 +31,9 @@ class PaulDon extends BaseMode {
     int horizontalPixels,
     int verticalPixels,
     double channelSeconds,
-    int sampleRate,
-  ) {
+    int sampleRate, {
+    bool useNative = !const bool.fromEnvironment('HT_SSTV_DART'),
+  }) {
     const double syncPulseSeconds = 0.02;
     const double syncPorchSeconds = 0.00208;
     final double scanLineSeconds =
@@ -56,6 +57,7 @@ class PaulDon extends BaseMode {
       sstvRound(uAvgBeginSeconds * sampleRate),
       sstvRound(yOddBeginSeconds * sampleRate),
       sstvRound(yOddEndSeconds * sampleRate),
+      useNative,
     );
   }
 
@@ -72,7 +74,9 @@ class PaulDon extends BaseMode {
     this._uAvgBeginSamples,
     this._yOddBeginSamples,
     this._endSamples,
-  ) : _lowPassFilter = ExponentialMovingAverage();
+    bool useNative,
+  ) : _lowPassFilter = ExponentialMovingAverage(),
+      super(useNative: useNative);
 
   static double _freqToLevel(double frequency, double offset) =>
       0.5 * (frequency - offset + 1.0);
@@ -109,6 +113,30 @@ class PaulDon extends BaseMode {
       return false;
     }
     _lowPassFilter.cutoff(_horizontalPixels, 2 * _channelSamples, 2);
+    if (nativeScanLine(
+      pixelBuffer,
+      scratchBuffer,
+      scanLineBuffer,
+      sourceStart: syncPulseIndex + _beginSamples,
+      scratchStart: _beginSamples,
+      count: _endSamples - _beginSamples,
+      width: _horizontalPixels,
+      kind: 2,
+      alpha: _lowPassFilter.coefficient,
+      frequencyOffset: frequencyOffset,
+      first: _yEvenBeginSamples - _beginSamples,
+      firstLength: _channelSamples,
+      second: _uAvgBeginSamples - _beginSamples,
+      secondLength: _channelSamples,
+      third: _vAvgBeginSamples - _beginSamples,
+      thirdLength: _channelSamples,
+      fourth: _yOddBeginSamples - _beginSamples,
+      fourthLength: _channelSamples,
+    )) {
+      pixelBuffer.width = _horizontalPixels;
+      pixelBuffer.height = 2;
+      return true;
+    }
     _lowPassFilter.reset();
     for (int i = _beginSamples; i < _endSamples; ++i) {
       scratchBuffer[i] = _lowPassFilter.avg(scanLineBuffer[syncPulseIndex + i]);

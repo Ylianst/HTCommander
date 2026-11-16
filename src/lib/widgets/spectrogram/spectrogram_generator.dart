@@ -22,6 +22,7 @@ import 'dart:typed_data';
 
 import 'spectrogram_colormap.dart';
 import 'spectrogram_fft.dart';
+import 'native_spectrogram.dart';
 
 class SpectrogramGenerator {
   /// Samples per second.
@@ -52,11 +53,17 @@ class SpectrogramGenerator {
   /// Number of frequency bins (vertical pixels) in the output image.
   late final int height;
 
-  final SpectrogramFft _fft;
+  final bool _useNative;
+  late final SpectrogramFft _fft = SpectrogramFft(
+    fftSize,
+    useNative: _useNative,
+  );
   final Float64List _window;
   final Float64List _re;
   final Float64List _im;
   final _SampleBuffer _buffer = _SampleBuffer();
+  NativeSpectrogram? _native;
+  bool _disposed = false;
 
   /// One Float64List per spectrogram column; length is the image width.
   final List<Float64List> _ffts = [];
@@ -76,7 +83,7 @@ class SpectrogramGenerator {
     this.maxFreq = double.infinity,
     bool useNative = true,
   }) : stepSize = (stepSize ?? (fftSize ~/ 20)).clamp(1, fftSize),
-       _fft = SpectrogramFft(fftSize, useNative: useNative),
+       _useNative = useNative,
        _window = Float64List(fftSize),
        _re = Float64List(fftSize),
        _im = Float64List(fftSize) {
@@ -92,6 +99,13 @@ class SpectrogramGenerator {
         ? fftSize ~/ 2
         : (maxFreq / hzPerPixel).floor();
     height = fftIndex2 - fftIndex1;
+    RangeError.checkValueInInterval(fftIndex1, 0, fftSize ~/ 2, 'minFreq');
+    RangeError.checkValueInInterval(
+      fftIndex2,
+      fftIndex1,
+      fftSize ~/ 2,
+      'maxFreq',
+    );
 
     // Hann window.
     if (fftSize == 1) {
@@ -100,31 +114,58 @@ class SpectrogramGenerator {
       for (int i = 0; i < fftSize; i++) {
         _window[i] = 0.5 * (1.0 - math.cos(2.0 * math.pi * i / (fftSize - 1)));
       }
+      if (useNative) {
+        _native = createNativeSpectrogram(
+          fftSize,
+          this.stepSize,
+          fftIndex1,
+          fftIndex2,
+          _window,
+        );
+      }
     }
   }
 
   /// Number of FFT columns currently stored (the image width).
-  int get width => _ffts.length;
+  int get width => _native?.width ?? _ffts.length;
 
   /// Number of complete FFT windows waiting to be processed.
-  int get fftsToProcess => (_buffer.length - fftSize) ~/ stepSize;
+  int get fftsToProcess =>
+      _native?.pending ?? (_buffer.length - fftSize) ~/ stepSize;
 
   /// Column index that will be written next (used for the roll-mode marker).
   int get nextColumnIndex =>
-      width > 0 ? (_fftsProcessed + _rollOffset) % width : 0;
+      _native?.nextColumn ??
+      (width > 0 ? (_fftsProcessed + _rollOffset) % width : 0);
+
+  void _checkAlive() {
+    if (_disposed) throw StateError('Spectrogram disposed');
+  }
 
   /// Append raw audio samples (already converted to doubles).
   void addSamples(Float64List samples, [int offset = 0, int? length]) {
+    _checkAlive();
     final count = length ?? (samples.length - offset);
     if (count <= 0) return;
+    final native = _native;
+    if (native != null) {
+      native.addSamples(samples, offset, count);
+      return;
+    }
     _buffer.addAll(samples, offset, count);
   }
 
   /// Append 16-bit little-endian PCM audio (as delivered by the radio/mic).
   void addPcm16(Uint8List bytes, [int offset = 0, int? length]) {
+    _checkAlive();
     final count = length ?? (bytes.length - offset);
     final sampleCount = count ~/ 2;
     if (sampleCount <= 0) return;
+    final native = _native;
+    if (native != null) {
+      native.addPcm16(bytes, offset, sampleCount);
+      return;
+    }
     final data = ByteData.sublistView(bytes, offset, offset + sampleCount * 2);
     _buffer.addPcm16(data);
   }
@@ -132,11 +173,23 @@ class SpectrogramGenerator {
   /// Reset the next-column marker so the next processed FFT lands at the far
   /// left (used when starting a fresh roll-mode sweep).
   void rollReset([int offset = 0]) {
+    _checkAlive();
+    final native = _native;
+    if (native != null) {
+      native.rollReset(offset);
+      return;
+    }
     _rollOffset = -_fftsProcessed + offset;
   }
 
   /// Advance through buffered FFT windows, computing only retained history.
   void process() {
+    _checkAlive();
+    final native = _native;
+    if (native != null) {
+      native.process();
+      return;
+    }
     final count = fftsToProcess;
     if (count < 1) return;
 
@@ -177,6 +230,12 @@ class SpectrogramGenerator {
   /// columns or trimming the oldest ones. Nonpositive values allow history to
   /// grow again without discarding the currently retained columns.
   void setFixedWidth(int columns) {
+    _checkAlive();
+    final native = _native;
+    if (native != null) {
+      native.setFixedWidth(columns);
+      return;
+    }
     if (columns == _fixedWidth) return;
     final keep = columns > 0 ? math.min(columns, width) : width;
     final retained = List<Float64List>.generate(
@@ -214,6 +273,7 @@ class SpectrogramGenerator {
     bool roll = false,
     int? newColumnCount,
   }) {
+    _checkAlive();
     if (newColumnCount != null) {
       RangeError.checkNotNegative(newColumnCount, 'newColumnCount');
     }
@@ -223,6 +283,11 @@ class SpectrogramGenerator {
 
     final count = math.min(newColumnCount ?? w, w);
     if (count == 0) return;
+    final native = _native;
+    if (native != null) {
+      native.render(rgba, colormap, intensity, dbScale, decibel, roll, count);
+      return;
+    }
 
     if (!roll && count < w) {
       final rowBytes = w * 4;
@@ -269,6 +334,12 @@ class SpectrogramGenerator {
 
   /// Discard all stored audio and FFT columns.
   void clear() {
+    _checkAlive();
+    final native = _native;
+    if (native != null) {
+      native.clear();
+      return;
+    }
     if (_fixedWidth > 0) {
       for (final column in _ffts) {
         column.fillRange(0, height, 0);
@@ -284,6 +355,12 @@ class SpectrogramGenerator {
 
   /// Frequency (Hz) and magnitude of the dominant bin in the most recent FFT.
   ({double freqHz, double magnitude}) getPeak() {
+    _checkAlive();
+    final native = _native;
+    if (native != null) {
+      final (bin, magnitude) = native.peak();
+      return (freqHz: bin * hzPerPixel, magnitude: magnitude);
+    }
     if (_ffts.isEmpty) {
       return (freqHz: double.nan, magnitude: double.nan);
     }
@@ -298,6 +375,12 @@ class SpectrogramGenerator {
     }
     final freqHz = (fftIndex1 + peakIndex) * hzPerPixel;
     return (freqHz: freqHz, magnitude: peakMagnitude);
+  }
+
+  void dispose() {
+    if (_disposed) return;
+    _native?.dispose();
+    _disposed = true;
   }
 }
 

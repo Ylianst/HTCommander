@@ -28,6 +28,7 @@ void main() {
   SatellitePredictor predictor() => SatellitePredictor(
     observer: observer,
     satellites: [SatelliteInfo(tle: _tle)],
+    useNative: false,
   );
 
   test(
@@ -112,6 +113,7 @@ void main() {
       await rejected;
       final bad = SatellitePredictor(
         observer: observer,
+        useNative: false,
         satellites: [
           SatelliteInfo(
             tle: const SatelliteTle(

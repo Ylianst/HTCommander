@@ -174,6 +174,7 @@ class SpectrogramController extends ChangeNotifier {
       minFreq: minFrequency ?? old.minFreq,
       maxFreq: maxFrequency ?? old.maxFreq,
     );
+    old.dispose();
     _generator.setFixedWidth(_columnCount);
     clear();
   }
@@ -243,6 +244,7 @@ class SpectrogramController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _timer?.cancel();
+    _generator.dispose();
     _timer = null;
     _image?.dispose();
     _image = null;

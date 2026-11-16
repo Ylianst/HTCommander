@@ -19,6 +19,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/radio/cw_decoder.dart';
+import 'package:htcommander/radio/native_cw.dart';
 
 const int _fs = 32000;
 
@@ -173,6 +174,129 @@ Float64List _concat(List<Float64List> parts) {
 }
 
 void main() {
+  group('CW native/reference parity', () {
+    test(
+      'selects the reference explicitly and the platform default safely',
+      () {
+        final reference = CwDecoder(useNative: false);
+        final automatic = CwDecoder();
+        expect(reference.usingNative, isFalse);
+        expect(automatic.usingNative, nativeCwEnabled);
+        reference.dispose();
+        automatic.dispose();
+      },
+    );
+
+    test(
+      'matches text, WPM and tone through chunking, idle, flush and reset',
+      () {
+        final noisy = _renderCw('PARIS', _tone(712.5, 0.4), wpm: 20);
+        _addNoise(noisy, 0.12, 72);
+        final signals = [
+          _renderCw('SOS', _tone(700, 0.5)),
+          _concat([
+            _silence(70),
+            noisy,
+            _silence(2000),
+            _renderCw('OK', _tone(400, 0.2), wpm: 10),
+          ]),
+          _renderCw('TEST', _noise(0.7, 31)),
+          _renderCw('SOS', _tone(1200, 0.6)),
+          _renderCw('CQ', _twoTones(700, 0.3, 1500, 0.6)),
+          _silence(20),
+        ];
+        for (final chunk in [1, 127, 640, 2048, 1 << 30]) {
+          final expected = <(String, int)>[];
+          final actual = <(String, int)>[];
+          final reference = CwDecoder(
+            useNative: false,
+            onDecoded: (text, wpm) => expected.add((text, wpm)),
+          );
+          final decoder = CwDecoder(
+            onDecoded: (text, wpm) => actual.add((text, wpm)),
+          );
+          try {
+            for (int signal = 0; signal < signals.length; signal++) {
+              final samples = signals[signal];
+              for (int i = 0; i < samples.length; i += chunk) {
+                final part = Float64List.sublistView(
+                  samples,
+                  i,
+                  math.min(i + chunk, samples.length),
+                );
+                reference.addSamples(part);
+                decoder.addSamples(part);
+              }
+              expect(actual, expected, reason: 'before flush, chunk $chunk');
+              reference.flush();
+              decoder.flush();
+              decoder.flush();
+              expect(actual, expected, reason: 'after flush, chunk $chunk');
+              expect(decoder.lastToneHz, reference.lastToneHz);
+              if (signal == 0) expect(actual.single.$1, 'SOS');
+              if (signal >= 2) expect(actual, isEmpty);
+              reference.reset();
+              decoder.reset();
+              expect(decoder.lastToneHz, 0);
+              expected.clear();
+              actual.clear();
+            }
+          } finally {
+            reference.dispose();
+            decoder.dispose();
+          }
+        }
+      },
+    );
+
+    test('dispose is idempotent and rejects subsequent processing', () {
+      final decoder = CwDecoder();
+      decoder.addSamples(_silence(20));
+      decoder.dispose();
+      decoder.dispose();
+      expect(() => decoder.addSamples(Float64List(0)), throwsStateError);
+      expect(() => decoder.processPcm16(Uint8List(0), 0, 0), throwsStateError);
+      expect(decoder.flush, throwsStateError);
+      expect(decoder.reset, throwsStateError);
+    });
+
+    test('reset discards buffered windows and a pending transmission', () {
+      final expected = <(String, int)>[];
+      final actual = <(String, int)>[];
+      final reference = CwDecoder(
+        useNative: false,
+        onDecoded: (text, wpm) => expected.add((text, wpm)),
+      );
+      final decoder = CwDecoder(
+        onDecoded: (text, wpm) => actual.add((text, wpm)),
+      );
+      try {
+        final abandoned = _renderCw('PARIS', _tone(400, 0.4));
+        decoder.addSamples(Float64List.sublistView(abandoned, 0, 17017));
+        decoder.reset();
+        decoder.flush();
+        expect(actual, isEmpty);
+        final samples = _renderCw('SOS', _tone(750, 0.2));
+        reference.addSamples(samples);
+        decoder.addSamples(samples);
+        reference.flush();
+        decoder.flush();
+        expect(actual, expected);
+        expect(actual.single.$1, 'SOS');
+        expect(decoder.lastToneHz, reference.lastToneHz);
+      } finally {
+        reference.dispose();
+        decoder.dispose();
+      }
+    });
+
+    test('validates window geometry before allocating', () {
+      expect(() => CwDecoder(probeStepHz: 0), throwsArgumentError);
+      expect(() => CwDecoder(hopSize: 513), throwsArgumentError);
+      expect(() => CwDecoder(windowSize: 0), throwsArgumentError);
+    });
+  });
+
   group('CwDecoder decoding', () {
     test('decodes a clean 700 Hz message', () {
       final s = _renderCw('PARIS', _tone(700, 0.5));
@@ -250,7 +374,10 @@ void main() {
     test('reuses PCM storage across varying lengths, offsets and resets', () {
       final expected = <(String, int)>[];
       final actual = <(String, int)>[];
-      final reference = CwDecoder(onDecoded: (t, w) => expected.add((t, w)));
+      final reference = CwDecoder(
+        useNative: false,
+        onDecoded: (t, w) => expected.add((t, w)),
+      );
       final decoder = CwDecoder(onDecoded: (t, w) => actual.add((t, w)));
       const chunks = [2048, 1, 17, 640, 4096, 3, 128];
       final packet = Uint8List(4096 * 2 + 5);

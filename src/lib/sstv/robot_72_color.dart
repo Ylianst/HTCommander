@@ -24,7 +24,10 @@ class Robot_72_Color extends BaseMode {
   final int _uBeginSamples;
   final int _endSamples;
 
-  factory Robot_72_Color(int sampleRate) {
+  factory Robot_72_Color(
+    int sampleRate, {
+    bool useNative = !const bool.fromEnvironment('HT_SSTV_DART'),
+  }) {
     const horizontalPixels = 320;
     const verticalPixels = 240;
     const double syncPulseSeconds = 0.009;
@@ -56,6 +59,7 @@ class Robot_72_Color extends BaseMode {
       sstvRound(vBeginSeconds * sampleRate),
       sstvRound(uBeginSeconds * sampleRate),
       sstvRound(uEndSeconds * sampleRate),
+      useNative,
     );
   }
 
@@ -70,7 +74,9 @@ class Robot_72_Color extends BaseMode {
     this._vBeginSamples,
     this._uBeginSamples,
     this._endSamples,
-  ) : _lowPassFilter = ExponentialMovingAverage();
+    bool useNative,
+  ) : _lowPassFilter = ExponentialMovingAverage(),
+      super(useNative: useNative);
 
   static double _freqToLevel(double frequency, double offset) =>
       0.5 * (frequency - offset + 1.0);
@@ -107,6 +113,28 @@ class Robot_72_Color extends BaseMode {
       return false;
     }
     _lowPassFilter.cutoff(_horizontalPixels, 2 * _luminanceSamples, 2);
+    if (nativeScanLine(
+      pixelBuffer,
+      scratchBuffer,
+      scanLineBuffer,
+      sourceStart: syncPulseIndex + _beginSamples,
+      scratchStart: _beginSamples,
+      count: _endSamples - _beginSamples,
+      width: _horizontalPixels,
+      kind: 1,
+      alpha: _lowPassFilter.coefficient,
+      frequencyOffset: frequencyOffset,
+      first: _yBeginSamples - _beginSamples,
+      firstLength: _luminanceSamples,
+      second: _uBeginSamples - _beginSamples,
+      secondLength: _chrominanceSamples,
+      third: _vBeginSamples - _beginSamples,
+      thirdLength: _chrominanceSamples,
+    )) {
+      pixelBuffer.width = _horizontalPixels;
+      pixelBuffer.height = 1;
+      return true;
+    }
     _lowPassFilter.reset();
     for (int i = _beginSamples; i < _endSamples; ++i) {
       scratchBuffer[i] = _lowPassFilter.avg(scanLineBuffer[syncPulseIndex + i]);

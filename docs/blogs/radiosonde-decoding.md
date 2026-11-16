@@ -112,9 +112,12 @@ No external decoder executable, download, or additional runtime is needed.
 The per-sample matched-filter scans, timing recovery, and bit slicing run
 natively for DFM, RS41, M10/M20, and LMS6. iMet's tone detection, transition
 reconstruction, and serial deframing also run natively. Only compact candidate
-frames cross back into Dart; the existing error correction, CRCs, stateful
-serial/calibration assembly, coordinate parsing, and monitor events are
-unchanged. The monitor reuses a native recording context: each run is uploaded
+frames cross back into Dart. RS41/LMS6 Reed-Solomon correction now also uses
+the shared native ECC asset, preserving the original field parameters and
+correction/mutation behavior; see [native ECC](../native-reed-solomon.md).
+Other correction, CRCs, stateful serial/calibration assembly, coordinate
+parsing, and monitor events retain their existing Dart implementations.
+The monitor reuses a native recording context: each run is uploaded
 once for all six families, and its DC-removed prefix sums are computed once and
 shared by the matched-filter formats. PCM and prefix capacity survive between
 runs; a new upload invalidates the cached sums, including same-sized uploads.

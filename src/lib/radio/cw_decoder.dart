@@ -3,20 +3,21 @@ Copyright 2026 Ylian Saint-Hilaire
 Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 
-Pure-Dart receive-side CW (Morse) decoder for FM audio. It listens for a keyed
+Receive-side CW (Morse) decoder for FM audio. It listens for a keyed
 tone in a band covering typical CW pitches (default ~250-900 Hz), converts the
 tone on/off envelope into mark/space durations, and feeds them to the shared
 [MorseDecoder] for text. To avoid false positives on voice, each analysis frame
 is scored for spectral purity (how much of the frame's energy sits in the single
 CW peak): a frame is only treated as a tone when its energy is concentrated, so
-broadband speech is rejected. Kept free of Flutter/dart:io so it can be
-unit-tested.
+broadband speech is rejected. The optional batched native front end only
+computes spectral metrics; envelope, timing and text remain in Dart.
 */
 
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'morse_keyer.dart';
+import 'native_cw.dart';
 
 /// Called when a complete CW transmission has been decoded to [text]. [wpm] is
 /// the decoder's estimated sending speed.
@@ -31,6 +32,7 @@ typedef CwDecodedCallback = void Function(String text, int wpm);
 ///
 /// PCM conversion storage grows to the largest block received and is retained
 /// across [reset]. Goertzel scratch storage is reused and cleared every window.
+/// Call [dispose] when finished, or native storage is released by a finalizer.
 class CwDecoder {
   CwDecoder({
     this.sampleRate = 32000,
@@ -45,8 +47,18 @@ class CwDecoder {
     this.debounceMs = 15,
     this.idleFinishMs = 1500,
     this.minChars = 2,
+    this.useNative = true,
     this.onDecoded,
   }) {
+    if (sampleRate <= 0 ||
+        bandLowHz < 0 ||
+        bandHighHz < bandLowHz ||
+        probeStepHz <= 0 ||
+        windowSize <= 0 ||
+        hopSize <= 0 ||
+        hopSize > windowSize) {
+      throw ArgumentError('Invalid CW sample rate, probes or window geometry');
+    }
     // Pre-compute one Goertzel coefficient per probe frequency spanning the CW
     // band. The peak across these probes estimates the tone regardless of its
     // exact pitch inside the band.
@@ -59,6 +71,10 @@ class CwDecoder {
     _s1 = Float64List(_coeffs.length);
     _s2 = Float64List(_coeffs.length);
     _halfN = windowSize / 2.0;
+    // Unusually large custom configurations retain the unrestricted reference.
+    _native = useNative && _coeffs.length <= 4096 && windowSize <= 1048576
+        ? createNativeCw(_coeffs, windowSize, hopSize)
+        : null;
   }
 
   final int sampleRate;
@@ -67,6 +83,12 @@ class CwDecoder {
   final int probeStepHz;
   final int windowSize;
   final int hopSize;
+
+  /// Set false for the original Dart reference. HT_CW_DART also forces Dart.
+  final bool useNative;
+
+  /// Whether this decoder selected the native spectral front end.
+  bool get usingNative => _native != null;
 
   /// Minimum fraction of a frame's energy that must sit in the CW peak for the
   /// frame to count as a tone (0..1). Higher rejects voice more aggressively.
@@ -99,6 +121,8 @@ class CwDecoder {
   Float64List _pcmSamples = Float64List(0);
   final List<double> _probeFreqs = <double>[];
   late final double _halfN;
+  late final NativeCw? _native;
+  bool _disposed = false;
 
   // Elements of the current transmission, in order, as (durationMs, isTone).
   final List<_Seg> _segments = <_Seg>[];
@@ -127,6 +151,7 @@ class CwDecoder {
 
   /// Feeds 16-bit signed little-endian PCM. [offset]/[length] are in bytes.
   void processPcm16(Uint8List pcm, int offset, int length) {
+    _checkNotDisposed();
     if (length <= 1) return;
     final count = length ~/ 2;
     if (_pcmSamples.length < count) {
@@ -144,6 +169,7 @@ class CwDecoder {
 
   /// Feeds float audio samples normalized to -1..1.
   void addSamples(Float64List samples) {
+    _checkNotDisposed();
     _addSamples(samples, samples.length);
   }
 
@@ -153,8 +179,27 @@ class CwDecoder {
       _buffer.add(samples[i]);
     }
     while (_buffer.length - _readPos >= windowSize) {
-      _processWindow(_readPos);
-      _readPos += hopSize;
+      final native = _native;
+      if (native == null) {
+        _processWindow(_readPos);
+        _readPos += hopSize;
+      } else {
+        final windows = math.min(
+          NativeCw.maxWindows,
+          1 + (_buffer.length - _readPos - windowSize) ~/ hopSize,
+        );
+        final metrics = native.analyze(_buffer, _readPos, windows);
+        for (int w = 0; w < windows; w++) {
+          final peak = metrics[w * 3 + 2].toInt();
+          _processMetrics(
+            _readPos,
+            metrics[w * 3],
+            metrics[w * 3 + 1],
+            peak >= 0 ? _probeFreqs[peak] : 0.0,
+          );
+          _readPos += hopSize;
+        }
+      }
     }
     // Drop consumed samples, keeping the tail still needed by future windows.
     if (_readPos > 0) {
@@ -193,6 +238,15 @@ class CwDecoder {
       }
     }
 
+    _processMetrics(start, energy, maxPower, peakFreq);
+  }
+
+  void _processMetrics(
+    int start,
+    double energy,
+    double maxPower,
+    double peakFreq,
+  ) {
     // Amplitude estimate of the peak tone (0..1) and its spectral purity: the
     // fraction of frame energy concentrated in the single CW peak. A pure tone
     // approaches 1.0; broadband voice spreads energy and stays well below.
@@ -220,7 +274,7 @@ class CwDecoder {
       }
     }
 
-    final frameMs = (_absBase + start + n / 2.0) / sampleRate * 1000.0;
+    final frameMs = (_absBase + start + windowSize / 2.0) / sampleRate * 1000.0;
     _lastFrameMs = frameMs;
     _updateEnvelope(frameMs, toneOn);
 
@@ -340,6 +394,7 @@ class CwDecoder {
   /// Forces any pending transmission to be finalized and emitted. Call at the
   /// end of a receive burst so the last characters aren't held back.
   void flush() {
+    _checkNotDisposed();
     final now = _lastFrameMs;
     if (_committedTone) {
       _segments.add(_Seg(now - _lastEdgeMs, true));
@@ -352,6 +407,7 @@ class CwDecoder {
 
   /// Clears all state without emitting, e.g. when switching radios or modes.
   void reset() {
+    _checkNotDisposed();
     _buffer.clear();
     _readPos = 0;
     _absBase = 0;
@@ -363,6 +419,19 @@ class CwDecoder {
     _lastFrameMs = 0.0;
     _lastToneHz = 0.0;
     _segments.clear();
+  }
+
+  void _checkNotDisposed() {
+    if (_disposed) throw StateError('CW decoder is disposed');
+  }
+
+  /// Releases reusable storage without emitting pending text. Idempotent.
+  void dispose() {
+    if (_disposed) return;
+    reset();
+    _native?.dispose();
+    _pcmSamples = Float64List(0);
+    _disposed = true;
   }
 }
 

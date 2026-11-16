@@ -16,7 +16,7 @@ class RawDecoder extends BaseMode {
   final int _mediumPictureMaxSamples;
   final String _name;
 
-  RawDecoder(String name, int sampleRate)
+  RawDecoder(String name, int sampleRate, {super.useNative})
     : _name = name,
       _smallPictureMaxSamples = sstvRound(0.125 * sampleRate),
       _mediumPictureMaxSamples = sstvRound(0.175 * sampleRate),
@@ -60,6 +60,24 @@ class RawDecoder extends BaseMode {
     if (scanLineSamples < _smallPictureMaxSamples) horizontalPixels ~/= 2;
     if (scanLineSamples < _mediumPictureMaxSamples) horizontalPixels ~/= 2;
     _lowPassFilter.cutoff(horizontalPixels, 2 * scanLineSamples, 2);
+    if (nativeScanLine(
+      pixelBuffer,
+      scratchBuffer,
+      scanLineBuffer,
+      sourceStart: syncPulseIndex,
+      scratchStart: 0,
+      count: scanLineSamples,
+      width: horizontalPixels,
+      kind: 5,
+      alpha: _lowPassFilter.coefficient,
+      frequencyOffset: frequencyOffset,
+      first: 0,
+      firstLength: scanLineSamples,
+    )) {
+      pixelBuffer.width = horizontalPixels;
+      pixelBuffer.height = 1;
+      return true;
+    }
     _lowPassFilter.reset();
     for (int i = 0; i < scanLineSamples; ++i) {
       scratchBuffer[i] = _lowPassFilter.avg(scanLineBuffer[syncPulseIndex + i]);

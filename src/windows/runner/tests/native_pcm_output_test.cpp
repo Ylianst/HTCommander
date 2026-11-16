@@ -5,7 +5,7 @@
 // cl /nologo /std:c++17 /EHsc /W4 /WX /DNOMINMAX /D_WINMM_ ^
 //   src\windows\runner\native_pcm_output.cpp ^
 //   src\windows\runner\tests\native_pcm_output_test.cpp ^
-//   /Fe:native_pcm_output_test.exe /link user32.lib
+//   /Fe:native_pcm_output_test.exe /link user32.lib avrt.lib
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif

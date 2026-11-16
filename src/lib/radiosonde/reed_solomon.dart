@@ -12,6 +12,7 @@ also provides a systematic encoder used by the round-trip tests.
 library;
 
 import 'dart:typed_data';
+import '../fec/native_reed_solomon.dart';
 
 /// Reed-Solomon codec over GF(2^8). Codeword layout matches the reference
 /// `bch_ecc_mod.c`: c(x) = sum cw[i]*x^i, parity in cw[0..R-1], message in
@@ -23,6 +24,7 @@ class ReedSolomon {
     int prim = 0x11D,
     this.alpha = 2,
     this.primPow = 1,
+    this.useNative = true,
   }) {
     _exp = Uint8List(512);
     _log = Uint8List(256);
@@ -66,6 +68,49 @@ class ReedSolomon {
   final int fcr; // first consecutive root exponent (b)
   final int alpha;
   final int primPow; // p: code uses beta = alpha^p as the root base
+  /// Disable to use the portable reference implementation (including tests).
+  final bool useNative;
+  NativeReedSolomon? _native;
+
+  NativeReedSolomon? get _nativePlan {
+    if (!useNative ||
+        !nativeReedSolomonSupported ||
+        nroots < 1 ||
+        nroots > 254 ||
+        fcr < 0 ||
+        fcr > 254 ||
+        primPow < 1 ||
+        primPow > 254) {
+      return null;
+    }
+    return _native ??= createNativeReedSolomon(
+      mode: 0,
+      roots: nroots,
+      fcr: fcr,
+      prim: primPow,
+      inversePrim: _ip,
+      exp: _exp,
+      log: _log,
+      generator: _gen,
+    );
+  }
+
+  /// Releases cached native storage; a subsequent call recreates it.
+  void dispose() {
+    _native?.dispose();
+    _native = null;
+  }
+
+  void _validate(List<int> cw) {
+    if (cw.length != n) {
+      throw ArgumentError.value(cw.length, 'cw.length', 'Expected 255');
+    }
+    if (cw is! Uint8List) {
+      for (final symbol in cw) {
+        RangeError.checkValueInInterval(symbol, 0, 255, 'symbol');
+      }
+    }
+  }
 
   late final Uint8List _exp;
   late final Uint8List _log;
@@ -102,6 +147,12 @@ class ReedSolomon {
   /// Systematic encode: [cw] has the message bytes already placed at
   /// cw[nroots..N-1]; this fills the parity bytes cw[0..nroots-1].
   void encode(List<int> cw) {
+    _validate(cw);
+    final native = _nativePlan;
+    if (native != null) {
+      native.encode(cw);
+      return;
+    }
     // remainder of cw(x) by g(x); message occupies high coefficients.
     final rem = List<int>.filled(nroots, 0);
     for (int i = n - 1; i >= nroots; i--) {
@@ -120,6 +171,9 @@ class ReedSolomon {
   /// Decodes [cw] (length 255) in place. Returns the number of corrected
   /// errors, or -1 if uncorrectable.
   int decode(List<int> cw) {
+    _validate(cw);
+    final native = _nativePlan;
+    if (native != null) return native.decode(cw);
     // 1. Syndromes: S_i = c((alpha^p)^(fcr+i)).
     final s = List<int>.filled(nroots, 0);
     bool anyError = false;

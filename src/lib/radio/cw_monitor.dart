@@ -26,10 +26,7 @@ class CwDecoded {
 /// Monitors received audio for on/off-keyed CW tones and reports decoded text.
 class CwMonitor {
   CwMonitor({int sampleRate = 32000}) {
-    _decoder = CwDecoder(
-      sampleRate: sampleRate,
-      onDecoded: _onDecoded,
-    );
+    _decoder = CwDecoder(sampleRate: sampleRate, onDecoded: _onDecoded);
   }
 
   late final CwDecoder _decoder;
@@ -69,6 +66,7 @@ class CwMonitor {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _decoder.dispose();
     _decodedController.close();
   }
 }

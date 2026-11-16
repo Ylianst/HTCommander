@@ -23,6 +23,7 @@ limitations under the License.
 import 'dart:typed_data';
 
 import 'fx25.dart';
+import 'reed_solomon_codec.dart';
 
 /// FX.25 Reed-Solomon encoding operations.
 class Fx25Encode {
@@ -32,32 +33,11 @@ class Fx25Encode {
   /// check bytes (parity symbols) into [bb].
   ///
   /// After encoding, transmit: [correlation_tag][data][bb].
-  static void encodeRs(ReedSolomonCodec rs, Uint8List data, Uint8List bb) {
-    // Clear out the FEC data area (check bytes buffer)
-    bb.fillRange(0, rs.nRoots, 0);
-
-    // Process each data symbol.
-    for (int i = 0; i < rs.nn - rs.nRoots; i++) {
-      // Compute feedback term by XORing current data byte with first check byte
-      // and converting to index form using logarithm lookup table.
-      final int feedback = rs.indexOf[data[i] ^ bb[0]];
-
-      // If feedback term is non-zero (not A0 which represents log of zero)
-      if (feedback != rs.nn) {
-        for (int j = 1; j < rs.nRoots; j++) {
-          bb[j] ^= rs.alphaTo[rs.modNN(feedback + rs.genPoly[rs.nRoots - j])];
-        }
-      }
-
-      // Shift check bytes left by one position.
-      bb.setRange(0, rs.nRoots - 1, bb.sublist(1, rs.nRoots));
-
-      // Compute new last check byte.
-      if (feedback != rs.nn) {
-        bb[rs.nRoots - 1] = rs.alphaTo[rs.modNN(feedback + rs.genPoly[0])];
-      } else {
-        bb[rs.nRoots - 1] = 0;
-      }
-    }
-  }
+  /// Set [useNative] to false to force the Dart reference encoder.
+  static void encodeRs(
+    ReedSolomonCodec rs,
+    Uint8List data,
+    Uint8List bb, {
+    bool useNative = true,
+  }) => ReedSolomon.encode(rs, data, bb, useNative: useNative);
 }

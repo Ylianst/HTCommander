@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:satellite_observer/satellite_observer.dart' as so;
 
 import '../services/decoder_worker.dart';
+import 'satellite_computation.dart';
 import 'satellite_models.dart';
 
 /// Earth-fixed kilometres: current position followed by the sampled orbit.
@@ -22,10 +23,11 @@ typedef GlobeSnapshotLoader =
 /// One ordered request at a time; the globe coalesces updates while busy.
 /// Engines and inertial orbit samples remain on the worker between snapshots.
 class SatelliteGlobeWorker {
-  SatelliteGlobeWorker() {
+  SatelliteGlobeWorker({bool useNative = true}) {
     _worker = DecoderWorker(
       name: 'satellite-globe',
       factory: _createProcessor,
+      config: useNative,
       maxPendingCommands: 2,
       onEvent: (event) {
         final pending = _pending;
@@ -81,15 +83,16 @@ class SatelliteGlobeWorker {
 DecoderProcessor _createProcessor(
   Object? config,
   void Function(Object?) emit,
-) => _GlobeProcessor(emit);
+) => _GlobeProcessor(emit, config as bool);
 
 class _OrbitEntry {
-  _OrbitEntry(this.tle)
-    : engine = so.Sgp4Engine(
+  _OrbitEntry(this.tle, bool useNative)
+    : engine = SatelliteComputation(
         so.GpElements.fromTle(tle.line1, tle.line2, name: tle.name),
+        useNative: useNative,
       );
   final SatelliteTle tle;
-  final so.Sgp4Engine engine;
+  final SatelliteComputation engine;
   DateTime? epoch;
   Float64List? orbit;
   DateTime? snapshotUtc;
@@ -97,15 +100,20 @@ class _OrbitEntry {
 }
 
 class _GlobeProcessor implements DecoderProcessor {
-  _GlobeProcessor(this.emit);
+  _GlobeProcessor(this.emit, this.useNative);
   final void Function(Object?) emit;
+  final bool useNative;
   final Map<int, _OrbitEntry> _entries = {};
 
   @override
   Future<void> process(Object? command) async {
     final (satellites, utc) = command as (List<SatelliteTle>, DateTime);
     final ids = satellites.map((s) => s.noradId).toSet();
-    _entries.removeWhere((id, _) => !ids.contains(id));
+    _entries.removeWhere((id, entry) {
+      if (ids.contains(id)) return false;
+      entry.engine.dispose();
+      return true;
+    });
     final result = <int, GlobeOrbit>{};
     final angle = _gmstRad(utc);
     final c = math.cos(angle), s = math.sin(angle);
@@ -115,7 +123,8 @@ class _GlobeProcessor implements DecoderProcessor {
         if (entry == null ||
             entry.tle.line1 != tle.line1 ||
             entry.tle.line2 != tle.line2) {
-          entry = _OrbitEntry(tle);
+          entry?.engine.dispose();
+          entry = _OrbitEntry(tle, useNative);
           _entries[tle.noradId] = entry;
         }
         if (entry.snapshotUtc == utc) {
@@ -131,16 +140,19 @@ class _GlobeProcessor implements DecoderProcessor {
           final period = n != null && n > 0 ? 1440 / n : 95.0;
           final samples = period > 300 ? 240 : 160;
           final orbit = Float64List((samples + 1) * 3);
+          final times = [
+            for (var i = 0; i <= samples; i++)
+              utc.add(
+                Duration(milliseconds: (period * 60000 * i / samples).round()),
+              ),
+          ];
+          // One bounded native call for the whole orbit. The web/reference
+          // loop retains its existing cooperative yielding.
+          final states = entry.engine.isNative
+              ? entry.engine.propagateBatch(times)
+              : null;
           for (var i = 0; i <= samples; i++) {
-            final p = entry.engine
-                .propagate(
-                  utc.add(
-                    Duration(
-                      milliseconds: (period * 60000 * i / samples).round(),
-                    ),
-                  ),
-                )
-                .position;
+            final p = (states?[i] ?? entry.engine.propagate(times[i])).position;
             orbit[i * 3] = p.x;
             orbit[i * 3 + 1] = p.y;
             orbit[i * 3 + 2] = p.z;
@@ -169,14 +181,19 @@ class _GlobeProcessor implements DecoderProcessor {
         result[tle.noradId] = snapshot;
       } catch (_) {
         // A bad TLE must not hide the rest of the catalog.
-        _entries.remove(tle.noradId);
+        _entries.remove(tle.noradId)?.engine.dispose();
       }
     }
     emit(result);
   }
 
   @override
-  void dispose() => _entries.clear();
+  void dispose() {
+    for (final entry in _entries.values) {
+      entry.engine.dispose();
+    }
+    _entries.clear();
+  }
 }
 
 /// Greenwich Mean Sidereal Time (IAU-1982), treating UTC as UT1.

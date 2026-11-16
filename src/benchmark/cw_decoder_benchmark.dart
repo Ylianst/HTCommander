@@ -4,8 +4,14 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:htcommander/radio/cw_decoder.dart';
+import 'package:htcommander/radio/native_cw.dart';
 
 void main() {
+  stdout.writeln(
+    nativeCwEnabled
+        ? 'CW Dart/native benchmark (correctness checked before reporting)'
+        : 'CW Dart benchmark (native unavailable or HT_CW_DART=true)',
+  );
   const rate = 32000;
   const unit = rate * 80 ~/ 1000;
   const segments = [
@@ -60,36 +66,60 @@ void main() {
       pcm[i * 2] = value & 0xff;
       pcm[i * 2 + 1] = (value >> 8) & 0xff;
     }
-    for (final chunk in [640, 2048]) {
-      final times = <int>[];
-      for (int run = 0; run < 7; run++) {
-        final decoded = <String>[];
-        final decoder = CwDecoder(onDecoded: (text, _) => decoded.add(text));
-        final timer = Stopwatch()..start();
-        for (int offset = 0; offset < pcm.length; offset += chunk * 2) {
-          decoder.processPcm16(
-            pcm,
-            offset,
-            math.min(chunk * 2, pcm.length - offset),
+    String? referenceSignature;
+    for (final chunk in [640, 2048, 65536]) {
+      for (final useNative in [false, if (nativeCwEnabled) true]) {
+        final times = <int>[];
+        for (int run = 0; run < 7; run++) {
+          final decoded = <(String, int)>[];
+          final decoder = CwDecoder(
+            useNative: useNative,
+            onDecoded: (text, wpm) => decoded.add((text, wpm)),
           );
+          try {
+            if (decoder.usingNative != useNative) {
+              throw StateError('Requested CW backend was not selected');
+            }
+            final timer = Stopwatch()..start();
+            for (int offset = 0; offset < pcm.length; offset += chunk * 2) {
+              decoder.processPcm16(
+                pcm,
+                offset,
+                math.min(chunk * 2, pcm.length - offset),
+              );
+            }
+            decoder.flush();
+            timer.stop();
+            final expected = entry.key == 'keyed 700 Hz' ? 'SOS SOS SOS' : '';
+            if (decoded.map((result) => result.$1).join(' ') != expected) {
+              throw StateError(
+                '${entry.key}: unexpected decoded text $decoded',
+              );
+            }
+            final signature = '$decoded/${decoder.lastToneHz}';
+            referenceSignature ??= signature;
+            if (signature != referenceSignature) {
+              throw StateError(
+                '${entry.key}: text/WPM/tone or chunk parity failed: '
+                '$signature != $referenceSignature',
+              );
+            }
+            if (run >= 2) times.add(timer.elapsedMicroseconds);
+          } finally {
+            decoder.dispose();
+          }
         }
-        decoder.flush();
-        timer.stop();
-        final expected = entry.key == 'keyed 700 Hz' ? 'SOS SOS SOS' : '';
-        if (decoded.join(' ') != expected) {
-          throw StateError('${entry.key}: unexpected decoded text $decoded');
-        }
-        if (run >= 2) times.add(timer.elapsedMicroseconds);
+        times.sort();
+        final ms = times[times.length ~/ 2] / 1000;
+        final audioSeconds = samples.length / rate;
+        stdout.writeln(
+          '${useNative ? 'native' : 'Dart reference'}: '
+          '${entry.key}, $chunk samples/block, '
+          '${audioSeconds.toStringAsFixed(2)} s audio: '
+          '${ms.toStringAsFixed(2)} ms median, '
+          '${(audioSeconds * 1000 / ms).toStringAsFixed(1)}x realtime',
+        );
       }
-      times.sort();
-      final ms = times[times.length ~/ 2] / 1000;
-      final audioSeconds = samples.length / rate;
-      stdout.writeln(
-        '${entry.key}, $chunk samples/block, '
-        '${audioSeconds.toStringAsFixed(2)} s audio: '
-        '${ms.toStringAsFixed(2)} ms median, '
-        '${(audioSeconds * 1000 / ms).toStringAsFixed(1)}x realtime',
-      );
     }
   }
 }

@@ -24,6 +24,7 @@ abstract class IMode {
   Int32List postProcessScopeImage(Int32List pixels, int width, int height);
 
   void resetState();
+  void dispose();
 
   /// Decode a scan line.
   ///

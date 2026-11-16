@@ -15,8 +15,10 @@ streaming state. The FIR uses double-precision SSE2 on x64 and NEON on ARM64,
 with a portable scalar implementation for other architectures. No optional CPU
 instruction sets are required.
 
-Mode/VIS detection, scan-line decoding, image rendering, and receive events
-continue to use the existing Dart implementation. Web and iOS retain the Dart
+Scan-line two-pass EMA filtering, pixel sampling, and RGB/YUV conversion also
+run in one native call per line for RGB, Robot 36/72, PD, HF Fax, and raw modes.
+Mode/VIS detection, Robot 36 separator/parity state, HF Fax margin tracking,
+image rendering, and receive events remain in Dart. Web and iOS retain the Dart
 DSP path. Resetting, completing, or disposing a receiver releases its native
 state; a finalizer also protects abandoned decoders.
 
@@ -24,17 +26,44 @@ For comparison or troubleshooting, build with `--dart-define=HT_SSTV_DART=true`
 to use the original Dart DSP, or `--dart-define=HT_SSTV_SCALAR=true` to disable
 SIMD without disabling the native engine.
 
+`Decoder(useNative: false)` propagates to every receive-mode constructor.
+Individual mode constructors also accept `useNative: false`. Native scan-line
+storage grows only when required and is reused across calls; `Decoder.dispose`
+releases it for every owned mode. Direct mode users should call `dispose`;
+finalizers cover abandoned modes. Native allocation, symbol-resolution, and
+processing errors are surfaced rather than silently switching implementations.
+
+The scan-line path preserves sample/channel offsets, ties-to-even color
+rounding, gamma-compressed grayscale, Robot 36's packed alternating chroma,
+and HF Fax's existing buffer-origin behavior. It copies scratch output back to
+the caller, including the original untouched prefix/suffix semantics.
+
+A Windows x64 AOT scan-line benchmark measured **1.09-1.21x** improvement
+including FFI upload/copyback: Martin 1 **86.82 to 72.69 us/line**, Robot 36
+**34.30 to 29.56 us/line**, and raw **59.19 to 49.89 us/line**. All final
+pixels and scratch samples matched the Dart reference exactly. These are
+scan-line timings, not end-to-end receive or cross-platform guarantees.
+
 From `src`, run the differential tests and the complete-image benchmark:
 
 ```powershell
 flutter test test\sstv_native_test.dart
+flutter test test\sstv_scanline_test.dart
 dart run benchmark\sstv_receive_benchmark.dart
+dart run benchmark\sstv_scanline_benchmark.dart
 ```
 
 The benchmark decodes a complete Robot 36 transmission at 32 kHz in 128-sample
 blocks, verifies completion, discards a warm-up run, and reports the median of
 three runs for Dart, native scalar, and native SIMD. Performance depends on the
 CPU, architecture, and Dart compilation mode.
+
+The scan-line microbenchmark reports per-line time and Dart/native speedup
+including FFI buffer copies, with a warm-up and five measured runs for seven
+representative receive modes. It compares every final pixel and scratch sample
+exactly outside the timed region and isolates the
+scan-line work from demodulation. No scan-line speedup numbers have yet been
+collected on hardware; the older full-receive timings below predate this change.
 
 An initial Windows x64 AOT run measured 0.227 seconds for
 Dart, 0.218 seconds for native scalar, and 0.103 seconds for native SSE2: about

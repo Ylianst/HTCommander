@@ -8,6 +8,7 @@ import 'dart:math' as math;
 class ExponentialMovingAverage {
   double _alpha = 1;
   double _prev = 0;
+  double get coefficient => _alpha;
 
   double avg(double input) => _prev = _prev * (1 - _alpha) + _alpha * input;
 

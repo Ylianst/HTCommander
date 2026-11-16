@@ -23,14 +23,66 @@ limitations under the License.
 import 'dart:typed_data';
 
 import 'fx25.dart';
+import '../fec/native_reed_solomon.dart';
 
 /// Reed-Solomon encoding and decoding operations.
 class ReedSolomon {
   ReedSolomon._();
 
+  static final _plans = Expando<_NativeCodecSnapshot>();
+
+  static NativeReedSolomon? _nativeFor(ReedSolomonCodec rs, bool enabled) {
+    if (!enabled ||
+        !nativeReedSolomonSupported ||
+        rs.mm != 8 ||
+        rs.nn != 255 ||
+        rs.nRoots < 1 ||
+        rs.nRoots > 254 ||
+        rs.fcr < 0 ||
+        rs.fcr > 254 ||
+        rs.prim < 1 ||
+        rs.prim > 254 ||
+        rs.iPrim < 1 ||
+        rs.iPrim > 254) {
+      return null;
+    }
+    var snapshot = _plans[rs];
+    if (snapshot == null || !snapshot.matches(rs)) {
+      final replacement = _NativeCodecSnapshot(rs);
+      snapshot?.plan.dispose();
+      snapshot = replacement;
+      _plans[rs] = snapshot;
+    }
+    return snapshot.plan;
+  }
+
+  /// Release the cached native plan. Later calls recreate it if needed.
+  static void dispose(ReedSolomonCodec rs) {
+    _plans[rs]?.plan.dispose();
+    _plans[rs] = null;
+  }
+
   /// Encode [data] with Reed-Solomon error correction, writing the check
-  /// bytes into [bb].
-  static void encode(ReedSolomonCodec rs, Uint8List data, Uint8List bb) {
+  /// bytes into [bb]. Set [useNative] to false to force the Dart reference.
+  static void encode(
+    ReedSolomonCodec rs,
+    Uint8List data,
+    Uint8List bb, {
+    bool useNative = true,
+  }) {
+    RangeError.checkValidRange(0, rs.nn - rs.nRoots, data.length);
+    RangeError.checkValidRange(0, rs.nRoots, bb.length);
+    // Overlapping message/parity views have order-dependent reference
+    // semantics; retain that behavior instead of snapshotting their input.
+    final overlaps =
+        data.buffer.lengthInBytes == bb.buffer.lengthInBytes &&
+        data.offsetInBytes < bb.offsetInBytes + rs.nRoots &&
+        bb.offsetInBytes < data.offsetInBytes + rs.nn - rs.nRoots;
+    final native = _nativeFor(rs, useNative && !overlaps);
+    if (native != null) {
+      native.encode(data, bb);
+      return;
+    }
     bb.fillRange(0, rs.nRoots, 0);
 
     for (int i = 0; i < rs.nn - rs.nRoots; i++) {
@@ -56,12 +108,26 @@ class ReedSolomon {
   /// Decode [data] with Reed-Solomon error correction, correcting it in place.
   ///
   /// Returns the number of errors corrected, or -1 if uncorrectable.
+  /// Set [useNative] to false to force the Dart reference, including its
+  /// historical multi-erasure behavior. Invalid arguments throw.
   static int decode(
     ReedSolomonCodec rs,
     Uint8List data,
     List<int>? erasPos,
-    int noEras,
-  ) {
+    int noEras, {
+    bool useNative = true,
+  }) {
+    RangeError.checkValidRange(0, rs.nn, data.length);
+    RangeError.checkValueInInterval(noEras, 0, rs.nRoots, 'noEras');
+    if (noEras > 0) {
+      if (erasPos == null) throw ArgumentError.notNull('erasPos');
+      RangeError.checkValidRange(0, noEras, erasPos.length);
+      for (int i = 0; i < noEras; i++) {
+        RangeError.checkValueInInterval(erasPos[i], 0, rs.nn - 1, 'erasure');
+      }
+    }
+    final native = _nativeFor(rs, useNative);
+    if (native != null) return native.decode(data, erasPos, noEras);
     int degLambda, el;
     int i, j, r, k;
     int u, tmp, num1, num2, den, discrR;
@@ -263,5 +329,59 @@ class ReedSolomon {
     }
 
     return count;
+  }
+}
+
+// Public control blocks are mutable: table edits must invalidate cached plans.
+class _NativeCodecSnapshot {
+  final int roots;
+  final int fcr;
+  final int prim;
+  final int inversePrim;
+  final Uint8List exp;
+  final Uint8List log;
+  final Uint8List generator;
+  late final NativeReedSolomon plan;
+
+  _NativeCodecSnapshot(ReedSolomonCodec rs)
+    : roots = rs.nRoots,
+      fcr = rs.fcr,
+      prim = rs.prim,
+      inversePrim = rs.iPrim,
+      exp = Uint8List.fromList(rs.alphaTo),
+      log = Uint8List.fromList(rs.indexOf),
+      generator = Uint8List.fromList(rs.genPoly) {
+    if (exp.length != 256 ||
+        log.length != 256 ||
+        generator.length != roots + 1) {
+      throw ArgumentError('Invalid FX.25 Reed-Solomon tables');
+    }
+    plan = createNativeReedSolomon(
+      mode: 1,
+      roots: roots,
+      fcr: fcr,
+      prim: prim,
+      inversePrim: inversePrim,
+      exp: exp,
+      log: log,
+      generator: generator,
+    );
+  }
+
+  bool matches(ReedSolomonCodec rs) =>
+      roots == rs.nRoots &&
+      fcr == rs.fcr &&
+      prim == rs.prim &&
+      inversePrim == rs.iPrim &&
+      _equal(exp, rs.alphaTo) &&
+      _equal(log, rs.indexOf) &&
+      _equal(generator, rs.genPoly);
+
+  static bool _equal(Uint8List a, Uint8List b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 }

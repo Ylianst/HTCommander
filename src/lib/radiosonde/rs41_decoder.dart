@@ -39,7 +39,14 @@ const String rs41HeaderBits =
 /// Dewhitened frame header bytes (frame[0..7] after XOR with the mask). Used as
 /// a sanity gate by the demodulator; not used by ECC or parsing.
 const List<int> rs41DewhitenedHeader = [
-  0x86, 0x35, 0xF4, 0x40, 0x93, 0xDF, 0x1A, 0x60,
+  0x86,
+  0x35,
+  0xF4,
+  0x40,
+  0x93,
+  0xDF,
+  0x1A,
+  0x60,
 ];
 
 /// A decoded RS41 fix.
@@ -80,7 +87,8 @@ class Rs41Frame {
 
 /// Parses dewhitened 320-byte RS41 frames (runs Reed-Solomon ECC + CRC checks).
 class Rs41Decoder {
-  Rs41Decoder();
+  Rs41Decoder({bool useNative = true})
+    : _rs = ReedSolomon(nroots: 24, fcr: 0, useNative: useNative);
 
   static const int ndataLen = 320;
   static const int frameLen = 518; // with xdata padding, for RS
@@ -110,7 +118,7 @@ class Rs41Decoder {
   static const int _parPos = 8;
   static const int _msgPos = 56;
 
-  final ReedSolomon _rs = ReedSolomon(nroots: 24, fcr: 0);
+  final ReedSolomon _rs;
 
   /// Decodes one dewhitened frame (>=320 bytes). Applies RS ECC in place, then
   /// parses the fixed blocks. Returns null if the essential CRCs fail.
@@ -267,11 +275,13 @@ class Rs41Decoder {
     final vy = _i16(frame, _posEcefV + 2) / 100.0;
     final vz = _i16(frame, _posEcefV + 4) / 100.0;
     final lamr = lam, phir = phi;
-    final vN = -vx * math.sin(phir) * math.cos(lamr) -
+    final vN =
+        -vx * math.sin(phir) * math.cos(lamr) -
         vy * math.sin(phir) * math.sin(lamr) +
         vz * math.cos(phir);
     final vE = -vx * math.sin(lamr) + vy * math.cos(lamr);
-    final vU = vx * math.cos(phir) * math.cos(lamr) +
+    final vU =
+        vx * math.cos(phir) * math.cos(lamr) +
         vy * math.cos(phir) * math.sin(lamr) +
         vz * math.sin(phir);
     final vH = math.sqrt(vN * vN + vE * vE);

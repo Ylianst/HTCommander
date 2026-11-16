@@ -12,6 +12,7 @@ import 'package:satellite_observer/satellite_observer.dart' as so;
 import '../gps/gps_data.dart';
 import '../models/radio_models.dart';
 import '../satellite/satellite_models.dart';
+import '../satellite/satellite_computation.dart';
 import '../satellite/satellite_predictor.dart';
 import '../satellite/tle_repository.dart';
 import '../satellite/transponder_repository.dart';
@@ -41,6 +42,10 @@ import '../services/data_broker_client.dart';
 ///  - `SatObserverLat` / `SatObserverLon` / `SatObserverAltM` → manual observer.
 ///  - `SatMinElevationDeg`→ minimum pass elevation (degrees).
 class SatelliteHandler {
+  SatelliteHandler({this.useNative = true});
+
+  /// Native on supported platforms; false explicitly selects Dart.
+  final bool useNative;
   static const int _settingsDeviceId = 0;
   static const int _gpsDeviceId = 1;
 
@@ -56,7 +61,7 @@ class SatelliteHandler {
 
   /// One reusable propagator/observer per satellite (rebuilt on location or
   /// catalog change; construction runs SGP4 init once, so it is cached).
-  final Map<int, so.SatelliteObserver> _observers = {};
+  final Map<int, SatelliteObservation> _observers = {};
   SatellitePredictor? _predictor;
   int _predictionGeneration = 0;
   int _selectionGeneration = 0;
@@ -231,7 +236,7 @@ class SatelliteHandler {
     _tick?.cancel();
     _tick = null;
     _catalog.clear();
-    _observers.clear();
+    _clearObservers();
     _invalidatePredictions();
     _publishCatalog();
     _recomputeAllNextPasses();
@@ -496,7 +501,7 @@ class SatelliteHandler {
 
   void _rebuildObservers() {
     _invalidatePredictions();
-    _observers.clear();
+    _clearObservers();
     final observer = _observer;
     if (observer == null) return;
     for (final info in _catalog.values) {
@@ -507,9 +512,10 @@ class SatelliteHandler {
           info.tle.line2,
           name: info.tle.name,
         );
-        _observers[info.noradId] = so.SatelliteObserver(
+        _observers[info.noradId] = SatelliteObservation(
           elements: elements,
           observer: observer,
+          useNative: useNative,
         );
       } catch (e) {
         debugPrint('SatelliteHandler: bad elements for ${info.name}: $e');
@@ -524,7 +530,15 @@ class SatelliteHandler {
     _predictor = SatellitePredictor(
       observer: observer,
       satellites: [for (final id in _observers.keys) _catalog[id]!],
+      useNative: useNative,
     );
+  }
+
+  void _clearObservers() {
+    for (final observer in _observers.values) {
+      observer.dispose();
+    }
+    _observers.clear();
   }
 
   void _resetTrackPrediction() {
@@ -973,6 +987,13 @@ class SatelliteHandler {
 
     final now = DateTime.now().toUtc();
     final track = <List<double>>[];
+    // Prefetch only on the native backend. Failed samples remain individually
+    // skippable just as in the original loop.
+    if (observer.isNative) {
+      observer.engine.prefetch([
+        for (var m = -50; m <= 50; m++) now.add(Duration(minutes: m)),
+      ]);
+    }
     for (var m = -50; m <= 50; m++) {
       final t = now.add(Duration(minutes: m));
       try {
@@ -981,6 +1002,7 @@ class SatelliteHandler {
       } catch (_) {
         // Skip a sample whose propagation fails.
       }
+      observer.engine.clearPrefetch();
     }
 
     _lastGroundTrack = track;
@@ -1096,6 +1118,7 @@ class SatelliteHandler {
     if (_disposed) return;
     _disposed = true;
     _invalidatePredictions();
+    _clearObservers();
     _tick?.cancel();
     _tick = null;
     _broker.dispose();

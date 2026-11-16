@@ -9,6 +9,7 @@
 #include <mmsystem.h>
 
 #include "native_pcm_output.h"
+#include "audio_thread_priority.h"
 
 #include <atomic>
 #include <cstdio>
@@ -194,6 +195,7 @@ struct NativePcmOutput::Impl {
   }
 
   void Run() {
+    AudioThreadPriority priority;
     const HANDLE events[] = {completion, wake};
     while (!stopping) {
       CollectDone();

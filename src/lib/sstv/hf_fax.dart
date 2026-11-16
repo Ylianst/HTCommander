@@ -18,7 +18,7 @@ class HFFax extends BaseMode {
   final Float64List _cumulated;
   int _horizontalShift = 0;
 
-  HFFax(int sampleRate)
+  HFFax(int sampleRate, {super.useNative})
     : _name = 'HF Fax',
       _lowPassFilter = ExponentialMovingAverage(),
       _sampleRate = sampleRate,
@@ -90,20 +90,40 @@ class HFFax extends BaseMode {
     }
     final horizontalPixels = getWidth();
     _lowPassFilter.cutoff(horizontalPixels, 2 * scanLineSamples, 2);
-    _lowPassFilter.reset();
-    for (int i = 0; i < scanLineSamples; ++i) {
-      scratchBuffer[i] = _lowPassFilter.avg(scanLineBuffer[i]);
-    }
-    _lowPassFilter.reset();
-    for (int i = scanLineSamples - 1; i >= 0; --i) {
-      scratchBuffer[i] = _freqToLevel(
-        _lowPassFilter.avg(scratchBuffer[i]),
-        frequencyOffset,
-      );
+    // Preserve HF Fax's historical origin: syncPulseIndex bounds the line,
+    // but filtering deliberately starts at scanLineBuffer[0].
+    final native = nativeScanLine(
+      pixelBuffer,
+      scratchBuffer,
+      scanLineBuffer,
+      sourceStart: 0,
+      scratchStart: 0,
+      count: scanLineSamples,
+      width: horizontalPixels,
+      kind: 5,
+      alpha: _lowPassFilter.coefficient,
+      frequencyOffset: frequencyOffset,
+      first: 0,
+      firstLength: scanLineSamples,
+    );
+    if (!native) {
+      _lowPassFilter.reset();
+      for (int i = 0; i < scanLineSamples; ++i) {
+        scratchBuffer[i] = _lowPassFilter.avg(scanLineBuffer[i]);
+      }
+      _lowPassFilter.reset();
+      for (int i = scanLineSamples - 1; i >= 0; --i) {
+        scratchBuffer[i] = _freqToLevel(
+          _lowPassFilter.avg(scratchBuffer[i]),
+          frequencyOffset,
+        );
+      }
     }
     for (int i = 0; i < horizontalPixels; ++i) {
       final position = (i * scanLineSamples) ~/ horizontalPixels;
-      final color = ColorConverter.gray(scratchBuffer[position]);
+      final color = native
+          ? pixelBuffer.pixels[i]
+          : ColorConverter.gray(scratchBuffer[position]);
       pixelBuffer.pixels[i] = color;
 
       // Accumulate recent values, forget old.

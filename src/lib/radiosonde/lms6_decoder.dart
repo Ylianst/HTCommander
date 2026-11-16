@@ -57,7 +57,14 @@ class Lms6Frame {
 
 /// Parses LMS6 transmitted bit streams into fixes.
 class Lms6Decoder {
-  Lms6Decoder();
+  Lms6Decoder({bool useNative = true})
+    : _rs = ReedSolomon(
+        nroots: 32,
+        fcr: 112,
+        prim: 0x187,
+        primPow: 11,
+        useNative: useNative,
+      );
 
   static const List<int> syncBytes = [0x00, 0x58, 0xF3, 0x3F, 0xB8];
   static const List<int> frmSync6 = [0x24, 0x54, 0x00, 0x00];
@@ -78,8 +85,7 @@ class Lms6Decoder {
 
   static final double _b60b60 = (1 << 30) / 90.0;
 
-  final ReedSolomon _rs =
-      ReedSolomon(nroots: 32, fcr: 112, prim: 0x187, primPow: 11);
+  final ReedSolomon _rs;
 
   /// Decodes a transmitted LMS6 bit stream (starting at the block sync).
   Lms6Frame? decodeRawBits(List<int> transmitted) {
@@ -186,7 +192,9 @@ class Lms6Decoder {
     for (int i = 0; i < len; i++) {
       rem ^= b[i] << 8;
       for (int j = 0; j < 8; j++) {
-        rem = (rem & 0x8000) != 0 ? ((rem << 1) ^ 0x1021) & 0xFFFF : (rem << 1) & 0xFFFF;
+        rem = (rem & 0x8000) != 0
+            ? ((rem << 1) ^ 0x1021) & 0xFFFF
+            : (rem << 1) & 0xFFFF;
       }
     }
     return rem;

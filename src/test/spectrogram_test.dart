@@ -108,6 +108,104 @@ void main() {
     }
   });
 
+  test('native pipeline matches reference through streaming and rendering', () {
+    final actual = SpectrogramGenerator(
+      sampleRate: 32000,
+      fftSize: 512,
+      stepSize: 25,
+      minFreq: 125,
+      maxFreq: 12000,
+    );
+    final reference = SpectrogramGenerator(
+      sampleRate: 32000,
+      fftSize: 512,
+      stepSize: 25,
+      minFreq: 125,
+      maxFreq: 12000,
+      useNative: false,
+    );
+    addTearDown(actual.dispose);
+    addTearDown(reference.dispose);
+    final random = math.Random(19);
+    for (final width in [31, 1, 67, -1, 7]) {
+      actual.setFixedWidth(width);
+      reference.setFixedWidth(width);
+      for (final length in [1, 511, 1000, 7, 8192]) {
+        final samples = Float64List.fromList(
+          List.generate(length, (_) => random.nextDouble() * 60000 - 30000),
+        );
+        actual.addSamples(samples);
+        reference.addSamples(samples);
+        expect(actual.fftsToProcess, reference.fftsToProcess);
+        actual.process();
+        reference.process();
+        expect(actual.width, reference.width);
+        final expected = Uint8List(reference.width * reference.height * 4);
+        final pixels = Uint8List(expected.length);
+        for (final decibel in [false, true]) {
+          for (final roll in [false, true]) {
+            for (final colors in [
+              SpectrogramColormap.viridis,
+              SpectrogramColormap.magma,
+            ]) {
+              actual.renderInto(
+                pixels,
+                colormap: colors,
+                intensity: decibel ? 7 : 0.03,
+                decibel: decibel,
+                dbScale: 3,
+                roll: roll,
+              );
+              reference.renderInto(
+                expected,
+                colormap: colors,
+                intensity: decibel ? 7 : 0.03,
+                decibel: decibel,
+                dbScale: 3,
+                roll: roll,
+              );
+              expect(pixels, orderedEquals(expected));
+            }
+          }
+        }
+        expect(actual.getPeak().freqHz, reference.getPeak().freqHz);
+        expect(
+          actual.getPeak().magnitude,
+          closeTo(reference.getPeak().magnitude, 1e-8),
+        );
+        actual.rollReset(-11);
+        reference.rollReset(-11);
+        expect(actual.nextColumnIndex, reference.nextColumnIndex);
+      }
+      actual.clear();
+      reference.clear();
+    }
+  });
+
+  test('native rendering rejects nonfinite colors and short output', () {
+    final generator = _generator(17);
+    addTearDown(generator.dispose);
+    generator.addSamples(_samples(80));
+    generator.process();
+    expect(
+      () => generator.renderInto(
+        Uint8List(1),
+        colormap: SpectrogramColormap.viridis,
+      ),
+      throwsRangeError,
+    );
+    expect(
+      () => generator.renderInto(
+        Uint8List(17 * generator.height * 4),
+        colormap: SpectrogramColormap.viridis,
+        intensity: double.nan,
+      ),
+      throwsA(isA<Error>()),
+    );
+    generator.dispose();
+    expect(generator.process, throwsStateError);
+  });
+
   test('pooled history matches append-and-trim through resize and backlog', () {
     final actual = _generator(17);
     final reference = SpectrogramGenerator(

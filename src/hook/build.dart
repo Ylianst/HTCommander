@@ -5,6 +5,9 @@ import 'package:native_toolchain_c/native_toolchain_c.dart';
 import 'dart_modem.dart';
 import 'gsm.dart';
 import 'telemetry.dart';
+import 'cw.dart';
+import 'satellite.dart';
+import 'reed_solomon.dart';
 
 Future<void> main(List<String> args) async {
   await build(args, (input, output) async {
@@ -33,7 +36,7 @@ Future<void> main(List<String> args) async {
     await CBuilder.library(
       name: 'ht_xara_dsp',
       assetName: 'xara_dsp',
-      sources: ['native/xara_dsp.cpp'],
+      sources: ['native/xara_dsp.cpp', 'native/spectrogram.cpp'],
       includes: ['native'],
       language: Language.cpp,
       std: 'c++17',
@@ -50,6 +53,7 @@ Future<void> main(List<String> args) async {
       cppLinkStdLib: os == OS.android ? 'c++_static' : null,
     ).run(input: input, output: output);
     output.dependencies.add(input.packageRoot.resolve('native/xara_dsp.h'));
+    output.dependencies.add(input.packageRoot.resolve('native/spectrogram.h'));
     await CBuilder.library(
       name: 'ht_packet_modem',
       assetName: 'packet_modem',
@@ -73,7 +77,11 @@ Future<void> main(List<String> args) async {
     await CBuilder.library(
       name: 'ht_sstv_dsp',
       assetName: 'sstv_dsp',
-      sources: ['native/sstv_dsp.cpp', 'native/sstv_encoder.cpp'],
+      sources: [
+        'native/sstv_dsp.cpp',
+        'native/sstv_encoder.cpp',
+        'native/sstv_scanline.cpp',
+      ],
       includes: ['native'],
       language: Language.cpp,
       std: 'c++17',
@@ -90,8 +98,14 @@ Future<void> main(List<String> args) async {
       cppLinkStdLib: os == OS.android ? 'c++_static' : null,
     ).run(input: input, output: output);
     output.dependencies.add(input.packageRoot.resolve('native/sstv_dsp.h'));
+    output.dependencies.add(
+      input.packageRoot.resolve('native/sstv_scanline.h'),
+    );
     await buildDartModem(input, output);
     await buildGsm(input, output);
     await buildTelemetry(input, output);
+    await buildCw(input, output);
+    await buildSatellite(input, output);
+    await buildReedSolomon(input, output);
   });
 }

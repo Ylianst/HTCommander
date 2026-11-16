@@ -114,8 +114,8 @@ class Decoder {
       sstvRound(transitionSeconds * sampleRate),
       sstvRound(visCodeBitSeconds * sampleRate),
       sstvRound(visCodeSeconds * sampleRate),
-      RawDecoder(rawName, sampleRate),
-      HFFax(sampleRate),
+      RawDecoder(rawName, sampleRate, useNative: useNative),
+      HFFax(sampleRate, useNative: useNative),
       <IMode>[],
       <IMode>[],
       <IMode>[],
@@ -123,50 +123,54 @@ class Decoder {
 
     imageBuffer.line = -1;
 
-    final robot36 = Robot_36_Color(sampleRate);
+    final robot36 = Robot_36_Color(sampleRate, useNative: useNative);
     decoder.currentMode = robot36;
     decoder._currentScanLineSamples = robot36.getScanLineSamples();
 
-    decoder._syncPulse5msModes.add(RGBModes.wraaseSc2180(sampleRate));
     decoder._syncPulse5msModes.add(
-      RGBModes.martin('1', 44, 0.146432, sampleRate),
+      RGBModes.wraaseSc2180(sampleRate, useNative: useNative),
     );
     decoder._syncPulse5msModes.add(
-      RGBModes.martin('2', 40, 0.073216, sampleRate),
+      RGBModes.martin('1', 44, 0.146432, sampleRate, useNative: useNative),
+    );
+    decoder._syncPulse5msModes.add(
+      RGBModes.martin('2', 40, 0.073216, sampleRate, useNative: useNative),
     );
 
     decoder._syncPulse9msModes.add(robot36);
-    decoder._syncPulse9msModes.add(Robot_72_Color(sampleRate));
     decoder._syncPulse9msModes.add(
-      RGBModes.scottie('1', 60, 0.138240, sampleRate),
+      Robot_72_Color(sampleRate, useNative: useNative),
     );
     decoder._syncPulse9msModes.add(
-      RGBModes.scottie('2', 56, 0.088064, sampleRate),
+      RGBModes.scottie('1', 60, 0.138240, sampleRate, useNative: useNative),
     );
     decoder._syncPulse9msModes.add(
-      RGBModes.scottie('DX', 76, 0.3456, sampleRate),
+      RGBModes.scottie('2', 56, 0.088064, sampleRate, useNative: useNative),
+    );
+    decoder._syncPulse9msModes.add(
+      RGBModes.scottie('DX', 76, 0.3456, sampleRate, useNative: useNative),
     );
 
     decoder._syncPulse20msModes.add(
-      PaulDon('50', 93, 320, 256, 0.09152, sampleRate),
+      PaulDon('50', 93, 320, 256, 0.09152, sampleRate, useNative: useNative),
     );
     decoder._syncPulse20msModes.add(
-      PaulDon('90', 99, 320, 256, 0.17024, sampleRate),
+      PaulDon('90', 99, 320, 256, 0.17024, sampleRate, useNative: useNative),
     );
     decoder._syncPulse20msModes.add(
-      PaulDon('120', 95, 640, 496, 0.1216, sampleRate),
+      PaulDon('120', 95, 640, 496, 0.1216, sampleRate, useNative: useNative),
     );
     decoder._syncPulse20msModes.add(
-      PaulDon('160', 98, 512, 400, 0.195584, sampleRate),
+      PaulDon('160', 98, 512, 400, 0.195584, sampleRate, useNative: useNative),
     );
     decoder._syncPulse20msModes.add(
-      PaulDon('180', 96, 640, 496, 0.18304, sampleRate),
+      PaulDon('180', 96, 640, 496, 0.18304, sampleRate, useNative: useNative),
     );
     decoder._syncPulse20msModes.add(
-      PaulDon('240', 97, 640, 496, 0.24448, sampleRate),
+      PaulDon('240', 97, 640, 496, 0.24448, sampleRate, useNative: useNative),
     );
     decoder._syncPulse20msModes.add(
-      PaulDon('290', 94, 800, 616, 0.2288, sampleRate),
+      PaulDon('290', 94, 800, 616, 0.2288, sampleRate, useNative: useNative),
     );
 
     return decoder;
@@ -769,7 +773,18 @@ class Decoder {
     return newLinesPresent;
   }
 
-  void dispose() => _demodulator.dispose();
+  void dispose() {
+    _demodulator.dispose();
+    for (final mode in [
+      _rawMode,
+      _hfFaxMode,
+      ..._syncPulse5msModes,
+      ..._syncPulse9msModes,
+      ..._syncPulse20msModes,
+    ]) {
+      mode.dispose();
+    }
+  }
 
   void setMode(String name) {
     if (_rawMode.getName() == name) {

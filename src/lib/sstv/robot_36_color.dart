@@ -26,7 +26,10 @@ class Robot_36_Color extends BaseMode {
   final int _endSamples;
   bool _lastEven = false;
 
-  factory Robot_36_Color(int sampleRate) {
+  factory Robot_36_Color(
+    int sampleRate, {
+    bool useNative = !const bool.fromEnvironment('HT_SSTV_DART'),
+  }) {
     const horizontalPixels = 320;
     const verticalPixels = 240;
     const double syncPulseSeconds = 0.009;
@@ -62,6 +65,7 @@ class Robot_36_Color extends BaseMode {
       sstvRound(separatorBeginSeconds * sampleRate),
       sstvRound(chrominanceBeginSeconds * sampleRate),
       sstvRound(chrominanceEndSeconds * sampleRate),
+      useNative,
     );
   }
 
@@ -77,7 +81,9 @@ class Robot_36_Color extends BaseMode {
     this._separatorBeginSamples,
     this._chrominanceBeginSamples,
     this._endSamples,
-  ) : _lowPassFilter = ExponentialMovingAverage();
+    bool useNative,
+  ) : _lowPassFilter = ExponentialMovingAverage(),
+      super(useNative: useNative);
 
   static double _freqToLevel(double frequency, double offset) =>
       0.5 * (frequency - offset + 1.0);
@@ -130,6 +136,26 @@ class Robot_36_Color extends BaseMode {
     }
     _lastEven = even;
     _lowPassFilter.cutoff(_horizontalPixels, 2 * _luminanceSamples, 2);
+    if (nativeScanLine(
+      pixelBuffer,
+      scratchBuffer,
+      scanLineBuffer,
+      sourceStart: syncPulseIndex + _beginSamples,
+      scratchStart: _beginSamples,
+      count: _endSamples - _beginSamples,
+      width: _horizontalPixels,
+      kind: even ? 3 : 4,
+      alpha: _lowPassFilter.coefficient,
+      frequencyOffset: frequencyOffset,
+      first: _luminanceBeginSamples - _beginSamples,
+      firstLength: _luminanceSamples,
+      second: _chrominanceBeginSamples - _beginSamples,
+      secondLength: _chrominanceSamples,
+    )) {
+      pixelBuffer.width = _horizontalPixels;
+      pixelBuffer.height = 2;
+      return !even;
+    }
     _lowPassFilter.reset();
     for (int i = _beginSamples; i < _endSamples; ++i) {
       scratchBuffer[i] = _lowPassFilter.avg(scanLineBuffer[syncPulseIndex + i]);

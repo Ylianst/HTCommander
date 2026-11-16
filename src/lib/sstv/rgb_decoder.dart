@@ -42,32 +42,33 @@ class RGBDecoder extends BaseMode {
     double blueBeginSeconds,
     double blueEndSeconds,
     double endSeconds,
-    int sampleRate,
-  ) : _name = name,
-      _code = code,
-      _horizontalPixels = horizontalPixels,
-      _verticalPixels = verticalPixels,
-      _firstSyncPulseIndex = sstvRound(firstSyncPulseSeconds * sampleRate),
-      _scanLineSamples = sstvRound(scanLineSeconds * sampleRate),
-      _beginSamples = sstvRound(beginSeconds * sampleRate),
-      _redBeginSamples =
-          sstvRound(redBeginSeconds * sampleRate) -
-          sstvRound(beginSeconds * sampleRate),
-      _redSamples = sstvRound((redEndSeconds - redBeginSeconds) * sampleRate),
-      _greenBeginSamples =
-          sstvRound(greenBeginSeconds * sampleRate) -
-          sstvRound(beginSeconds * sampleRate),
-      _greenSamples = sstvRound(
-        (greenEndSeconds - greenBeginSeconds) * sampleRate,
-      ),
-      _blueBeginSamples =
-          sstvRound(blueBeginSeconds * sampleRate) -
-          sstvRound(beginSeconds * sampleRate),
-      _blueSamples = sstvRound(
-        (blueEndSeconds - blueBeginSeconds) * sampleRate,
-      ),
-      _endSamples = sstvRound(endSeconds * sampleRate),
-      _lowPassFilter = ExponentialMovingAverage();
+    int sampleRate, {
+    super.useNative,
+  }) : _name = name,
+       _code = code,
+       _horizontalPixels = horizontalPixels,
+       _verticalPixels = verticalPixels,
+       _firstSyncPulseIndex = sstvRound(firstSyncPulseSeconds * sampleRate),
+       _scanLineSamples = sstvRound(scanLineSeconds * sampleRate),
+       _beginSamples = sstvRound(beginSeconds * sampleRate),
+       _redBeginSamples =
+           sstvRound(redBeginSeconds * sampleRate) -
+           sstvRound(beginSeconds * sampleRate),
+       _redSamples = sstvRound((redEndSeconds - redBeginSeconds) * sampleRate),
+       _greenBeginSamples =
+           sstvRound(greenBeginSeconds * sampleRate) -
+           sstvRound(beginSeconds * sampleRate),
+       _greenSamples = sstvRound(
+         (greenEndSeconds - greenBeginSeconds) * sampleRate,
+       ),
+       _blueBeginSamples =
+           sstvRound(blueBeginSeconds * sampleRate) -
+           sstvRound(beginSeconds * sampleRate),
+       _blueSamples = sstvRound(
+         (blueEndSeconds - blueBeginSeconds) * sampleRate,
+       ),
+       _endSamples = sstvRound(endSeconds * sampleRate),
+       _lowPassFilter = ExponentialMovingAverage();
 
   static double _freqToLevel(double frequency, double offset) =>
       0.5 * (frequency - offset + 1.0);
@@ -104,6 +105,28 @@ class RGBDecoder extends BaseMode {
       return false;
     }
     _lowPassFilter.cutoff(_horizontalPixels, 2 * _greenSamples, 2);
+    if (nativeScanLine(
+      pixelBuffer,
+      scratchBuffer,
+      scanLineBuffer,
+      sourceStart: syncPulseIndex + _beginSamples,
+      scratchStart: 0,
+      count: _endSamples - _beginSamples,
+      width: _horizontalPixels,
+      kind: 0,
+      alpha: _lowPassFilter.coefficient,
+      frequencyOffset: frequencyOffset,
+      first: _redBeginSamples,
+      firstLength: _redSamples,
+      second: _greenBeginSamples,
+      secondLength: _greenSamples,
+      third: _blueBeginSamples,
+      thirdLength: _blueSamples,
+    )) {
+      pixelBuffer.width = _horizontalPixels;
+      pixelBuffer.height = 1;
+      return true;
+    }
     _lowPassFilter.reset();
     for (int i = 0; i < _endSamples - _beginSamples; ++i) {
       scratchBuffer[i] = _lowPassFilter.avg(

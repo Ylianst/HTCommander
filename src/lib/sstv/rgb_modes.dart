@@ -10,8 +10,9 @@ class RGBModes {
     String name,
     int code,
     double channelSeconds,
-    int sampleRate,
-  ) {
+    int sampleRate, {
+    bool useNative = !const bool.fromEnvironment('HT_SSTV_DART'),
+  }) {
     const double syncPulseSeconds = 0.004862;
     const double separatorSeconds = 0.000572;
     final double scanLineSeconds =
@@ -40,6 +41,7 @@ class RGBModes {
       blueEndSeconds,
       redEndSeconds,
       sampleRate,
+      useNative: useNative,
     );
   }
 
@@ -47,8 +49,9 @@ class RGBModes {
     String name,
     int code,
     double channelSeconds,
-    int sampleRate,
-  ) {
+    int sampleRate, {
+    bool useNative = !const bool.fromEnvironment('HT_SSTV_DART'),
+  }) {
     const double syncPulseSeconds = 0.009;
     const double separatorSeconds = 0.0015;
     final double firstSyncPulseSeconds =
@@ -77,10 +80,14 @@ class RGBModes {
       blueEndSeconds,
       redEndSeconds,
       sampleRate,
+      useNative: useNative,
     );
   }
 
-  static RGBDecoder wraaseSc2180(int sampleRate) {
+  static RGBDecoder wraaseSc2180(
+    int sampleRate, {
+    bool useNative = !const bool.fromEnvironment('HT_SSTV_DART'),
+  }) {
     const double syncPulseSeconds = 0.0055225;
     const double syncPorchSeconds = 0.0005;
     const double channelSeconds = 0.235;
@@ -108,6 +115,7 @@ class RGBModes {
       blueEndSeconds,
       blueEndSeconds,
       sampleRate,
+      useNative: useNative,
     );
   }
 }

@@ -30,6 +30,16 @@ local transmit monitoring and other audio sources still use the shared player.
 Device ownership remains reference-counted by `PcmPlayer`; native Bluetooth
 playback does not open a second competing output device.
 
+**Windows audio scheduling:** the native speaker-output worker and the audio
+RFCOMM reader (which also runs receive SBC decoding) register with Windows MMCSS
+under its `Audio` task at `AVRT_PRIORITY_HIGH`. Registration is scoped to each
+thread's lifetime and reverted on exit. If MMCSS registration is unavailable,
+the thread logs the failure and tries `THREAD_PRIORITY_ABOVE_NORMAL`, restoring
+its previous priority on exit. Priority-setting and cleanup failures are logged.
+The Classic control-channel reader, BLE reconnect workers, Dart isolates and
+overall process priority are unchanged. This improves scheduling under CPU load;
+it cannot prevent Bluetooth adapter contention or recover missing radio samples.
+
 **Windows receive playback catch-up:** native radio-only speaker queues now
 recover when admitted audio would exceed 200 ms. Admission invalidates old
 playback submissions immediately; the output worker resets the WinMM queue and
@@ -116,12 +126,16 @@ paths to the checkout):
 
 ```bat
 cl /nologo /std:c++17 /EHsc /W4 /WX /DNOMINMAX native_radio_playback_test.cpp radio_audio_playback.cpp radio_audio_codec.cpp
-cl /nologo /std:c++17 /EHsc /W4 /WX /DNOMINMAX /D_WINMM_ /Fe:native_pcm_output_test.exe native_pcm_output.cpp native_pcm_output_test.cpp /link user32.lib
+cl /nologo /std:c++17 /EHsc /W4 /WX /DNOMINMAX /D_WINMM_ /Fe:native_pcm_output_test.exe native_pcm_output.cpp native_pcm_output_test.cpp /link user32.lib avrt.lib
+cl /nologo /std:c++17 /EHsc /W4 /WX /DNOMINMAX audio_thread_priority_test.cpp
 ```
 
 Sources: [receive pipeline test](../../src/test/native_radio_playback_test.cpp)
 and [output worker test](../../src/windows/runner/tests/native_pcm_output_test.cpp).
-Run both executables after compiling. The Flutter routing regression lives in
+The [scheduling test](../../src/windows/runner/tests/audio_thread_priority_test.cpp)
+substitutes MMCSS calls to check registration cleanup and the thread-priority
+fallback without depending on the MMCSS service. Run all three executables after
+compiling. The Flutter routing regression lives in
 [native_radio_audio_test.dart](../../src/test/native_radio_audio_test.dart).
 
 ---

@@ -53,6 +53,7 @@
 #include <flutter/standard_method_codec.h>
 
 #include "bluetooth_classic_plugin.h"
+#include "audio_thread_priority.h"
 #include "native_pcm_output.h"
 #include "radio_audio_playback.h"
 
@@ -1007,6 +1008,7 @@ BluetoothClassicPlugin::Impl::GetPairedDeviceList(bool compatible_only,
 void BluetoothClassicPlugin::Impl::ReadLoop(
     std::shared_ptr<RfcommConn> conn, bool is_audio) {
   winrt::init_apartment(winrt::apartment_type::multi_threaded);
+  AudioThreadPriority priority(is_audio);
 
   while (conn->running.load()) {
     try {

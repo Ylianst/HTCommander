@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:satellite_observer/satellite_observer.dart' as so;
 
 import '../services/decoder_worker.dart';
+import 'satellite_computation.dart';
 import 'satellite_models.dart';
 
 /// Shares bounded, five-minute pass snapshots between catalog, detail and radio
@@ -12,11 +13,12 @@ class SatellitePredictor {
   SatellitePredictor({
     required so.Observer observer,
     required List<SatelliteInfo> satellites,
+    bool useNative = true,
   }) {
     _worker = DecoderWorker(
       name: 'satellite-prediction',
       factory: _createProcessor,
-      config: (observer, satellites),
+      config: (observer, satellites, useNative),
       maxPendingCommands: satellites.length + 4,
       onEvent: _onEvent,
       onError: _onError,
@@ -134,24 +136,31 @@ class _PredictionError {
 }
 
 DecoderProcessor _createProcessor(Object? config, void Function(Object?) emit) {
-  final (observer, satellites) = config as (so.Observer, List<SatelliteInfo>);
-  return _PredictionProcessor(observer, satellites, emit);
+  final (observer, satellites, useNative) =
+      config as (so.Observer, List<SatelliteInfo>, bool);
+  return _PredictionProcessor(observer, satellites, useNative, emit);
 }
 
 class _PredictionProcessor implements DecoderProcessor {
-  _PredictionProcessor(this.observer, List<SatelliteInfo> satellites, this.emit)
-    : satellites = {for (final s in satellites) s.noradId: s};
+  _PredictionProcessor(
+    this.observer,
+    List<SatelliteInfo> satellites,
+    this.useNative,
+    this.emit,
+  ) : satellites = {for (final s in satellites) s.noradId: s};
 
   final so.Observer observer;
   final Map<int, SatelliteInfo> satellites;
   final void Function(Object?) emit;
-  final Map<int, so.SatelliteObserver> _observers = {};
+  final bool useNative;
+  final Map<int, SatelliteObservation> _observers = {};
 
-  so.SatelliteObserver _observerFor(int id) => _observers.putIfAbsent(id, () {
+  SatelliteObservation _observerFor(int id) => _observers.putIfAbsent(id, () {
     final tle = satellites[id]!.tle;
-    return so.SatelliteObserver(
+    return SatelliteObservation(
       elements: so.GpElements.fromTle(tle.line1, tle.line2, name: tle.name),
       observer: observer,
+      useNative: useNative,
     );
   });
 
@@ -194,7 +203,7 @@ class _PredictionProcessor implements DecoderProcessor {
   }
 
   Future<List<so.Pass>> _findPasses(
-    so.SatelliteObserver observer,
+    SatelliteObservation observer,
     _PassRequest request,
   ) async {
     final end = request.now.add(const Duration(hours: 48));
@@ -236,35 +245,50 @@ class _PredictionProcessor implements DecoderProcessor {
   }
 
   Future<DateTime?> _findLos(
-    so.SatelliteObserver observer,
+    SatelliteObservation observer,
     DateTime now,
   ) async {
     var lo = now;
-    for (var i = 0; i < 2880; i++) {
-      final hi = lo.add(const Duration(seconds: 15));
-      if (observer.lookAngleAt(hi).elevationDeg <= 0) {
-        var a = lo;
-        var b = hi;
-        while (b.difference(a).inMilliseconds > 1000) {
-          final mid = a.add(
-            Duration(milliseconds: b.difference(a).inMilliseconds ~/ 2),
-          );
-          if (observer.lookAngleAt(mid).elevationDeg > 0) {
-            a = mid;
-          } else {
-            b = mid;
-          }
+    try {
+      for (var i = 0; i < 2880; i++) {
+        if (observer.isNative && i % 64 == 0) {
+          observer.engine.prefetch([
+            for (var j = 1; j <= 64 && i + j <= 2880; j++)
+              lo.add(Duration(seconds: 15 * j)),
+          ]);
         }
-        return b;
+        final hi = lo.add(const Duration(seconds: 15));
+        if (observer.lookAngleAt(hi).elevationDeg <= 0) {
+          var a = lo;
+          var b = hi;
+          while (b.difference(a).inMilliseconds > 1000) {
+            final mid = a.add(
+              Duration(milliseconds: b.difference(a).inMilliseconds ~/ 2),
+            );
+            if (observer.lookAngleAt(mid).elevationDeg > 0) {
+              a = mid;
+            } else {
+              b = mid;
+            }
+          }
+          return b;
+        }
+        lo = hi;
+        if (!DecoderWorker.usesIsolates && i % 20 == 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
       }
-      lo = hi;
-      if (!DecoderWorker.usesIsolates && i % 20 == 0) {
-        await Future<void>.delayed(Duration.zero);
-      }
+      return null;
+    } finally {
+      observer.engine.clearPrefetch();
     }
-    return null;
   }
 
   @override
-  void dispose() => _observers.clear();
+  void dispose() {
+    for (final observer in _observers.values) {
+      observer.dispose();
+    }
+    _observers.clear();
+  }
 }

@@ -112,6 +112,13 @@ On web, where Dart isolates are unavailable, the same worker protocol uses a
 cooperative search that yields between small sample batches and preserves the
 package's 30-second grid and fully-bracketed-pass policy.
 
+Windows, Linux, macOS, and Android now batch propagation and coarse-grid
+look-angle calculations in a native SGP4/SDP4 kernel translated from the same
+package. TLE parsing, initialization, and adaptive pass refinement retain the
+package implementation. Web/iOS and explicit `useNative: false` retain Dart.
+See [native satellite propagation](../native-satellite.md) for numerical
+parity bounds, dependency-upgrade requirements, and measured performance.
+
 **UI.** The tab and the map overlay are pure display + selection. They subscribe
 to the handler's broadcasts and never do orbital math themselves.
 
