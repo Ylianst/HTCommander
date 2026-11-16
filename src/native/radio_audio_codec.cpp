@@ -252,7 +252,7 @@ void encodeFrame(EncoderState& state, const uint8_t* pcm, int allocation,
     int maximum = 0;
     for (int block = 0; block < 16; ++block) {
       const int v = samples[block * 8 + sb];
-      maximum |= v < 0 ? -v : v;
+      maximum |= v < 0 ? ~v : v;
     }
     int factor = 0;
     for (int v = maximum; v > 1; v >>= 1) ++factor;

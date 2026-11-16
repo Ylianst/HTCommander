@@ -13,8 +13,9 @@ class SbcEncoderTables {
   // ---------------------------------------------------------------------------
   // NOTE ON TWO C# SOURCE BUGS (both fixed here in the Dart port):
   //
-  // Source of truth: reference/libsbc/src/sbc.c (analyze_4 / analyze_8). The
-  // Dart encoder output is now byte-for-byte identical to libsbc.
+  // Analysis reference: Google libsbc src/sbc.c (analyze_4 / analyze_8).
+  // Encoder/decoder bit-exact comparison results and supported modes are in
+  // docs/findings/sbc-reference-comparison.md.
   //
   // libsbc stores the analysis window as TWO separate tables, `window[2][n][5*2]`:
   //   - window[0] (w0): coefficients for the FIRST polyphase half.

@@ -258,17 +258,13 @@ class SbcEncoder {
         final int s0 = sbSamples[0][idx];
         final int s1 = sbSamples[1][idx];
 
-        final int abs0 = s0 < 0 ? -s0 : s0;
-        final int abs1 = s1 < 0 ? -s1 : s1;
-        m0 |= abs0;
-        m1 |= abs1;
+        m0 |= s0 < 0 ? ~s0 : s0;
+        m1 |= s1 < 0 ? ~s1 : s1;
 
         final int sum = s0 + s1;
         final int diff = s0 - s1;
-        final int absSum = sum < 0 ? -sum : sum;
-        final int absDiff = diff < 0 ? -diff : diff;
-        mj0 |= absSum;
-        mj1 |= absDiff;
+        mj0 |= sum < 0 ? ~sum : sum;
+        mj1 |= diff < 0 ? ~diff : diff;
       }
 
       int scf0 = m0 != 0 ? 31 - SbcTables.countLeadingZeros(m0) : 0;
@@ -304,8 +300,8 @@ class SbcEncoder {
         for (int blk = 0; blk < frame.blocks; blk++) {
           final int idx = blk * frame.subbands + sb;
           final int sample = sbSamples[ch][idx];
-          final int abs = sample < 0 ? -sample : sample;
-          m |= abs;
+          // The sign bit is excluded, not negated: -2 has magnitude bits 1.
+          m |= sample < 0 ? ~sample : sample;
         }
 
         final int scf = m != 0 ? 31 - SbcTables.countLeadingZeros(m) : 0;
