@@ -18,6 +18,10 @@ class NativePcmOutput {
     uint64_t underruns;  // Queue drained after playing audio (includes stream end).
     uint64_t overflows;  // Rejected feeds exceeding the 800 ms queue limit.
     uint64_t errors;     // Validation/device errors, excluding bounded overflow.
+    int64_t buffered_ms;
+    int64_t peak_buffered_ms;
+    uint64_t catchups;
+    uint64_t discarded_frames;  // Includes any played prefix of reset buffers.
   };
 
   NativePcmOutput();
@@ -30,6 +34,8 @@ class NativePcmOutput {
   // are logged and counted by error_count(), not hidden as successful playback.
   bool Feed(const uint8_t* data, size_t length);
   // Atomically requires ready 32000 Hz mono and enqueues in that generation.
+  // Radio-only backlogs above 200 ms reset to the newest (at most 60 ms) PCM.
+  // Mixed/non-radio queues retain the ordinary 800 ms admission limit.
   // count is the number of int16_t samples, not bytes.
   bool FeedRadio(const int16_t* pcm, size_t count);
   void Release();

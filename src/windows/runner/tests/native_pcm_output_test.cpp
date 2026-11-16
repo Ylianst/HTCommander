@@ -68,6 +68,14 @@ size_t SubmittedBuffers() {
   return current_device ? current_device->headers.size() : 0;
 }
 
+bool HasRadioTail(int16_t first, DWORD bytes) {
+  std::lock_guard<std::mutex> lock(driver_mutex);
+  if (!current_device || current_device->headers.size() != 1) return false;
+  const auto* header = current_device->headers.front();
+  return header->dwBufferLength == bytes &&
+         reinterpret_cast<const int16_t*>(header->lpData)[0] == first;
+}
+
 template <typename Predicate>
 bool WaitFor(Predicate predicate) {
   const auto deadline =
@@ -308,9 +316,7 @@ int main() {
     for (int i = 0; i < 8; ++i) {
       producers.emplace_back([&] {
         for (int j = 0; j < 10; ++j) {
-          const bool fed = j % 2 == 0
-                               ? output.FeedRadio(radio.data(), radio.size())
-                               : output.Feed(mono.data(), mono.size());
+          const bool fed = output.Feed(mono.data(), mono.size());
           if (fed) accepted.fetch_add(1);
         }
       });
@@ -319,8 +325,36 @@ int main() {
     CHECK(accepted.load() == 40);
     CHECK(output.buffered_frames() == 25600);
     CHECK(output.stats().overflows == 41);
+    output.SetFeedCallback(nullptr);  // Wait for pending driver submissions.
     CompleteAll();
     CHECK(WaitFor([&] { return output.buffered_frames() == 0; }));
+
+    // At exactly 200 ms radio PCM is retained. The next live chunk replaces
+    // already submitted driver buffers instead of being rejected.
+    std::vector<int16_t> delayed(6400, 11);
+    std::vector<int16_t> newest(640, 22);
+    const uint64_t before_catchups = output.stats().catchups;
+    const uint64_t before_discarded = output.stats().discarded_frames;
+    CHECK(output.FeedRadio(delayed.data(), delayed.size()));
+    CHECK(WaitFor([] { return HasRadioTail(11, 12800); }));
+    CHECK(output.stats().buffered_ms == 200);
+    CHECK(output.stats().catchups == before_catchups);
+    CHECK(output.FeedRadio(newest.data(), newest.size()));
+    CHECK(WaitFor([] { return HasRadioTail(22, 1280); }));
+    CHECK(output.buffered_frames() == 640);
+    CHECK(output.stats().buffered_ms == 20);
+    CHECK(output.stats().catchups == before_catchups + 1);
+    CHECK(output.stats().discarded_frames == before_discarded + 6400);
+    CompleteAll();
+    CHECK(WaitFor([&] { return output.buffered_frames() == 0; }));
+
+    // Recovery must not flush non-radio audio sharing the speaker queue.
+    CHECK(output.Feed(mono.data(), mono.size()));
+    CHECK(output.FeedRadio(delayed.data(), delayed.size()));
+    CHECK(output.buffered_frames() == 7040);
+    CHECK(output.stats().catchups == before_catchups + 1);
+    CHECK(output.Setup(32000, 1, ""));
+    CHECK(SubmittedBuffers() == 0);
 
     HANDLE entered = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     HANDLE unblock = CreateEventW(nullptr, TRUE, FALSE, nullptr);
@@ -343,13 +377,62 @@ int main() {
     Sleep(10);
     CHECK(!detached.load());
     // Feed must not wait for a worker blocked in an observational callback.
-    CHECK(output.Feed(mono.data(), mono.size()));
-    CHECK(output.buffered_frames() == 640);
+    // Several recoveries while the worker is stalled must discard pending
+    // submission commands as well as driver buffers, retaining the newest tail.
+    for (int i = 0; i < 3; ++i) {
+      CHECK(output.FeedRadio(delayed.data(), i == 0 ? 6400 : 5760));
+      CHECK(output.FeedRadio(newest.data(), newest.size()));
+      CHECK(output.buffered_frames() == 640);
+    }
+    std::vector<int16_t> burst(9600, 33);
+    burst[7680] = 44;
+    CHECK(output.FeedRadio(burst.data(), burst.size()));
+    CHECK(output.buffered_frames() == 1920);
+    CHECK(output.stats().catchups == before_catchups + 5);
+    CHECK(output.stats().discarded_frames ==
+          before_discarded + 6400 + 3 * 6400 + 640 + 7680);
     SetEvent(unblock);
     detach.join();
     CHECK(detached.load());
     CloseHandle(entered);
     CloseHandle(unblock);
+    CHECK(WaitFor([] { return HasRadioTail(44, 3840); }));
+    CompleteAll();
+    CHECK(WaitFor([&] { return output.buffered_frames() == 0; }));
+
+    // Failed driver resets never release still-playing memory or admit more
+    // audio. Explicit setup can recover the output once the driver works.
+    CHECK(output.FeedRadio(delayed.data(), delayed.size()));
+    CHECK(WaitFor([] { return HasRadioTail(11, 12800); }));
+    fail_reset = true;
+    previous_errors = output.error_count();
+    CHECK(output.FeedRadio(newest.data(), newest.size()));
+    CHECK(WaitFor([&] {
+      return !output.IsRadioFormat() && output.buffered_frames() == 0;
+    }));
+    CHECK(output.error_count() > previous_errors);
+    CHECK(SubmittedBuffers() == 1);
+    CHECK(!output.FeedRadio(newest.data(), newest.size()));
+    fail_reset = false;
+    CHECK(output.Setup(32000, 1, ""));
+    CHECK(SubmittedBuffers() == 0);
+
+    accepted.store(0);
+    producers.clear();
+    for (int i = 0; i < 8; ++i) {
+      producers.emplace_back([&] {
+        for (int j = 0; j < 10; ++j) {
+          if (output.FeedRadio(newest.data(), newest.size())) {
+            accepted.fetch_add(1);
+          }
+        }
+      });
+    }
+    for (auto& producer : producers) producer.join();
+    output.SetFeedCallback(nullptr);
+    CHECK(accepted.load() == 80);
+    CHECK(output.buffered_frames() > 0);
+    CHECK(output.buffered_frames() <= 6400);
     CompleteAll();
     CHECK(WaitFor([&] { return output.buffered_frames() == 0; }));
 
@@ -365,7 +448,8 @@ int main() {
     CHECK(output.FeedRadio(radio.data(), radio.size()));
     CompleteAll();
     CHECK(WaitForSingleObject(entered, 3000) == WAIT_OBJECT_0);
-    CHECK(output.FeedRadio(radio.data(), radio.size()));
+    CHECK(output.FeedRadio(delayed.data(), delayed.size()));
+    CHECK(output.FeedRadio(newest.data(), newest.size()));
     std::atomic<bool> configured{false};
     std::thread configure([&] {
       CHECK(output.Setup(48000, 2, ""));

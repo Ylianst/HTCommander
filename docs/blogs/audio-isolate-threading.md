@@ -30,6 +30,17 @@ local transmit monitoring and other audio sources still use the shared player.
 Device ownership remains reference-counted by `PcmPlayer`; native Bluetooth
 playback does not open a second competing output device.
 
+**Windows receive playback catch-up:** native radio-only speaker queues now
+recover when admitted audio would exceed 200 ms. Admission invalidates old
+playback submissions immediately; the output worker resets the WinMM queue and
+keeps only the newest chunk (at most its final 60 ms). Repeated catch-ups also
+remove stale pending submission commands while the worker is busy. This can
+produce a brief audible skip, but avoids preserving an accumulated playback
+delay. Recording, visualization, browser mirroring and modem decoding keep their
+original samples. Queues containing non-radio PCM retain the existing 800 ms
+admission cap rather than flushing another source's audio. Reset failures are
+logged and disable output admission until the device is set up again.
+
 **Receive decoder workers:** DART and packet-modem (AFSK/PSK, including HDLC and
 FX.25) reception now runs in a persistent worker per modem instance. SSTV and
 buffered radiosonde reception have separate persistent workers. Native DSP calls
@@ -87,6 +98,16 @@ UI does not delay turn-around. Native playback protects against host scheduling
 delays, not missing source samples, Bluetooth disconnects, or audio interruptions
 caused by retuning the radio. Hardware listening and UI-stall comparisons remain
 necessary to measure the improvement on a particular machine.
+
+The same diagnostics include `bufferedMs`, lifetime `peakBufferedMs`,
+`outputCatchups` (requested queue recoveries), and `outputDiscardedFrames`.
+Discarded frames include pending submissions, clipped input tails' discarded
+prefixes, and reset driver buffers; a reset buffer's already-played prefix is
+included because queue accounting is at buffer granularity. These shared-output
+counters are cumulative across device reconfiguration. At native radio format,
+32 frames represent 1 ms. Compare logs before and after a CPU-load event to
+identify queue growth and recovery; the existing receive-end/stop logs publish
+the values without additional UI work on the audio thread.
 
 The standalone Windows regression tests use no radio and the output-worker
 tests mock WinMM rather than opening a real audio device. From an MSVC Developer

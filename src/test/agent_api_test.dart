@@ -789,10 +789,11 @@ void main() {
         ],
       );
       DataBroker.dispatch(deviceId: 501, name: 'AudioState', data: true);
+      // XARA checks the selected channel, not the last received channel.
       DataBroker.dispatch(
         deviceId: 501,
-        name: 'HtStatus',
-        data: {'currRegion': 0, 'currChId': 4, 'isInTx': false},
+        name: 'Settings',
+        data: {'channelA': 4},
       );
       final a = await authenticated();
       a.call('subscribe', {

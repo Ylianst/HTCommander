@@ -691,6 +691,13 @@ void BluetoothClassicPlugin::Impl::HandleMethodCall(
           static_cast<int64_t>(output->overflow_count()));
       values[flutter::EncodableValue("outputErrors")] = flutter::EncodableValue(
           static_cast<int64_t>(output->error_count()));
+      const auto output_stats = output->stats();
+      values[flutter::EncodableValue("bufferedMs")] = flutter::EncodableValue(output_stats.buffered_ms);
+      values[flutter::EncodableValue("peakBufferedMs")] = flutter::EncodableValue(output_stats.peak_buffered_ms);
+      values[flutter::EncodableValue("outputCatchups")] = flutter::EncodableValue(
+          static_cast<int64_t>(output_stats.catchups));
+      values[flutter::EncodableValue("outputDiscardedFrames")] = flutter::EncodableValue(
+          static_cast<int64_t>(output_stats.discarded_frames));
       result->Success(flutter::EncodableValue(values));
       return;
     }

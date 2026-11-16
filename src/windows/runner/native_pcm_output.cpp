@@ -44,13 +44,19 @@ struct NativePcmOutput::Impl {
     std::vector<uint8_t> bytes;
     int64_t frames = 0;
     uint64_t generation = 0;
+    bool radio = false;
+  };
+
+  struct Command {
+    std::function<void()> run;
+    bool playback = false;
   };
 
   HANDLE wake = nullptr;
   HANDLE completion = nullptr;
   std::thread worker;
   std::mutex commands_mutex;
-  std::deque<std::function<void()>> commands;
+  std::deque<Command> commands;
   // Admission and command ordering share one short-held lock. No driver work
   // happens under it, so Bluetooth reader feeds never wait for the worker.
   bool accepting = false;
@@ -61,6 +67,10 @@ struct NativePcmOutput::Impl {
   std::atomic<uint64_t> underruns{0};
   std::atomic<uint64_t> overflows{0};
   std::atomic<uint64_t> errors{0};
+  int64_t queued_radio_frames = 0;
+  int64_t peak_buffered_ms = 0;
+  uint64_t catchups = 0;
+  uint64_t discarded_frames = 0;
   std::atomic<bool> radio_format{false};
 
   // Worker-only state.
@@ -125,6 +135,7 @@ struct NativePcmOutput::Impl {
     accepting = false;
     radio_format.store(false);
     queued_frames.store(0);
+    queued_radio_frames = 0;
     return ++generation;
   }
 
@@ -137,6 +148,7 @@ struct NativePcmOutput::Impl {
     std::lock_guard<std::mutex> lock(commands_mutex);
     if (buffer.generation != generation) return false;
     queued_frames.fetch_sub(buffer.frames);
+    if (buffer.radio) queued_radio_frames -= buffer.frames;
     return true;
   }
 
@@ -170,7 +182,7 @@ struct NativePcmOutput::Impl {
     auto result = task->get_future();
     {
       std::lock_guard<std::mutex> lock(commands_mutex);
-      commands.emplace_back([task] { (*task)(); });
+      commands.push_back({[task] { (*task)(); }});
     }
     SetEvent(wake);
     try {
@@ -189,7 +201,7 @@ struct NativePcmOutput::Impl {
       {
         std::lock_guard<std::mutex> lock(commands_mutex);
         if (!commands.empty()) {
-          command = std::move(commands.front());
+          command = std::move(commands.front().run);
           commands.pop_front();
         }
       }
@@ -206,9 +218,7 @@ struct NativePcmOutput::Impl {
     }
   }
 
-  bool CloseDevice() {
-    open = false;
-    if (!device) return true;
+  bool ResetBuffers() {
     const MMRESULT reset = waveOutReset(device);
     if (reset != MMSYSERR_NOERROR) WaveError("waveOutReset", reset);
     for (auto it = buffers.begin(); it != buffers.end();) {
@@ -219,10 +229,17 @@ struct NativePcmOutput::Impl {
         RemoveFrames(buffer);
         it = buffers.erase(it);
       } else {
-        WaveError("waveOutUnprepareHeader (release)", result);
+        WaveError("waveOutUnprepareHeader (reset)", result);
         ++it;
       }
     }
+    return reset == MMSYSERR_NOERROR && buffers.empty();
+  }
+
+  bool CloseDevice() {
+    open = false;
+    if (!device) return true;
+    ResetBuffers();
     if (!buffers.empty()) return false;
     const MMRESULT result = waveOutClose(device);
     if (result != MMSYSERR_NOERROR) {
@@ -295,10 +312,13 @@ struct NativePcmOutput::Impl {
                 : "Feed rejected: output closed, empty data, or invalid PCM alignment/size");
       return false;
     }
-    const int64_t frames =
+    int64_t frames =
         static_cast<int64_t>(length / static_cast<size_t>(admitted_frame_bytes));
     const int64_t limit = static_cast<int64_t>(admitted_rate) * 800 / 1000;
-    if (frames > limit - queued_frames.load()) {
+    const int64_t queued = queued_frames.load();
+    const bool catchup = radio_only && queued_radio_frames == queued &&
+                         queued + frames > admitted_rate * 200 / 1000;
+    if (frames > limit || (!catchup && frames > limit - queued)) {
       const uint64_t count = overflows.fetch_add(1) + 1;
       if (count == 1 || count % 100 == 0) {
         Log("Feed overflow: 800 ms queue limit; rejected feeds=" +
@@ -307,21 +327,63 @@ struct NativePcmOutput::Impl {
       return false;
     }
     try {
+      const int64_t original_frames = frames;
+      if (catchup && frames > admitted_rate * 60 / 1000) {
+        frames = admitted_rate * 60 / 1000;
+        const size_t retained = static_cast<size_t>(frames) *
+                                static_cast<size_t>(admitted_frame_bytes);
+        data += length - retained;
+        length = retained;
+      }
       auto buffer = std::make_shared<Buffer>();
       buffer->bytes.assign(data, data + length);
       buffer->frames = frames;
-      buffer->generation = generation;
+      buffer->generation = generation + (catchup ? 1 : 0);
+      buffer->radio = radio_only;
       buffer->header.lpData = reinterpret_cast<char*>(buffer->bytes.data());
       buffer->header.dwBufferLength = static_cast<DWORD>(length);
-      commands.emplace_back([this, buffer] {
+      commands.push_back({[this, buffer, catchup] {
         try {
+          if (catchup && IsCurrent(buffer->generation)) {
+            if (!ResetBuffers()) {
+              open = false;
+              std::lock_guard<std::mutex> lock(commands_mutex);
+              if (generation == buffer->generation) {
+                accepting = false;
+                radio_format.store(false);
+              }
+              Error("Radio catch-up failed; output disabled until setup");
+            } else {
+              Log("Radio playback caught up; stale speaker buffers reset");
+            }
+          }
           Submit(buffer);
         } catch (const std::exception& error) {
           RemoveFrames(*buffer);
           Error(std::string("PCM submission failed: ") + error.what());
         }
-      });
+      }, true});
+      if (catchup) {
+        ++generation;
+        ++catchups;
+        discarded_frames +=
+            static_cast<uint64_t>(queued + original_frames - frames);
+        queued_frames.store(0);
+        queued_radio_frames = 0;
+        // Keep control operations, but release stale PCM even if the worker
+        // is stalled through several catch-up cycles.
+        for (auto it = commands.begin(); it != commands.end() - 1;) {
+          if (it->playback) {
+            it = commands.erase(it);
+          } else {
+            ++it;
+          }
+        }
+      }
       queued_frames.fetch_add(frames);
+      if (radio_only) queued_radio_frames += frames;
+      const int64_t buffered_ms = queued_frames.load() * 1000 / admitted_rate;
+      if (buffered_ms > peak_buffered_ms) peak_buffered_ms = buffered_ms;
       SetEvent(wake);
       return true;
     } catch (const std::exception& error) {
@@ -444,8 +506,12 @@ void NativePcmOutput::SetFeedCallback(std::function<void(int64_t)> callback) {
 }
 
 NativePcmOutput::Stats NativePcmOutput::stats() const {
+  std::lock_guard<std::mutex> lock(impl_->commands_mutex);
+  const int64_t queued = impl_->queued_frames.load();
   return {impl_->queued_frames.load(), impl_->underruns.load(),
-          impl_->overflows.load(), impl_->errors.load()};
+          impl_->overflows.load(), impl_->errors.load(),
+          impl_->admitted_rate > 0 ? queued * 1000 / impl_->admitted_rate : 0,
+          impl_->peak_buffered_ms, impl_->catchups, impl_->discarded_frames};
 }
 
 uint64_t NativePcmOutput::overflow_count() const {
