@@ -7,6 +7,12 @@ images, and until recently it did all of that on the same thread that paints the
 user interface. This is the story of why that's a problem, why the honest fix is a
 dedicated audio isolate, and the one hard lesson that reshaped the design.*
 
+**Transmit follow-up:** the historical platform-channel discussion below describes
+the initial isolate split. The current engine can send Bluetooth writes directly
+from its background isolate, but native scheduling dependencies remain. See
+[Keeping Bluetooth Transmit Audio Continuous When the Computer Is Busy](bluetooth-audio-transmit-worker.md)
+for the current path, native sender implementation, and platform validation work.
+
 ---
 
 > **Update (build notes).** Phase 1 has landed: SBC decode, WAV recording and the

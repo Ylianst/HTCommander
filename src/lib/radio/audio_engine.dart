@@ -12,39 +12,72 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart'
-    show BackgroundIsolateBinaryMessenger, MethodChannel, RootIsolateToken;
+    show
+        BackgroundIsolateBinaryMessenger,
+        MethodChannel,
+        PlatformException,
+        RootIsolateToken;
 
 import '../sbc/sbc_decoder.dart';
 import '../sbc/sbc_encoder.dart';
 import '../sbc/sbc_enums.dart';
 import '../sbc/sbc_frame.dart';
 
+/// One fully encoded transmission. Native code owns pacing and its end marker.
+class PreparedAudioJob {
+  const PreparedAudioJob({
+    required this.jobId,
+    required this.data,
+    required this.lengths,
+    required this.samples,
+    required this.leadMs,
+  });
+
+  static const int maxBytes = 16 * 1024 * 1024;
+  final int jobId;
+  final Uint8List data;
+  final Int32List lengths;
+  final Int32List samples;
+  final int leadMs;
+}
+
+class PreparedAudioResult {
+  const PreparedAudioResult({
+    required this.cancelled,
+    required this.samplesSent,
+  });
+
+  final bool cancelled;
+  final int samplesSent;
+}
+
+/// A preflight rejection: no audio or end marker was submitted.
+class PreparedAudioUnsupportedException implements Exception {
+  const PreparedAudioUnsupportedException();
+}
+
 /// The CPU-heavy audio DSP engine that runs in a dedicated background isolate,
 /// off the Flutter UI isolate.
 ///
-/// It owns the SBC decoder/encoder and the WAV recorder, and it runs the
-/// transmit pacing loop. It performs **no platform-channel calls** — background
-/// isolates cannot receive messages from the host platform (no EventChannel
-/// streams, no method-call handlers), so anything touching a plugin (the PCM
-/// player, Bluetooth) stays on the main-isolate host ([RadioAudio]). The engine
-/// emits finished PCM via a `play` event for the host to feed to the speaker,
-/// and emits framed transmit bytes via a `send` event for the host to write to
-/// Bluetooth.
-///
-/// The engine is intentionally a near-verbatim move of the receive/transmit DSP
-/// that used to live inline in `RadioAudio`, so its behaviour matches the
-/// original single-isolate implementation exactly — only *where* it runs, and
-/// how it talks to the outside world (messages instead of direct broker/radio
-/// calls), has changed.
+/// It owns SBC encoding/decoding and recording. Live voice is paced here;
+/// complete modem/SSTV jobs are prepared here and paced by a native sender.
+/// Platform-channel requests can originate here, but playback and unsolicited
+/// platform events still belong to the root-isolate host.
 class AudioEngine {
   // Named params can't be private, so `btSend` is copied into `_btSend`.
   AudioEngine(
     this._emit, {
     Future<void> Function(Uint8List data)? btSend,
+    Future<PreparedAudioResult> Function(PreparedAudioJob job)? btSendPrepared,
+    Future<void> Function(int jobId)? btCancelPrepared,
     int Function()? clockMs,
   })
     // ignore: prefer_initializing_formals
     : _btSend = btSend,
+       // ignore: prefer_initializing_formals
+       _btSendPrepared = btSendPrepared,
+       // ignore: prefer_initializing_formals
+       _btCancelPrepared = btCancelPrepared,
        _clockMs = clockMs ?? _monotonicMs;
 
   static final Stopwatch _monotonic = Stopwatch()..start();
@@ -144,6 +177,9 @@ class AudioEngine {
   /// RootIsolateToken, e.g. web), [_sendAudio] falls back to relaying the bytes
   /// to the host via a `send` event.
   final Future<void> Function(Uint8List data)? _btSend;
+  final Future<PreparedAudioResult> Function(PreparedAudioJob job)?
+  _btSendPrepared;
+  final Future<void> Function(int jobId)? _btCancelPrepared;
 
   final SbcDecoder _sbcDecoder = SbcDecoder();
   final SbcEncoder _sbcEncoder = SbcEncoder();
@@ -199,7 +235,8 @@ class AudioEngine {
     ..bitpool = 18;
 
   // --- Transmit state ---
-  final Queue<Uint8List> _pcmQueue = Queue<Uint8List>();
+  final Queue<({Uint8List pcm, int? deadlineMs})> _pcmQueue =
+      Queue<({Uint8List pcm, int? deadlineMs})>();
   bool _isTransmitting = false;
   bool _voiceTransmitCancel = false;
   bool _playInputBack = false;
@@ -208,6 +245,10 @@ class AudioEngine {
   bool _voiceTransmitHold = false;
   Uint8List? _reminderTransmitPcm;
   Completer<void>? _newDataSignal;
+  int _nextPreparedJobId = DateTime.now().microsecondsSinceEpoch;
+  int? _preparedJobId;
+  bool _nativeOwnsEnd = false;
+  bool _radioReceiving = false;
 
   // --- Local monitor playback pacing ---
   // When a transmission is monitored locally (playLocally), the SBC encoder
@@ -280,6 +321,7 @@ class AudioEngine {
             playLocally,
             isDataFrame: isDataFrame,
             isBulkData: isBulkData,
+            deadlineMs: msg['deadlineMs'] as int?,
           );
         }
         break;
@@ -296,6 +338,8 @@ class AudioEngine {
       case 'radioState':
         _channelName = (msg['channelName'] as String?) ?? _channelName;
         _muteChannel = (msg['muteChannel'] as bool?) ?? _muteChannel;
+        _radioReceiving = (msg['receiving'] as bool?) ?? _radioReceiving;
+        _signalNewData();
         break;
       case 'shutdown':
         _shutdown();
@@ -317,6 +361,7 @@ class AudioEngine {
     _signalNewData();
     _pcmQueue.clear();
     _reminderTransmitPcm = null;
+    _cancelPrepared();
 
     // End an in-progress receive run (a transmit run is finalized by the
     // transmit loop's `finally`).
@@ -769,7 +814,12 @@ class AudioEngine {
     bool play, {
     bool isDataFrame = false,
     bool isBulkData = false,
+    int? deadlineMs,
   }) {
+    if (_isTransmitting && _voiceTransmitCancel) {
+      _log('TransmitVoicePCM rejected while cancellation is pending.');
+      return false;
+    }
     _playInputBack = play;
     _voiceTransmitCancel = false;
     // The data-frame flag applies to a whole transmission run; only latch it
@@ -778,11 +828,12 @@ class AudioEngine {
       _voiceTransmitIsDataFrame = isDataFrame;
       _voiceTransmitIsBulkData = isBulkData;
     }
-    _pcmQueue.add(
-      Uint8List.fromList(
+    _pcmQueue.add((
+      pcm: Uint8List.fromList(
         Uint8List.sublistView(pcmInput, offset, offset + length),
       ),
-    );
+      deadlineMs: deadlineMs,
+    ));
 
     if (_isTransmitting) _signalNewData();
     _startTransmissionIfNeeded();
@@ -796,7 +847,23 @@ class AudioEngine {
     _signalNewData();
     _pcmQueue.clear();
     _reminderTransmitPcm = null;
-    unawaited(_sendEndAudio());
+    if (_nativeOwnsEnd) {
+      _cancelPrepared();
+    } else {
+      unawaited(_sendEndAudio());
+    }
+  }
+
+  void _cancelPrepared() {
+    final int? jobId = _preparedJobId;
+    final cancel = _btCancelPrepared;
+    if (jobId != null && cancel != null) {
+      unawaited(
+        cancel(jobId).catchError((Object error) {
+          _log('Prepared audio cancellation error: $error');
+        }),
+      );
+    }
   }
 
   void _signalNewData() {
@@ -807,6 +874,7 @@ class AudioEngine {
   void _startTransmissionIfNeeded() {
     if (_isTransmitting) return;
     _isTransmitting = true;
+    _nativeOwnsEnd = false;
     _transmissionLoop();
   }
 
@@ -815,7 +883,18 @@ class AudioEngine {
     try {
       while (!_voiceTransmitCancel) {
         if (_pcmQueue.isNotEmpty) {
-          await _processPcmData(_pcmQueue.removeFirst());
+          final chunk = _pcmQueue.removeFirst();
+          if (_btSendPrepared != null &&
+              (_voiceTransmitIsDataFrame || _voiceTransmitIsBulkData) &&
+              !_voiceTransmitHold) {
+            // Preparation has not keyed the radio, so no fallback end marker
+            // may race a native job or interrupt an incoming transmission.
+            _nativeOwnsEnd = true;
+            await _processPreparedPcm(chunk.pcm, chunk.deadlineMs);
+          } else {
+            _nativeOwnsEnd = false;
+            await _processPcmData(chunk.pcm);
+          }
         } else {
           // Wait briefly for more data. While a PTT stream is held open keep
           // the audio run alive across gaps; otherwise end once the queue is
@@ -838,13 +917,194 @@ class AudioEngine {
         _dispatchAudioDataEnd();
       }
       _reminderTransmitPcm = null;
-      await _sendEndAudio();
+      if (!_nativeOwnsEnd) await _sendEndAudio();
       _dispatchVoiceTransmitStateChanged(false);
       _isTransmitting = false;
     }
   }
 
-  Future<void> _processPcmData(Uint8List incoming) async {
+  Future<void> _processPreparedPcm(Uint8List incoming, int? deadlineMs) async {
+    if (_btCancelPrepared == null) {
+      throw StateError('Prepared audio requires native cancellation support');
+    }
+    if (incoming.length > 96 * 1024 * 1024) {
+      throw StateError('Prepared PCM exceeds the 96 MiB limit');
+    }
+    final remainder = _reminderTransmitPcm;
+    final Uint8List pcm;
+    if (remainder == null) {
+      pcm = incoming;
+    } else {
+      pcm = Uint8List(remainder.length + incoming.length)
+        ..setRange(0, remainder.length, remainder)
+        ..setRange(
+          remainder.length,
+          remainder.length + incoming.length,
+          incoming,
+        );
+    }
+    _reminderTransmitPcm = null;
+    final payload = BytesBuilder(copy: false);
+    final lengths = <int>[];
+    final samples = <int>[];
+    int offset = 0;
+    while (pcm.length - offset >= _pcmInputSizePerFrame) {
+      final batch = BytesBuilder(copy: false);
+      final int start = offset;
+      for (
+        int i = 0;
+        i < _txPacketsPerWrite && pcm.length - offset >= _pcmInputSizePerFrame;
+        i++
+      ) {
+        final (encoded, consumed) = _encodeSbcFrames(
+          pcm,
+          offset,
+          pcm.length - offset,
+        );
+        if (encoded == null || consumed <= 0) {
+          throw StateError('SBC preparation failed at PCM byte $offset');
+        }
+        batch.add(_escapeBytes(0, encoded));
+        offset += consumed;
+      }
+      final bytes = batch.takeBytes();
+      payload.add(bytes);
+      lengths.add(bytes.length);
+      samples.add((offset - start) ~/ 2);
+      if (payload.length > PreparedAudioJob.maxBytes ||
+          lengths.length > 200000) {
+        throw StateError('Prepared audio exceeds the native job limit');
+      }
+      if (lengths.length % 16 == 0) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      if (_voiceTransmitCancel) return;
+      _checkPreparedDeadline(deadlineMs);
+    }
+    if (offset < pcm.length) {
+      _reminderTransmitPcm = Uint8List.fromList(
+        Uint8List.sublistView(pcm, offset),
+      );
+    }
+    if (lengths.isEmpty || _voiceTransmitCancel) return;
+    await Future<void>.delayed(Duration.zero);
+    while ((_radioReceiving || (_inAudioRun && !_inAudioRunIsTransmit)) &&
+        !_voiceTransmitCancel) {
+      _checkPreparedDeadline(deadlineMs);
+      _newDataSignal = Completer<void>();
+      await Future.any<void>(<Future<void>>[
+        _newDataSignal!.future,
+        Future<void>.delayed(const Duration(milliseconds: 100)),
+      ]);
+      _newDataSignal = null;
+    }
+    if (_voiceTransmitCancel) return;
+    _checkPreparedDeadline(deadlineMs);
+    _beginTransmitAudioRun();
+    final job = PreparedAudioJob(
+      jobId: _nextPreparedJobId++,
+      data: payload.takeBytes(),
+      lengths: Int32List.fromList(lengths),
+      samples: Int32List.fromList(samples),
+      leadMs: _voiceTransmitIsDataFrame ? _txLeadMsBulk : _txLeadMsBulkData,
+    );
+    _preparedJobId = job.jobId;
+    try {
+      final pending = _submitPrepared(job);
+      if (_playInputBack && !_isMuted) {
+        for (int start = 0; start < offset; start += 12800) {
+          final end = start + 12800 < offset ? start + 12800 : offset;
+          _enqueueMonitor(
+            _int16ListFromBytes(Uint8List.sublistView(pcm, start, end)),
+          );
+        }
+      }
+      final result = await pending;
+      if (result.samplesSent < 0 ||
+          result.samplesSent > offset ~/ 2 ||
+          result.samplesSent % 128 != 0 ||
+          (!result.cancelled && result.samplesSent != offset ~/ 2)) {
+        throw StateError('Invalid native prepared audio sample count');
+      }
+      if (result.cancelled) {
+        _voiceTransmitCancel = true;
+        _pcmQueue.clear();
+      }
+      // These observers cannot delay native writes. Publish only the prefix
+      // whose submission the sender confirmed, in bounded PCM chunks.
+      final int sentBytes = result.samplesSent * 2;
+      for (int start = 0; start < sentBytes; start += 12800) {
+        final int end = start + 12800 < sentBytes ? start + 12800 : sentBytes;
+        final consumed = Uint8List.sublistView(pcm, start, end);
+        _recorder?.write(_int16ListFromBytes(consumed));
+        _dispatchAudioDataAvailable(
+          Uint8List.fromList(consumed),
+          consumed.length,
+          true,
+          false,
+        );
+        await Future<void>.delayed(Duration.zero);
+      }
+      _log(
+        'Prepared TX audio: job=${job.jobId}, lead=${job.leadMs}ms, '
+        'audio=${result.samplesSent * 1000 ~/ _sampleRate}ms, '
+        'cancelled=${result.cancelled}, wireBytes=${job.data.length}',
+      );
+    } finally {
+      _preparedJobId = null;
+    }
+  }
+
+  Future<PreparedAudioResult> _submitPrepared(PreparedAudioJob job) async {
+    try {
+      return await _btSendPrepared!(job);
+    } on PreparedAudioUnsupportedException {
+      _log(
+        'Native prepared audio is unavailable on this shared Bluetooth '
+        'endpoint; using legacy paced writes without UI-stall protection.',
+      );
+      final clock = Stopwatch()..start();
+      int sent = 0;
+      int offset = 0;
+      try {
+        for (int i = 0; i < job.lengths.length; i++) {
+          final targetMs =
+              (sent + job.samples[i]) * 1000 ~/ _sampleRate - job.leadMs;
+          while (!_voiceTransmitCancel &&
+              clock.elapsedMilliseconds < targetMs) {
+            final waitMs = targetMs - clock.elapsedMilliseconds;
+            await Future<void>.delayed(
+              Duration(milliseconds: waitMs < 100 ? waitMs : 100),
+            );
+          }
+          if (_voiceTransmitCancel) break;
+          await _sendAudio(
+            Uint8List.sublistView(job.data, offset, offset + job.lengths[i]),
+          );
+          offset += job.lengths[i];
+          sent += job.samples[i];
+        }
+      } catch (error) {
+        _log('Legacy prepared audio write failed: $error');
+        rethrow;
+      } finally {
+        await _sendAudio(_endAudioFrame);
+      }
+      return PreparedAudioResult(
+        cancelled: _voiceTransmitCancel,
+        samplesSent: sent,
+      );
+    }
+  }
+
+  void _checkPreparedDeadline(int? deadlineMs) {
+    if (deadlineMs != null &&
+        DateTime.now().millisecondsSinceEpoch >= deadlineMs) {
+      throw StateError('Prepared modem transmission expired before submission');
+    }
+  }
+
+  void _beginTransmitAudioRun() {
     if (_inAudioRun && !_inAudioRunIsTransmit) {
       _log('TX started before received audio end marker; closing receive run.');
       _flushRxPreroll();
@@ -857,6 +1117,10 @@ class AudioEngine {
       _inAudioRunIsTransmit = true;
       _dispatchAudioDataStart(true);
     }
+  }
+
+  Future<void> _processPcmData(Uint8List incoming) async {
+    _beginTransmitAudioRun();
 
     // Prepend any leftover bytes from the previous chunk.
     Uint8List pcmData = incoming;
@@ -1193,6 +1457,8 @@ Future<void> audioEngineIsolateEntry(List<Object?> initialMessage) async {
   // main isolate. Receiving from the platform still only works on the root
   // isolate, so RX and playback remain on the host.
   Future<void> Function(Uint8List data)? btSend;
+  Future<PreparedAudioResult> Function(PreparedAudioJob job)? btSendPrepared;
+  Future<void> Function(int jobId)? btCancelPrepared;
   if (rootToken != null && macAddress.isNotEmpty) {
     BackgroundIsolateBinaryMessenger.ensureInitialized(rootToken);
     // Android serves transmit writes on a background task queue (a dedicated
@@ -1213,10 +1479,59 @@ Future<void> audioEngineIsolateEntry(List<Object?> initialMessage) async {
         );
       }
     };
+    btSendPrepared = (PreparedAudioJob job) async {
+      final Map<String, Object?>? result;
+      try {
+        result = await btChannel.invokeMapMethod<String, Object?>(
+          'sendPreparedAudio',
+          <String, Object?>{
+            'address': macAddress,
+            'jobId': job.jobId,
+            'data': job.data,
+            'lengths': job.lengths,
+            'samples': job.samples,
+            'leadMs': job.leadMs,
+          },
+        );
+      } on PlatformException catch (error) {
+        if (Platform.isMacOS && error.code == 'UNSUPPORTED_CONNECTION') {
+          throw const PreparedAudioUnsupportedException();
+        }
+        rethrow;
+      }
+      final status = result?['status'];
+      final sent = result?['samplesSent'];
+      if ((status != 'submitted' && status != 'cancelled') || sent is! int) {
+        throw StateError('Invalid native prepared audio response: $result');
+      }
+      hostPort.send(<String, Object?>{
+        'evt': 'log',
+        'msg': 'Native TX audio: job=${job.jobId}, $result',
+      });
+      return PreparedAudioResult(
+        cancelled: status == 'cancelled',
+        samplesSent: sent,
+      );
+    };
+    btCancelPrepared = (int jobId) async {
+      final result = await btChannel.invokeMethod<bool>(
+        'cancelPreparedAudio',
+        <String, Object?>{'address': macAddress, 'jobId': jobId},
+      );
+      if (result == null) {
+        throw StateError('Invalid native prepared cancellation response');
+      }
+      // False means completion won the race with cancellation.
+    };
   }
 
   final ReceivePort commandPort = ReceivePort();
-  final AudioEngine engine = AudioEngine(hostPort.send, btSend: btSend);
+  final AudioEngine engine = AudioEngine(
+    hostPort.send,
+    btSend: btSend,
+    btSendPrepared: btSendPrepared,
+    btCancelPrepared: btCancelPrepared,
+  );
 
   // Hand our command port back to the host.
   hostPort.send(<String, Object?>{'evt': 'port', 'port': commandPort.sendPort});

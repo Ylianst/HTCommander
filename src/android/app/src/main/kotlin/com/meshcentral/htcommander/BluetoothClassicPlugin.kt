@@ -12,6 +12,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -74,8 +76,19 @@ class BluetoothClassicPlugin(
 
     /** Set by [MainActivity] so we can request runtime permissions. */
     var activity: Activity? = null
+        set(value) {
+            field = value
+            (value as? LifecycleOwner)?.lifecycle?.addObserver(object : DefaultLifecycleObserver {
+                override fun onDestroy(owner: LifecycleOwner) {
+                    dispose()
+                    owner.lifecycle.removeObserver(this)
+                }
+            })
+        }
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val connectionLifecycle = Any()
+    @Volatile private var disposed = false
     private val methodChannel = MethodChannel(messenger, METHOD_CHANNEL)
     private val dataEventChannel = EventChannel(messenger, DATA_EVENT_CHANNEL)
     private val audioEventChannel = EventChannel(messenger, AUDIO_EVENT_CHANNEL)
@@ -95,12 +108,9 @@ class BluetoothClassicPlugin(
     init {
         methodChannel.setMethodCallHandler(this)
         audioTxChannel.setMethodCallHandler { call, result ->
-            if (call.method == "sendAudio") {
-                result.success(
-                    send(call.argument<String>("address"), call.argument("data"), audio = true),
-                )
-            } else {
-                result.notImplemented()
+            when (call.method) {
+                "sendAudio", "sendPreparedAudio", "cancelPreparedAudio" -> onMethodCall(call, result)
+                else -> result.notImplemented()
             }
         }
         dataEventChannel.setStreamHandler(object : EventChannel.StreamHandler {
@@ -152,6 +162,10 @@ class BluetoothClassicPlugin(
         address.uppercase().replace('-', ':')
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        if (disposed) {
+            result.error("DISCONNECTED", "Bluetooth plugin disposed", null)
+            return
+        }
         when (call.method) {
             "isAvailable" -> result.success(isAvailable())
             "getPairedDevices" -> result.success(listDevices(filterCompatible = false))
@@ -170,9 +184,9 @@ class BluetoothClassicPlugin(
                 disconnect(call.argument<String>("address"), audio = true)
                 result.success(true)
             }
-            "sendAudio" -> result.success(
-                send(call.argument<String>("address"), call.argument("data"), audio = true),
-            )
+            "sendAudio" -> sendAudio(call, result)
+            "sendPreparedAudio" -> sendPreparedAudio(call, result)
+            "cancelPreparedAudio" -> cancelPreparedAudio(call, result)
             else -> result.notImplemented()
         }
     }
@@ -287,7 +301,10 @@ class BluetoothClassicPlugin(
                 socket = connectSocket(device, uuid)
 
                 val connection = RfcommConnection(normalized, socket, audio)
-                map[normalized] = connection
+                synchronized(connectionLifecycle) {
+                    if (disposed) throw IOException("Bluetooth plugin disposed")
+                    map.put(normalized, connection)?.close()
+                }
                 connection.startReading()
 
                 postEvent(audio, "connected", normalized, null)
@@ -402,12 +419,96 @@ class BluetoothClassicPlugin(
         map.remove(normalized)?.close()
     }
 
+    private fun dispose() {
+        synchronized(connectionLifecycle) {
+            disposed = true
+            controlConnections.values.toList().forEach { it.close() }
+            audioConnections.values.toList().forEach { it.close() }
+            controlConnections.clear()
+            audioConnections.clear()
+        }
+        methodChannel.setMethodCallHandler(null)
+        audioTxChannel.setMethodCallHandler(null)
+        dataEventChannel.setStreamHandler(null)
+        audioEventChannel.setStreamHandler(null)
+        dataSink = null
+        audioSink = null
+        activity = null
+    }
+
     private fun send(address: String?, data: ByteArray?, audio: Boolean): Boolean {
         if (address == null || data == null) return false
         val normalized = normalizeAddress(address)
         val map = if (audio) audioConnections else controlConnections
         val connection = map[normalized] ?: return false
-        return connection.write(data)
+        return connection.write(data) ?: false
+    }
+
+    private class PreparedJob(
+        val id: Long,
+        val data: ByteArray,
+        val lengths: IntArray,
+        val samples: IntArray,
+        val leadMs: Int,
+        val result: MethodChannel.Result,
+    ) {
+        var cancelled = false
+        var completed = false
+    }
+
+    private fun integer(value: Any?): Long? = when (value) {
+        is Int -> value.toLong()
+        is Long -> value
+        else -> null
+    }
+
+    private fun sendPreparedAudio(call: MethodCall, result: MethodChannel.Result) {
+        val args = call.arguments as? Map<*, *>
+        val address = args?.get("address") as? String
+        val id = integer(args?.get("jobId"))
+        val data = args?.get("data") as? ByteArray
+        val lengths = args?.get("lengths") as? IntArray
+        val samples = args?.get("samples") as? IntArray
+        val lead = integer(args?.get("leadMs"))
+        if (address == null || id == null || id <= 0 || data == null ||
+            data.size > 16 * 1024 * 1024 || lengths == null || samples == null ||
+            lengths.isEmpty() || lengths.size > 200000 || lengths.size != samples.size ||
+            lead == null || lead !in 0L..10000L ||
+            lengths.any { it !in 1..4096 } ||
+            samples.any { it <= 0 || it > 3072 || it % 128 != 0 } ||
+            lengths.sumOf { it.toLong() } != data.size.toLong()
+        ) {
+            result.error("INVALID_ARGS", "Invalid prepared audio job", null)
+            return
+        }
+        val connection = audioConnections[normalizeAddress(address)]
+        if (connection == null) {
+            result.error("DISCONNECTED", "Audio connection is not connected", null)
+            return
+        }
+        connection.submit(PreparedJob(id, data, lengths, samples, lead.toInt(), result))
+    }
+
+    private fun cancelPreparedAudio(call: MethodCall, result: MethodChannel.Result) {
+        val args = call.arguments as? Map<*, *>
+        val address = args?.get("address") as? String
+        val id = integer(args?.get("jobId"))
+        if (address == null || id == null || id <= 0) {
+            result.error("INVALID_ARGS", "Missing address or positive jobId", null)
+            return
+        }
+        result.success(audioConnections[normalizeAddress(address)]?.cancel(id) ?: false)
+    }
+
+    private fun sendAudio(call: MethodCall, result: MethodChannel.Result) {
+        val address = call.argument<String>("address")
+        val data = call.argument<ByteArray>("data")
+        val connection = address?.let { audioConnections[normalizeAddress(it)] }
+        if (connection == null || data == null) {
+            result.success(false)
+        } else {
+            connection.write(data, result)?.let { result.success(it) }
+        }
     }
 
     private fun postEvent(audio: Boolean, event: String, address: String, data: ByteArray?) {
@@ -430,8 +531,15 @@ class BluetoothClassicPlugin(
         @Volatile
         private var closed = false
         private var readThread: Thread? = null
+        private val state = java.lang.Object()
+        private val writeLock = Any()
+        private var streaming = 0
+        private var job: PreparedJob? = null
 
         fun startReading() {
+            if (audio) {
+                Thread({ preparedLoop() }, "bt-audio-tx").apply { isDaemon = true; start() }
+            }
             readThread = Thread {
                 val buffer = ByteArray(4096)
                 val input = try {
@@ -455,33 +563,146 @@ class BluetoothClassicPlugin(
             }.apply { isDaemon = true; start() }
         }
 
-        fun write(data: ByteArray): Boolean {
-            if (closed) return false
+        fun write(data: ByteArray, result: MethodChannel.Result? = null): Boolean? {
+            synchronized(state) {
+                if (closed) return false
+                if (job != null) {
+                    result?.error("BUSY", "A prepared audio job is active", null)
+                    return null
+                }
+                streaming++
+            }
             return try {
-                val output = socket.outputStream
-                output.write(data)
-                output.flush()
-                true
-            } catch (e: IOException) {
+                synchronized(writeLock) { writeBytes(data); true }
+            } catch (_: IOException) {
                 false
+            } finally {
+                synchronized(state) { streaming-- }
             }
         }
 
-        private fun handleClosed() {
-            if (closed) return
-            closed = true
-            val map = if (audio) audioConnections else controlConnections
-            map.remove(address)
-            try {
-                socket.close()
-            } catch (_: IOException) {
-            }
-            postEvent(audio, "disconnected", address, null)
+        private fun writeBytes(data: ByteArray, offset: Int = 0, length: Int = data.size) {
+            // Bluetooth OutputStream has no safe write timeout. Cancel wakes pacing
+            // waits but must let an in-flight batch finish; disconnect closes the
+            // socket to unblock a stuck write without inserting a partial frame.
+            socket.outputStream.write(data, offset, length)
+            socket.outputStream.flush()
         }
+
+        fun submit(prepared: PreparedJob) {
+            synchronized(state) {
+                when {
+                    closed -> prepared.result.error("DISCONNECTED", "Audio connection closed", null)
+                    job != null || streaming != 0 ->
+                        prepared.result.error("BUSY", "Audio transmitter is busy", null)
+                    else -> {
+                        job = prepared
+                        state.notifyAll()
+                    }
+                }
+            }
+        }
+
+        fun cancel(id: Long): Boolean = synchronized(state) {
+            val current = job
+            if (current == null || current.id != id || current.completed) false else {
+                current.cancelled = true
+                state.notifyAll()
+                true
+            }
+        }
+
+        private fun preparedLoop() {
+            while (true) {
+                val current = synchronized(state) {
+                    while (!closed && job == null) state.wait()
+                    if (closed) return
+                    job!!
+                }
+                val start = System.nanoTime()
+                var samplesSent = 0L
+                var writes = 0L
+                var maxWrite = 0L
+                var maxGap = 0L
+                var maxBehind = 0L
+                var lastEnd = start
+                var offset = 0
+                var failure: String? = null
+                try {
+                    for (i in current.lengths.indices) {
+                        val due = start + maxOf(
+                            0L,
+                            (samplesSent + current.samples[i]) * 1000000000L / 32000 -
+                                current.leadMs * 1000000L,
+                        )
+                        val stop = synchronized(state) {
+                            while (!closed && !current.cancelled) {
+                                val remaining = due - System.nanoTime()
+                                if (remaining <= 0) break
+                                state.wait(remaining / 1000000, (remaining % 1000000).toInt())
+                            }
+                            closed || current.cancelled
+                        }
+                        if (stop) break
+                        val before = System.nanoTime()
+                        maxBehind = maxOf(maxBehind, before - due)
+                        maxGap = maxOf(maxGap, before - lastEnd)
+                        writeBytes(current.data, offset, current.lengths[i])
+                        lastEnd = System.nanoTime()
+                        maxWrite = maxOf(maxWrite, lastEnd - before)
+                        offset += current.lengths[i]
+                        samplesSent += current.samples[i]
+                        writes++
+                    }
+                    if (closed) throw IOException("Audio connection closed")
+                    val before = System.nanoTime()
+                    maxGap = maxOf(maxGap, before - lastEnd)
+                    writeBytes(byteArrayOf(0x7e, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0x7e))
+                    maxWrite = maxOf(maxWrite, System.nanoTime() - before)
+                } catch (e: Exception) {
+                    failure = e.message ?: "Audio write failed"
+                }
+                synchronized(state) {
+                    if (!current.completed) {
+                        current.completed = true
+                        val error = failure
+                        val metrics = mapOf(
+                            "status" to if (current.cancelled) "cancelled" else "submitted",
+                            "samplesSent" to samplesSent, "writes" to writes,
+                            "elapsedMs" to (System.nanoTime() - start) / 1000000,
+                            "maxWriteMs" to maxWrite / 1000000,
+                            "maxGapMs" to maxGap / 1000000,
+                            "maxBehindMs" to maxBehind / 1000000,
+                        )
+                        mainHandler.post {
+                            if (error != null) current.result.error("SEND_FAILED", error, null)
+                            else current.result.success(metrics)
+                        }
+                    }
+                    job = null
+                }
+                if (failure != null) close()
+            }
+        }
+
+        private fun handleClosed() = close()
 
         fun close() {
-            if (closed) return
-            closed = true
+            synchronized(state) {
+                if (closed) return
+                closed = true
+                job?.let {
+                    if (!it.completed) {
+                        it.completed = true
+                        mainHandler.post {
+                            it.result.error("DISCONNECTED", "Audio connection closed", null)
+                        }
+                    }
+                }
+                state.notifyAll()
+            }
+            val map = if (audio) audioConnections else controlConnections
+            map.remove(address, this)
             try {
                 socket.close()
             } catch (_: IOException) {

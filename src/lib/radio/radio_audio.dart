@@ -305,6 +305,7 @@ class RadioAudio {
       'cmd': 'radioState',
       'channelName': radio.currentChannelName,
       'muteChannel': radio.isOnMuteChannel(),
+      'receiving': radio.htStatus?.isInRx ?? false,
     });
   }
 
@@ -444,6 +445,7 @@ class RadioAudio {
     bool? hold;
     bool isDataFrame = false;
     bool isBulkData = false;
+    int? deadlineMs;
     if (data is Uint8List) {
       pcm = data;
     } else if (data is List<int>) {
@@ -463,6 +465,7 @@ class RadioAudio {
       if (df is bool) isDataFrame = df;
       final Object? bd = data['isBulkData'] ?? data['IsBulkData'];
       if (bd is bool) isBulkData = bd;
+      deadlineMs = data['deadlineMs'] as int?;
     }
 
     if (pcm == null || pcm.isEmpty) {
@@ -480,6 +483,7 @@ class RadioAudio {
       'hold': hold,
       'isDataFrame': isDataFrame,
       'isBulkData': isBulkData,
+      'deadlineMs': deadlineMs,
     });
   }
 

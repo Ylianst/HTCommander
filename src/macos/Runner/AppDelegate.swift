@@ -45,8 +45,11 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
     // than a single long attempt.
     private let controlConnectTimeout: TimeInterval = 5.0
 
-    // Active RFCOMM connections for the Generic Audio channel: deviceAddress -> RFCOMMConnection
-    private var audioConnections: [String: RFCOMMConnection] = [:]
+    // Audio channels are created, written and closed on their worker's run loop.
+    private var audioConnections: [String: AudioRFCOMMWorker] = [:]
+    // Some radios alias the audio service to their existing control endpoint.
+    // Keep that channel on the main run loop for legacy streaming only.
+    private var sharedAudioConnections: [String: RFCOMMConnection] = [:]
 
     // Timestamp of the most recent audio-channel open/close per device address.
     // Opening OR closing the audio RFCOMM channel can trigger a spurious
@@ -169,8 +172,44 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
                 result(FlutterError(code: "INVALID_ARGS", message: "Missing address or data", details: nil))
                 return
             }
-            let success = sendAudio(address: address, data: data.data)
-            result(success)
+            let key = address.uppercased().replacingOccurrences(of: ":", with: "-")
+            if let shared = sharedAudioConnections[key] {
+                result(sendSharedAudio(shared, data: data.data))
+                return
+            }
+            guard let worker = audioConnections[key] else {
+                result(false)
+                return
+            }
+            worker.sendStreaming(data.data, result: result)
+
+        case "sendPreparedAudio":
+            guard let args = call.arguments as? [String: Any],
+                  let address = args["address"] as? String,
+                  let job = PreparedAudioJob(arguments: args, result: result) else {
+                result(FlutterError(code: "INVALID_ARGS", message: "Invalid prepared audio job", details: nil))
+                return
+            }
+            let key = address.uppercased().replacingOccurrences(of: ":", with: "-")
+            if sharedAudioConnections[key] != nil {
+                result(FlutterError(code: "UNSUPPORTED_CONNECTION", message: "Prepared audio requires a separate audio endpoint; streaming remains available", details: nil))
+                return
+            }
+            guard let worker = audioConnections[key] else {
+                result(FlutterError(code: "DISCONNECTED", message: "Audio is not connected", details: nil))
+                return
+            }
+            worker.submit(job)
+
+        case "cancelPreparedAudio":
+            guard let args = call.arguments as? [String: Any],
+                  let address = args["address"] as? String,
+                  let jobID = PreparedAudioJob.integer(args["jobId"]), jobID > 0 else {
+                result(FlutterError(code: "INVALID_ARGS", message: "Missing address or positive int64 jobId", details: nil))
+                return
+            }
+            let key = address.uppercased().replacingOccurrences(of: ":", with: "-")
+            result(audioConnections[key]?.cancel(jobID: jobID) ?? false)
             
         case "getDeviceNames":
             result(getDeviceNames())
@@ -456,30 +495,17 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
         let normalizedAddress = address.uppercased().replacingOccurrences(of: ":", with: "-")
 
         // Full radio disconnect: tear down BOTH the data and audio RFCOMM
-        // channels. The audio channel is kept open across audio enable/disable
-        // cycles, so it may still be open here. Detach the delegate from each
-        // channel BEFORE closing it: the close is asynchronous and the radio may
-        // keep delivering audio frames during the drain, which would otherwise
-        // arrive after we've removed the connection and spam
-        // "rfcommChannelData - no matching connection".
+        // channels. The audio owner detaches its delegate and closes on its own
+        // run loop; removing it here also drops any already-queued main events.
         audioForwardingEnabled.removeValue(forKey: normalizedAddress)
         lastAudioActivity.removeValue(forKey: normalizedAddress)
         controlChannelPlan.removeValue(forKey: normalizedAddress)
 
         let audioConnection = audioConnections.removeValue(forKey: normalizedAddress)
+        sharedAudioConnections.removeValue(forKey: normalizedAddress)
         let dataConnection = connections.removeValue(forKey: normalizedAddress)
 
-        // Close the audio channel first. Closing it also tears down the data
-        // channel at the OS level (both channels to the device share link
-        // state). Skip the explicit close only if it is the SAME object as the
-        // data channel (some radios resolve audio to the data channel); in that
-        // case the data close below handles it.
-        if let audioChannel = audioConnection?.channel {
-            audioChannel.setDelegate(nil)
-            if dataConnection?.channel !== audioChannel {
-                audioChannel.close()
-            }
-        }
+        audioConnection?.shutdown()
 
         if let dataChannel = dataConnection?.channel {
             dataChannel.setDelegate(nil)
@@ -506,6 +532,14 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
     private func connectAudio(address: String, result: @escaping FlutterResult) {
         let normalizedAddress = address.uppercased().replacingOccurrences(of: ":", with: "-")
 
+        if let shared = sharedAudioConnections[normalizedAddress],
+           connections[normalizedAddress] === shared, shared.isConnected {
+            audioForwardingEnabled[normalizedAddress] = true
+            lastAudioActivity[normalizedAddress] = Date()
+            result(true)
+            return
+        }
+        sharedAudioConnections.removeValue(forKey: normalizedAddress)
 
         // Check if already connected to the audio channel
         if let existingConnection = audioConnections[normalizedAddress] {
@@ -518,8 +552,10 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
                 result(true)
                 return
             } else {
-                audioConnections.removeValue(forKey: normalizedAddress)
-                closeAudioChannelSafely(existingConnection.channel, address: normalizedAddress)
+                // Do not race a second open against a channel whose owner is
+                // still opening/closing it: IOBluetooth can reuse that object.
+                result(FlutterError(code: "BUSY", message: "Audio connection is opening or closing", details: nil))
+                return
             }
         }
 
@@ -577,87 +613,44 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
             return
         }
 
-        // Open the audio RFCOMM channel
-        var rfcommChannel: IOBluetoothRFCOMMChannel?
-        let openResult = device.openRFCOMMChannelAsync(&rfcommChannel, withChannelID: audioChannelID, delegate: self)
-
-        if openResult != kIOReturnSuccess || rfcommChannel == nil {
-            result(FlutterError(code: "AUDIO_CONNECTION_FAILED", message: "Failed to open audio RFCOMM channel", details: nil))
+        // Never steal the control channel's delegate or move an existing
+        // channel's run-loop sources to a different thread.
+        if let shared = connections[normalizedAddress], shared.channel.getChannelID() == audioChannelID {
+            guard shared.isConnected else {
+                result(FlutterError(code: "BUSY", message: "Control endpoint is still connecting", details: nil))
+                return
+            }
+            sharedAudioConnections[normalizedAddress] = shared
+            audioForwardingEnabled[normalizedAddress] = true
+            lastAudioActivity[normalizedAddress] = Date()
+            result(true)
+            audioSink?(["event": "connected", "address": normalizedAddress.replacingOccurrences(of: "-", with: ":")])
             return
         }
-
-        let channel = rfcommChannel!
-        channel.setDelegate(self)
-
-        let connection = RFCOMMConnection(device: device, channel: channel, address: normalizedAddress)
-        connection.connectResult = result
-        audioConnections[normalizedAddress] = connection
-
-        // On some radios the rfcommChannelOpenComplete delegate callback never
-        // fires for the audio channel (the second RFCOMM channel to the device)
-        // and isOpen() keeps returning false even though the channel is actually
-        // open. A negotiated MTU (> 0) is only available once the channel has
-        // opened, so treat that as the authoritative "connected" signal. If the
-        // MTU is already valid here, declare success immediately; otherwise poll.
-        if channel.getMTU() > 0 {
-            markAudioConnected(address: normalizedAddress)
-        } else {
-            pollAudioOpen(address: normalizedAddress, attempt: 0)
-        }
-
-        // Result is sent when the channel open completes (immediately above,
-        // via the delegate callback, or via the poll fallback).
-    }
-
-    /// Marks a tracked audio connection as connected and notifies Dart once.
-    private func markAudioConnected(address: String) {
-        guard let conn = audioConnections[address], !conn.isConnected else { return }
-        conn.isConnected = true
-        conn.didNotifyConnected = true
-        lastAudioActivity[address] = Date()
-        audioForwardingEnabled[address] = true
-        conn.connectResult?(true)
-        conn.connectResult = nil
-        audioSink?([
-            "event": "connected",
-            "address": address.replacingOccurrences(of: "-", with: ":")
-        ])
-    }
-
-    /// Polls the audio RFCOMM channel for completion as a fallback for the
-    /// unreliable rfcommChannelOpenComplete delegate callback.
-    private func pollAudioOpen(address: String, attempt: Int) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self = self else { return }
-            guard let conn = self.audioConnections[address] else { return }
-
-            // The delegate already completed the connection.
-            if conn.isConnected { return }
-
-            // A negotiated MTU (or isOpen()) indicates the channel is open:
-            // treat it as a successful connection.
-            if conn.channel.getMTU() > 0 || conn.channel.isOpen() {
-                self.markAudioConnected(address: address)
+        let worker = AudioRFCOMMWorker(device: device, channelID: audioChannelID, result: result)
+        worker.onEvent = { [weak self, weak worker] event, data in
+            guard let self = self, let worker = worker,
+                  self.audioConnections[normalizedAddress] === worker else { return }
+            if event == "connected" {
+                self.audioForwardingEnabled[normalizedAddress] = true
+            } else if event == "disconnected" || event == "failed" {
+                self.audioConnections.removeValue(forKey: normalizedAddress)
+                if event == "failed" { return }
+            } else if self.audioForwardingEnabled[normalizedAddress] != true {
                 return
             }
-
-            // Give up after ~10 seconds (20 * 0.5s).
-            if attempt >= 20 {
-                // Remove before closing so the resulting rfcommChannelClosed callback
-                // does not emit a (spurious) disconnect for this failed attempt.
-                self.audioConnections.removeValue(forKey: address)
-                self.closeAudioChannelSafely(conn.channel, address: address)
-                conn.connectResult?(FlutterError(
-                    code: "AUDIO_CONNECTION_TIMEOUT",
-                    message: "Audio connection timed out after 10 seconds",
-                    details: nil
-                ))
-                conn.connectResult = nil
-                return
-            }
-
-            self.pollAudioOpen(address: address, attempt: attempt + 1)
+            self.lastAudioActivity[normalizedAddress] = Date()
+            var payload: [String: Any] = [
+                "event": event,
+                "address": normalizedAddress.replacingOccurrences(of: "-", with: ":")
+            ]
+            if let data = data { payload["data"] = FlutterStandardTypedData(bytes: data) }
+            self.audioSink?(payload)
         }
+        audioConnections[normalizedAddress] = worker
+        audioForwardingEnabled[normalizedAddress] = true
+        lastAudioActivity[normalizedAddress] = Date()
+        worker.start()
     }
 
     /// "Disable audio" from the user's perspective. IMPORTANT: this does NOT
@@ -670,39 +663,37 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
         let normalizedAddress = address.uppercased().replacingOccurrences(of: ":", with: "-")
         lastAudioActivity[normalizedAddress] = Date()
         audioForwardingEnabled[normalizedAddress] = false
+        audioConnections[normalizedAddress]?.cancelCurrent()
     }
 
-    /// Closes an audio RFCOMM channel without disturbing the data channel.
-    /// On some radios the Generic Audio service resolves to the same RFCOMM
-    /// channel ID as the SPP data service, in which case IOBluetooth hands back
-    /// the SAME IOBluetoothRFCOMMChannel object for both. Closing it would tear
-    /// down the data channel (and disconnect the radio). Guard against that by
-    /// only closing when the channel is not the one used by the data connection.
-    private func closeAudioChannelSafely(_ channel: IOBluetoothRFCOMMChannel, address: String) {
-        if let dataConn = connections[address], dataConn.channel === channel {
-            return
+    private func sendSharedAudio(_ connection: RFCOMMConnection, data: Data) -> Bool {
+        guard connections[connection.address] === connection, connection.isConnected,
+              !connection.sharedAudioWriting, !data.isEmpty, data.count <= 16 * 1024 * 1024 else { return false }
+        let mtu = min(Int(connection.channel.getMTU()), Int(UInt16.max))
+        guard mtu > 0 else { return false }
+        connection.sharedAudioWriting = true
+        defer { connection.sharedAudioWriting = false }
+        var owned = data
+        // This legacy-only endpoint is owned by the main run loop. Synchronous
+        // writes preserve buffer lifetime without moving its delegate/sources;
+        // prepared jobs reject this endpoint rather than blocking main for a job.
+        return owned.withUnsafeMutableBytes { (buffer: UnsafeMutableRawBufferPointer) in
+            guard let base = buffer.baseAddress else { return false }
+            var offset = 0
+            while offset < buffer.count {
+                guard connections[connection.address] === connection, connection.isConnected else { return false }
+                let count = min(mtu, buffer.count - offset)
+                guard connection.channel.writeSync(base.advanced(by: offset), length: UInt16(count)) == kIOReturnSuccess else { return false }
+                offset += count
+            }
+            return true
         }
-        channel.close()
     }
 
-    private func sendAudio(address: String, data: Data) -> Bool {
-        let normalizedAddress = address.uppercased().replacingOccurrences(of: ":", with: "-")
-        guard let connection = audioConnections[normalizedAddress] else {
-            return false
-        }
-
-        var mutableData = data
-        let result = mutableData.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) -> IOReturn in
-            guard let baseAddress = ptr.baseAddress else { return kIOReturnError }
-            return connection.channel.writeAsync(baseAddress, length: UInt16(data.count), refcon: nil)
-        }
-        return result == kIOReturnSuccess
-    }
-    
     private func send(address: String, data: Data) -> Bool {
         let normalizedAddress = address.uppercased().replacingOccurrences(of: ":", with: "-")
         
-        guard let connection = connections[normalizedAddress] else {
+        guard let connection = connections[normalizedAddress], !connection.sharedAudioWriting else {
             return false
         }
         
@@ -717,14 +708,10 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
     
     // MARK: - IOBluetoothRFCOMMChannelDelegate
 
-    /// Determine whether a delegate callback belongs to the data or audio channel.
-    /// Returns the role ("data"/"audio"), the owning connection, and the event sink.
-    private func routeFor(channel: IOBluetoothRFCOMMChannel) -> (role: String, connection: RFCOMMConnection, sink: FlutterEventSink?)? {
+    /// Audio delegates belong exclusively to AudioRFCOMMWorker.
+    private func routeFor(channel: IOBluetoothRFCOMMChannel) -> (connection: RFCOMMConnection, sink: FlutterEventSink?)? {
         for (_, conn) in connections where conn.channel === channel {
-            return ("data", conn, dataSink)
-        }
-        for (_, conn) in audioConnections where conn.channel === channel {
-            return ("audio", conn, audioSink)
+            return (conn, dataSink)
         }
         return nil
     }
@@ -747,41 +734,26 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
             connection.didNotifyConnected = true
             connection.connectResult?(true)
             connection.connectResult = nil
-            if route.role != "audio" {
-                NSLog("[BT-Classic] connect \(address): control channel open complete (success)")
-                controlChannelPlan.removeValue(forKey: address)
-            }
+            NSLog("[BT-Classic] connect \(address): control channel open complete (success)")
+            controlChannelPlan.removeValue(forKey: address)
 
             route.sink?([
                 "event": "connected",
                 "address": address.replacingOccurrences(of: "-", with: ":")
             ])
         } else {
-            if route.role == "audio" {
-                audioConnections.removeValue(forKey: address)
-                connection.connectResult?(FlutterError(
-                    code: "AUDIO_CONNECTION_FAILED",
-                    message: "RFCOMM connection failed: \(error)",
-                    details: nil
-                ))
-                connection.connectResult = nil
-            } else {
-                NSLog("[BT-Classic] connect \(address): control channel open failed (IOReturn \(error)) on attempt \(connection.connectAttempt)")
-                // Control channel: an explicit open failure should retry rather
-                // than fail immediately (the per-attempt timeout handles the
-                // no-callback case). retryOrFailControlConnect reports the final
-                // failure once all attempts are exhausted.
-                connections.removeValue(forKey: address)
-                let pendingResult = connection.connectResult
-                connection.connectResult = nil
-                if let pendingResult = pendingResult {
-                    retryOrFailControlConnect(
-                        device: connection.device,
-                        address: address,
-                        attempt: connection.connectAttempt,
-                        result: pendingResult
-                    )
-                }
+            NSLog("[BT-Classic] connect \(address): control channel open failed (IOReturn \(error)) on attempt \(connection.connectAttempt)")
+            // Explicit open failures use the same retry path as timeouts.
+            connections.removeValue(forKey: address)
+            let pendingResult = connection.connectResult
+            connection.connectResult = nil
+            if let pendingResult = pendingResult {
+                retryOrFailControlConnect(
+                    device: connection.device,
+                    address: address,
+                    attempt: connection.connectAttempt,
+                    result: pendingResult
+                )
             }
         }
     }
@@ -815,18 +787,22 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
         // disconnect.
         let audioRecentlyActive: Bool = {
             if audioConnections[address] != nil { return true }
+            if sharedAudioConnections[address] != nil { return true }
             if let last = lastAudioActivity[address], Date().timeIntervalSince(last) < 5.0 { return true }
             return false
         }()
-        if route.role == "data", audioRecentlyActive {
+        if audioRecentlyActive {
             let closeTime = Date()
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                 guard let self = self else { return }
-                guard let conn = self.connections[address] else { return }
+                guard let conn = self.connections[address], conn === connection else { return }
                 if conn.lastDataReceived > closeTime {
                     return
                 }
                 self.connections.removeValue(forKey: address)
+                self.audioConnections.removeValue(forKey: address)?.shutdown()
+                self.removeSharedAudio(address: address)
+                self.audioForwardingEnabled.removeValue(forKey: address)
                 if conn.didNotifyConnected {
                     self.dataSink?([
                         "event": "disconnected",
@@ -837,11 +813,8 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
             return
         }
 
-        if route.role == "audio" {
-            audioConnections.removeValue(forKey: address)
-        } else {
-            connections.removeValue(forKey: address)
-        }
+        connections.removeValue(forKey: address)
+        removeSharedAudio(address: address)
 
         // Only report a disconnect if this channel had previously reported a
         // successful connection. This prevents a failed/timed-out connection
@@ -870,14 +843,12 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
 
         route.connection.lastDataReceived = Date()
 
-        if route.role == "audio" {
-            lastAudioActivity[address] = Date()
-            // Audio is kept connected across enable/disable cycles; while
-            // disabled we drop incoming frames instead of closing the channel
-            // (closing it would also kill the control channel on macOS).
-            if audioForwardingEnabled[address] != true {
-                return
-            }
+        if sharedAudioConnections[address] === route.connection, audioForwardingEnabled[address] == true {
+            audioSink?([
+                "event": "data",
+                "address": address.replacingOccurrences(of: "-", with: ":"),
+                "data": FlutterStandardTypedData(bytes: data)
+            ])
         }
 
         if let sink = route.sink {
@@ -893,6 +864,12 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
     }
     
     func rfcommChannelQueueSpaceAvailable(_ rfcommChannel: IOBluetoothRFCOMMChannel!) {
+    }
+
+    private func removeSharedAudio(address: String) {
+        if sharedAudioConnections.removeValue(forKey: address) != nil {
+            audioSink?(["event": "disconnected", "address": address.replacingOccurrences(of: "-", with: ":")])
+        }
     }
 }
 
@@ -928,6 +905,430 @@ private class AudioEventStreamHandler: NSObject, FlutterStreamHandler {
     }
 }
 
+// MARK: - Native audio transmission
+
+private final class PreparedAudioJob {
+    let id: Int64
+    let data: Data
+    let lengths: [Int]
+    let samples: [Int]
+    let lead: Double
+    let result: FlutterResult
+    var index = 0
+    var offset = 0
+    var samplesSent = 0
+    var writes = 0
+    var started: Double = 0
+    var lastWrite: Double?
+    var maxWrite: Double = 0
+    var maxGap: Double = 0
+    var maxBehind: Double = 0
+
+    static func integer(_ value: Any?) -> Int64? {
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID(),
+              String(cString: number.objCType) != "f",
+              String(cString: number.objCType) != "d" else { return nil }
+        return Int64(number.stringValue)
+    }
+
+    init?(arguments: [String: Any], result: @escaping FlutterResult) {
+        guard let id = Self.integer(arguments["jobId"]), id > 0,
+              let lead = Self.integer(arguments["leadMs"]), (0...10000).contains(lead),
+              let bytes = arguments["data"] as? FlutterStandardTypedData, bytes.type == .uInt8,
+              bytes.data.count <= 16 * 1024 * 1024,
+              let lengths = arguments["lengths"] as? FlutterStandardTypedData, lengths.type == .int32,
+              let samples = arguments["samples"] as? FlutterStandardTypedData, samples.type == .int32,
+              !lengths.data.isEmpty, lengths.data.count % 4 == 0,
+              lengths.data.count <= 200000 * 4, samples.data.count == lengths.data.count else { return nil }
+        // Copy into native-owned storage before queuing. Decode without assuming
+        // the typed-data buffer has Int32 alignment.
+        func decode(_ data: Data) -> [Int] {
+            return data.withUnsafeBytes { (buffer: UnsafeRawBufferPointer) in
+                (0..<(buffer.count / 4)).map { index in
+                    var value: Int32 = 0
+                    withUnsafeMutableBytes(of: &value) { destination in
+                        destination.copyMemory(from: UnsafeRawBufferPointer(rebasing: buffer[(index * 4)..<(index * 4 + 4)]))
+                    }
+                    return Int(value)
+                }
+            }
+        }
+        let nativeLengths = decode(lengths.data)
+        let nativeSamples = decode(samples.data)
+        guard nativeLengths.allSatisfy({ (1...4096).contains($0) }),
+              nativeLengths.reduce(0, +) == bytes.data.count,
+              nativeSamples.allSatisfy({ $0 > 0 && $0 <= 3072 && $0 % 128 == 0 }) else { return nil }
+        self.id = id
+        self.data = bytes.data.withUnsafeBytes { Data($0) }
+        self.lengths = nativeLengths
+        self.samples = nativeSamples
+        self.lead = Double(lead) / 1000
+        self.result = result
+    }
+}
+
+/// Opens the channel and installs its delegate/run-loop sources on one persistent
+/// thread. Merely dispatching writes from a main-thread-opened channel does NOT
+/// move IOBluetooth's sources off the main run loop.
+private final class AudioRFCOMMWorker: NSObject, IOBluetoothRFCOMMChannelDelegate {
+    private let device: IOBluetoothDevice
+    private let channelID: BluetoothRFCOMMChannelID
+    private let lock = NSLock()
+    private var loop: CFRunLoop?
+    private var connected = false
+    private var stopping = false
+    private var job: PreparedAudioJob?
+    private var cancelled = false
+    private var streaming = false
+    private var streamResult: FlutterResult?
+    // The following state is accessed only on the owner thread.
+    private var channel: IOBluetoothRFCOMMChannel?
+    private var connectResult: FlutterResult?
+    private var timer: Timer?
+    private var openTimer: Timer?
+    private var notified = false
+    private var stepping = false
+    var onEvent: ((String, Data?) -> Void)?
+
+    init(device: IOBluetoothDevice, channelID: BluetoothRFCOMMChannelID, result: @escaping FlutterResult) {
+        self.device = device
+        self.channelID = channelID
+        self.connectResult = result
+    }
+
+    var isConnected: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return connected && !stopping
+    }
+
+    private static var now: Double { ProcessInfo.processInfo.systemUptime }
+
+    private func reply(_ result: @escaping FlutterResult, _ value: Any?) {
+        DispatchQueue.main.async { result(value) }
+    }
+
+    private func event(_ name: String, data: Data? = nil) {
+        DispatchQueue.main.async { [self] in onEvent?(name, data) }
+    }
+
+    func start() {
+        let thread = Thread { [self] in
+            autoreleasepool {
+                let ownerLoop = CFRunLoopGetCurrent()!
+                let port = Port()
+                RunLoop.current.add(port, forMode: .default)
+                lock.lock()
+                loop = ownerLoop
+                let shouldStop = stopping
+                lock.unlock()
+                if shouldStop {
+                    closeOnOwner()
+                } else {
+                    open()
+                    // A synchronous open failure queues closeOnOwner too.
+                    // Always drain that block rather than abandoning its
+                    // channel and retained result on an unstarted run loop.
+                    CFRunLoopRun()
+                }
+                port.invalidate()
+                lock.lock()
+                loop = nil
+                lock.unlock()
+            }
+        }
+        thread.name = "HTCommander Bluetooth audio"
+        thread.qualityOfService = .userInitiated
+        thread.start()
+    }
+
+    // Call while holding lock; CFRunLoopPerformBlock never executes inline.
+    private func enqueue(_ action: @escaping () -> Void) {
+        if let loop = loop {
+            CFRunLoopPerformBlock(loop, kCFRunLoopDefaultMode, action)
+            CFRunLoopWakeUp(loop)
+        }
+    }
+
+    private func open() {
+        let status = device.openRFCOMMChannelAsync(&channel, withChannelID: channelID, delegate: self)
+        guard status == kIOReturnSuccess, channel != nil else {
+            failConnection("AUDIO_CONNECTION_FAILED", "Could not open audio channel: \(status)")
+            return
+        }
+        if channel!.getMTU() > 0 {
+            markConnected()
+            return
+        }
+        if isConnected { return }
+        let deadline = Self.now + 10
+        openTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            if (self.channel?.getMTU() ?? 0) > 0 {
+                self.markConnected()
+            } else if Self.now >= deadline {
+                self.failConnection("AUDIO_CONNECTION_TIMEOUT", "Audio connection timed out")
+            }
+        }
+    }
+
+    private func markConnected() {
+        lock.lock()
+        guard !stopping, !connected else { lock.unlock(); return }
+        connected = true
+        lock.unlock()
+        openTimer?.invalidate()
+        openTimer = nil
+        notified = true
+        if let result = connectResult { reply(result, true) }
+        connectResult = nil
+        event("connected")
+    }
+
+    private func failConnection(_ code: String, _ message: String) {
+        if let result = connectResult {
+            reply(result, FlutterError(code: code, message: message, details: nil))
+            connectResult = nil
+        }
+        event(notified ? "disconnected" : "failed")
+        shutdown()
+    }
+
+    func submit(_ prepared: PreparedAudioJob) {
+        lock.lock()
+        guard connected, !stopping else {
+            lock.unlock()
+            reply(prepared.result, FlutterError(code: "DISCONNECTED", message: "Audio is not connected", details: nil))
+            return
+        }
+        guard job == nil, !streaming else {
+            lock.unlock()
+            reply(prepared.result, FlutterError(code: "BUSY", message: "Audio transmitter is busy", details: nil))
+            return
+        }
+        job = prepared
+        cancelled = false
+        enqueue { [self] in
+            prepared.started = Self.now
+            step(prepared)
+        }
+        lock.unlock()
+    }
+
+    func cancel(jobID: Int64) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !stopping, let job = job, job.id == jobID else { return false }
+        cancelled = true
+        enqueue { [self] in
+            lock.lock()
+            let current = self.job === job
+            lock.unlock()
+            guard current else { return }
+            timer?.invalidate()
+            timer = nil
+            step(job)
+        }
+        return true
+    }
+
+    func cancelCurrent() {
+        lock.lock()
+        let id = job?.id
+        lock.unlock()
+        if let id = id { _ = cancel(jobID: id) }
+    }
+
+    func sendStreaming(_ bytes: Data, result: @escaping FlutterResult) {
+        guard !bytes.isEmpty, bytes.count <= 16 * 1024 * 1024 else { reply(result, false); return }
+        let owned = bytes.withUnsafeBytes { Data($0) }
+        lock.lock()
+        guard connected, !stopping, job == nil, !streaming else {
+            lock.unlock()
+            reply(result, false)
+            return
+        }
+        streaming = true
+        streamResult = result
+        enqueue { [self] in
+            let success = write(owned)
+            lock.lock()
+            let pending = streamResult
+            streamResult = nil
+            streaming = false
+            lock.unlock()
+            if let pending = pending { reply(pending, success) }
+        }
+        lock.unlock()
+    }
+
+    private func step(_ prepared: PreparedAudioJob) {
+        // writeSync may service nested run-loop callbacks while flow-controlled.
+        // A cancellation wake must not recursively write a terminal marker in
+        // the middle of the batch currently being submitted.
+        guard !stepping else { return }
+        stepping = true
+        defer { stepping = false }
+        lock.lock()
+        guard job === prepared else { lock.unlock(); return }
+        let stop = stopping || !connected
+        let cancel = cancelled
+        lock.unlock()
+        if stop {
+            finish(prepared, error: "DISCONNECTED")
+            return
+        }
+        if cancel || prepared.index == prepared.lengths.count {
+            // One terminal marker, ordered after all completed audio batches.
+            let marker = Data([0x7e, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0x7e])
+            if write(marker) {
+                finish(prepared, status: cancel ? "cancelled" : "submitted")
+            } else {
+                finish(prepared, error: "WRITE_FAILED")
+            }
+            return
+        }
+        let target = prepared.started + max(0, Double(prepared.samplesSent + prepared.samples[prepared.index]) / 32000 - prepared.lead)
+        let delay = target - Self.now
+        if delay > 0 {
+            timer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+                self?.step(prepared)
+            }
+            return
+        }
+        prepared.maxBehind = max(prepared.maxBehind, Self.now - target)
+        let length = prepared.lengths[prepared.index]
+        let batch = prepared.data.subdata(in: prepared.offset..<(prepared.offset + length))
+        let start = Self.now
+        if let previous = prepared.lastWrite {
+            prepared.maxGap = max(prepared.maxGap, start - previous)
+        }
+        guard write(batch) else {
+            finish(prepared, error: "WRITE_FAILED")
+            return
+        }
+        let end = Self.now
+        lock.lock()
+        let current = job === prepared && !stopping
+        lock.unlock()
+        guard current else { return }
+        prepared.maxWrite = max(prepared.maxWrite, end - start)
+        prepared.lastWrite = end
+        prepared.offset += length
+        prepared.samplesSent += prepared.samples[prepared.index]
+        prepared.writes += 1
+        prepared.index += 1
+        // Yield to the owner run loop even when behind, so receive/close events
+        // and cancellation are serviced without a main-thread round trip.
+        timer = Timer.scheduledTimer(withTimeInterval: 0.000001, repeats: false) { [weak self] _ in
+            self?.step(prepared)
+        }
+    }
+
+    private func write(_ data: Data) -> Bool {
+        guard let channel = channel else { return false }
+        let mtu = min(Int(channel.getMTU()), Int(UInt16.max))
+        guard mtu > 0 else { return false }
+        var owned = data
+        return owned.withUnsafeMutableBytes { (buffer: UnsafeMutableRawBufferPointer) in
+            guard let base = buffer.baseAddress else { return false }
+            var offset = 0
+            while offset < buffer.count {
+                if !isConnected { return false }
+                let count = min(mtu, buffer.count - offset)
+                // writeSync retains this buffer's lifetime through submission
+                // and bounds outstanding writes to one. Cancellation cannot
+                // interrupt OS flow-control blocking; it is checked between
+                // complete batches (at most 4096 bytes) to avoid partial frames.
+                let status = channel.writeSync(base.advanced(by: offset), length: UInt16(count))
+                guard status == kIOReturnSuccess else { return false }
+                offset += count
+            }
+            return true
+        }
+    }
+
+    private func finish(_ prepared: PreparedAudioJob, status: String = "submitted", error: String? = nil) {
+        lock.lock()
+        guard job === prepared else { lock.unlock(); return }
+        let terminalStatus = cancelled ? "cancelled" : status
+        job = nil
+        cancelled = false
+        lock.unlock()
+        timer?.invalidate()
+        timer = nil
+        if let error = error {
+            reply(prepared.result, FlutterError(code: error, message: "Prepared audio did not complete", details: nil))
+        } else {
+            reply(prepared.result, [
+                "status": terminalStatus, "samplesSent": prepared.samplesSent, "writes": prepared.writes,
+                "elapsedMs": Int((Self.now - prepared.started) * 1000),
+                "maxWriteMs": Int(prepared.maxWrite * 1000),
+                "maxGapMs": Int(prepared.maxGap * 1000),
+                "maxBehindMs": Int(prepared.maxBehind * 1000)
+            ])
+        }
+    }
+
+    func shutdown() {
+        lock.lock()
+        guard !stopping else { lock.unlock(); return }
+        stopping = true
+        connected = false
+        // Claim replies under the same lock as finish(). A flow-controlled
+        // writeSync may not return promptly, but disconnect must still resolve
+        // Flutter requests once; the owner retains its buffer until it returns.
+        let pending = job
+        job = nil
+        cancelled = false
+        let pendingStream = streamResult
+        streamResult = nil
+        streaming = false
+        enqueue { [self] in closeOnOwner() }
+        lock.unlock()
+        if let pending = pending {
+            reply(pending.result, FlutterError(code: "DISCONNECTED", message: "Audio disconnected during transmission", details: nil))
+        }
+        if let pendingStream = pendingStream { reply(pendingStream, false) }
+    }
+
+    private func closeOnOwner() {
+        timer?.invalidate()
+        openTimer?.invalidate()
+        lock.lock()
+        let pending = job
+        lock.unlock()
+        if let pending = pending { finish(pending, error: "DISCONNECTED") }
+        if let result = connectResult {
+            reply(result, FlutterError(code: "DISCONNECTED", message: "Audio disconnected during open", details: nil))
+            connectResult = nil
+        }
+        channel?.setDelegate(nil)
+        channel?.close()
+        channel = nil
+        CFRunLoopStop(CFRunLoopGetCurrent())
+    }
+
+    func rfcommChannelOpenComplete(_ rfcommChannel: IOBluetoothRFCOMMChannel!, status error: IOReturn) {
+        if error == kIOReturnSuccess {
+            markConnected()
+        } else {
+            failConnection("AUDIO_CONNECTION_FAILED", "Audio open failed: \(error)")
+        }
+    }
+
+    func rfcommChannelClosed(_ rfcommChannel: IOBluetoothRFCOMMChannel!) {
+        if notified { event("disconnected") } else { event("failed") }
+        shutdown()
+    }
+
+    func rfcommChannelData(_ rfcommChannel: IOBluetoothRFCOMMChannel!, data dataPointer: UnsafeMutableRawPointer!, length dataLength: Int) {
+        guard dataLength > 0, let pointer = dataPointer else { return }
+        event("data", data: Data(bytes: pointer, count: dataLength))
+    }
+}
+
 // MARK: - RFCOMMConnection
 
 private class RFCOMMConnection {
@@ -947,6 +1348,7 @@ private class RFCOMMConnection {
     /// Timestamp of the most recent inbound data on this channel. Used to detect
     /// whether a data-channel "close" callback was spurious (data keeps flowing).
     var lastDataReceived: Date = Date()
+    var sharedAudioWriting = false
     
     init(device: IOBluetoothDevice, channel: IOBluetoothRFCOMMChannel, address: String) {
         self.device = device

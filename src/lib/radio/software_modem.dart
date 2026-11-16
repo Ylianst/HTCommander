@@ -2116,11 +2116,12 @@ class SoftwareModem {
     // goes out first, unchanged (DART sequence numbers are already assigned).
     final Uint8List? held = state.heldPcm;
     if (held != null) {
+      final deadline = state.heldPcmDeadline;
       state.heldPcm = null;
       state.heldPcmDeadline = null;
       state.channelIsClear = false;
       state.waitingForChannel = state.transmitQueue.isNotEmpty;
-      _dispatchDataPcm(state, held);
+      _dispatchDataPcm(state, held, deadline: deadline);
       _debug(
         'Transmitted held bundle, ${held.length ~/ 2} samples on device '
         '${state.deviceId}',
@@ -2182,7 +2183,13 @@ class SoftwareModem {
       return;
     }
 
-    _dispatchDataPcm(state, pcmData);
+    _dispatchDataPcm(
+      state,
+      pcmData,
+      deadline: bundle
+          .map((p) => p.deadline)
+          .reduce((a, b) => a.isBefore(b) ? a : b),
+    );
     _debug(
       'Transmitted ${bundle.length} bundled packet(s), '
       '${pcmData.length ~/ 2} samples on device ${state.deviceId}'
@@ -2190,11 +2197,20 @@ class SoftwareModem {
     );
   }
 
-  void _dispatchDataPcm(_RadioModemState state, Uint8List pcm) {
+  void _dispatchDataPcm(
+    _RadioModemState state,
+    Uint8List pcm, {
+    DateTime? deadline,
+  }) {
     _broker.dispatch(
       deviceId: state.deviceId,
       name: 'TransmitVoicePCM',
-      data: {'Data': pcm, 'PlayLocally': false, 'IsDataFrame': true},
+      data: {
+        'Data': pcm,
+        'PlayLocally': false,
+        'IsDataFrame': true,
+        'deadlineMs': deadline?.millisecondsSinceEpoch,
+      },
       store: false,
     );
   }

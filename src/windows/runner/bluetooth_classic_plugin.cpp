@@ -29,10 +29,13 @@
 
 // Standard library.
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 #include <algorithm>
@@ -121,6 +124,21 @@ std::string HstrToStr(const winrt::hstring& hs) {
 // ---------------------------------------------------------------------------
 // Active RFCOMM connection state
 // ---------------------------------------------------------------------------
+using BtMethodResult = flutter::MethodResult<flutter::EncodableValue>;
+
+struct PreparedAudioJob {
+  int64_t id;
+  std::vector<uint8_t> data;
+  std::vector<int32_t> lengths;
+  std::vector<int32_t> samples;
+  int lead_ms;
+  std::atomic<bool> cancelled{false};
+  std::unique_ptr<BtMethodResult> result;
+};
+
+const std::vector<uint8_t> kEndAudio{
+    0x7e, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0x7e};
+
 struct RfcommConn {
   socks::StreamSocket socket{nullptr};
   strs::DataReader    reader{nullptr};
@@ -129,18 +147,150 @@ struct RfcommConn {
   std::atomic<bool>   running{false};
   std::thread         read_thread;
   std::mutex          write_mutex;
+  std::mutex          audio_mutex;
+  std::condition_variable audio_wake;
+  std::shared_ptr<PreparedAudioJob> audio_job;
+  std::thread         audio_thread;
 
   RfcommConn() = default;
   ~RfcommConn() {
     running.store(false);
+    audio_wake.notify_all();
     try {
       if (socket) socket.Close();
     } catch (...) {}
     if (read_thread.joinable()) read_thread.detach();
+    if (audio_thread.joinable()) {
+      if (audio_thread.get_id() == std::this_thread::get_id()) {
+        audio_thread.detach();
+      } else {
+        audio_thread.join();
+      }
+    }
   }
   RfcommConn(const RfcommConn&) = delete;
   RfcommConn& operator=(const RfcommConn&) = delete;
 };
+
+void StartAudioWriter(const std::shared_ptr<RfcommConn>& conn) {
+  conn->audio_thread = std::thread([conn]() {
+    winrt::init_apartment(winrt::apartment_type::multi_threaded);
+    for (;;) {
+      std::shared_ptr<PreparedAudioJob> job;
+      {
+        std::unique_lock<std::mutex> lock(conn->audio_mutex);
+        conn->audio_wake.wait(lock, [&]() {
+          return conn->audio_job || !conn->running.load();
+        });
+        job = conn->audio_job;
+        if (!job) break;
+      }
+      using Clock = std::chrono::steady_clock;
+      const auto start = Clock::now();
+      auto last_write = start;
+      int64_t sent = 0;
+      int64_t writes = 0;
+      int64_t max_write_ms = 0;
+      int64_t max_gap_ms = 0;
+      int64_t max_behind_ms = 0;
+      std::string error;
+      std::unique_lock<std::mutex> write_lock(conn->write_mutex);
+      auto write = [&](winrt::array_view<const uint8_t> bytes) {
+        if (!conn->running.load()) {
+          throw std::runtime_error("Bluetooth audio connection closed");
+        }
+        conn->writer.WriteBytes(bytes);
+        auto operation = conn->writer.StoreAsync();
+        if (operation.wait_for(std::chrono::seconds(5)) ==
+            wf::AsyncStatus::Started) {
+          operation.Cancel();
+          conn->socket.Close();
+          throw std::runtime_error("Bluetooth audio write timed out");
+        }
+        if (operation.get() != bytes.size()) {
+          conn->socket.Close();
+          throw std::runtime_error("Incomplete Bluetooth audio write");
+        }
+      };
+      try {
+        size_t offset = 0;
+        for (size_t i = 0; i < job->lengths.size(); ++i) {
+          const auto due = start + std::chrono::milliseconds(
+              (sent + job->samples[i]) * 1000 / 32000 - job->lead_ms);
+          {
+            std::unique_lock<std::mutex> lock(conn->audio_mutex);
+            conn->audio_wake.wait_until(lock, due, [&]() {
+              return job->cancelled.load() || !conn->running.load();
+            });
+          }
+          if (!conn->running.load()) {
+            throw std::runtime_error("Bluetooth audio connection closed");
+          }
+          if (job->cancelled.load()) break;
+          const auto before = Clock::now();
+          max_gap_ms = (std::max)(max_gap_ms, static_cast<int64_t>(
+              std::chrono::duration_cast<std::chrono::milliseconds>(
+                  before - last_write).count()));
+          write(winrt::array_view<const uint8_t>(
+              job->data.data() + offset,
+              job->data.data() + offset + job->lengths[i]));
+          last_write = Clock::now();
+          max_write_ms = (std::max)(max_write_ms, static_cast<int64_t>(
+              std::chrono::duration_cast<std::chrono::milliseconds>(
+                  last_write - before).count()));
+          offset += job->lengths[i];
+          sent += job->samples[i];
+          ++writes;
+          const auto elapsed =
+              std::chrono::duration_cast<std::chrono::milliseconds>(
+                  last_write - start).count();
+          max_behind_ms = (std::max)(
+              max_behind_ms, static_cast<int64_t>(elapsed) - sent * 1000 / 32000);
+        }
+      } catch (const winrt::hresult_error& e) {
+        error = HstrToStr(e.message());
+      } catch (const std::exception& e) {
+        error = e.what();
+      }
+      // The same writer owns the stop marker, including on cancellation.
+      if (conn->running.load() && error.empty()) {
+        try {
+          write(kEndAudio);
+        } catch (const winrt::hresult_error& e) {
+          error += " Stop: " + HstrToStr(e.message());
+        } catch (const std::exception& e) {
+          error += " Stop: " + std::string(e.what());
+        }
+      } else if (error.empty()) {
+        error = "Bluetooth audio connection closed";
+      }
+      if (!error.empty()) {
+        try { conn->socket.Close(); } catch (...) {}
+      }
+      write_lock.unlock();
+      {
+        std::lock_guard<std::mutex> lock(conn->audio_mutex);
+        conn->audio_job.reset();
+      }
+      if (!error.empty()) {
+        job->result->Error("AUDIO_TX_FAILED", error);
+      } else {
+        const auto elapsed =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                Clock::now() - start).count();
+        using EV = flutter::EncodableValue;
+        job->result->Success(EV(flutter::EncodableMap{
+            {EV("status"), EV(job->cancelled.load() ? "cancelled" : "submitted")},
+            {EV("samplesSent"), EV(sent)}, {EV("writes"), EV(writes)},
+            {EV("elapsedMs"), EV(static_cast<int64_t>(elapsed))},
+            {EV("maxWriteMs"), EV(max_write_ms)},
+            {EV("maxGapMs"), EV(max_gap_ms)},
+            {EV("maxBehindMs"), EV(max_behind_ms)}}));
+      }
+    }
+    winrt::uninit_apartment();
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Thread-safe event stream handler that marshals events to the platform thread
@@ -409,6 +559,7 @@ BluetoothClassicPlugin::Impl::Impl(flutter::BinaryMessenger* messenger) {
 
 BluetoothClassicPlugin::Impl::~Impl() {
   shutdown.store(true);
+  std::vector<std::shared_ptr<RfcommConn>> closing_audio;
   // Close all sockets — this unblocks any pending LoadAsync in the read loops.
   {
     std::lock_guard<std::mutex> lock(conn_mutex);
@@ -418,10 +569,16 @@ BluetoothClassicPlugin::Impl::~Impl() {
     }
     for (auto& [addr, conn] : audio_connections) {
       conn->running.store(false);
+      conn->audio_wake.notify_all();
       try { conn->socket.Close(); } catch (...) {}
+      closing_audio.push_back(conn);
     }
     connections.clear();
     audio_connections.clear();
+  }
+  // Pending job replies must finish while the plugin messenger still exists.
+  for (const auto& conn : closing_audio) {
+    if (conn->audio_thread.joinable()) conn->audio_thread.join();
   }
   // Brief pause so read-loop threads can finish and stop referencing our
   // members before the event-channel destructors run.
@@ -487,6 +644,105 @@ void BluetoothClassicPlugin::Impl::HandleMethodCall(
     DoSendAudio(std::get<std::string>(*addr),
                 std::get<std::vector<uint8_t>>(*data),
                 std::move(result));
+  } else if (method == "sendPreparedAudio" ||
+             method == "cancelPreparedAudio") {
+    auto* addr = GetArg("address");
+    auto integer = [](const flutter::EncodableValue* value,
+                      int64_t* out) {
+      if (!value) return false;
+      if (const auto* n = std::get_if<int64_t>(value)) {
+        *out = *n;
+        return true;
+      }
+      if (const auto* n = std::get_if<int32_t>(value)) {
+        *out = *n;
+        return true;
+      }
+      return false;
+    };
+    int64_t id;
+    if (!addr || !std::holds_alternative<std::string>(*addr) ||
+        !integer(GetArg("jobId"), &id) || id <= 0) {
+      result->Error("INVALID_ARGS", "Missing address or positive jobId");
+      return;
+    }
+    std::shared_ptr<RfcommConn> conn;
+    {
+      std::lock_guard<std::mutex> lock(conn_mutex);
+      auto it = audio_connections.find(std::get<std::string>(*addr));
+      if (it != audio_connections.end()) conn = it->second;
+    }
+    if (method == "cancelPreparedAudio") {
+      bool cancelled = false;
+      if (conn) {
+        std::lock_guard<std::mutex> lock(conn->audio_mutex);
+        if (conn->audio_job && conn->audio_job->id == id) {
+          conn->audio_job->cancelled.store(true);
+          cancelled = true;
+        }
+        conn->audio_wake.notify_all();
+      }
+      result->Success(flutter::EncodableValue(cancelled));
+      return;
+    }
+    auto* data_arg = GetArg("data");
+    auto* lengths_arg = GetArg("lengths");
+    auto* samples_arg = GetArg("samples");
+    int64_t lead;
+    if (!data_arg || !lengths_arg || !samples_arg ||
+        !std::holds_alternative<std::vector<uint8_t>>(*data_arg) ||
+        !std::holds_alternative<std::vector<int32_t>>(*lengths_arg) ||
+        !std::holds_alternative<std::vector<int32_t>>(*samples_arg) ||
+        !integer(GetArg("leadMs"), &lead) || lead < 0 || lead > 10000) {
+      result->Error("INVALID_ARGS", "Invalid prepared audio payload");
+      return;
+    }
+    const auto& data = std::get<std::vector<uint8_t>>(*data_arg);
+    const auto& lengths = std::get<std::vector<int32_t>>(*lengths_arg);
+    const auto& samples = std::get<std::vector<int32_t>>(*samples_arg);
+    bool valid = !data.empty() && data.size() <= 16 * 1024 * 1024 &&
+        !lengths.empty() && lengths.size() <= 200000 &&
+        lengths.size() == samples.size();
+    size_t total = 0;
+    if (valid) {
+      for (size_t i = 0; i < lengths.size(); ++i) {
+        if (lengths[i] <= 0 || lengths[i] > 4096 ||
+            samples[i] <= 0 || samples[i] > 3072 ||
+            samples[i] % 128 != 0) {
+          valid = false;
+          break;
+        }
+        total += lengths[i];
+      }
+    }
+    if (!valid || total != data.size()) {
+      result->Error("INVALID_ARGS", "Invalid prepared audio batch sizes");
+      return;
+    }
+    if (!conn || !conn->running.load()) {
+      result->Error("NOT_CONNECTED", "Bluetooth audio is not connected");
+      return;
+    }
+    {
+      std::lock_guard<std::mutex> lock(conn->audio_mutex);
+      if (!conn->running.load()) {
+        result->Error("NOT_CONNECTED", "Bluetooth audio connection closed");
+        return;
+      }
+      if (conn->audio_job) {
+        result->Error("AUDIO_TX_BUSY", "A prepared audio job is active");
+        return;
+      }
+      auto job = std::make_shared<PreparedAudioJob>();
+      job->id = id;
+      job->data = data;
+      job->lengths = lengths;
+      job->samples = samples;
+      job->lead_ms = static_cast<int>(lead);
+      job->result = std::move(result);
+      conn->audio_job = std::move(job);
+    }
+    conn->audio_wake.notify_all();
   } else if (method == "blePair") {
     auto* addr = GetArg("address");
     auto* pin = GetArg("pin");
@@ -666,6 +922,7 @@ void BluetoothClassicPlugin::Impl::ReadLoop(
   // If we exited unexpectedly (i.e., not because the caller set running=false),
   // send a disconnected event and remove from the map.
   bool was_running = conn->running.exchange(false);
+  conn->audio_wake.notify_all();
   if (was_running) {
     SendEvent(is_audio, "disconnected", conn->address);
     std::lock_guard<std::mutex> lock(conn_mutex);
@@ -886,6 +1143,7 @@ void BluetoothClassicPlugin::Impl::DoConnectAudio(
       conn->writer    = strs::DataWriter(sock.OutputStream());
       conn->running.store(true);
 
+      StartAudioWriter(conn);
       {
         std::lock_guard<std::mutex> lock(self->conn_mutex);
         self->audio_connections[address] = conn;
@@ -918,6 +1176,7 @@ void BluetoothClassicPlugin::Impl::DoDisconnectAudio(
   }
   if (conn) {
     conn->running.store(false);
+    conn->audio_wake.notify_all();
     try { conn->socket.Close(); } catch (...) {}
     if (conn->read_thread.joinable()) conn->read_thread.detach();
     SendEvent(true, "disconnected", address);
@@ -940,6 +1199,13 @@ void BluetoothClassicPlugin::Impl::DoSendAudio(
     return;
   }
 
+  {
+    std::lock_guard<std::mutex> lock(conn->audio_mutex);
+    if (conn->audio_job) {
+      result->Error("AUDIO_TX_BUSY", "A prepared audio job owns the audio writer");
+      return;
+    }
+  }
   auto res = std::shared_ptr<
       flutter::MethodResult<flutter::EncodableValue>>(std::move(result));
 
@@ -947,6 +1213,14 @@ void BluetoothClassicPlugin::Impl::DoSendAudio(
     winrt::init_apartment(winrt::apartment_type::multi_threaded);
     try {
       std::lock_guard<std::mutex> write_lock(conn->write_mutex);
+      {
+        std::lock_guard<std::mutex> lock(conn->audio_mutex);
+        if (conn->audio_job) {
+          res->Error("AUDIO_TX_BUSY", "A prepared audio job owns the audio writer");
+          winrt::uninit_apartment();
+          return;
+        }
+      }
       conn->writer.WriteBytes(data);
       conn->writer.StoreAsync().get();
       res->Success(flutter::EncodableValue(true));

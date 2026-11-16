@@ -33,8 +33,14 @@ Uint8List _payload(Uint8List packet) {
 }
 
 class _Tx {
+  _Tx({this.prepared = false, this.unsupported = false});
+
+  final bool prepared;
+  final bool unsupported;
   final List<Uint8List> packets = <Uint8List>[];
   final List<int> writeSizes = <int>[];
+  final List<PreparedAudioJob> jobs = <PreparedAudioJob>[];
+  int endWrites = 0;
   final List<Map<String, Object?>> events = <Map<String, Object?>>[];
   final Completer<void> done = Completer<void>();
   late final AudioEngine engine = AudioEngine(
@@ -45,22 +51,48 @@ class _Tx {
       }
     },
     btSend: (Uint8List write) async {
-      if (write[1] != 0) return;
-      // A write may coalesce several 0x7e-framed packets; split them back out.
-      int count = 0;
-      int start = 0;
-      for (int i = 1; i < write.length; i++) {
-        if (write[i] == 0x7e) {
-          packets.add(Uint8List.sublistView(write, start, i + 1));
-          count++;
-          start = i + 1;
-          i++;
-        }
+      if (write[1] != 0) {
+        endWrites++;
+        return;
       }
-      expect(start, write.length);
-      writeSizes.add(count);
+      _captureWrite(write);
     },
+    btSendPrepared: prepared
+        ? (job) async {
+            jobs.add(job);
+            if (unsupported) throw const PreparedAudioUnsupportedException();
+            int offset = 0;
+            for (final length in job.lengths) {
+              _captureWrite(
+                Uint8List.sublistView(job.data, offset, offset + length),
+              );
+              offset += length;
+            }
+            expect(offset, job.data.length);
+            return PreparedAudioResult(
+              cancelled: false,
+              samplesSent: job.samples.reduce((a, b) => a + b),
+            );
+          }
+        : null,
+    btCancelPrepared: prepared ? (_) async {} : null,
   );
+
+  void _captureWrite(Uint8List write) {
+    // A write may coalesce several 0x7e-framed packets; split them back out.
+    int count = 0;
+    int start = 0;
+    for (int i = 1; i < write.length; i++) {
+      if (write[i] == 0x7e) {
+        packets.add(Uint8List.sublistView(write, start, i + 1));
+        count++;
+        start = i + 1;
+        i++;
+      }
+    }
+    expect(start, write.length);
+    writeSizes.add(count);
+  }
 
   Future<void> send(
     Uint8List pcm, {
@@ -120,38 +152,238 @@ Uint8List _pcm(List<double> samples) {
 }
 
 void main() {
-  test('cancelling data audio drops queued PCM and ends the current run', () async {
-    final firstWrite = Completer<void>();
-    final releaseWrite = Completer<void>();
-    final stopped = Completer<void>();
-    var payloadWrites = 0;
-    var endWrites = 0;
-    final engine = AudioEngine(
-      (event) {
-        if (event['evt'] == 'txState' && event['transmitting'] == false) {
-          stopped.complete();
-        }
-      },
-      btSend: (write) async {
-        if (write[1] == 0) {
-          payloadWrites++;
-          if (!firstWrite.isCompleted) firstWrite.complete();
-          await releaseWrite.future;
-        } else {
-          endWrites++;
-        }
+  group('prepared native transmissions', () {
+    for (final data in [false, true]) {
+      test(
+        'prepares identical ${data ? "modem" : "SSTV"} bytes in one job',
+        () async {
+          final pcm = _pcm(
+            List<double>.generate(
+              182 * 128 + 21,
+              (i) => 0.3 * math.sin(i * 0.3),
+            ),
+          );
+          final streaming = _Tx();
+          final native = _Tx(prepared: true);
+          await streaming.send(pcm, data: data, bulk: !data);
+          await native.send(pcm, data: data, bulk: !data);
+          expect(native.packets, streaming.packets);
+          expect(native.endWrites, 0, reason: 'native owns the end marker');
+          final job = native.jobs.single;
+          expect(job.leadMs, data ? 10000 : 6000);
+          expect(job.samples, [3072, 3072, 3072, 3072, 3072, 3072, 3072, 1792]);
+          expect(
+            native
+                .decode(
+                  data
+                      ? SbcBitAllocationMethod.snr
+                      : SbcBitAllocationMethod.loudness,
+                )
+                .length,
+            182 * 128,
+          );
+          expect(
+            native.events
+                .where((e) => e['evt'] == 'audioData')
+                .fold(0, (int sum, e) => sum + (e['length'] as int)),
+            182 * 256,
+          );
+        },
+      );
+    }
+
+    test('voice still uses streaming writes', () async {
+      final tx = _Tx(prepared: true);
+      await tx.send(Uint8List(30 * 256), data: false);
+      expect(tx.jobs, isEmpty);
+      expect(tx.writeSizes, [4, 1]);
+      expect(tx.endWrites, 1);
+    });
+
+    test(
+      'unsupported shared endpoints preserve legacy transmission explicitly',
+      () async {
+        final tx = _Tx(prepared: true, unsupported: true);
+        await tx.send(Uint8List(30 * 256));
+        expect(tx.decode(SbcBitAllocationMethod.snr).length, 30 * 128);
+        expect(tx.endWrites, 1);
+        expect(
+          tx.events.where((e) => e['evt'] == 'log').map((e) => e['msg']),
+          contains(contains('without UI-stall protection')),
+        );
       },
     );
-    final pcm = Uint8List(20 * 32000 * 2);
-    engine.transmitVoice(pcm, 0, pcm.length, false, isDataFrame: true);
-    engine.transmitVoice(pcm, 0, pcm.length, false, isDataFrame: true);
-    await firstWrite.future;
-    engine.cancelVoiceTransmit();
-    expect(endWrites, greaterThan(0));
-    releaseWrite.complete();
-    await stopped.future.timeout(const Duration(seconds: 1));
-    expect(payloadWrites, 1, reason: 'cancelled PCM continued transmitting');
+
+    test(
+      'long SSTV is submitted whole without Dart real-time pacing',
+      () async {
+        final tx = _Tx(prepared: true);
+        await tx.send(Uint8List(8 * 32000 * 2), data: false, bulk: true);
+        final job = tx.jobs.single;
+        expect(job.samples.reduce((a, b) => a + b), 8 * 32000);
+        expect(tx.endWrites, 0);
+      },
+    );
+
+    test(
+      'cancellation targets the active job without a competing stop write',
+      () async {
+        final submitted = Completer<PreparedAudioJob>();
+        final result = Completer<PreparedAudioResult>();
+        final done = Completer<void>();
+        final events = <Map<String, Object?>>[];
+        final cancelledIds = <int>[];
+        int streamingWrites = 0;
+        final engine = AudioEngine(
+          (event) {
+            events.add(event);
+            if (event['evt'] == 'txState' && event['transmitting'] == false) {
+              done.complete();
+            }
+          },
+          btSend: (_) async {
+            streamingWrites++;
+          },
+          btSendPrepared: (job) {
+            submitted.complete(job);
+            return result.future;
+          },
+          btCancelPrepared: (id) async {
+            cancelledIds.add(id);
+          },
+        );
+        final pcm = Uint8List(30 * 256);
+        engine.transmitVoice(pcm, 0, pcm.length, false, isBulkData: true);
+        final job = await submitted.future;
+        engine.transmitVoice(pcm, 0, pcm.length, false, isBulkData: true);
+        engine.cancelVoiceTransmit();
+        expect(cancelledIds, [job.jobId]);
+        expect(streamingWrites, 0);
+        result.complete(
+          const PreparedAudioResult(cancelled: true, samplesSent: 3072),
+        );
+        await done.future.timeout(const Duration(seconds: 2));
+        expect(streamingWrites, 0);
+        expect(
+          events.where((e) => e['evt'] == 'audioData').single['length'],
+          6144,
+        );
+      },
+    );
+
+    test(
+      'preparation can be cancelled before any bytes are submitted',
+      () async {
+        final tx = _Tx(prepared: true);
+        final pcm = Uint8List(20 * 32000 * 2);
+        tx.engine.transmitVoice(pcm, 0, pcm.length, false, isDataFrame: true);
+        tx.engine.cancelVoiceTransmit();
+        await tx.done.future.timeout(const Duration(seconds: 2));
+        expect(tx.jobs, isEmpty);
+        expect(tx.endWrites, 0);
+      },
+    );
+
+    test('a busy channel is rechecked after preparation', () async {
+      final tx = _Tx(prepared: true);
+      await tx.engine.handleCommand({'cmd': 'radioState', 'receiving': true});
+      final pcm = Uint8List(30 * 256);
+      tx.engine.transmitVoice(pcm, 0, pcm.length, false, isDataFrame: true);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(tx.jobs, isEmpty);
+      await tx.engine.handleCommand({'cmd': 'radioState', 'receiving': false});
+      await tx.done.future.timeout(const Duration(seconds: 2));
+      expect(tx.jobs, hasLength(1));
+    });
+
+    test('expired modem audio never keys the radio', () async {
+      final tx = _Tx(prepared: true);
+      final pcm = Uint8List(30 * 256);
+      tx.engine.transmitVoice(
+        pcm,
+        0,
+        pcm.length,
+        false,
+        isDataFrame: true,
+        deadlineMs: 1,
+      );
+      await tx.done.future.timeout(const Duration(seconds: 2));
+      expect(tx.jobs, isEmpty);
+      expect(tx.endWrites, 0);
+      expect(
+        tx.events.where((e) => e['evt'] == 'log').map((e) => e['msg']),
+        contains(contains('expired before submission')),
+      );
+    });
+
+    test(
+      'native failure is reported without replay or duplicate stop',
+      () async {
+        final done = Completer<void>();
+        final events = <Map<String, Object?>>[];
+        int writes = 0;
+        final engine = AudioEngine(
+          (event) {
+            events.add(event);
+            if (event['evt'] == 'txState' && event['transmitting'] == false) {
+              done.complete();
+            }
+          },
+          btSend: (_) async {
+            writes++;
+          },
+          btSendPrepared: (_) async {
+            throw StateError('native write failed');
+          },
+          btCancelPrepared: (_) async {},
+        );
+        final pcm = Uint8List(30 * 256);
+        engine.transmitVoice(pcm, 0, pcm.length, false, isDataFrame: true);
+        await done.future.timeout(const Duration(seconds: 2));
+        expect(writes, 0);
+        expect(
+          events.where((e) => e['evt'] == 'log').map((e) => e['msg']),
+          contains(contains('native write failed')),
+        );
+      },
+    );
   });
+
+  test(
+    'cancelling data audio drops queued PCM and ends the current run',
+    () async {
+      final firstWrite = Completer<void>();
+      final releaseWrite = Completer<void>();
+      final stopped = Completer<void>();
+      var payloadWrites = 0;
+      var endWrites = 0;
+      final engine = AudioEngine(
+        (event) {
+          if (event['evt'] == 'txState' && event['transmitting'] == false) {
+            stopped.complete();
+          }
+        },
+        btSend: (write) async {
+          if (write[1] == 0) {
+            payloadWrites++;
+            if (!firstWrite.isCompleted) firstWrite.complete();
+            await releaseWrite.future;
+          } else {
+            endWrites++;
+          }
+        },
+      );
+      final pcm = Uint8List(20 * 32000 * 2);
+      engine.transmitVoice(pcm, 0, pcm.length, false, isDataFrame: true);
+      engine.transmitVoice(pcm, 0, pcm.length, false, isDataFrame: true);
+      await firstWrite.future;
+      engine.cancelVoiceTransmit();
+      expect(endWrites, greaterThan(0));
+      releaseWrite.complete();
+      await stopped.future.timeout(const Duration(seconds: 1));
+      expect(payloadWrites, 1, reason: 'cancelled PCM continued transmitting');
+    },
+  );
 
   for (final bool data in <bool>[false, true]) {
     test(

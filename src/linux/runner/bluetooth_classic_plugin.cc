@@ -14,9 +14,13 @@
 #include <bluetooth/sdp_lib.h>
 
 #include <errno.h>
+#include <poll.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+#include <algorithm>
+#include <vector>
 
 // ---------------------------------------------------------------------------
 // Channel names (must match the Dart BluetoothClassicMacOS wrapper).
@@ -38,6 +42,23 @@ static const char* kRadioServiceUuid = "39144315-32fa-40db-85ed-fbfeba2d86e6";
 // ---------------------------------------------------------------------------
 typedef struct _BtConnection BtConnection;
 
+struct BtPreparedJob {
+  gint64 id;
+  std::vector<guint8> data;
+  std::vector<gint32> lengths;
+  std::vector<gint32> samples;
+  gint64 lead_ms;
+  FlMethodCall* call;
+  gboolean cancelled = FALSE;  // guarded by connection's tx_mutex
+  gboolean success = FALSE;
+  gint64 samples_sent = 0;
+  gint64 writes = 0;  // complete audio batches (not marker or partial sends)
+  gint64 elapsed_ms = 0;
+  gint64 max_write_ms = 0;
+  gint64 max_gap_ms = 0;
+  gint64 max_behind_ms = 0;
+};
+
 typedef struct {
   FlMethodChannel* method_channel;
   FlEventChannel* data_channel;
@@ -47,6 +68,8 @@ typedef struct {
   GMutex mutex;              // guards `connections` + `audio_connections`
   GHashTable* connections;        // char* address -> BtConnection* (control)
   GHashTable* audio_connections;  // char* address -> BtConnection* (audio)
+  gboolean stopping;              // guarded by mutex
+  gint refcount;
 } BtPlugin;
 
 struct _BtConnection {
@@ -56,10 +79,28 @@ struct _BtConnection {
   gboolean is_audio;   // true for the audio (BS AOC) channel
   gint running;        // accessed via g_atomic_int_*
   gint refcount;
+  GMutex tx_mutex;
+  GCond tx_cond;
+  BtPreparedJob* job;
+  gboolean streaming;
 };
 
 // Single plugin instance for the app lifetime.
 static BtPlugin* g_bt_plugin = NULL;
+
+static BtPlugin* bt_plugin_ref(BtPlugin* p) {
+  g_atomic_int_inc(&p->refcount);
+  return p;
+}
+
+static void bt_plugin_unref(BtPlugin* p) {
+  if (g_atomic_int_dec_and_test(&p->refcount)) {
+    g_hash_table_unref(p->connections);
+    g_hash_table_unref(p->audio_connections);
+    g_mutex_clear(&p->mutex);
+    g_free(p);
+  }
+}
 
 // Select the connection map for the control or audio channel.
 static GHashTable* bt_map_for(BtPlugin* p, gboolean is_audio) {
@@ -77,9 +118,20 @@ static BtConnection* bt_conn_ref(BtConnection* c) {
 static void bt_conn_unref(BtConnection* c) {
   if (g_atomic_int_dec_and_test(&c->refcount)) {
     if (c->fd >= 0) close(c->fd);
+    g_cond_clear(&c->tx_cond);
+    g_mutex_clear(&c->tx_mutex);
     g_free(c->address);
+    bt_plugin_unref(c->plugin);
     g_free(c);
   }
+}
+
+static void bt_conn_stop(BtConnection* c) {
+  g_mutex_lock(&c->tx_mutex);
+  g_atomic_int_set(&c->running, 0);
+  g_cond_broadcast(&c->tx_cond);
+  g_mutex_unlock(&c->tx_mutex);
+  shutdown(c->fd, SHUT_RDWR);
 }
 
 // ---------------------------------------------------------------------------
@@ -446,6 +498,147 @@ static void bt_respond_bool_async(FlMethodCall* call, gboolean result) {
   g_idle_add(bt_respond_bool_idle, r);
 }
 
+// No Flutter API (including result construction/unref) is called by TX workers.
+static gboolean bt_prepared_result_idle(gpointer user_data) {
+  BtPreparedJob* job = static_cast<BtPreparedJob*>(user_data);
+  if (!job->success) {
+    fl_method_call_respond_error(job->call, "SEND_FAILED",
+                                "Audio connection closed or write timed out",
+                                NULL, NULL);
+  } else {
+    g_autoptr(FlValue) result = fl_value_new_map();
+    fl_value_set_string_take(result, "status",
+        fl_value_new_string(job->cancelled ? "cancelled" : "submitted"));
+    fl_value_set_string_take(result, "samplesSent", fl_value_new_int(job->samples_sent));
+    fl_value_set_string_take(result, "writes", fl_value_new_int(job->writes));
+    fl_value_set_string_take(result, "elapsedMs", fl_value_new_int(job->elapsed_ms));
+    fl_value_set_string_take(result, "maxWriteMs", fl_value_new_int(job->max_write_ms));
+    fl_value_set_string_take(result, "maxGapMs", fl_value_new_int(job->max_gap_ms));
+    fl_value_set_string_take(result, "maxBehindMs", fl_value_new_int(job->max_behind_ms));
+    fl_method_call_respond_success(job->call, result, NULL);
+  }
+  g_object_unref(job->call);
+  delete job;
+  return G_SOURCE_REMOVE;
+}
+
+enum class BtWriteResult { complete, cancelled, failed };
+
+// Keep RX blocking: MSG_DONTWAIT applies only to this send. Cancellation skips
+// an untouched batch, but finishes any partial frame before the end marker.
+// A stalled partial batch/marker aborts the connection after five seconds.
+static BtWriteResult bt_prepared_write(BtConnection* conn, const guint8* data,
+                                       gsize len, gboolean marker) {
+  gsize offset = 0;
+  gint64 deadline = g_get_monotonic_time() + 5 * G_USEC_PER_SEC;
+  while (offset < len) {
+    g_mutex_lock(&conn->tx_mutex);
+    gboolean cancelled = conn->job->cancelled;
+    gboolean running = g_atomic_int_get(&conn->running);
+    g_mutex_unlock(&conn->tx_mutex);
+    if (!running) return BtWriteResult::failed;
+    if (!marker && offset == 0 && cancelled) return BtWriteResult::cancelled;
+    if (g_get_monotonic_time() >= deadline) return BtWriteResult::failed;
+    ssize_t n = send(conn->fd, data + offset, len - offset,
+                     MSG_DONTWAIT | MSG_NOSIGNAL);
+    if (n > 0) {
+      offset += static_cast<gsize>(n);
+    } else if (n < 0 && errno == EINTR) {
+      continue;
+    } else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+      struct pollfd fd = {conn->fd, POLLOUT, 0};
+      int rc = poll(&fd, 1, 50);
+      if (rc < 0 && errno == EINTR) continue;
+      if (rc < 0 || (rc > 0 && (fd.revents & (POLLERR | POLLHUP | POLLNVAL))))
+        return BtWriteResult::failed;
+    } else {
+      return BtWriteResult::failed;
+    }
+  }
+  return BtWriteResult::complete;
+}
+
+static gpointer bt_prepared_thread(gpointer user_data) {
+  BtConnection* conn = static_cast<BtConnection*>(user_data);
+  static const guint8 marker[] = {0x7e, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0x7e};
+  for (;;) {
+    g_mutex_lock(&conn->tx_mutex);
+    while (g_atomic_int_get(&conn->running) && !conn->job)
+      g_cond_wait(&conn->tx_cond, &conn->tx_mutex);
+    BtPreparedJob* job = conn->job;
+    gboolean running = g_atomic_int_get(&conn->running);
+    g_mutex_unlock(&conn->tx_mutex);
+    if (!job) break;
+
+    gint64 start = g_get_monotonic_time();
+    gint64 last_end = start;
+    gint64 max_write = 0, max_gap = 0, max_behind = 0;
+    gsize offset = 0;
+    gboolean ok = running;
+    for (gsize i = 0; ok && i < job->lengths.size(); ++i) {
+      gint64 due = start + std::max<gint64>(0,
+          (job->samples_sent + job->samples[i]) * G_USEC_PER_SEC / 32000 -
+          job->lead_ms * 1000);
+      g_mutex_lock(&conn->tx_mutex);
+      while (g_atomic_int_get(&conn->running) && !job->cancelled &&
+             g_get_monotonic_time() < due)
+        g_cond_wait_until(&conn->tx_cond, &conn->tx_mutex, due);
+      gboolean stop = job->cancelled || !g_atomic_int_get(&conn->running);
+      g_mutex_unlock(&conn->tx_mutex);
+      if (stop) break;
+      gint64 before = g_get_monotonic_time();
+      BtWriteResult sent = bt_prepared_write(conn, job->data.data() + offset,
+                                             job->lengths[i], FALSE);
+      if (sent == BtWriteResult::cancelled) break;
+      if (sent == BtWriteResult::failed) { ok = FALSE; break; }
+      gint64 end = g_get_monotonic_time();
+      max_write = std::max(max_write, end - before);
+      max_gap = std::max(max_gap, before - last_end);
+      max_behind = std::max(max_behind, before - due);
+      last_end = end;
+      offset += job->lengths[i];
+      job->samples_sent += job->samples[i];
+    }
+    if (ok) {
+      gint64 before = g_get_monotonic_time();
+      ok = bt_prepared_write(conn, marker, sizeof(marker), TRUE) ==
+           BtWriteResult::complete;
+      if (ok) {
+        max_write = std::max(max_write, g_get_monotonic_time() - before);
+        max_gap = std::max(max_gap, before - last_end);
+        job->writes++;
+      }
+    }
+    job->elapsed_ms = (g_get_monotonic_time() - start) / 1000;
+    job->max_write_ms = max_write / 1000;
+    job->max_gap_ms = max_gap / 1000;
+    job->max_behind_ms = max_behind / 1000;
+    g_mutex_lock(&conn->tx_mutex);
+    job->success = ok && g_atomic_int_get(&conn->running);
+    if (!job->success) {
+      g_atomic_int_set(&conn->running, 0);
+      shutdown(conn->fd, SHUT_RDWR);
+    }
+    conn->job = NULL;
+    g_mutex_unlock(&conn->tx_mutex);
+    g_idle_add(bt_prepared_result_idle, job);
+    if (!ok) {
+      // TX errors also retire the map entry; RX uses the same identity check
+      // so only one worker emits the disconnected event.
+      BtPlugin* p = conn->plugin;
+      g_mutex_lock(&p->mutex);
+      GHashTable* map = bt_map_for(p, TRUE);
+      if (g_hash_table_lookup(map, conn->address) == conn) {
+        g_hash_table_remove(map, conn->address);
+        bt_emit_event(TRUE, "disconnected", conn->address, NULL, 0);
+      }
+      g_mutex_unlock(&p->mutex);
+    }
+  }
+  bt_conn_unref(conn);
+  return NULL;
+}
+
 // ---------------------------------------------------------------------------
 // Read loop — runs on a dedicated background thread per connection.
 // ---------------------------------------------------------------------------
@@ -470,7 +663,7 @@ static gpointer bt_read_thread(gpointer user_data) {
   // drop it from the connection map. If it was already 0, an explicit
   // disconnect handled the event and the map removal already.
   if (g_atomic_int_compare_and_exchange(&conn->running, 1, 0)) {
-    bt_emit_event(is_audio, "disconnected", conn->address, NULL, 0);
+    bt_conn_stop(conn);
     BtPlugin* p = conn->plugin;
     g_mutex_lock(&p->mutex);
     GHashTable* map = bt_map_for(p, is_audio);
@@ -478,6 +671,7 @@ static gpointer bt_read_thread(gpointer user_data) {
         (BtConnection*)g_hash_table_lookup(map, conn->address);
     if (cur == conn) {
       g_hash_table_remove(map, conn->address);
+      bt_emit_event(is_audio, "disconnected", conn->address, NULL, 0);
     }
     g_mutex_unlock(&p->mutex);
   }
@@ -493,11 +687,12 @@ typedef struct {
   gchar* address;
   FlMethodCall* call;
   gboolean is_audio;
+  BtPlugin* plugin;
 } BtConnectTask;
 
 static gpointer bt_connect_thread(gpointer user_data) {
   BtConnectTask* t = (BtConnectTask*)user_data;
-  BtPlugin* p = g_bt_plugin;
+  BtPlugin* p = t->plugin;
 
   bdaddr_t target;
   str2ba(t->address, &target);
@@ -519,29 +714,53 @@ static gpointer bt_connect_thread(gpointer user_data) {
 
   if (fd >= 0) {
     BtConnection* conn = g_new0(BtConnection, 1);
-    conn->plugin = p;
+    conn->plugin = bt_plugin_ref(p);
     conn->address = g_strdup(t->address);
     conn->fd = fd;
     conn->is_audio = t->is_audio;
     conn->refcount = 1;  // Owned by the hash table.
+    g_mutex_init(&conn->tx_mutex);
+    g_cond_init(&conn->tx_cond);
     g_atomic_int_set(&conn->running, 1);
 
     g_mutex_lock(&p->mutex);
+    BtConnection* old = static_cast<BtConnection*>(
+        g_hash_table_lookup(bt_map_for(p, t->is_audio), conn->address));
+    if (old) bt_conn_stop(old);
+    if (p->stopping) {
+      g_mutex_unlock(&p->mutex);
+      bt_conn_unref(conn);
+      bt_respond_bool_async(t->call, FALSE);
+      g_object_unref(t->call);
+      g_free(t->address);
+      bt_plugin_unref(t->plugin);
+      g_free(t);
+      return NULL;
+    }
+    // Hold thread references before publishing the connection.
+    bt_conn_ref(conn);
+    if (t->is_audio) bt_conn_ref(conn);
+    bt_conn_ref(conn);  // Local setup reference, even if RX exits immediately.
     g_hash_table_replace(bt_map_for(p, t->is_audio), g_strdup(conn->address),
                          conn);
     g_mutex_unlock(&p->mutex);
 
-    bt_conn_ref(conn);  // Reference held by the read thread.
     GThread* th = g_thread_new("bt-read", bt_read_thread, conn);
     g_thread_unref(th);
+    if (t->is_audio) {
+      th = g_thread_new("bt-audio-tx", bt_prepared_thread, conn);
+      g_thread_unref(th);
+    }
 
     bt_emit_event(t->is_audio, "connected", conn->address, NULL, 0);
+    bt_conn_unref(conn);
     ok = TRUE;
   }
 
   bt_respond_bool_async(t->call, ok);
   g_object_unref(t->call);
   g_free(t->address);
+  bt_plugin_unref(t->plugin);
   g_free(t);
   return NULL;
 }
@@ -577,6 +796,7 @@ static void bt_handle_connect(FlMethodCall* call, FlValue* args,
   t->address = addr;  // Ownership transferred to the task.
   t->call = FL_METHOD_CALL(g_object_ref(call));
   t->is_audio = is_audio;
+  t->plugin = bt_plugin_ref(p);
   GThread* th = g_thread_new("bt-connect", bt_connect_thread, t);
   g_thread_unref(th);
 }
@@ -601,8 +821,7 @@ static void bt_handle_disconnect(FlMethodCall* call, FlValue* args,
   }
   g_mutex_unlock(&p->mutex);
   if (conn) {
-    g_atomic_int_set(&conn->running, 0);
-    shutdown(conn->fd, SHUT_RDWR);  // Unblock the read thread.
+    bt_conn_stop(conn);
     bt_emit_event(is_audio, "disconnected", addr, NULL, 0);
     bt_conn_unref(conn);
   }
@@ -634,15 +853,136 @@ static void bt_handle_send(FlMethodCall* call, FlValue* args,
   g_free(addr);
 
   gboolean ok = FALSE;
-  if (conn && g_atomic_int_get(&conn->running)) {
+  gboolean busy = FALSE;
+  if (conn && is_audio) {
+    g_mutex_lock(&conn->tx_mutex);
+    busy = conn->job != NULL;
+    if (!busy) conn->streaming = TRUE;
+    g_mutex_unlock(&conn->tx_mutex);
+  }
+  if (conn && !busy && g_atomic_int_get(&conn->running)) {
     ok = bt_write_all(conn->fd, bytes, len);
   }
+  if (conn && is_audio && !busy) {
+    g_mutex_lock(&conn->tx_mutex);
+    conn->streaming = FALSE;
+    g_mutex_unlock(&conn->tx_mutex);
+  }
   if (conn) bt_conn_unref(conn);
-  bt_respond_bool_sync(call, ok);
+  if (busy) {
+    fl_method_call_respond_error(call, "BUSY", "A prepared audio job is active",
+                                NULL, NULL);
+  } else {
+    bt_respond_bool_sync(call, ok);
+  }
+}
+
+static void bt_handle_prepared(FlMethodCall* call, FlValue* args,
+                                gboolean cancel) {
+  if (!args || fl_value_get_type(args) != FL_VALUE_TYPE_MAP) {
+    fl_method_call_respond_error(call, "INVALID_ARGS", "Expected job map", NULL, NULL);
+    return;
+  }
+  FlValue* address = fl_value_lookup_string(args, "address");
+  FlValue* id = fl_value_lookup_string(args, "jobId");
+  if (!address || fl_value_get_type(address) != FL_VALUE_TYPE_STRING ||
+      !id || fl_value_get_type(id) != FL_VALUE_TYPE_INT ||
+      fl_value_get_int(id) <= 0) {
+    fl_method_call_respond_error(call, "INVALID_ARGS",
+                                "Missing address or positive jobId", NULL, NULL);
+    return;
+  }
+  BtPreparedJob* job = NULL;
+  if (!cancel) {
+    FlValue* data = fl_value_lookup_string(args, "data");
+    FlValue* lengths = fl_value_lookup_string(args, "lengths");
+    FlValue* samples = fl_value_lookup_string(args, "samples");
+    FlValue* lead = fl_value_lookup_string(args, "leadMs");
+    gboolean valid = data && fl_value_get_type(data) == FL_VALUE_TYPE_UINT8_LIST &&
+        fl_value_get_length(data) <= 16 * 1024 * 1024 &&
+        lengths && fl_value_get_type(lengths) == FL_VALUE_TYPE_INT32_LIST &&
+        samples && fl_value_get_type(samples) == FL_VALUE_TYPE_INT32_LIST &&
+        lead && fl_value_get_type(lead) == FL_VALUE_TYPE_INT &&
+        fl_value_get_int(lead) >= 0 && fl_value_get_int(lead) <= 10000;
+    gsize count = valid ? fl_value_get_length(lengths) : 0;
+    valid = valid && count > 0 && count <= 200000 &&
+        count == fl_value_get_length(samples);
+    gint64 sum = 0;
+    if (valid) {
+      const gint32* sizes = fl_value_get_int32_list(lengths);
+      const gint32* counts = fl_value_get_int32_list(samples);
+      for (gsize i = 0; i < count; ++i) {
+        if (sizes[i] < 1 || sizes[i] > 4096 || counts[i] <= 0 ||
+            counts[i] > 3072 || counts[i] % 128 != 0) {
+          valid = FALSE;
+          break;
+        }
+        sum += sizes[i];
+      }
+      valid = valid && sum == static_cast<gint64>(fl_value_get_length(data));
+    }
+    if (!valid) {
+      fl_method_call_respond_error(call, "INVALID_ARGS",
+                                  "Invalid prepared audio job", NULL, NULL);
+      return;
+    }
+    job = new BtPreparedJob();
+    job->id = fl_value_get_int(id);
+    job->lead_ms = fl_value_get_int(lead);
+    job->data.assign(fl_value_get_uint8_list(data),
+                     fl_value_get_uint8_list(data) + sum);
+    job->lengths.assign(fl_value_get_int32_list(lengths),
+                        fl_value_get_int32_list(lengths) + count);
+    job->samples.assign(fl_value_get_int32_list(samples),
+                        fl_value_get_int32_list(samples) + count);
+  }
+
+  BtPlugin* p = g_bt_plugin;
+  g_autofree gchar* addr = bt_normalize_addr(fl_value_get_string(address));
+  g_mutex_lock(&p->mutex);
+  BtConnection* conn = static_cast<BtConnection*>(
+      g_hash_table_lookup(p->audio_connections, addr));
+  if (conn) bt_conn_ref(conn);
+  g_mutex_unlock(&p->mutex);
+  gboolean matched = FALSE;
+  const char* error = "DISCONNECTED";
+  if (conn) {
+    g_mutex_lock(&conn->tx_mutex);
+    if (cancel) {
+      matched = conn->job && conn->job->id == fl_value_get_int(id);
+      if (matched) {
+        conn->job->cancelled = TRUE;
+        g_cond_broadcast(&conn->tx_cond);
+      }
+    } else if (g_atomic_int_get(&conn->running)) {
+      if (conn->job || conn->streaming) {
+        error = "BUSY";
+      } else {
+        job->call = FL_METHOD_CALL(g_object_ref(call));
+        conn->job = job;  // Registered synchronously, before returning.
+        job = NULL;
+        g_cond_broadcast(&conn->tx_cond);
+      }
+    }
+    g_mutex_unlock(&conn->tx_mutex);
+    bt_conn_unref(conn);
+  }
+  if (cancel) {
+    bt_respond_bool_sync(call, matched);
+  } else if (job) {
+    delete job;
+    fl_method_call_respond_error(call, error,
+                                "Audio connection unavailable or busy", NULL, NULL);
+  }
 }
 
 static void bt_method_call_cb(FlMethodChannel* channel, FlMethodCall* call,
                               gpointer user_data) {
+  if (!g_bt_plugin) {
+    fl_method_call_respond_error(call, "DISCONNECTED", "Bluetooth plugin disposed",
+                                NULL, NULL);
+    return;
+  }
   const gchar* method = fl_method_call_get_name(call);
   FlValue* args = fl_method_call_get_args(call);
 
@@ -679,6 +1019,12 @@ static void bt_method_call_cb(FlMethodChannel* channel, FlMethodCall* call,
 
   } else if (strcmp(method, "sendAudio") == 0) {
     bt_handle_send(call, args, TRUE);
+
+  } else if (strcmp(method, "sendPreparedAudio") == 0) {
+    bt_handle_prepared(call, args, FALSE);
+
+  } else if (strcmp(method, "cancelPreparedAudio") == 0) {
+    bt_handle_prepared(call, args, TRUE);
 
   } else {
     fl_method_call_respond_not_implemented(call, NULL);
@@ -719,6 +1065,27 @@ static FlMethodErrorResponse* bt_audio_cancel(FlEventChannel* channel,
 // ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
+static void bt_view_destroyed(FlView*, gpointer user_data) {
+  BtPlugin* p = static_cast<BtPlugin*>(user_data);
+  if (g_bt_plugin == p) g_bt_plugin = NULL;
+  g_mutex_lock(&p->mutex);
+  p->stopping = TRUE;
+  GHashTable* maps[] = {p->connections, p->audio_connections};
+  for (GHashTable* map : maps) {
+    GHashTableIter iter;
+    gpointer value;
+    g_hash_table_iter_init(&iter, map);
+    while (g_hash_table_iter_next(&iter, NULL, &value))
+      bt_conn_stop(static_cast<BtConnection*>(value));
+    g_hash_table_remove_all(map);
+  }
+  g_mutex_unlock(&p->mutex);
+  g_clear_object(&p->method_channel);
+  g_clear_object(&p->data_channel);
+  g_clear_object(&p->audio_channel);
+  bt_plugin_unref(p);  // Outstanding connections/connect tasks retain their own refs.
+}
+
 void bluetooth_classic_plugin_register_with_registrar(
     FlPluginRegistrar* registrar) {
   if (g_bt_plugin) return;
@@ -726,6 +1093,7 @@ void bluetooth_classic_plugin_register_with_registrar(
   FlBinaryMessenger* messenger = fl_plugin_registrar_get_messenger(registrar);
 
   BtPlugin* p = g_new0(BtPlugin, 1);
+  p->refcount = 1;
   g_mutex_init(&p->mutex);
   p->connections = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
                                          (GDestroyNotify)bt_conn_unref);
@@ -751,4 +1119,6 @@ void bluetooth_classic_plugin_register_with_registrar(
                                        bt_audio_cancel, NULL, NULL);
 
   g_bt_plugin = p;
+  FlView* view = fl_plugin_registrar_get_view(registrar);
+  if (view) g_signal_connect(view, "destroy", G_CALLBACK(bt_view_destroyed), p);
 }
