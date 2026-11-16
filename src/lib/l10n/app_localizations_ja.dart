@@ -1219,6 +1219,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get chatHistory => '保存された履歴';
 
   @override
+  String get chatShowMore => 'さらに表示';
+
+  @override
   String get settingsUnlimited => '無制限';
 
   @override

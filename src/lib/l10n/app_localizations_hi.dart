@@ -1252,6 +1252,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get chatHistory => 'संग्रहीत इतिहास';
 
   @override
+  String get chatShowMore => 'और दिखाएं';
+
+  @override
   String get settingsUnlimited => 'असीमित';
 
   @override

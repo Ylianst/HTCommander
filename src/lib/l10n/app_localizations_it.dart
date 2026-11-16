@@ -1263,6 +1263,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get chatHistory => 'Cronologia salvata';
 
   @override
+  String get chatShowMore => 'Mostra altro';
+
+  @override
   String get settingsUnlimited => 'Illimitato';
 
   @override

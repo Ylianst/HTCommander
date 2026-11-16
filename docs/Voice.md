@@ -23,12 +23,13 @@ In addition, there is support for text-to-speech (TTS) using the Microsoft Speec
 
 ## Live Window and Stored History
 
-The live Comms window keeps at most 1,000 messages, including any current
-partial decode. Older persisted entries are not deleted when the live window
-advances. Use the **Stored History** clock button in the chat to browse retained
-entries in 200-entry pages. The left arrow loads an older page; the first-page
-button returns to the newest stored page. Each page replaces the previous one
-in memory. Closing the dialog returns to the live conversation.
+The live Comms window initially keeps at most 1,000 messages, including any
+current partial decode. Older persisted entries are not deleted when the live
+window advances. Scroll to the top of the conversation and select **Show more**
+to load older entries in 200-entry pages directly into the same tab. Your scroll
+position is preserved, and newly received messages still appear below. Once
+you start browsing older history, loaded messages stay in the conversation until
+it is cleared or the tab is closed. No separate history dialog is needed.
 
 Archive browsing is available in the main app, detached windows, and hosted
 web clients when the host database is available. Stand-alone web builds retain

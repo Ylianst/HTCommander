@@ -1203,6 +1203,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatHistory => '已保存的历史记录';
 
   @override
+  String get chatShowMore => '显示更多';
+
+  @override
   String get settingsUnlimited => '无限制';
 
   @override

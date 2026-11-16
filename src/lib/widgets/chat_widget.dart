@@ -93,6 +93,7 @@ class ChatMessage {
 /// Used by APRS and Comms tabs
 class ChatWidget extends StatefulWidget {
   final List<ChatMessage> messages;
+  final Widget? historyHeader;
   final ValueChanged<ChatMessage>? onMessageTap;
   final ValueChanged<ChatMessage>? onMessageDoubleTap;
   final ValueChanged<ChatMessage>? onMessageLongPress;
@@ -124,6 +125,7 @@ class ChatWidget extends StatefulWidget {
   const ChatWidget({
     super.key,
     required this.messages,
+    this.historyHeader,
     this.onMessageTap,
     this.onMessageDoubleTap,
     this.onMessageLongPress,
@@ -149,6 +151,7 @@ class _ChatWidgetState extends State<ChatWidget> {
   /// in place by the parent, so the widget's own list reference can't be
   /// compared frame-to-frame; this state value detects newly added bubbles.
   int _lastMessageCount = 0;
+  String? _lastNewestMessageId;
 
   /// How close (in pixels) to the bottom the view must be for newly added
   /// messages to trigger auto-scroll.
@@ -158,6 +161,7 @@ class _ChatWidgetState extends State<ChatWidget> {
   void initState() {
     super.initState();
     _lastMessageCount = widget.messages.length;
+    _lastNewestMessageId = widget.messages.lastOrNull?.id;
     // The list is rendered reversed (see build), so it opens already pinned to
     // the newest message at scroll offset 0 with no jump-to-bottom needed.
   }
@@ -172,7 +176,10 @@ class _ChatWidgetState extends State<ChatWidget> {
   void didUpdateWidget(ChatWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     final newCount = widget.messages.length;
-    if (newCount <= _lastMessageCount) {
+    final newestId = widget.messages.lastOrNull?.id;
+    final newestChanged = newestId != _lastNewestMessageId;
+    _lastNewestMessageId = newestId;
+    if (newCount <= _lastMessageCount || !newestChanged) {
       // No new bubbles (cleared, replaced, or unchanged). Just track the count.
       _lastMessageCount = newCount;
       return;
@@ -273,8 +280,10 @@ class _ChatWidgetState extends State<ChatWidget> {
         // off-screen; disabling keep-alives avoids holding built elements for
         // scrolled-away bubbles in very long histories.
         addAutomaticKeepAlives: false,
-        itemCount: widget.messages.length,
+        itemCount:
+            widget.messages.length + (widget.historyHeader == null ? 0 : 1),
         itemBuilder: (context, index) {
+          if (index == widget.messages.length) return widget.historyHeader!;
           // The list is reversed: map the reversed position back to the
           // chronological message index so the timestamp/route grouping logic
           // (which compares against the previous message) stays correct.
@@ -324,7 +333,8 @@ class _ChatWidgetState extends State<ChatWidget> {
               child: Text(
                 _formatTimestamp(message.time),
                 style: TextStyle(
-                  color: widget.timeTextColor ??
+                  color:
+                      widget.timeTextColor ??
                       Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 12,
                 ),
@@ -367,7 +377,8 @@ class _ChatWidgetState extends State<ChatWidget> {
             Icon(
               message.icon,
               size: 16,
-              color: message.iconColor ??
+              color:
+                  message.iconColor ??
                   Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
@@ -377,7 +388,8 @@ class _ChatWidgetState extends State<ChatWidget> {
           child: Text(
             message.route,
             style: TextStyle(
-              color: widget.routeTextColor ??
+              color:
+                  widget.routeTextColor ??
                   Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 12,
             ),
@@ -459,7 +471,8 @@ class _ChatWidgetState extends State<ChatWidget> {
                 Icon(
                   message.icon,
                   size: 16,
-                  color: message.iconColor ??
+                  color:
+                      message.iconColor ??
                       Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
@@ -467,9 +480,7 @@ class _ChatWidgetState extends State<ChatWidget> {
           // Bubble
           Flexible(
             child: Container(
-              constraints: BoxConstraints(
-                maxWidth: widget.bubbleMaxWidth,
-              ),
+              constraints: BoxConstraints(maxWidth: widget.bubbleMaxWidth),
               decoration: BoxDecoration(
                 color: _getBubbleColor(message),
                 borderRadius: BorderRadius.only(
@@ -484,7 +495,9 @@ class _ChatWidgetState extends State<ChatWidget> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Theme.of(context).shadowColor.withValues(alpha: 0.15),
+                    color: Theme.of(
+                      context,
+                    ).shadowColor.withValues(alpha: 0.15),
                     offset: const Offset(1, 1),
                     blurRadius: 2,
                   ),
@@ -522,9 +535,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                           ),
                         ],
                         if (message.message.trim().isNotEmpty)
-                          Flexible(
-                            child: _MessageBody(message: message),
-                          ),
+                          Flexible(child: _MessageBody(message: message)),
                         // Authentication indicator (lock = verified, broken =
                         // failed). Surfaces AX25 auth state on the bubble itself,
                         // complementing the bubble color coding.
@@ -547,7 +558,8 @@ class _ChatWidgetState extends State<ChatWidget> {
                 Icon(
                   message.icon,
                   size: 16,
-                  color: message.iconColor ??
+                  color:
+                      message.iconColor ??
                       Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
@@ -813,7 +825,10 @@ class _ChannelChip extends StatelessWidget {
               if (freq.isNotEmpty)
                 Text(
                   freq,
-                  style: TextStyle(fontSize: 9, color: palette.onChannelSecondary),
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: palette.onChannelSecondary,
+                  ),
                 ),
             ],
           ),
@@ -842,4 +857,3 @@ class _ChannelChip extends StatelessWidget {
     );
   }
 }
-

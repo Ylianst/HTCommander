@@ -1262,6 +1262,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get chatHistory => 'Historique enregistré';
 
   @override
+  String get chatShowMore => 'Afficher plus';
+
+  @override
   String get settingsUnlimited => 'Illimité';
 
   @override

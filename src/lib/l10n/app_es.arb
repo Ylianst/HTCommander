@@ -425,6 +425,7 @@
   "settingsLimitsIntro": "Limite la cantidad de elementos de historial que se conservan entre inicios. Establezca en «Ilimitado» para conservar todo.",
   "settingsHistoryLimits": "Límites de historial",
   "chatHistory": "Historial guardado",
+  "chatShowMore": "Mostrar más",
   "settingsUnlimited": "Ilimitado",
   "settingsLimitAprsMessages": "Mensajes APRS",
   "settingsLimitPackets": "Paquetes",

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -44,7 +45,6 @@ import '../utils/comms_export.dart';
 import '../utils/format_utils.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../allstar/allstar_client.dart' show allStarDeviceId;
-import '../dialogs/stored_history_dialog.dart';
 import '../allstar/allstar_node.dart'
     show allStarNodeDeviceId, allStarNodeNumberKey, allStarNodePasswordKey;
 
@@ -64,6 +64,17 @@ class _CommsTabState extends State<CommsTab>
   final List<ChatMessage> _messages = [];
   static const int _maxMessages = 1000;
   int _nextMessageId = 0;
+  final String _historyClientId =
+      'comms-${DateTime.now().microsecondsSinceEpoch}';
+  int _historySerial = 0;
+  String? _historyRequestId;
+  List<int>? _historyBefore;
+  Map<String, int> _historyOverlap = {};
+  bool _historyStarted = false;
+  bool _historyHasMore = true;
+  bool _historyLoading = false;
+  String? _historyError;
+  Timer? _historyTimeout;
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   final FocusNode _rootFocusNode = FocusNode();
@@ -231,6 +242,11 @@ class _CommsTabState extends State<CommsTab>
       callback: (_, _, _) {
         if (mounted) setState(() {});
       },
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'StoredChatHistoryPage',
+      callback: _onStoredHistoryPage,
     );
 
     // Decoded/transmitted text, processing and transmit state (all devices).
@@ -448,7 +464,7 @@ class _CommsTabState extends State<CommsTab>
     _sstvAutoMuted = _readSstvAutoMuteState();
     _isTabVisible =
         (_broker.getValue<String>(0, 'SelectedTabName', '') ?? '') == 'Comms';
-    _loadDecodedTextHistory();
+    if (!_historyStarted) _loadDecodedTextHistory();
 
     // Resolve the application-support path so decoded SSTV pictures can be
     // shown inline; reload history once it is known to attach image paths.
@@ -747,6 +763,7 @@ class _CommsTabState extends State<CommsTab>
 
   @override
   void dispose() {
+    _historyTimeout?.cancel();
     _sttStatusNotifier?.removeListener(_onSttModelStatusChanged);
     _pttDrainTimer?.cancel();
     _pttDrainTimer = null;
@@ -1343,7 +1360,17 @@ class _CommsTabState extends State<CommsTab>
   // ---------------------------------------------------------------------------
 
   void _onVoiceTextCleared(int deviceId, String name, Object? data) {
-    setState(() => _messages.clear());
+    _historyTimeout?.cancel();
+    setState(() {
+      _messages.clear();
+      _historyRequestId = null;
+      _historyBefore = null;
+      _historyOverlap = {};
+      _historyStarted = false;
+      _historyHasMore = true;
+      _historyLoading = false;
+      _historyError = null;
+    });
   }
 
   void _onVoiceTextHistoryLoaded(int deviceId, String name, Object? data) {
@@ -1472,7 +1499,7 @@ class _CommsTabState extends State<CommsTab>
       } else {
         _messages.add(message);
       }
-      if (_messages.length > _maxMessages) {
+      if (!_historyStarted && _messages.length > _maxMessages) {
         _messages.removeRange(0, _messages.length - _maxMessages);
       }
     });
@@ -1519,6 +1546,7 @@ class _CommsTabState extends State<CommsTab>
     Map raw, {
     required bool completed,
     required int index,
+    int? storedId,
   }) {
     final text = (raw['text'] as String?)?.trim() ?? '';
     final encoding = raw['encoding'] as String? ?? 'Voice';
@@ -1550,7 +1578,9 @@ class _CommsTabState extends State<CommsTab>
     // SSTV pictures show the mode label in the header; the bubble is image-only.
     final isPicture = encoding == 'Picture' && imagePath != null;
 
-    final id = sarsat != null
+    final id = storedId != null
+        ? 'stored_comms_$storedId'
+        : sarsat != null
         ? 'sarsat_${sarsat.hexId}_${time.millisecondsSinceEpoch}'
         : radiosonde != null
         ? 'radiosonde_${radiosonde.sondeId}_${time.millisecondsSinceEpoch}'
@@ -2262,16 +2292,168 @@ class _CommsTabState extends State<CommsTab>
   Future<void> _exportConversation(CommsExportFormat format) =>
       saveMessagesToFile(context, List.of(_messages), format, 'comms');
 
-  void _showStoredHistory() {
-    showDialog<void>(
-      context: context,
-      builder: (_) => StoredHistoryDialog(
-        sources: {'comms': AppLocalizations.of(context).tabComms},
-        messageBuilder: (data, id) =>
-            _entryToMessage(data, completed: true, index: id),
-        onMessageDoubleTap: _onMessageDoubleTap,
-        onMessageContextMenu: _onMessageContextMenu,
-      ),
+  String _historyMessageKey(ChatMessage message) {
+    final details = message.tag as CommsMessageDetails;
+    return jsonEncode([
+      details.time.millisecondsSinceEpoch,
+      details.encoding,
+      details.channel,
+      details.isReceived,
+      details.text.trim(),
+      details.source,
+      details.destination,
+      details.duration,
+      details.latitude,
+      details.longitude,
+      details.filename,
+      details.wpm,
+      details.keyType,
+      details.sarsat?.toJson(),
+      details.radiosonde?.toJson(),
+    ]);
+  }
+
+  void _loadOlderHistory() {
+    if (_historyLoading || !_historyHasMore) return;
+    if (!_historyStarted) {
+      final completed = _messages.where(
+        (message) => message.id != _partialMessageId,
+      );
+      if (completed.isNotEmpty) {
+        final oldest = completed
+            .map((message) => message.time.millisecondsSinceEpoch)
+            .reduce((a, b) => a < b ? a : b);
+        // Include the boundary millisecond, then subtract its live entries.
+        // A timestamp alone cannot distinguish multiple rows at the boundary.
+        _historyBefore = [oldest + 1, 0];
+        for (final message in completed) {
+          if (message.time.millisecondsSinceEpoch != oldest) continue;
+          final key = _historyMessageKey(message);
+          _historyOverlap.update(key, (count) => count + 1, ifAbsent: () => 1);
+        }
+      }
+      _historyStarted = true;
+    }
+    setState(() {
+      _historyLoading = true;
+      _historyError = null;
+      _historyRequestId = '$_historyClientId-${_historySerial++}';
+    });
+    _historyTimeout?.cancel();
+    _historyTimeout = Timer(const Duration(seconds: 15), () {
+      _failHistory(TimeoutException('Stored history request timed out'));
+    });
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'RequestStoredChatHistory',
+      store: false,
+      data: {
+        'requestId': _historyRequestId,
+        'source': 'comms',
+        'before': _historyBefore,
+      },
+    );
+  }
+
+  void _onStoredHistoryPage(int deviceId, String name, Object? data) {
+    if (!mounted ||
+        _historyRequestId == null ||
+        data is! Map ||
+        data['requestId'] != _historyRequestId) {
+      return;
+    }
+    _historyTimeout?.cancel();
+    if (data['error'] != null) {
+      _failHistory(StateError(data['error'].toString()));
+      return;
+    }
+    try {
+      final entries = data['entries'] as List;
+      final older = <ChatMessage>[];
+      final overlap = Map.of(_historyOverlap);
+      for (final entry in entries.reversed) {
+        final row = entry as Map;
+        final message = _entryToMessage(
+          row['data'] as Map,
+          completed: true,
+          index: row['id'] as int,
+          storedId: row['id'] as int,
+        );
+        if (message == null) continue;
+        final key = _historyMessageKey(message);
+        final count = overlap[key] ?? 0;
+        if (count > 0) {
+          overlap[key] = count - 1;
+        } else {
+          older.add(message);
+        }
+      }
+      final before = (data['before'] as List?)?.cast<int>();
+      final hasMore = data['hasMore'] == true;
+      if (hasMore &&
+          (before == null ||
+              before.length != 2 ||
+              (_historyBefore != null &&
+                  (before[0] > _historyBefore![0] ||
+                      (before[0] == _historyBefore![0] &&
+                          before[1] >= _historyBefore![1]))))) {
+        throw StateError('Stored history cursor did not advance');
+      }
+      setState(() {
+        _messages.insertAll(0, older.reversed);
+        _historyOverlap = overlap;
+        _historyBefore = before;
+        _historyHasMore = hasMore;
+        _historyLoading = false;
+        _historyRequestId = null;
+      });
+      if (older.isEmpty && hasMore) _loadOlderHistory();
+    } catch (error) {
+      _failHistory(error);
+    }
+  }
+
+  void _failHistory(Object error) {
+    _broker.logError('Comms stored history: $error');
+    if (!mounted) return;
+    setState(() {
+      _historyLoading = false;
+      _historyRequestId = null;
+      _historyError = '$error';
+    });
+  }
+
+  Widget? _buildHistoryHeader() {
+    if (!_historyHasMore ||
+        _broker.getValue<bool>(1, 'StoredChatHistoryAvailable', false) !=
+            true) {
+      return null;
+    }
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      children: [
+        if (_historyError != null)
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Text('${l10n.commonError}: $_historyError'),
+          ),
+        if (_historyLoading)
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          )
+        else
+          TextButton(
+            onPressed: _loadOlderHistory,
+            child: Text(
+              _historyError == null ? l10n.chatShowMore : l10n.settingsRetry,
+            ),
+          ),
+      ],
     );
   }
 
@@ -3171,6 +3353,7 @@ class _CommsTabState extends State<CommsTab>
                           ),
                           child: ChatWidget(
                             messages: _messages,
+                            historyHeader: _buildHistoryHeader(),
                             onMessageTap: _onMessageTap,
                             onMessageDoubleTap: _onMessageDoubleTap,
                             onMessageContextMenu: _onMessageContextMenu,
@@ -3178,21 +3361,6 @@ class _CommsTabState extends State<CommsTab>
                         ),
                       ),
                     ),
-                    if (_broker.getValue<bool>(
-                          1,
-                          'StoredChatHistoryAvailable',
-                          false,
-                        ) ==
-                        true)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: IconButton.filledTonal(
-                          tooltip: AppLocalizations.of(context).chatHistory,
-                          icon: const Icon(Icons.history),
-                          onPressed: _showStoredHistory,
-                        ),
-                      ),
                     if (channelHover)
                       Positioned.fill(
                         child: IgnorePointer(child: _buildChannelDropOverlay()),

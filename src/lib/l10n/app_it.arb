@@ -417,6 +417,7 @@
   "settingsLimitsIntro": "Limita quanti elementi cronologici vengono conservati tra i riavvii dell'app. Imposta su \"Illimitato\" per conservare tutto.",
   "settingsHistoryLimits": "Limiti della cronologia",
   "chatHistory": "Cronologia salvata",
+  "chatShowMore": "Mostra altro",
   "settingsUnlimited": "Illimitato",
   "settingsLimitAprsMessages": "Messaggi APRS",
   "settingsLimitPackets": "Pacchetti",

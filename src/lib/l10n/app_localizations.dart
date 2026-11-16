@@ -2314,6 +2314,12 @@ abstract class AppLocalizations {
   /// **'Stored History'**
   String get chatHistory;
 
+  /// No description provided for @chatShowMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Show more'**
+  String get chatShowMore;
+
   /// No description provided for @settingsUnlimited.
   ///
   /// In en, this message translates to:

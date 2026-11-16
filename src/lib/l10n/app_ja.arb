@@ -425,6 +425,7 @@
   "settingsLimitsIntro": "起動間で保持する履歴項目の数を制限します。「無制限」に設定するとすべて保持します。",
   "settingsHistoryLimits": "履歴の制限",
   "chatHistory": "保存された履歴",
+  "chatShowMore": "さらに表示",
   "settingsUnlimited": "無制限",
   "settingsLimitAprsMessages": "APRS メッセージ",
   "settingsLimitPackets": "パケット",

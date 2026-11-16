@@ -1266,6 +1266,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get chatHistory => 'Zapisana historia';
 
   @override
+  String get chatShowMore => 'Pokaż więcej';
+
+  @override
   String get settingsUnlimited => 'Bez ograniczeń';
 
   @override
