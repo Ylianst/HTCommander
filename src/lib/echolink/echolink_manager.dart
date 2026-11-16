@@ -37,6 +37,7 @@ import 'dart:typed_data';
 
 import '../radio/pcm_player.dart';
 import '../services/data_broker_client.dart';
+import '../utils/pcm_sample_queue.dart';
 import 'echolink_client.dart';
 import 'echolink_data_packet.dart';
 import 'echolink_directory.dart';
@@ -118,7 +119,7 @@ class EchoLinkManager {
   // EchoTest server -- then drops the whole over). Instead we queue the 8 kHz
   // samples and emit exactly one 640-sample (80 ms) packet per timer tick, so
   // the stream leaves at real time like a live microphone would.
-  final List<int> _txPaceQueue = <int>[];
+  final PcmSampleQueue _txPaceQueue = PcmSampleQueue();
   Timer? _txPaceTimer;
   // Set once a burst has no more audio coming (PTT release / one-shot end
   // marker); the pacer flushes the remainder and finalizes when the queue runs
@@ -268,8 +269,12 @@ class EchoLinkManager {
           (_broker.getValue<int>(0, 'EchoLinkProxyAuto', 1) ?? 1) == 1;
       final String proxyHost =
           (_broker.getValue<String>(0, 'EchoLinkProxyHost', '') ?? '').trim();
-      final int proxyPort = _broker.getValue<int>(
-              0, 'EchoLinkProxyPort', echoLinkProxyDefaultPort) ??
+      final int proxyPort =
+          _broker.getValue<int>(
+            0,
+            'EchoLinkProxyPort',
+            echoLinkProxyDefaultPort,
+          ) ??
           echoLinkProxyDefaultPort;
       final String proxyPassword =
           (_broker.getValue<String>(0, 'EchoLinkProxyPassword', '') ?? '')
@@ -281,8 +286,8 @@ class EchoLinkManager {
       final String networkKey = useAutoProxy
           ? 'proxy-auto'
           : useManualProxy
-              ? 'proxy:$proxyHost:$proxyPort:$proxyPassword'
-              : 'direct';
+          ? 'proxy:$proxyHost:$proxyPort:$proxyPassword'
+          : 'direct';
 
       if (_opened) {
         // Already enabled; reopen only if the transport config changed.
@@ -302,27 +307,28 @@ class EchoLinkManager {
                   : proxyPassword,
             )..onDiagnostic = _onDiagnostic)
           : useManualProxy
-              ? EchoLinkProxyNetwork(
-                  proxyHost: proxyHost,
-                  proxyPort: proxyPort,
-                  callsign: callsign,
-                  password: proxyPassword.isEmpty
-                      ? echoLinkProxyPublicPassword
-                      : proxyPassword,
-                )
-              : DartIoEchoLinkNetwork();
+          ? EchoLinkProxyNetwork(
+              proxyHost: proxyHost,
+              proxyPort: proxyPort,
+              callsign: callsign,
+              password: proxyPassword.isEmpty
+                  ? echoLinkProxyPublicPassword
+                  : proxyPassword,
+            )
+          : DartIoEchoLinkNetwork();
 
-      final EchoLinkClient client = EchoLinkClient(
-        localCallsign: callsign,
-        localPassword: password,
-        localInfo: location,
-        network: network,
-      )
-        ..onAudio = _onRxAudio
-        ..onChat = _onRxChat
-        ..onInfo = _onRxInfo
-        ..onDiagnostic = _onDiagnostic
-        ..onStateChanged = _onClientStateChanged;
+      final EchoLinkClient client =
+          EchoLinkClient(
+              localCallsign: callsign,
+              localPassword: password,
+              localInfo: location,
+              network: network,
+            )
+            ..onAudio = _onRxAudio
+            ..onChat = _onRxChat
+            ..onInfo = _onRxInfo
+            ..onDiagnostic = _onDiagnostic
+            ..onStateChanged = _onClientStateChanged;
 
       _client = client;
       try {
@@ -331,8 +337,13 @@ class EchoLinkManager {
         _appliedNetworkKey = networkKey;
         _publishAvailable(true);
         _broker.logInfo(
-            '[EchoLink] Client opened for $callsign'
-            '${useAutoProxy ? ' via automatic public proxy' : useManualProxy ? ' via proxy $proxyHost:$proxyPort' : ''}');
+          '[EchoLink] Client opened for $callsign'
+          '${useAutoProxy
+              ? ' via automatic public proxy'
+              : useManualProxy
+              ? ' via proxy $proxyHost:$proxyPort'
+              : ''}',
+        );
         // Restore the previous session: go online (and reconnect the QSO
         // channel) if EchoLink was online when the app last closed.
         unawaited(_maybeAutoReconnectStation());
@@ -417,10 +428,12 @@ class EchoLinkManager {
     final bool wasOnline =
         _broker.getValue<bool>(0, echoLinkWasOnlineKey, false) ?? false;
 
-    final Object? stored =
-        _broker.getValueDynamic(0, lastEchoLinkStationKey, null);
-    final StationData? target =
-        stored is Map ? _stationFromMap(stored) : null;
+    final Object? stored = _broker.getValueDynamic(
+      0,
+      lastEchoLinkStationKey,
+      null,
+    );
+    final StationData? target = stored is Map ? _stationFromMap(stored) : null;
     final bool hasStation =
         target != null && (target.callsign.isNotEmpty || target.id != 0);
 
@@ -440,7 +453,8 @@ class EchoLinkManager {
       StationData? match;
       for (final StationData s in listing.all) {
         final bool sameId = target.id != 0 && s.id == target.id;
-        final bool sameCall = target.callsign.isNotEmpty &&
+        final bool sameCall =
+            target.callsign.isNotEmpty &&
             s.callsign.toUpperCase() == target.callsign.toUpperCase();
         if (sameId || sameCall) {
           match = s;
@@ -448,16 +462,19 @@ class EchoLinkManager {
         }
       }
 
-      final StationData connectTarget =
-          (match != null && match.ip.isNotEmpty) ? match : target;
+      final StationData connectTarget = (match != null && match.ip.isNotEmpty)
+          ? match
+          : target;
       if (connectTarget.ip.isEmpty) {
         _broker.logInfo(
-            '[EchoLink] Auto-reconnect: ${target.callsign} not in directory');
+          '[EchoLink] Auto-reconnect: ${target.callsign} not in directory',
+        );
         return;
       }
 
       _broker.logInfo(
-          '[EchoLink] Auto-reconnecting to ${connectTarget.callsign}...');
+        '[EchoLink] Auto-reconnecting to ${connectTarget.callsign}...',
+      );
       client.connectTo(connectTarget);
     } catch (e) {
       _broker.logError('[EchoLink] Auto-reconnect failed: $e');
@@ -579,8 +596,9 @@ class EchoLinkManager {
     if (text.isEmpty) return;
     if (client.state != EchoLinkClientState.inQso) return;
     client.sendChat(text);
-    final String callsign =
-        (_broker.getValue<String>(0, 'CallSign', '') ?? '').trim().toUpperCase();
+    final String callsign = (_broker.getValue<String>(0, 'CallSign', '') ?? '')
+        .trim()
+        .toUpperCase();
     _dispatchChatText(text, source: callsign, isReceived: false);
   }
 
@@ -758,8 +776,10 @@ class EchoLinkManager {
       );
     }
 
-    final Uint8List bytes =
-        pcm32.buffer.asUint8List(pcm32.offsetInBytes, pcm32.lengthInBytes);
+    final Uint8List bytes = pcm32.buffer.asUint8List(
+      pcm32.offsetInBytes,
+      pcm32.lengthInBytes,
+    );
     _broker.dispatch(
       deviceId: echoLinkDeviceId,
       name: 'AudioDataAvailable',
@@ -777,10 +797,7 @@ class EchoLinkManager {
     );
 
     _rxEndTimer?.cancel();
-    _rxEndTimer = Timer(
-      const Duration(milliseconds: _rxRunEndMs),
-      _endRxRun,
-    );
+    _rxEndTimer = Timer(const Duration(milliseconds: _rxRunEndMs), _endRxRun);
   }
 
   void _endRxRun() {
@@ -906,7 +923,7 @@ class EchoLinkManager {
     final Int16List pcm32 = _int16FromBytes(bytes);
     final Int16List pcm8k = _txResampler.process(pcm32);
     if (pcm8k.isNotEmpty) {
-      _txPaceQueue.addAll(pcm8k);
+      _txPaceQueue.add(pcm8k);
       _txHadAudio = true;
       _setTxActive(true);
     }
@@ -933,9 +950,7 @@ class EchoLinkManager {
       return;
     }
     if (_txPaceQueue.length >= _txPacketSamples) {
-      final Int16List packet =
-          Int16List.fromList(_txPaceQueue.sublist(0, _txPacketSamples));
-      _txPaceQueue.removeRange(0, _txPacketSamples);
+      final Int16List packet = _txPaceQueue.take(_txPacketSamples);
       final int sent = client.sendAudio(packet);
       if (sent > 0 && _txBytesSent == 0) {
         _broker.logInfo(
@@ -963,8 +978,7 @@ class EchoLinkManager {
   /// Sends any trailing partial voice buffer (zero-padded) and ends the burst.
   void _drainPartialAndFinalize(EchoLinkClient client) {
     if (_txPaceQueue.isNotEmpty) {
-      _txBytesSent += client.sendAudio(Int16List.fromList(_txPaceQueue));
-      _txPaceQueue.clear();
+      _txBytesSent += client.sendAudio(_txPaceQueue.take(_txPaceQueue.length));
     }
     client.flushAudio();
     _txResampler.reset();

@@ -1260,6 +1260,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get settingsHistoryLimits => 'Limiti della cronologia';
 
   @override
+  String get chatHistory => 'Cronologia salvata';
+
+  @override
   String get settingsUnlimited => 'Illimitato';
 
   @override

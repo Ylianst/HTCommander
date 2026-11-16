@@ -36,6 +36,7 @@ import 'bbs_dao.dart';
 import 'comms_dao.dart';
 import 'legacy_import.dart';
 import 'meshcore_dao.dart';
+import 'mail_dao.dart';
 import 'packets_dao.dart';
 
 /// Owns the shared SQLite connection and exposes one DAO per stored table.
@@ -45,7 +46,8 @@ class AppDatabase {
       packets = PacketsDao(db),
       aprsis = AprsisDao(db),
       meshcore = MeshCoreDao(db),
-      bbs = BbsDao(db);
+      bbs = BbsDao(db),
+      mails = MailDao(db);
 
   /// The open database handle. DAOs run their statements against this.
   final Database db;
@@ -64,10 +66,11 @@ class AppDatabase {
 
   /// BBS message board and visitor log.
   final BbsDao bbs;
+  final MailDao mails;
 
   /// Current schema version. Bump and add an [onUpgrade] branch when the schema
   /// changes.
-  static const int _schemaVersion = 4;
+  static const int _schemaVersion = 5;
 
   static const String _dbFileName = 'htcommander.db';
 
@@ -128,6 +131,7 @@ class AppDatabase {
           if (oldVersion < 2) await MeshCoreDao.createSchema(db);
           if (oldVersion < 3) await PacketsDao.addAprsHiddenColumn(db);
           if (oldVersion < 4) await BbsDao.createSchema(db);
+          if (oldVersion < 5) await MailDao.createSchema(db);
         },
       ),
     );
@@ -191,6 +195,7 @@ class AppDatabase {
 
     await MeshCoreDao.createSchema(db);
     await BbsDao.createSchema(db);
+    await MailDao.createSchema(db);
   }
 
   /// Runs a quick integrity check so a corrupt database is rebuilt rather than

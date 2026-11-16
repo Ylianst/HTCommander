@@ -86,6 +86,7 @@ import 'services/winlink_gateway_service.dart';
 import 'services/host_bridge.dart';
 import 'services/crash_logger.dart';
 import 'services/data_broker.dart';
+import 'services/stored_chat_history.dart';
 import 'services/db/app_database.dart';
 import 'services/settings_migration.dart';
 import 'services/data_broker_client.dart';
@@ -595,6 +596,11 @@ Future<void> _startApp(List<String> args) async {
   debugLogHandler.init();
   DataBroker.addDataHandler('DebugLogHandler', debugLogHandler);
 
+  if (!HostBridge.isHosted) {
+    final storedChatHistory = StoredChatHistory()..init();
+    DataBroker.addDataHandler('StoredChatHistory', storedChatHistory);
+  }
+
   // Register the terminal engine. The Terminal tab (in this or a detached
   // window) and test agents drive it with Terminal* commands. The hosted web
   // build keeps its own, since it runs its terminal against its own radio view.
@@ -732,10 +738,26 @@ class _PersistenceLifecycleObserver with WidgetsBindingObserver {
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
       unawaited(
-        DataBroker.getDataHandler<CommsHandler>('CommsHandler')?.flush(),
+        _flushPersistentStores().catchError((Object error, StackTrace stack) {
+          CrashLogger.instance.logError(
+            'Failed to flush persistence',
+            error,
+            stack,
+          );
+        }),
       );
     }
   }
+}
+
+Future<void> _flushPersistentStores() async {
+  await Future.wait([
+    if (DataBroker.getDataHandler<CommsHandler>('CommsHandler')
+        case final handler?)
+      handler.flush(),
+    if (DataBroker.getDataHandler<MailStore>('MailStore') case final store?)
+      store.flush(),
+  ]);
 }
 
 /// Best-effort forward of an error string into the Debug tab log. The broker may
@@ -3210,7 +3232,7 @@ class _MainFormState extends State<MainForm>
     // written on a short debounce, so without this the most recently received
     // entries would be lost when the window is destroyed below.
     try {
-      await DataBroker.getDataHandler<CommsHandler>('CommsHandler')?.flush();
+      await _flushPersistentStores();
     } catch (e) {
       debugPrint('Main: error flushing comms history on close: $e');
     }

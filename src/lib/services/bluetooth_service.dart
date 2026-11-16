@@ -260,6 +260,7 @@ class BluetoothService {
       // Seed the comms/APRS tabs with the host's history when it arrives. Set
       // before connect() so the snapshot the host sends on connect isn't missed.
       transport.onHistory = _onHostHistory;
+      transport.onStoredHistory = _onHostStoredHistory;
       // Sync device-0 settings with the host instead of local storage.
       transport.onSettingsSnapshot = _onHostSettingsSnapshot;
       transport.onSetting = _onHostSetting;
@@ -444,6 +445,11 @@ class BluetoothService {
       if (data is Map) {
         _broker.dispatch(
           deviceId: 1,
+          name: 'StoredChatHistoryAvailable',
+          data: data['storedHistoryAvailable'] == true,
+        );
+        _broker.dispatch(
+          deviceId: 1,
           name: 'WebHistorySnapshot',
           data: data,
           store: false,
@@ -495,6 +501,31 @@ class BluetoothService {
   void _wireMailSyncForwarding() {
     if (_mailSyncSubscribed) return;
     _mailSyncSubscribed = true;
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'RequestStoredChatHistory',
+      callback: (_, _, data) {
+        if (data is! Map) {
+          _broker.logError('[BT] Invalid stored history request');
+          return;
+        }
+        if (_hostTransport?.sendStoredHistory(
+              Map<String, Object?>.from(data),
+            ) !=
+            true) {
+          _broker.logError('[BT] Host disconnected during history request');
+          _broker.dispatch(
+            deviceId: 1,
+            name: 'StoredChatHistoryPage',
+            store: false,
+            data: {
+              'requestId': data['requestId'],
+              'error': 'Host disconnected',
+            },
+          );
+        }
+      },
+    );
     _broker.subscribeMultiple(
       deviceId: 0,
       names: <String>['MailAdd', 'MailUpdate', 'MailDelete', 'MailMove'],
@@ -517,6 +548,21 @@ class BluetoothService {
       names: HostBridge.forwardedClearEvents.toList(),
       callback: _onLocalClear,
     );
+  }
+
+  void _onHostStoredHistory(String json) {
+    try {
+      final data = jsonDecode(json);
+      if (data is! Map) throw const FormatException('Invalid history response');
+      _broker.dispatch(
+        deviceId: 1,
+        name: 'StoredChatHistoryPage',
+        data: data,
+        store: false,
+      );
+    } catch (error) {
+      _broker.logError('[BT] Failed to parse stored history: $error');
+    }
   }
 
   /// Applies the host's authoritative mail snapshot by replacing the local

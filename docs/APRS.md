@@ -10,6 +10,24 @@ In the "File" -> "Settings" -> "APRS" dialog box, you can add more APRS routes. 
 
 APRS telemetry messages will show up on the [map tab](https://github.com/Ylianst/HTCommander/blob/main/docs/Map.md), and you can right click on any APRS message to get extra details or to show a mini-map of the location of the station.
 
+## Live Window and Stored History
+
+The live tab keeps up to 1,000 RF entries and 1,000 APRS-IS entries independently.
+Evicting old entries removes only their bubbles; surviving messages keep stable
+IDs and cached content instead of being rebuilt on every new internet packet.
+This does not delete the persisted history.
+
+Use the **Stored History** clock button inside a conversation or the combined
+feed to browse the retained RF/APRS-IS archives. Choose the source in the dialog,
+then use the left arrow for older 200-entry pages or the first-page button for
+the newest stored page. The archive is separate from the selected conversation
+and shows retained traffic, including individual stored retransmissions.
+Cleared RF messages remain hidden in this browser.
+
+The archive also works in detached windows and hosted web clients through the
+host. Without a database (including stand-alone web), only the bounded live
+window is available. Existing retention settings still govern on-disk history.
+
 ## Saving Messages
 
 While a conversation or the "All Messages" view is open, use **Save as CSV...** or **Save as TXT...** from the APRS tab menu to save the messages currently shown (respecting the telemetry and internet-traffic filters). The options are grayed out on the conversation list. The file format is the same as the [Comms tab export](https://github.com/Ylianst/HTCommander/blob/main/docs/Voice.md#exporting-comms-conversations); the type column is `APRS`, `APRS-IS` or `MeshCore`.

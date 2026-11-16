@@ -36,6 +36,7 @@ import 'dart:typed_data';
 import '../echolink/pcm_resampler.dart';
 import '../radio/pcm_player.dart';
 import '../services/data_broker_client.dart';
+import '../utils/pcm_sample_queue.dart';
 import 'allstar_client.dart';
 import 'allstar_node.dart';
 import 'allstar_portal_service.dart';
@@ -88,7 +89,7 @@ class AllStarManager {
   // timestamps, instead of an instantaneous burst the node cannot play back.
   static const int _txFrameSamples = 160; // 20 ms at 8 kHz.
   static const int _txIdleTicksBeforeStop = 15; // ~300 ms tail before stopping.
-  final List<int> _txQueue = <int>[];
+  final PcmSampleQueue _txQueue = PcmSampleQueue();
   Timer? _txPaceTimer;
   int _txIdleTicks = 0;
   bool _txFlushRequested = false;
@@ -189,17 +190,19 @@ class AllStarManager {
       _publishAvailable(true);
       if (_client != null) return; // Already prepared.
 
-      final AllStarClient client = AllStarClient(
-        network: DartIoIax2Network()..onDiagnostic = _onDiagnostic,
-      )
-        ..onAudio = _onRxAudio
-        ..onStateChanged = _onClientState
-        ..onConnectedNode = _onConnectedNode
-        ..onText = _onRxText
-        ..onDiagnostic = _onDiagnostic;
+      final AllStarClient client =
+          AllStarClient(
+              network: DartIoIax2Network()..onDiagnostic = _onDiagnostic,
+            )
+            ..onAudio = _onRxAudio
+            ..onStateChanged = _onClientState
+            ..onConnectedNode = _onConnectedNode
+            ..onText = _onRxText
+            ..onDiagnostic = _onDiagnostic;
       _client = client;
       _broker.logInfo(
-          '[AllStar] Ready (account authorized, ${nodes.length} channel(s))');
+        '[AllStar] Ready (account authorized, ${nodes.length} channel(s))',
+      );
       unawaited(_maybeAutoReconnect());
     } finally {
       _reconciling = false;
@@ -216,10 +219,12 @@ class AllStarManager {
       await client.open();
       final Object? last = _broker.getValueDynamic(0, lastAllStarNodeKey);
       if (last is Map) {
-        client.connectTo(AllStarNode.fromMap(last),
-            wtToken: _wtToken(),
-            callSign: _callSign(),
-            callerNumber: _myNodeNumber());
+        client.connectTo(
+          AllStarNode.fromMap(last),
+          wtToken: _wtToken(),
+          callSign: _callSign(),
+          callerNumber: _myNodeNumber(),
+        );
       }
     } catch (e) {
       _broker.logError('[AllStar] Auto-reconnect failed: $e');
@@ -259,7 +264,11 @@ class AllStarManager {
     final AllStarClient? client = _client;
     if (client == null) return;
     _broker.dispatch(
-        deviceId: 0, name: allStarWasOnlineKey, data: true, store: true);
+      deviceId: 0,
+      name: allStarWasOnlineKey,
+      data: true,
+      store: true,
+    );
     unawaited(() async {
       try {
         // Authenticate against the portal to obtain a fresh Web Transceiver
@@ -279,19 +288,22 @@ class AllStarManager {
   Future<void> _refreshToken() async {
     final String password =
         _broker.getValue<String>(0, allStarPasswordKey, '') ?? '';
-    final String callSign =
-        (_broker.getValue<String>(0, 'CallSign', '') ?? '').trim();
+    final String callSign = (_broker.getValue<String>(0, 'CallSign', '') ?? '')
+        .trim();
     if (password.isEmpty || callSign.isEmpty) return;
     final AllStarPortalService service = AllStarPortalService();
     try {
-      final AllStarWtAuthResult result =
-          await service.fetchToken(username: callSign, password: password);
+      final AllStarWtAuthResult result = await service.fetchToken(
+        username: callSign,
+        password: password,
+      );
       if (result.success && result.token.isNotEmpty) {
         _broker.dispatch(
-            deviceId: 0,
-            name: allStarWtTokenKey,
-            data: result.token,
-            store: true);
+          deviceId: 0,
+          name: allStarWtTokenKey,
+          data: result.token,
+          store: true,
+        );
         _broker.logInfo('[AllStar] Authenticated (token refreshed)');
       } else {
         _broker.logError('[AllStar] Authentication failed: ${result.message}');
@@ -307,9 +319,17 @@ class AllStarManager {
     final AllStarClient? client = _client;
     if (client == null) return;
     _broker.dispatch(
-        deviceId: 0, name: lastAllStarNodeKey, data: null, store: true);
+      deviceId: 0,
+      name: lastAllStarNodeKey,
+      data: null,
+      store: true,
+    );
     _broker.dispatch(
-        deviceId: 0, name: allStarWasOnlineKey, data: false, store: true);
+      deviceId: 0,
+      name: allStarWasOnlineKey,
+      data: false,
+      store: true,
+    );
     unawaited(() async {
       try {
         await client.close();
@@ -334,10 +354,12 @@ class AllStarManager {
           await client.open();
           _opened = true;
         }
-        client.connectTo(node,
-            wtToken: _wtToken(),
-            callSign: _callSign(),
-            callerNumber: _myNodeNumber());
+        client.connectTo(
+          node,
+          wtToken: _wtToken(),
+          callSign: _callSign(),
+          callerNumber: _myNodeNumber(),
+        );
       } catch (e) {
         _broker.logError('[AllStar] Connect failed: $e');
       }
@@ -411,8 +433,9 @@ class AllStarManager {
     if (text.isEmpty) return;
     if (client.state != AllStarClientState.inCall) return;
     client.sendText(text);
-    final String source =
-        (_broker.getValue<String>(0, 'CallSign', '') ?? '').trim().toUpperCase();
+    final String source = (_broker.getValue<String>(0, 'CallSign', '') ?? '')
+        .trim()
+        .toUpperCase();
     _broker.dispatch(
       deviceId: allStarDeviceId,
       name: 'AllStarChat',
@@ -474,7 +497,11 @@ class AllStarManager {
 
   void _publishAvailable(bool available) {
     _broker.dispatch(
-        deviceId: 1, name: 'AllStarAvailable', data: available, store: true);
+      deviceId: 1,
+      name: 'AllStarAvailable',
+      data: available,
+      store: true,
+    );
   }
 
   List<AllStarNode> _readNodes() {
@@ -539,8 +566,10 @@ class AllStarManager {
     // played between transmissions.
     unawaited(_playPcm(pcm32));
 
-    final Uint8List bytes =
-        pcm32.buffer.asUint8List(pcm32.offsetInBytes, pcm32.lengthInBytes);
+    final Uint8List bytes = pcm32.buffer.asUint8List(
+      pcm32.offsetInBytes,
+      pcm32.lengthInBytes,
+    );
     _broker.dispatch(
       deviceId: allStarDeviceId,
       name: 'AudioDataAvailable',
@@ -581,12 +610,20 @@ class AllStarManager {
       store: false,
     );
     _broker.dispatch(
-        deviceId: allStarDeviceId, name: 'RxLevel', data: 0.0, store: false);
+      deviceId: allStarDeviceId,
+      name: 'RxLevel',
+      data: 0.0,
+      store: false,
+    );
   }
 
   void _publishRxLevel(double level) {
     _broker.dispatch(
-        deviceId: allStarDeviceId, name: 'RxLevel', data: level, store: false);
+      deviceId: allStarDeviceId,
+      name: 'RxLevel',
+      data: level,
+      store: false,
+    );
   }
 
   double _peakLevel(Int16List pcm) {
@@ -662,7 +699,7 @@ class AllStarManager {
     final Int16List pcm32 = _int16FromBytes(bytes);
     final Int16List pcm8k = _txResampler.process(pcm32);
     if (pcm8k.isNotEmpty) {
-      _txQueue.addAll(pcm8k);
+      _txQueue.add(pcm8k);
       _txHadAudio = true;
       _startTxPacer();
     }
@@ -672,8 +709,10 @@ class AllStarManager {
   /// Starts the 20 ms pacing timer that drains [_txQueue] one frame at a time,
   /// so each IAX2 voice frame gets a real, advancing timestamp.
   void _startTxPacer() {
-    _txPaceTimer ??=
-        Timer.periodic(const Duration(milliseconds: 20), (_) => _txTick());
+    _txPaceTimer ??= Timer.periodic(
+      const Duration(milliseconds: 20),
+      (_) => _txTick(),
+    );
   }
 
   void _txTick() {
@@ -683,11 +722,7 @@ class AllStarManager {
       return;
     }
     if (_txQueue.length >= _txFrameSamples) {
-      final Int16List frame = Int16List(_txFrameSamples);
-      for (int i = 0; i < _txFrameSamples; i++) {
-        frame[i] = _txQueue[i];
-      }
-      _txQueue.removeRange(0, _txFrameSamples);
+      final Int16List frame = _txQueue.take(_txFrameSamples);
       final int bytes = client.sendAudio(frame);
       if (bytes > 0) {
         if (_txFramesSent == 0) {
@@ -737,7 +772,11 @@ class AllStarManager {
     if (active == _txActive) return;
     _txActive = active;
     _broker.dispatch(
-        deviceId: allStarDeviceId, name: 'TxActive', data: active, store: false);
+      deviceId: allStarDeviceId,
+      name: 'TxActive',
+      data: active,
+      store: false,
+    );
   }
 
   static Int16List _int16FromBytes(Uint8List bytes) {

@@ -17,6 +17,8 @@ limitations under the License.
 import 'package:sqflite/sqflite.dart';
 
 import '../../aprsis/aprsis_history_store.dart' show AprsIsHistoryRecord;
+import '../../aprsis/tnc2_codec.dart';
+import 'history_page.dart';
 
 /// Persists internet-gated (APRS-IS) message history (`aprsis_history`), kept
 /// separate from the RF packet store just like the old `aprsis_history.txt`.
@@ -26,6 +28,19 @@ class AprsisDao {
   final Database _db;
 
   static const String _table = 'aprsis_history';
+
+  Future<Map<String, Object?>> page({List<int>? before}) => readHistoryPage(
+    _db,
+    table: _table,
+    timeColumn: 'time_us',
+    before: before,
+    decode: (row) {
+      final packet = Tnc2Codec.decode(row['tnc2'] as String);
+      if (packet == null) return {'invalid': true};
+      packet.time = DateTime.fromMicrosecondsSinceEpoch(row['time_us'] as int);
+      return {...packet.toJson(), 'fromAprsIs': true};
+    },
+  );
 
   /// Appends one internet APRS record. The raw TNC2 line is kept on one logical
   /// field; newlines/tabs are collapsed to spaces for parity with the old file.
@@ -84,7 +99,9 @@ class AprsisDao {
 
   /// Deletes the records for which [match] returns true and returns how many
   /// were deleted. Rows are scanned in pages to bound memory use.
-  Future<int> deleteWhere(bool Function(AprsIsHistoryRecord record) match) async {
+  Future<int> deleteWhere(
+    bool Function(AprsIsHistoryRecord record) match,
+  ) async {
     const pageSize = 500;
     final ids = <int>[];
     var lastId = 0;

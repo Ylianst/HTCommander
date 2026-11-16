@@ -424,6 +424,7 @@
 
   "settingsLimitsIntro": "Limitez le nombre d'éléments d'historique conservés d'un démarrage à l'autre. Réglez sur « Illimité » pour tout conserver.",
   "settingsHistoryLimits": "Limites d'historique",
+  "chatHistory": "Historique enregistré",
   "settingsUnlimited": "Illimité",
   "settingsLimitAprsMessages": "Messages APRS",
   "settingsLimitPackets": "Paquets",

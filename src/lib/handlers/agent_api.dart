@@ -47,6 +47,7 @@ import '../services/data_broker_client.dart';
 import '../services/host_bridge.dart';
 import '../services/web/web_server.dart';
 import 'bbs_handler.dart';
+import 'debug_log_handler.dart';
 import 'packet_store.dart';
 
 /// Automation channel for test agents.
@@ -435,7 +436,11 @@ class AgentApi {
   }
 
   void _logs(_AgentSession session, Object? id, Map<String, Object?> req) {
-    final stored = _broker.getValueDynamic(1, 'DebugLogEntries', null);
+    final stored =
+        DataBroker.getDataHandler<DebugLogHandler>(
+          'DebugLogHandler',
+        )?.entries ??
+        _broker.getValueDynamic(1, 'DebugLogEntries', null);
     final since = _parseTime(req['since']);
     final errorsOnly = req['level'] == 'error';
     final out = <Map<String, Object?>>[];

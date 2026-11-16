@@ -79,6 +79,11 @@ To send it to us:
 Every line is timestamped, and failures are marked `[Error]`, so this is usually
 the single most useful thing you can send when the app is still usable.
 
+The Debug tab retains the newest 2,000 application log entries. Views receive
+individual append events; a full snapshot is requested only when a view opens
+or the log is cleared. Detached windows no longer receive a growing full-log
+snapshot for every line. This limit does not change the independent crash log.
+
 ---
 
 ## 2. The on-disk crash log

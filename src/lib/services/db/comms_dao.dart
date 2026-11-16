@@ -19,6 +19,7 @@ import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 
 import '../../handlers/comms_handler.dart' show DecodedTextEntry;
+import 'history_page.dart';
 
 /// Persists Comms tab decoded-text / APRS message history (`comms_events`).
 class CommsDao {
@@ -27,6 +28,16 @@ class CommsDao {
   final Database _db;
 
   static const String _table = 'comms_events';
+
+  Future<Map<String, Object?>> page({List<int>? before}) => readHistoryPage(
+    _db,
+    table: _table,
+    timeColumn: 'time_ms',
+    before: before,
+    filter:
+        "(encoding != 'APRS' OR channel IS NULL OR channel NOT IN ('APRS', 'APRS-IS'))",
+    decode: (row) => _fromRow(row).toJson(),
+  );
 
   /// Appends one history entry.
   Future<void> insert(DecodedTextEntry entry) async {

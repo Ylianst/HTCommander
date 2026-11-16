@@ -1239,6 +1239,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsHistoryLimits => 'History Limits';
 
   @override
+  String get chatHistory => 'Stored History';
+
+  @override
   String get settingsUnlimited => 'Unlimited';
 
   @override

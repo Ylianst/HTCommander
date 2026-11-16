@@ -67,6 +67,7 @@ import '../services/data_broker_client.dart';
 import '../services/db/app_database.dart';
 import '../services/notification_service.dart';
 import '../services/tts_service.dart';
+import '../services/wav_recording_writer.dart';
 import '../sstv/sstv_monitor.dart';
 import '../sstv/sstv_worker.dart';
 import '../utils/num_parsing.dart';
@@ -294,7 +295,16 @@ class CommsHandler {
   Directory? _recordingsDir;
 
   // Active recording context (set while an audio run is being captured).
-  _WavClipRecorder? _recorder;
+  final WavRecordingWriter _recordingWriter = WavRecordingWriter(
+    onError: (message) => DataBroker.dispatch(
+      deviceId: 1,
+      name: 'LogError',
+      data: message,
+      store: false,
+    ),
+  );
+  final Set<Future<void>> _pendingRecordings = {};
+  WavClipRecorder? _recorder;
   int _recordingDeviceId = -1;
   DateTime _recordingStartTime = DateTime.now();
   String _recordingChannel = '';
@@ -1594,11 +1604,7 @@ class CommsHandler {
     final filename =
         'Recording_${_formatTimestamp(startTime)}_${_sanitizeChannel(channel)}.wav';
     final fullPath = '${dir.path}${Platform.pathSeparator}$filename';
-    final recorder = _WavClipRecorder.open(fullPath, _recordingSampleRate);
-    if (recorder == null) {
-      _broker.logError('[CommsHandler] Failed to start recording: $filename');
-      return;
-    }
+    final recorder = _recordingWriter.open(fullPath, _recordingSampleRate);
 
     _recorder = recorder;
     _recordingDeviceId = deviceId;
@@ -1614,10 +1620,7 @@ class CommsHandler {
     _txRecordTimer?.cancel();
     _txRecordTimer = null;
     _recorder = null;
-    final dataBytes = recorder.dataBytes;
-    recorder.close();
-
-    var filename = _recordingFilename;
+    final filename = _recordingFilename;
     final channel = _recordingChannel;
     final startTime = _recordingStartTime;
     final isReceived = !_recordingIsTransmit;
@@ -1628,30 +1631,43 @@ class CommsHandler {
     _recordingFilename = '';
     _recordingChannel = '';
 
+    late final Future<void> completion;
+    completion = _completeRecording(
+      recorder,
+      filename,
+      channel,
+      startTime,
+      isReceived,
+      deviceId,
+      dir,
+    ).whenComplete(() => _pendingRecordings.remove(completion));
+    _pendingRecordings.add(completion);
+    unawaited(completion);
+  }
+
+  Future<void> _completeRecording(
+    WavClipRecorder recorder,
+    String filename,
+    String channel,
+    DateTime startTime,
+    bool isReceived,
+    int deviceId,
+    Directory? dir,
+  ) async {
     // 32000 Hz * 2 bytes/sample (16-bit mono) = 64000 bytes per second.
-    final durationSeconds = dataBytes / 64000.0;
+    final durationSeconds = recorder.dataBytes / 64000.0;
+    final desired = channel.isEmpty
+        ? filename
+        : 'Recording_${_formatTimestamp(startTime)}_${_sanitizeChannel(channel)}.wav';
+    final savedPath = await recorder.close(
+      discard: durationSeconds < 0.5,
+      renameTo: dir == null
+          ? null
+          : '${dir.path}${Platform.pathSeparator}$desired',
+    );
     if (durationSeconds >= 0.5) {
-      // The channel may have been resolved from the audio frames after the file
-      // was created; rename the file so it reflects the correct channel name.
-      if (dir != null && channel.isNotEmpty) {
-        final desired =
-            'Recording_${_formatTimestamp(startTime)}_${_sanitizeChannel(channel)}.wav';
-        if (desired != filename) {
-          try {
-            final oldFile = File(
-              '${dir.path}${Platform.pathSeparator}$filename',
-            );
-            if (oldFile.existsSync()) {
-              oldFile.renameSync(
-                '${dir.path}${Platform.pathSeparator}$desired',
-              );
-              filename = desired;
-            }
-          } catch (e) {
-            _broker.logError('[CommsHandler] Failed to rename recording: $e');
-          }
-        }
-      }
+      if (savedPath == null) return; // Failed clips must not enter history.
+      filename = savedPath.split(Platform.pathSeparator).last;
       final durationInt = durationSeconds.round();
       final entry = DecodedTextEntry(
         text: null,
@@ -1678,12 +1694,6 @@ class CommsHandler {
         '[CommsHandler] Completed recording: $filename (${durationSeconds.toStringAsFixed(1)} sec)',
       );
     } else {
-      // Discard recordings that are too short to be useful.
-      if (dir != null) {
-        try {
-          File('${dir.path}${Platform.pathSeparator}$filename').deleteSync();
-        } catch (_) {}
-      }
       _broker.logInfo('[CommsHandler] Discarded short recording: $filename');
     }
   }
@@ -1782,22 +1792,19 @@ class CommsHandler {
       _sstvChannelMuted = context.muted;
       _currentChannelName = context.channelName;
     }
+
     _sstvStartedSub = monitor.onDecodingStarted.listen((event) {
       setContext();
       _onSstvDecodingStarted(event);
     });
-    _sstvProgressSub = monitor.onDecodingProgress.listen(
-      (event) {
-        setContext();
-        _onSstvDecodingProgress(event);
-      },
-    );
-    _sstvCompleteSub = monitor.onDecodingComplete.listen(
-      (event) {
-        setContext();
-        _onSstvDecodingComplete(event);
-      },
-    );
+    _sstvProgressSub = monitor.onDecodingProgress.listen((event) {
+      setContext();
+      _onSstvDecodingProgress(event);
+    });
+    _sstvCompleteSub = monitor.onDecodingComplete.listen((event) {
+      setContext();
+      _onSstvDecodingComplete(event);
+    });
     _sstvMonitor = monitor;
     _broker.logInfo('[CommsHandler] SSTV monitor initialized');
   }
@@ -3389,12 +3396,16 @@ class CommsHandler {
     }
   }
 
-  /// Immediately writes any pending (debounced) history changes to the
-  /// database. Called on app shutdown so the most recently received entries —
+  /// Drains/finalizes recordings, then writes pending history to the database.
+  /// Called on app shutdown so the most recently received entries —
   /// e.g. a just-decoded SSTV image — are durably stored before the window is
   /// torn down, rather than being lost while the debounce timer is still
   /// pending.
   Future<void> flush() async {
+    _finalizeRecording();
+    while (_pendingRecordings.isNotEmpty) {
+      await Future.wait(_pendingRecordings.toList());
+    }
     _saveHistoryTimer?.cancel();
     _saveHistoryTimer = null;
     if (_historyDirty) await _writeVoiceTextHistory();
@@ -3548,11 +3559,8 @@ class CommsHandler {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _saveHistoryTimer?.cancel();
-    _saveHistoryTimer = null;
-    if (_historyDirty) unawaited(_writeVoiceTextHistory());
     _txRecordTimer?.cancel();
-    if (_recorder != null) _finalizeRecording();
+    unawaited(flush());
     _cleanupSstvMonitor();
     _cleanupCwMonitor();
     _cleanupSarsatMonitor();
@@ -3561,74 +3569,5 @@ class CommsHandler {
     if (_enabled) disable();
     _broker.logInfo('[CommsHandler] Voice Handler disposing');
     _broker.dispose();
-  }
-}
-
-/// Minimal incremental WAV (PCM 16-bit mono) writer for recorded audio clips.
-/// Writes a 44-byte header up front and patches the size fields on close.
-class _WavClipRecorder {
-  final RandomAccessFile _raf;
-  final int _sampleRate;
-  int _dataBytes = 0;
-
-  _WavClipRecorder._(this._raf, this._sampleRate) {
-    _raf.writeFromSync(_header(0, _sampleRate));
-  }
-
-  int get dataBytes => _dataBytes;
-
-  static _WavClipRecorder? open(String path, int sampleRate) {
-    try {
-      final raf = File(path).openSync(mode: FileMode.write);
-      return _WavClipRecorder._(raf, sampleRate);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  void write(Uint8List bytes, int offset, int length) {
-    try {
-      if (offset == 0 && length == bytes.length) {
-        _raf.writeFromSync(bytes);
-      } else {
-        _raf.writeFromSync(bytes, offset, offset + length);
-      }
-      _dataBytes += length;
-    } catch (_) {}
-  }
-
-  void close() {
-    try {
-      // Patch the RIFF/data sizes now that the total length is known.
-      _raf.setPositionSync(0);
-      _raf.writeFromSync(_header(_dataBytes, _sampleRate));
-      _raf.closeSync();
-    } catch (_) {}
-  }
-
-  // 44-byte canonical WAV header for 16-bit mono PCM.
-  static Uint8List _header(int dataBytes, int sampleRate) {
-    const int channels = 1;
-    const int bitsPerSample = 16;
-    final int byteRate = sampleRate * channels * bitsPerSample ~/ 8;
-    const int blockAlign = channels * bitsPerSample ~/ 8;
-    final int riffSize = 36 + dataBytes;
-
-    final bytes = Uint8List(44);
-    final bd = ByteData.sublistView(bytes);
-    bytes.setAll(0, 'RIFF'.codeUnits);
-    bd.setUint32(4, riffSize, Endian.little);
-    bytes.setAll(8, 'WAVE'.codeUnits);
-    bytes.setAll(12, 'fmt '.codeUnits);
-    bd.setUint32(16, 16, Endian.little); // fmt chunk size
-    bd.setUint16(20, 1, Endian.little); // PCM
-    bd.setUint16(22, channels, Endian.little);
-    bd.setUint32(24, sampleRate, Endian.little);
-    bd.setUint32(28, byteRate, Endian.little);
-    bd.setUint16(32, blockAlign, Endian.little);
-    bd.setUint16(34, bitsPerSample, Endian.little);
-    bytes.setAll(36, 'data'.codeUnits);
-    bd.setUint32(40, dataBytes, Endian.little);
-    return bytes;
   }
 }

@@ -7,21 +7,20 @@ http://www.apache.org/licenses/LICENSE-2.0
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show compute, debugPrint, kIsWeb;
 import 'package:path_provider/path_provider.dart';
 
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
+import '../services/db/app_database.dart';
 import 'i_mail_store.dart';
 import 'winlink_mail.dart';
 
 /// Flutter-adapted implementation of [IMailStore].
 ///
-/// The original Windows implementation used SQLite plus a FileSystemWatcher for
-/// multi-instance synchronization. SQLite is not available here, so this version
-/// keeps an in-memory cache (for synchronous reads, which the Winlink protocol
-/// code relies on) and persists the whole list to a single text file using
-/// [WinLinkMail.serialize] / [WinLinkMail.deserialize].
+/// Keeps synchronous protocol reads in memory and batches dirty-message writes
+/// to SQLite. Legacy JSON is imported once, or used as an asynchronous fallback
+/// when the application database is unavailable.
 ///
 /// It registers itself as the DataBroker data handler named "MailStore" and
 /// subscribes to the same broker events as the original.
@@ -36,7 +35,12 @@ class MailStore implements IMailStore {
   bool _disposed = false;
   DataBrokerClient? _broker;
   void Function()? _onMailsChanged;
-  Future<void> _saveChain = Future<void>.value();
+  Timer? _saveTimer;
+  Future<void>? _saving;
+  bool _dirty = false;
+  bool _replaceAll = false;
+  final Set<String> _dirtyMids = {};
+  final Set<String> _deletedMids = {};
 
   @override
   set onMailsChanged(void Function()? handler) => _onMailsChanged = handler;
@@ -44,25 +48,27 @@ class MailStore implements IMailStore {
   /// Initializes storage, loads persisted mail, subscribes to broker events and
   /// registers this instance as the "MailStore" data handler.
   Future<void> initialize() async {
+    Object? initializationError;
     // On the web there is no local filesystem; mail is kept in memory only.
-    // Leaving _mailsFilePath null makes _loadMailsFromFile/_saveToFile no-ops.
     if (!kIsWeb) {
       try {
-        if (_storagePath == null) {
-          final dir = await getApplicationSupportDirectory();
-          _storagePath = '${dir.path}${Platform.pathSeparator}HTCommander';
+        final dao = AppDatabase.instance?.mails;
+        if (dao != null && await dao.initialized) {
+          _cachedMails.addAll(await dao.all());
+        } else {
+          if (_storagePath == null) {
+            final dir = await getApplicationSupportDirectory();
+            _storagePath = '${dir.path}${Platform.pathSeparator}HTCommander';
+          }
+          await Directory(_storagePath!).create(recursive: true);
+          _mailsFilePath = '${_storagePath!}${Platform.pathSeparator}mails.txt';
+          await _loadMailsFromFile();
+          if (dao != null) {
+            await dao.save(_cachedMails, <String>{}, replaceAll: true);
+          }
         }
-
-        final storageDir = Directory(_storagePath!);
-        if (!storageDir.existsSync()) {
-          storageDir.createSync(recursive: true);
-        }
-        _mailsFilePath = '${_storagePath!}${Platform.pathSeparator}mails.txt';
-
-        // Load initial data
-        _loadMailsFromFile();
       } catch (e) {
-        // Filesystem unavailable - fall back to an in-memory store.
+        initializationError = e;
         _mailsFilePath = null;
       }
     }
@@ -72,6 +78,7 @@ class MailStore implements IMailStore {
 
     // Initialize the DataBroker client and subscribe to mail events
     _initializeBroker();
+    if (initializationError != null) _reportError(initializationError);
 
     // Notify that MailStore is ready (after broker is initialized)
     _broker?.dispatch(
@@ -177,10 +184,9 @@ class MailStore implements IMailStore {
   void _onMailReplaceAll(int deviceId, String name, Object? data) {
     if (_disposed) return;
     if (data is! List) return;
-    _cachedMails
-      ..clear()
-      ..addAll(data.whereType<WinLinkMail>());
-    _saveToFile();
+    _cachedMails.clear();
+    addMails(data.whereType<WinLinkMail>());
+    _queueSave(replaceAll: true);
     _notifyMailsChanged();
   }
 
@@ -275,7 +281,7 @@ class MailStore implements IMailStore {
       mail.mid = WinLinkMail.generateMID();
     }
     _cachedMails.add(mail);
-    _saveToFile();
+    _queueSave(changed: [mail.mid!]);
   }
 
   @override
@@ -289,69 +295,142 @@ class MailStore implements IMailStore {
     } else {
       _cachedMails.add(mail);
     }
-    _saveToFile();
+    _queueSave(changed: [mail.mid!]);
   }
 
   @override
   void deleteMail(String mid) {
     if (mid.isEmpty) return;
     _cachedMails.removeWhere((m) => m.mid == mid);
-    _saveToFile();
+    _queueSave(deleted: [mid]);
   }
 
   @override
   void addMails(Iterable<WinLinkMail> mails) {
+    final added = <String>[];
     for (final mail in mails) {
       if (mail.mid == null || mail.mid!.isEmpty) {
         mail.mid = WinLinkMail.generateMID();
       }
       _cachedMails.add(mail);
+      added.add(mail.mid!);
     }
-    _saveToFile();
+    _queueSave(changed: added);
   }
 
   @override
   void refresh() {
-    _loadMailsFromFile();
+    unawaited(_refresh().catchError(_reportError));
   }
 
-  void _loadMailsFromFile() {
+  Future<void> _refresh() async {
+    await flush();
+    final dao = AppDatabase.instance?.mails;
+    if (dao == null) {
+      await _loadMailsFromFile();
+    } else {
+      final List<WinLinkMail> loaded = await dao.all();
+      _cachedMails
+        ..clear()
+        ..addAll(loaded);
+    }
+    _notifyMailsChanged();
+  }
+
+  Future<void> _loadMailsFromFile() async {
     _cachedMails.clear();
     final path = _mailsFilePath;
     if (path == null) return;
     final file = File(path);
-    if (!file.existsSync()) return;
-    try {
-      final content = file.readAsStringSync();
-      _cachedMails.addAll(WinLinkMail.deserialize(content));
-    } catch (_) {
-      // Ignore load errors - start with an empty store
+    if (!await file.exists()) return;
+    final content = await file.readAsString();
+    _cachedMails.addAll(WinLinkMail.deserialize(content));
+    for (final mail in _cachedMails) {
+      if (mail.mid == null || mail.mid!.isEmpty) {
+        mail.mid = WinLinkMail.generateMID();
+      }
     }
   }
 
-  /// Persists the current cache to disk. Saves are serialized so that
-  /// overlapping mutations cannot corrupt the file.
-  void _saveToFile() {
-    final path = _mailsFilePath;
-    if (path == null) return;
-    final snapshot = List<WinLinkMail>.from(_cachedMails);
-    _saveChain = _saveChain.then((_) async {
-      try {
-        await File(
-          path,
-        ).writeAsString(WinLinkMail.serialize(snapshot), flush: true);
-      } catch (_) {
-        // Ignore write errors
-      }
+  void _queueSave({
+    Iterable<String> changed = const [],
+    Iterable<String> deleted = const [],
+    bool replaceAll = false,
+  }) {
+    if (_mailsFilePath == null && AppDatabase.instance?.mails == null) return;
+    _dirty = true;
+    _replaceAll |= replaceAll;
+    _dirtyMids.addAll(changed);
+    _dirtyMids.removeAll(deleted);
+    _deletedMids.addAll(deleted);
+    _deletedMids.removeAll(changed);
+    _saveTimer ??= Timer(const Duration(milliseconds: 150), () {
+      _saveTimer = null;
+      unawaited(flush().catchError(_reportError));
     });
+  }
+
+  /// Drains pending mutations on backgrounding and clean shutdown.
+  Future<void> flush() {
+    _saveTimer?.cancel();
+    _saveTimer = null;
+    return _saving ??= _flushPending().whenComplete(() => _saving = null);
+  }
+
+  Future<void> _flushPending() async {
+    while (_dirty) {
+      _dirty = false;
+      final replaceAll = _replaceAll;
+      _replaceAll = false;
+      final changed = Set<String>.of(_dirtyMids);
+      final deleted = Set<String>.of(_deletedMids);
+      _dirtyMids.clear();
+      _deletedMids.clear();
+      try {
+        final dao = AppDatabase.instance?.mails;
+        if (dao != null) {
+          await dao.save(
+            _cachedMails
+                .where((m) => replaceAll || changed.contains(m.mid))
+                .toList(),
+            deleted,
+            replaceAll: replaceAll,
+          );
+        } else {
+          await compute(_writeMailSnapshot, (
+            _mailsFilePath!,
+            List<WinLinkMail>.of(_cachedMails),
+          ));
+        }
+      } catch (_) {
+        _dirty = true;
+        _replaceAll |= replaceAll;
+        _dirtyMids.addAll(changed);
+        _deletedMids.addAll(deleted);
+        rethrow;
+      }
+    }
+  }
+
+  void _reportError(Object error) {
+    debugPrint('MailStore: persistence failed: $error');
+    _broker?.logError('MailStore: persistence failed: $error');
   }
 
   @override
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    unawaited(flush().catchError(_reportError));
     DataBroker.removeDataHandler('MailStore');
     _broker?.dispose();
     _broker = null;
   }
+}
+
+Future<void> _writeMailSnapshot((String, List<WinLinkMail>) input) async {
+  final (path, mails) = input;
+  final temporary = File('$path.tmp');
+  await temporary.writeAsString(WinLinkMail.serialize(mails), flush: true);
+  await temporary.rename(path);
 }

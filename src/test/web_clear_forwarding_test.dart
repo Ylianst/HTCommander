@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/aprs/aprs_conversation.dart';
@@ -6,6 +7,9 @@ import 'package:htcommander/handlers/web_server_handler.dart';
 import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/services/data_broker_client.dart';
 import 'package:htcommander/services/host_bridge.dart';
+import 'package:htcommander/handlers/comms_handler.dart';
+import 'package:htcommander/services/db/app_database_io.dart';
+import 'package:htcommander/services/stored_chat_history.dart';
 
 /// Picks a free local TCP port.
 Future<int> _freePort() async {
@@ -20,19 +24,18 @@ void main() {
   late DataBrokerClient listener;
   late WebSocket socket;
   final received = <(String, Object?)>[];
+  final messages = <String>[];
 
   setUp(() async {
     received.clear();
+    messages.clear();
     final port = await _freePort();
     DataBroker.dispatch(deviceId: 0, name: 'webServerPort', data: port);
     DataBroker.dispatch(deviceId: 0, name: 'webServerEnabled', data: 1);
     handler = WebServerHandler()..init();
 
     listener = DataBrokerClient();
-    for (final name in [
-      ...HostBridge.forwardedClearEvents,
-      'ClearPackets',
-    ]) {
+    for (final name in [...HostBridge.forwardedClearEvents, 'ClearPackets']) {
       listener.subscribe(
         deviceId: 1,
         name: name,
@@ -43,9 +46,7 @@ void main() {
     // The server binds asynchronously; retry until it accepts connections.
     for (var i = 0; ; i++) {
       try {
-        socket = await WebSocket.connect(
-          'ws://127.0.0.1:$port/websocket.aspx',
-        );
+        socket = await WebSocket.connect('ws://127.0.0.1:$port/websocket.aspx');
         break;
       } catch (_) {
         if (i > 50) rethrow;
@@ -53,7 +54,9 @@ void main() {
       }
     }
     // Drain the host's on-connect snapshot messages.
-    socket.listen((_) {});
+    socket.listen((message) {
+      if (message is String) messages.add(message);
+    });
   });
 
   tearDown(() async {
@@ -72,9 +75,7 @@ void main() {
   test('re-dispatches browser clears on the host', () async {
     socket.add('clear:{"event":"ClearVoiceText"}');
     socket.add('clear:{"event":"ClearAprsPackets"}');
-    socket.add(
-      'clear:{"event":"$clearAprsConversationEvent","peer":"W1AW-9"}',
-    );
+    socket.add('clear:{"event":"$clearAprsConversationEvent","peer":"W1AW-9"}');
     await waitForEvents(3);
 
     expect(received.map((e) => e.$1), [
@@ -95,4 +96,53 @@ void main() {
 
     expect(received.map((e) => e.$1), ['ClearVoiceText']);
   });
+
+  test(
+    'hosted browsers can page stored history without broadcasting it',
+    () async {
+      final db = await AppDatabase.openInMemory();
+      final history = StoredChatHistory()..init();
+      DataBroker.addDataHandler('StoredChatHistory', history);
+      var broadcasts = 0;
+      listener.subscribe(
+        deviceId: 1,
+        name: 'StoredChatHistoryPage',
+        callback: (_, _, _) => broadcasts++,
+      );
+      addTearDown(() async {
+        DataBroker.removeDataHandler('StoredChatHistory');
+        history.dispose();
+        await AppDatabase.close();
+      });
+      await db.comms.insert(
+        DecodedTextEntry(
+          text: 'archived voice',
+          time: DateTime(2026),
+          isReceived: true,
+          encoding: VoiceTextEncodingType.voice,
+        ),
+      );
+      socket.add('storedhistory:{"requestId":"browser","source":"comms"}');
+      for (
+        var i = 0;
+        i < 100 && !messages.any((m) => m.startsWith('storedhistory:'));
+        i++
+      ) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      final page =
+          jsonDecode(
+                messages
+                    .firstWhere((m) => m.startsWith('storedhistory:'))
+                    .substring('storedhistory:'.length),
+              )
+              as Map;
+      expect(page['requestId'], 'browser');
+      expect(
+        ((page['entries'] as List).single['data'] as Map)['text'],
+        'archived voice',
+      );
+      expect(broadcasts, 0);
+    },
+  );
 }

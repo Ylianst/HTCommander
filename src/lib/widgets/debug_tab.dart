@@ -12,6 +12,7 @@ import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../l10n/app_localizations.dart';
 import '../dialogs/raw_command_dialog.dart';
 import '../models/radio_models.dart';
+import '../handlers/debug_log_handler.dart';
 import '../services/bluetooth_service.dart';
 import '../services/crash_logger.dart';
 import '../services/data_broker_client.dart';
@@ -56,6 +57,7 @@ class _DebugTabState extends State<DebugTab>
   bool _showBluetoothFrames = false;
   bool _loopbackMode = false;
   bool _autoScroll = true;
+  bool _scrollScheduled = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -68,16 +70,21 @@ class _DebugTabState extends State<DebugTab>
     // decide whether to log every incoming/outgoing control-channel frame.
     _showBluetoothFrames =
         _broker.getValue<bool>(0, 'BluetoothFramesDebug') ?? false;
-    // The Debug tab renders the application log captured by the DebugLogHandler
-    // into the broker's 'DebugLogEntries' value. Load whatever has accumulated
-    // since startup, then keep in sync with future changes.
-    _logEntries.addAll(
-      _parseEntries(_broker.getValueDynamic(_logDeviceId, 'DebugLogEntries')),
-    );
     _broker.subscribe(
       deviceId: _logDeviceId,
       name: 'DebugLogEntries',
       callback: _onDebugLogEntriesChanged,
+    );
+    _broker.subscribe(
+      deviceId: _logDeviceId,
+      name: 'DebugLogEntry',
+      callback: _onDebugLogEntry,
+    );
+    _broker.dispatch(
+      deviceId: _logDeviceId,
+      name: 'RequestDebugLog',
+      data: null,
+      store: false,
     );
     _scrollToBottomIfNeeded();
   }
@@ -123,9 +130,26 @@ class _DebugTabState extends State<DebugTab>
     _scrollToBottomIfNeeded();
   }
 
+  void _onDebugLogEntry(int deviceId, String name, Object? data) {
+    if (!mounted || data is! Map) return;
+    setState(() {
+      _logEntries.addAll(_parseEntries([data]));
+      if (_logEntries.length > DebugLogHandler.maxEntries) {
+        _logEntries.removeRange(
+          0,
+          _logEntries.length - DebugLogHandler.maxEntries,
+        );
+      }
+    });
+    _scrollToBottomIfNeeded();
+  }
+
   void _scrollToBottomIfNeeded() {
-    if (!_autoScroll) return;
+    if (!_autoScroll || !isTabVisible || _scrollScheduled) return;
+    _scrollScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollScheduled = false;
+      if (!mounted || !isTabVisible) return;
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -134,6 +158,11 @@ class _DebugTabState extends State<DebugTab>
         );
       }
     });
+  }
+
+  @override
+  void onTabVisibilityChanged(bool visible) {
+    if (visible) _scrollToBottomIfNeeded();
   }
 
   void _clearLogs() {

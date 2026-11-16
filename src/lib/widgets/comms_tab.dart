@@ -19,7 +19,8 @@ import '../dialogs/callsign_lookup_dialog.dart';
 import '../dialogs/edit_ident_settings_dialog.dart';
 import '../dialogs/image_view_dialog.dart';
 import '../dialogs/message_details_dialog.dart';
-import '../dialogs/morse_key_settings_dialog.dart';import '../dialogs/morse_speed_dialog.dart';
+import '../dialogs/morse_key_settings_dialog.dart';
+import '../dialogs/morse_speed_dialog.dart';
 import '../dialogs/radio_channel_dialog.dart';
 import '../dialogs/recording_playback_dialog.dart';
 import '../dialogs/sstv_send_dialog.dart';
@@ -43,11 +44,9 @@ import '../utils/comms_export.dart';
 import '../utils/format_utils.dart';
 import '../echolink/echolink_client.dart' show echoLinkDeviceId;
 import '../allstar/allstar_client.dart' show allStarDeviceId;
+import '../dialogs/stored_history_dialog.dart';
 import '../allstar/allstar_node.dart'
-    show
-        allStarNodeDeviceId,
-        allStarNodeNumberKey,
-        allStarNodePasswordKey;
+    show allStarNodeDeviceId, allStarNodeNumberKey, allStarNodePasswordKey;
 
 /// Voice transmit mode
 enum VoiceTransmitMode { chat, speak, morse, dtmf, ptt, morseKey, none }
@@ -63,6 +62,8 @@ class CommsTab extends StatefulWidget {
 class _CommsTabState extends State<CommsTab>
     with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   final List<ChatMessage> _messages = [];
+  static const int _maxMessages = 1000;
+  int _nextMessageId = 0;
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   final FocusNode _rootFocusNode = FocusNode();
@@ -93,6 +94,7 @@ class _CommsTabState extends State<CommsTab>
   /// Whether the currently displayed radio is the internet-only AllStarLink
   /// radio.
   bool get _isAllStar => _currentRadioDeviceId == allStarDeviceId;
+
   /// Whether the header should show the EchoLink channel-information icon: the
   /// EchoLink radio is displayed, a QSO is up, and the node published info text.
   bool get _hasEchoLinkChannelInfo =>
@@ -112,7 +114,8 @@ class _CommsTabState extends State<CommsTab>
   bool _audioEnabled = false;
   bool _isListening = false;
   bool _isProcessing = false;
-  bool _isTransmitting = false;  bool _speechToTextEnabled = true;
+  bool _isTransmitting = false;
+  bool _speechToTextEnabled = true;
   bool _sttModelReady = false;
   bool _recordAudio = false;
   bool _decodeMorse = false;
@@ -222,6 +225,13 @@ class _CommsTabState extends State<CommsTab>
   @override
   void initState() {
     super.initState();
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'StoredChatHistoryAvailable',
+      callback: (_, _, _) {
+        if (mounted) setState(() {});
+      },
+    );
 
     // Decoded/transmitted text, processing and transmit state (all devices).
     _broker.subscribe(
@@ -571,18 +581,14 @@ class _CommsTabState extends State<CommsTab>
     final l10n = mounted ? AppLocalizations.of(context) : null;
     if (_isVfoAAprs) {
       messenger?.showSnackBar(
-        SnackBar(
-          content: Text(l10n?.commsTransmitDisabledAprs ?? ''),
-        ),
+        SnackBar(content: Text(l10n?.commsTransmitDisabledAprs ?? '')),
       );
       return;
     }
     final deviceId = _currentRadioDeviceId;
     if (deviceId <= 0 || !_isCurrentRadioConnected) {
       messenger?.showSnackBar(
-        SnackBar(
-          content: Text(l10n?.commsNoRadioVoice ?? ''),
-        ),
+        SnackBar(content: Text(l10n?.commsNoRadioVoice ?? '')),
       );
       return;
     }
@@ -592,9 +598,7 @@ class _CommsTabState extends State<CommsTab>
     try {
       if (kIsWeb) {
         messenger?.showSnackBar(
-          SnackBar(
-            content: Text(l10n?.commsSstvWebUnavailable ?? ''),
-          ),
+          SnackBar(content: Text(l10n?.commsSstvWebUnavailable ?? '')),
         );
         return;
       }
@@ -642,7 +646,9 @@ class _CommsTabState extends State<CommsTab>
       });
     } catch (e) {
       messenger?.showSnackBar(
-        SnackBar(content: Text(l10n?.commsFailedEncodeSstv(e.toString()) ?? '')),
+        SnackBar(
+          content: Text(l10n?.commsFailedEncodeSstv(e.toString()) ?? ''),
+        ),
       );
       return;
     }
@@ -689,18 +695,14 @@ class _CommsTabState extends State<CommsTab>
     final l10n = mounted ? AppLocalizations.of(context) : null;
     if (_isVfoAAprs) {
       messenger?.showSnackBar(
-        SnackBar(
-          content: Text(l10n?.commsTransmitDisabledAprs ?? ''),
-        ),
+        SnackBar(content: Text(l10n?.commsTransmitDisabledAprs ?? '')),
       );
       return;
     }
     final deviceId = _currentRadioDeviceId;
     if (deviceId <= 0 || !_isCurrentRadioConnected) {
       messenger?.showSnackBar(
-        SnackBar(
-          content: Text(l10n?.commsNoRadioVoice ?? ''),
-        ),
+        SnackBar(content: Text(l10n?.commsNoRadioVoice ?? '')),
       );
       return;
     }
@@ -835,7 +837,8 @@ class _CommsTabState extends State<CommsTab>
 
   /// Handles EchoLink (device 200) channel-info updates so the header info icon
   /// appears/updates while a QSO is up.
-  void _onEchoLinkStationInfoChanged(int deviceId, String name, Object? data) {    final info = data is String ? data : '';
+  void _onEchoLinkStationInfoChanged(int deviceId, String name, Object? data) {
+    final info = data is String ? data : '';
     if (info == _echoLinkStationInfo) return;
     if (!mounted) {
       _echoLinkStationInfo = info;
@@ -918,18 +921,20 @@ class _CommsTabState extends State<CommsTab>
   bool get _canHostAllStarNode {
     if (!_allStarNodeConfigured) return false;
     if (_currentRadioDeviceId <= 0) return false;
-    return _radioIds(DataBroker.getValueDynamic(1, 'ConnectedRadios'))
-        .contains(_currentRadioDeviceId);
+    return _radioIds(
+      DataBroker.getValueDynamic(1, 'ConnectedRadios'),
+    ).contains(_currentRadioDeviceId);
   }
 
   Future<void> _toggleAllStarNode() async {
     final l10n = AppLocalizations.of(context);
     if (_allStarNodeHosting) {
       _broker.dispatch(
-          deviceId: allStarNodeDeviceId,
-          name: 'AllStarNodeStop',
-          data: null,
-          store: false);
+        deviceId: allStarNodeDeviceId,
+        name: 'AllStarNodeStop',
+        data: null,
+        store: false,
+      );
       return;
     }
     final String node =
@@ -1023,8 +1028,7 @@ class _CommsTabState extends State<CommsTab>
   /// can only be turned on while no other usage holds the radio.
   bool get _canToggleAudioRelay {
     if (!_isPhysicalRadioSelected) return false;
-    if (DataBroker.getValueDynamic(_currentRadioDeviceId, 'Settings')
-        is! Map) {
+    if (DataBroker.getValueDynamic(_currentRadioDeviceId, 'Settings') is! Map) {
       return false;
     }
     if (_audioRelayEnabled) return true;
@@ -1165,7 +1169,11 @@ class _CommsTabState extends State<CommsTab>
   /// the Radio Panel.
   bool _readSstvAutoMuteState() {
     if (_currentRadioDeviceId <= 0) return false;
-    return _broker.getValue<bool>(_currentRadioDeviceId, 'SstvAutoMute', false) ??
+    return _broker.getValue<bool>(
+          _currentRadioDeviceId,
+          'SstvAutoMute',
+          false,
+        ) ??
         false;
   }
 
@@ -1405,13 +1413,15 @@ class _CommsTabState extends State<CommsTab>
     RadiosondeDetails? radiosonde,
     String? updateKey,
   }) {
-    final hasLocation = latitude != 0 || longitude != 0;    final imagePath = _sstvImagePath(encoding, filename);
+    final hasLocation = latitude != 0 || longitude != 0;
+    final imagePath = _sstvImagePath(encoding, filename);
     // SSTV pictures show the mode/progress label in the header above the
     // bubble; the bubble itself contains only the image.
     final isPicture = encoding == 'Picture' && imagePath != null;
-    final id = updateKey ??
+    final id =
+        updateKey ??
         (completed
-            ? '${time.millisecondsSinceEpoch}_${_messages.length}'
+            ? 'live_${time.millisecondsSinceEpoch}_${_nextMessageId++}'
             : _partialMessageId);
     final message = ChatMessage(
       id: id,
@@ -1461,6 +1471,9 @@ class _CommsTabState extends State<CommsTab>
         _messages[idx] = message;
       } else {
         _messages.add(message);
+      }
+      if (_messages.length > _maxMessages) {
+        _messages.removeRange(0, _messages.length - _maxMessages);
       }
     });
   }
@@ -1540,10 +1553,10 @@ class _CommsTabState extends State<CommsTab>
     final id = sarsat != null
         ? 'sarsat_${sarsat.hexId}_${time.millisecondsSinceEpoch}'
         : radiosonde != null
-              ? 'radiosonde_${radiosonde.sondeId}_${time.millisecondsSinceEpoch}'
-              : (completed
-                    ? '${time.millisecondsSinceEpoch}_$index'
-                    : _partialMessageId);
+        ? 'radiosonde_${radiosonde.sondeId}_${time.millisecondsSinceEpoch}'
+        : (completed
+              ? '${time.millisecondsSinceEpoch}_$index'
+              : _partialMessageId);
     return ChatMessage(
       id: id,
       route: _formatRoute(
@@ -1673,8 +1686,8 @@ class _CommsTabState extends State<CommsTab>
   Color? _iconColorForEncoding(String encoding) => encoding == 'Sarsat'
       ? Colors.red
       : encoding == 'Radiosonde'
-          ? Colors.lightBlue
-          : null;
+      ? Colors.lightBlue
+      : null;
 
   /// Semi-transparent overlay shown over the chat area while a radio channel is
   /// being dragged onto the tab, hinting that dropping will share the channel.
@@ -1693,7 +1706,10 @@ class _CommsTabState extends State<CommsTab>
         ),
         child: Text(
           AppLocalizations.of(context).aprsDropShare,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
@@ -1995,8 +2011,9 @@ class _CommsTabState extends State<CommsTab>
     if (_micHandle != null || _pttStarting) return;
     _pttStarting = true;
     SharedMicrophone.instance.gain = _micGain;
-    await SharedMicrophone.instance
-        .setDeviceId(_inputDeviceId.isEmpty ? null : _inputDeviceId);
+    await SharedMicrophone.instance.setDeviceId(
+      _inputDeviceId.isEmpty ? null : _inputDeviceId,
+    );
     final handle = await SharedMicrophone.instance.acquire(_onPttPcm);
     _micHandle = handle;
     _pttStarting = false;
@@ -2063,15 +2080,12 @@ class _CommsTabState extends State<CommsTab>
     }
     // Keep forwarding buffered audio, then finalize the run after the drain.
     _pttDrainTimer?.cancel();
-    _pttDrainTimer = Timer(
-      const Duration(milliseconds: _pttDrainMs),
-      () {
-        _pttDrainTimer = null;
-        if (!_pttForwarding) return;
-        _pttForwarding = false;
-        _releasePttHold();
-      },
-    );
+    _pttDrainTimer = Timer(const Duration(milliseconds: _pttDrainMs), () {
+      _pttDrainTimer = null;
+      if (!_pttForwarding) return;
+      _pttForwarding = false;
+      _releasePttHold();
+    });
   }
 
   /// Releases the radio transmission hold so the radio finalizes the single
@@ -2248,14 +2262,25 @@ class _CommsTabState extends State<CommsTab>
   Future<void> _exportConversation(CommsExportFormat format) =>
       saveMessagesToFile(context, List.of(_messages), format, 'comms');
 
+  void _showStoredHistory() {
+    showDialog<void>(
+      context: context,
+      builder: (_) => StoredHistoryDialog(
+        sources: {'comms': AppLocalizations.of(context).tabComms},
+        messageBuilder: (data, id) =>
+            _entryToMessage(data, completed: true, index: id),
+        onMessageDoubleTap: _onMessageDoubleTap,
+        onMessageContextMenu: _onMessageContextMenu,
+      ),
+    );
+  }
+
   Future<void> _confirmClearHistory() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(AppLocalizations.of(context).commsClearHistory),
-        content: Text(
-          AppLocalizations.of(context).commsClearHistoryPrompt,
-        ),
+        content: Text(AppLocalizations.of(context).commsClearHistoryPrompt),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -2320,7 +2345,9 @@ class _CommsTabState extends State<CommsTab>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context).commsRecordingWebUnavailable),
+          content: Text(
+            AppLocalizations.of(context).commsRecordingWebUnavailable,
+          ),
         ),
       );
       return;
@@ -2472,19 +2499,18 @@ class _CommsTabState extends State<CommsTab>
     final title = sarsat != null
         ? 'SARSAT ${sarsat.hexId}'
         : radiosonde != null
-              ? (radiosonde.sondeId.isNotEmpty
-                    ? radiosonde.sondeId
-                    : 'Radiosonde')
-              : (message.senderCallsign.isNotEmpty
-                    ? message.senderCallsign
-                    : null);
-    final sarsatMarker =
-        sarsat != null ? SarsatMarker(isTest: sarsat.isTest) : null;
-    final Widget? centerMarker = sarsatMarker ??
-        (radiosonde != null ? const RadiosondeMarker() : null);
-    final double markerWidth = sarsatMarker?.size ??
+        ? (radiosonde.sondeId.isNotEmpty ? radiosonde.sondeId : 'Radiosonde')
+        : (message.senderCallsign.isNotEmpty ? message.senderCallsign : null);
+    final sarsatMarker = sarsat != null
+        ? SarsatMarker(isTest: sarsat.isTest)
+        : null;
+    final Widget? centerMarker =
+        sarsatMarker ?? (radiosonde != null ? const RadiosondeMarker() : null);
+    final double markerWidth =
+        sarsatMarker?.size ??
         (radiosonde != null ? const RadiosondeMarker().size : 30);
-    final double markerHeight = sarsatMarker?.totalHeight ??
+    final double markerHeight =
+        sarsatMarker?.totalHeight ??
         (radiosonde != null ? const RadiosondeMarker().totalHeight : 30);
     showAprsLocationDialog(
       context,
@@ -2518,11 +2544,9 @@ class _CommsTabState extends State<CommsTab>
     final sourceFile = File(sourcePath);
     if (!await sourceFile.exists()) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.commsFileNoLongerExists),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.commsFileNoLongerExists)));
       }
       return;
     }
@@ -2542,9 +2566,7 @@ class _CommsTabState extends State<CommsTab>
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(l10n.errorSavingFile(e.toString())),
-            ),
+            SnackBar(content: Text(l10n.errorSavingFile(e.toString()))),
           );
         }
         return;
@@ -2563,9 +2585,7 @@ class _CommsTabState extends State<CommsTab>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.errorOpeningFileDialog(e.toString())),
-          ),
+          SnackBar(content: Text(l10n.errorOpeningFileDialog(e.toString()))),
         );
       }
       return;
@@ -2576,11 +2596,9 @@ class _CommsTabState extends State<CommsTab>
     // On web/mobile the picker already wrote the bytes to the chosen location.
     if (needsBytes) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.commonSavedTo(outputPath)),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.commonSavedTo(outputPath))));
       }
       return;
     }
@@ -2594,18 +2612,14 @@ class _CommsTabState extends State<CommsTab>
     try {
       await sourceFile.copy(outputPath);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.commonSavedTo(outputPath)),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.commonSavedTo(outputPath))));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.errorSavingFile(e.toString())),
-          ),
+          SnackBar(content: Text(l10n.errorSavingFile(e.toString()))),
         );
       }
     }
@@ -2669,11 +2683,26 @@ class _CommsTabState extends State<CommsTab>
             VoiceTransmitMode.ptt,
             AppLocalizations.of(context).commsModePtt,
           ),
-        modeItem(VoiceTransmitMode.chat, AppLocalizations.of(context).commsModeChat),
-        if (!kIsWeb) modeItem(VoiceTransmitMode.speak, AppLocalizations.of(context).commsModeSpeak),
-        if (!kIsWeb) modeItem(VoiceTransmitMode.morse, AppLocalizations.of(context).commsModeMorse),
+        modeItem(
+          VoiceTransmitMode.chat,
+          AppLocalizations.of(context).commsModeChat,
+        ),
+        if (!kIsWeb)
+          modeItem(
+            VoiceTransmitMode.speak,
+            AppLocalizations.of(context).commsModeSpeak,
+          ),
+        if (!kIsWeb)
+          modeItem(
+            VoiceTransmitMode.morse,
+            AppLocalizations.of(context).commsModeMorse,
+          ),
         if (!kIsWeb) modeItem(VoiceTransmitMode.morseKey, 'Morse Key'),
-        if (!kIsWeb) modeItem(VoiceTransmitMode.dtmf, AppLocalizations.of(context).commsModeDtmf),
+        if (!kIsWeb)
+          modeItem(
+            VoiceTransmitMode.dtmf,
+            AppLocalizations.of(context).commsModeDtmf,
+          ),
       ],
     ).then((mode) {
       if (mode == null || !mounted) return;
@@ -2886,7 +2915,10 @@ class _CommsTabState extends State<CommsTab>
             padding: menuItemPadding,
             enabled: _canSendMedia,
             child: Row(
-              children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).commsSendImage)],
+              children: [
+                const SizedBox(width: 20),
+                Text(AppLocalizations.of(context).commsSendImage),
+              ],
             ),
           ),
           PopupMenuItem<String>(
@@ -2895,7 +2927,10 @@ class _CommsTabState extends State<CommsTab>
             padding: menuItemPadding,
             enabled: _canSendMedia,
             child: Row(
-              children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).commsSendAudio)],
+              children: [
+                const SizedBox(width: 20),
+                Text(AppLocalizations.of(context).commsSendAudio),
+              ],
             ),
           ),
         ],
@@ -2933,7 +2968,10 @@ class _CommsTabState extends State<CommsTab>
           padding: menuItemPadding,
           enabled: _messages.isNotEmpty,
           child: Row(
-            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).commsExportCsv)],
+            children: [
+              const SizedBox(width: 20),
+              Text(AppLocalizations.of(context).commsExportCsv),
+            ],
           ),
         ),
         PopupMenuItem<String>(
@@ -2942,7 +2980,10 @@ class _CommsTabState extends State<CommsTab>
           padding: menuItemPadding,
           enabled: _messages.isNotEmpty,
           child: Row(
-            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).commsExportTxt)],
+            children: [
+              const SizedBox(width: 20),
+              Text(AppLocalizations.of(context).commsExportTxt),
+            ],
           ),
         ),
         PopupMenuItem<String>(
@@ -2950,7 +2991,10 @@ class _CommsTabState extends State<CommsTab>
           height: menuItemHeight,
           padding: menuItemPadding,
           child: Row(
-            children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).commsClearHistory)],
+            children: [
+              const SizedBox(width: 20),
+              Text(AppLocalizations.of(context).commsClearHistory),
+            ],
           ),
         ),
         if (windowService.canDetach) ...[
@@ -2960,7 +3004,10 @@ class _CommsTabState extends State<CommsTab>
             height: menuItemHeight,
             padding: menuItemPadding,
             child: Row(
-              children: [const SizedBox(width: 20), Text(AppLocalizations.of(context).tabDetach)],
+              children: [
+                const SizedBox(width: 20),
+                Text(AppLocalizations.of(context).tabDetach),
+              ],
             ),
           ),
         ],
@@ -3113,8 +3160,9 @@ class _CommsTabState extends State<CommsTab>
                           // element, resetting its ScrollController to the top.
                           foregroundDecoration: BoxDecoration(
                             border: Border.all(
-                              color:
-                                  _dragOver ? Colors.blue : Colors.transparent,
+                              color: _dragOver
+                                  ? Colors.blue
+                                  : Colors.transparent,
                               width: 2,
                             ),
                             color: _dragOver
@@ -3130,11 +3178,24 @@ class _CommsTabState extends State<CommsTab>
                         ),
                       ),
                     ),
+                    if (_broker.getValue<bool>(
+                          1,
+                          'StoredChatHistoryAvailable',
+                          false,
+                        ) ==
+                        true)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: IconButton.filledTonal(
+                          tooltip: AppLocalizations.of(context).chatHistory,
+                          icon: const Icon(Icons.history),
+                          onPressed: _showStoredHistory,
+                        ),
+                      ),
                     if (channelHover)
                       Positioned.fill(
-                        child: IgnorePointer(
-                          child: _buildChannelDropOverlay(),
-                        ),
+                        child: IgnorePointer(child: _buildChannelDropOverlay()),
                       ),
                   ],
                 );
@@ -3330,7 +3391,10 @@ class _CommsTabState extends State<CommsTab>
             children: [
               Text(
                 AppLocalizations.of(context).tabComms,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               // Processing indicator
               if (_isListening || _isProcessing)
@@ -3350,10 +3414,14 @@ class _CommsTabState extends State<CommsTab>
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                   tooltip: _allStarNodeHosting
-                      ? AppLocalizations.of(context)
-                          .commsAllStarNodeHosting(_allStarNodePeerCount)
+                      ? AppLocalizations.of(
+                          context,
+                        ).commsAllStarNodeHosting(_allStarNodePeerCount)
                       : AppLocalizations.of(context).commsAllStarNodeTitle,
                   icon: Icon(
                     Icons.cell_tower,
@@ -3370,7 +3438,10 @@ class _CommsTabState extends State<CommsTab>
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                   tooltip: AppLocalizations.of(context).commsChannelInfo,
                   icon: Icon(
                     Icons.info_outline,
@@ -3472,8 +3543,9 @@ class _CommsTabState extends State<CommsTab>
     final Color background = _pttActive
         ? Colors.red
         : (enabled ? scheme.errorContainer : Colors.grey.shade400);
-    final Color foreground =
-        (enabled && !_pttActive) ? scheme.onErrorContainer : Colors.white;
+    final Color foreground = (enabled && !_pttActive)
+        ? scheme.onErrorContainer
+        : Colors.white;
     return Container(
       height: 50,
       color: Theme.of(context).colorScheme.surfaceContainerHigh,
@@ -3588,22 +3660,29 @@ class _CommsTabState extends State<CommsTab>
                   onChanged: (value) {
                     // Filter DTMF input
                     if (_currentMode == VoiceTransmitMode.dtmf) {
-                      final filtered = value.replaceAll(RegExp(r'[^0-9*#]'), '');
+                      final filtered = value.replaceAll(
+                        RegExp(r'[^0-9*#]'),
+                        '',
+                      );
                       if (filtered != value) {
                         _messageController.text = filtered;
-                        _messageController.selection = TextSelection.fromPosition(
-                          TextPosition(offset: filtered.length),
-                        );
+                        _messageController.selection =
+                            TextSelection.fromPosition(
+                              TextPosition(offset: filtered.length),
+                            );
                       }
                     } else if (_currentMode == VoiceTransmitMode.morse) {
                       // Only letters, digits and spaces can be sent as Morse.
-                      final filtered =
-                          value.replaceAll(RegExp(r'[^A-Za-z0-9 ]'), '');
+                      final filtered = value.replaceAll(
+                        RegExp(r'[^A-Za-z0-9 ]'),
+                        '',
+                      );
                       if (filtered != value) {
                         _messageController.text = filtered;
-                        _messageController.selection = TextSelection.fromPosition(
-                          TextPosition(offset: filtered.length),
-                        );
+                        _messageController.selection =
+                            TextSelection.fromPosition(
+                              TextPosition(offset: filtered.length),
+                            );
                       }
                     }
                   },
@@ -3674,8 +3753,9 @@ class _CommsTabState extends State<CommsTab>
     if (!active) {
       statusText = 'Off';
     } else if (_morseKeyTransmitting) {
-      statusText =
-          _morseKeyMode == MorseKeyMode.live ? 'Transmitting' : 'Testing';
+      statusText = _morseKeyMode == MorseKeyMode.live
+          ? 'Transmitting'
+          : 'Testing';
     } else {
       statusText = _morseKeySettings.keyType == MorseKeyType.paddle
           ? 'Release both paddles at the same time to start'
@@ -3773,7 +3853,10 @@ Uint8List _encodeSstvPcm(Map<String, Object?> args) {
   final encoder = Encoder(sampleRate);
   // Keep the two-second PTT key-up lead before the SSTV leader tone.
   return encoder.encodePcm16(
-    pixels, width, height, modeName,
+    pixels,
+    width,
+    height,
+    modeName,
     silenceSamples: sampleRate * 2,
   );
 }

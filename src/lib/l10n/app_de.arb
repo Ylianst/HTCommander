@@ -424,6 +424,7 @@
 
   "settingsLimitsIntro": "Begrenzen Sie die Anzahl der zwischen den Starts beibehaltenen Verlaufseinträge. Auf „Unbegrenzt“ setzen, um alles zu behalten.",
   "settingsHistoryLimits": "Verlaufslimits",
+  "chatHistory": "Gespeicherter Verlauf",
   "settingsUnlimited": "Unbegrenzt",
   "settingsLimitAprsMessages": "APRS-Nachrichten",
   "settingsLimitPackets": "Pakete",

@@ -898,6 +898,7 @@
 
   "settingsLimitsIntro": "Limit how many historical items are kept across app restarts. Set to \"Unlimited\" to keep everything.",
   "settingsHistoryLimits": "History Limits",
+  "chatHistory": "Stored History",
   "settingsUnlimited": "Unlimited",
   "settingsLimitAprsMessages": "APRS Messages",
   "settingsLimitPackets": "Packets",

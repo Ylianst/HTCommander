@@ -291,6 +291,17 @@ EchoLink and AllStarLink audio, which it previously left alone.)
 
 ---
 
+### Bounded chat archives
+
+The initial `history:` snapshot advertises `storedHistoryAvailable`. When the
+host database is available, the browser's Stored History dialog requests a
+`storedhistory:` page with a request ID, a source (`comms`, `rf`, or `internet`),
+and an optional timestamp/row-ID cursor. The host returns at most 200 entries
+only to the requesting socket, not to all browsers or broker mirrors. Archive
+pages replace one another in memory; the live Comms and APRS windows are bounded
+independently. Detached desktop windows use the same page protocol over the
+Data Broker.
+
 ## The honest ledger
 
 A few rough edges remain, in the tradition of these posts:

@@ -19,6 +19,8 @@ import 'dart:typed_data';
 import 'package:sqflite/sqflite.dart';
 
 import '../../radio/tnc_data_fragment.dart';
+import '../../radio/ax25_packet.dart';
+import 'history_page.dart';
 
 /// Persists RF packet capture history (`packets`). Stores the same fields the
 /// old `packets.ptcap` line format round-tripped, with raw bytes as a BLOB.
@@ -28,6 +30,22 @@ class PacketsDao {
   final Database _db;
 
   static const String _table = 'packets';
+
+  Future<Map<String, Object?>> page({List<int>? before}) => readHistoryPage(
+    _db,
+    table: _table,
+    timeColumn: 'time_us',
+    before: before,
+    filter: "channel_name = 'APRS' AND aprs_hidden = 0",
+    decode: (row) {
+      final frame = _fromRow(row);
+      final packet = AX25Packet.decode(frame);
+      if (packet == null) return {'invalid': true};
+      packet.time = frame.time;
+      packet.incoming = frame.incoming;
+      return packet.toJson();
+    },
+  );
 
   /// Appends one captured packet.
   Future<void> insert(TncDataFragment frame) async {
@@ -70,11 +88,9 @@ class PacketsDao {
   /// Hides every APRS-channel packet from the APRS tab (the user cleared all
   /// APRS messages). The raw packets stay in the packet capture.
   Future<void> hideAllAprs() async {
-    await _db.update(
-      _table,
-      <String, Object?>{'aprs_hidden': 1},
-      where: "channel_name = 'APRS' AND aprs_hidden = 0",
-    );
+    await _db.update(_table, <String, Object?>{
+      'aprs_hidden': 1,
+    }, where: "channel_name = 'APRS' AND aprs_hidden = 0");
   }
 
   /// Hides the visible APRS-channel packets for which [match] returns true, and

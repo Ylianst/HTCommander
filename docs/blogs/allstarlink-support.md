@@ -325,6 +325,14 @@ Bluetooth radios and EchoLink already have.
 
 ---
 
+### Transmit queue storage
+
+AllStarLink and EchoLink retain outgoing PCM as typed 16-bit chunks with a
+read offset. Each pacing tick copies only the next frame and releases exhausted
+chunks; it never shifts the rest of a prerecorded clip toward the front of a
+growable list. Packet sizes, timer intervals, and each protocol's existing
+partial-frame/end-of-transmission behavior are unchanged.
+
 ## Testing a protocol with no radio in the room
 
 IAX2 is a state machine, and state machines are a joy to unit-test *if* you keep

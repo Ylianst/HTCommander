@@ -7,20 +7,23 @@ Captures application log messages from application startup so the Debug tab does
 not need to be opened first for messages to be recorded.
 */
 
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'dart:collection';
+
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:package_info_plus/package_info_plus.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 
-/// Collects `LogInfo` / `LogError` messages (device 1) into the
-/// `DebugLogEntries` Data Broker value starting at application launch,
-/// independently of whether the Debug tab has ever been viewed.
-///
-/// The Debug tab simply reads and renders the stored `DebugLogEntries`.
+/// Keeps a bounded log on the host. Views receive append events and request
+/// a snapshot when opened, instead of mirroring the full log on every line.
 class DebugLogHandler {
+  static const int maxEntries = 2000;
   final DataBrokerClient _broker = DataBrokerClient();
-  final List<Map<String, dynamic>> _entries = <Map<String, dynamic>>[];
+  final Queue<Map<String, dynamic>> _entries = Queue();
   bool _initialized = false;
+
+  List<Map<String, dynamic>> get entries => List.of(_entries, growable: false);
 
   String get _platformLabel {
     if (kIsWeb) return 'web';
@@ -48,6 +51,9 @@ class DebugLogHandler {
     final stored = DataBroker.getValue<List<dynamic>>(1, 'DebugLogEntries');
     if (stored != null) {
       _entries.addAll(stored.whereType<Map<String, dynamic>>());
+      while (_entries.length > maxEntries) {
+        _entries.removeFirst();
+      }
     }
 
     // Start capturing log messages right away.
@@ -63,6 +69,11 @@ class DebugLogHandler {
       name: 'ClearDebugLog',
       callback: _onClearDebugLog,
     );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'RequestDebugLog',
+      callback: (_, _, _) => _dispatchEntries(),
+    );
 
     // Emit the startup banner only on a fresh start.
     if (_entries.isEmpty) {
@@ -76,12 +87,19 @@ class DebugLogHandler {
 
   void _onLogMessage(int deviceId, String name, Object? data) {
     if (data is! String) return;
-    _entries.add(<String, dynamic>{
+    final entry = <String, dynamic>{
       'time': DateTime.now().toIso8601String(),
       'message': data,
       'isError': name == 'LogError',
-    });
-    _dispatchEntries();
+    };
+    _entries.add(entry);
+    if (_entries.length > maxEntries) _entries.removeFirst();
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'DebugLogEntry',
+      data: entry,
+      store: false,
+    );
   }
 
   void _onClearDebugLog(int deviceId, String name, Object? data) {
@@ -93,8 +111,10 @@ class DebugLogHandler {
     _broker.dispatch(
       deviceId: 1,
       name: 'DebugLogEntries',
-      data: List<Map<String, dynamic>>.from(_entries),
-      store: true,
+      data: entries,
+      store: false,
     );
   }
+
+  void dispose() => _broker.dispose();
 }

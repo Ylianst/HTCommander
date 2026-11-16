@@ -424,6 +424,7 @@
 
   "settingsLimitsIntro": "स्टार्टअप के बीच रखे जाने वाले इतिहास आइटम की संख्या सीमित करें। सब कुछ रखने के लिए 'असीमित' पर सेट करें।",
   "settingsHistoryLimits": "इतिहास सीमाएँ",
+  "chatHistory": "संग्रहीत इतिहास",
   "settingsUnlimited": "असीमित",
   "settingsLimitAprsMessages": "APRS संदेश",
   "settingsLimitPackets": "पैकेट",

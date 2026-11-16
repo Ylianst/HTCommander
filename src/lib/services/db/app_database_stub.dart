@@ -45,6 +45,7 @@ class AppDatabase {
 
   /// No database on web.
   dynamic get bbs => null;
+  dynamic get mails => null;
 
   /// No-op on web.
   static Future<void> open() async {}

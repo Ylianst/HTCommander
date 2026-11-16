@@ -21,6 +21,20 @@ Once enabled, the voice recognition will run when the radio no longer receives a
 
 In addition, there is support for text-to-speech (TTS) using the Microsoft Speech API. So, you can type a message and it will be read on the radio.
 
+## Live Window and Stored History
+
+The live Comms window keeps at most 1,000 messages, including any current
+partial decode. Older persisted entries are not deleted when the live window
+advances. Use the **Stored History** clock button in the chat to browse retained
+entries in 200-entry pages. The left arrow loads an older page; the first-page
+button returns to the newest stored page. Each page replaces the previous one
+in memory. Closing the dialog returns to the live conversation.
+
+Archive browsing is available in the main app, detached windows, and hosted
+web clients when the host database is available. Stand-alone web builds retain
+only the bounded in-memory live window. Settings' history-retention limits
+continue to control how much older data remains on disk.
+
 ## Exporting Comms Conversations
 
 Open the **Comms** tab menu and select **Save as CSV...** or **Save as TXT...**.

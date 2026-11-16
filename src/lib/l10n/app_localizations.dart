@@ -2308,6 +2308,12 @@ abstract class AppLocalizations {
   /// **'History Limits'**
   String get settingsHistoryLimits;
 
+  /// No description provided for @chatHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored History'**
+  String get chatHistory;
+
   /// No description provided for @settingsUnlimited.
   ///
   /// In en, this message translates to:

@@ -4,6 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -11,8 +12,8 @@ import 'dart:typed_data';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:satellite_observer/satellite_observer.dart' as so;
 
+import '../satellite/satellite_globe_worker.dart';
 import '../satellite/satellite_models.dart';
 
 /// Mean Earth radius used for display (a sphere is plenty for a overview).
@@ -25,6 +26,8 @@ const double _earthRadiusKm = 6371.0;
 /// Satellites are propagated locally with SGP4 so the globe works even when no
 /// observer location is known. The view is Earth-fixed at the current instant;
 /// orbits are drawn as the inertial ring rotated into that frame.
+/// Time/TLE updates request bounded worker snapshots (cooperatively on web);
+/// camera gestures only reproject cached Earth-fixed geometry.
 class SatelliteGlobe extends StatefulWidget {
   final List<SatelliteInfo> satellites;
 
@@ -48,6 +51,12 @@ class SatelliteGlobe extends StatefulWidget {
   /// first click).
   final ValueChanged<int>? onSatelliteDoubleTap;
 
+  /// Optional snapshot instant; otherwise use live look-angle time or UTC now.
+  final DateTime? utc;
+
+  @visibleForTesting
+  final GlobeSnapshotLoader? snapshotLoader;
+
   const SatelliteGlobe({
     super.key,
     required this.satellites,
@@ -58,6 +67,8 @@ class SatelliteGlobe extends StatefulWidget {
     this.selectedId,
     this.onSatelliteTap,
     this.onSatelliteDoubleTap,
+    this.utc,
+    this.snapshotLoader,
   });
 
   @override
@@ -68,9 +79,13 @@ class _SatelliteGlobeState extends State<SatelliteGlobe> {
   static Future<List<Float64List>>? _landFuture;
   List<Float64List>? _land;
 
-  final Map<int, _EngineEntry> _engines = {};
-  final Map<int, List<_V3>> _orbitsTeme = {};
-  DateTime? _orbitsComputedAt;
+  late final SatelliteGlobeWorker _worker;
+  Map<int, ({_V3 position, List<_V3> orbit})> _snapshot = {};
+  String? _snapshotKey;
+  List<SatelliteTle> _requestedTles = [];
+  late DateTime _requestedUtc;
+  int _revision = 0;
+  bool _busy = false;
 
   double _centerLatDeg = 20;
   double _centerLonDeg = 0;
@@ -92,6 +107,8 @@ class _SatelliteGlobeState extends State<SatelliteGlobe> {
   @override
   void initState() {
     super.initState();
+    _worker = SatelliteGlobeWorker();
+    _updateSnapshot();
     _landFuture ??= _loadLand();
     _landFuture!.then((land) {
       if (mounted) setState(() => _land = land);
@@ -105,6 +122,73 @@ class _SatelliteGlobeState extends State<SatelliteGlobe> {
     final observerAppeared =
         oldWidget.observerLatDeg == null && widget.observerLatDeg != null;
     if (observerAppeared && !_userMovedView) _centerOnObserver();
+    _updateSnapshot();
+  }
+
+  @override
+  void dispose() {
+    _revision++;
+    _worker.dispose();
+    super.dispose();
+  }
+
+  void _updateSnapshot() {
+    final tles = [
+      for (final sat in widget.satellites)
+        if (!sat.isStatic) sat.tle,
+    ];
+    final liveUtc = widget.positions.values.firstOrNull?.utc;
+    final now = widget.utc ?? liveUtc ?? DateTime.now().toUtc();
+    final utc = widget.utc != null || liveUtc != null
+        ? now.toUtc()
+        : DateTime.fromMillisecondsSinceEpoch(
+            now.millisecondsSinceEpoch ~/ 1000 * 1000,
+            isUtc: true,
+          );
+    final key =
+        '${utc.microsecondsSinceEpoch}\n${tles.map((s) => '${s.noradId}\n${s.line1}\n${s.line2}').join('\n')}';
+    if (_snapshotKey == key) return;
+    _snapshotKey = key;
+    _requestedTles = tles;
+    _requestedUtc = utc;
+    _revision++;
+    // Never draw an old TLE/time snapshot while its replacement is pending.
+    _snapshot = {};
+    if (!_busy) unawaited(_refreshSnapshot());
+  }
+
+  Future<void> _refreshSnapshot() async {
+    final revision = _revision;
+    _busy = true;
+    try {
+      final result = await (widget.snapshotLoader ?? _worker.snapshot)(
+        _requestedTles,
+        _requestedUtc,
+      );
+      if (!mounted || revision != _revision) return;
+      final snapshot = <int, ({_V3 position, List<_V3> orbit})>{};
+      for (final entry in result.entries) {
+        final points = entry.value.points;
+        if (points.length < 3) continue;
+        snapshot[entry.key] = (
+          position: _V3(points[0], points[1], points[2]),
+          orbit: [
+            for (var i = 3; i < points.length; i += 3)
+              _V3(points[i], points[i + 1], points[i + 2]),
+          ],
+        );
+      }
+      setState(() => _snapshot = snapshot);
+    } catch (error) {
+      if (mounted && revision == _revision) {
+        debugPrint('SatelliteGlobe: snapshot failed: $error');
+      }
+    } finally {
+      _busy = false;
+      if (mounted && revision != _revision) {
+        unawaited(_refreshSnapshot());
+      }
+    }
   }
 
   void _centerOnObserver() {
@@ -158,106 +242,24 @@ class _SatelliteGlobeState extends State<SatelliteGlobe> {
     }
   }
 
-  // --- Propagation ----------------------------------------------------------
-
-  void _syncEngines() {
-    final ids = <int>{};
-    var changed = false;
-    for (final sat in widget.satellites) {
-      if (sat.isStatic) continue;
-      ids.add(sat.noradId);
-      final key = '${sat.tle.line1}\n${sat.tle.line2}';
-      final existing = _engines[sat.noradId];
-      if (existing != null && existing.key == key) continue;
-      changed = true;
-      try {
-        final elements = so.GpElements.fromTle(
-          sat.tle.line1,
-          sat.tle.line2,
-          name: sat.tle.name,
-        );
-        _engines[sat.noradId] = _EngineEntry(
-          key,
-          so.Sgp4Engine(elements),
-          _periodMinutes(sat.tle.line2),
-        );
-      } catch (_) {
-        _engines.remove(sat.noradId);
-      }
-    }
-    final stale = _engines.keys.where((id) => !ids.contains(id)).toList();
-    for (final id in stale) {
-      _engines.remove(id);
-      _orbitsTeme.remove(id);
-      changed = true;
-    }
-    if (changed) _orbitsComputedAt = null;
-  }
-
-  static double _periodMinutes(String line2) {
-    if (line2.length >= 63) {
-      final n = double.tryParse(line2.substring(52, 63).trim());
-      if (n != null && n > 0) return 1440 / n;
-    }
-    return 95;
-  }
-
-  void _refreshOrbits(DateTime now) {
-    final at = _orbitsComputedAt;
-    if (at != null && now.difference(at).inSeconds.abs() < 120) return;
-    _orbitsComputedAt = now;
-    _orbitsTeme.clear();
-    for (final entry in _engines.entries) {
-      final period = entry.value.periodMinutes;
-      final samples = period > 300 ? 240 : 160;
-      final pts = <_V3>[];
-      try {
-        for (var i = 0; i <= samples; i++) {
-          final t = now.add(
-            Duration(milliseconds: (period * 60000 * i / samples).round()),
-          );
-          final p = entry.value.engine.propagate(t).position;
-          pts.add(_V3(p.x, p.y, p.z));
-        }
-      } catch (_) {
-        continue;
-      }
-      _orbitsTeme[entry.key] = pts;
-    }
-  }
-
   _GlobeScene _buildScene(Size size) {
-    final now = DateTime.now().toUtc();
-    _syncEngines();
-    _refreshOrbits(now);
-    final rot = _Rot.fromGmst(_gmstRad(now));
-
     final sats = <_SatGlyph>[];
     var maxAltKm = 0.0;
     for (final sat in widget.satellites) {
-      final entry = _engines[sat.noradId];
-      if (entry == null) continue;
-      _V3 p;
-      try {
-        final s = entry.engine.propagate(now).position;
-        p = rot.apply(_V3(s.x, s.y, s.z));
-      } catch (_) {
-        continue;
-      }
+      final points = _snapshot[sat.noradId];
+      if (points == null) continue;
+      final p = points.position;
       final altKm = p.length - _earthRadiusKm;
       if (altKm < 3000) maxAltKm = math.max(maxAltKm, altKm);
       final look = widget.positions[sat.noradId];
       final visible =
           look != null && look.elevationDeg >= widget.minElevationDeg;
-      final orbit = _orbitsTeme[sat.noradId];
       sats.add(
         _SatGlyph(
           id: sat.noradId,
           name: sat.name,
           position: p,
-          orbit: orbit == null
-              ? const []
-              : [for (final o in orbit) rot.apply(o)],
+          orbit: points.orbit,
           visible: visible,
           selected: sat.noradId == widget.selectedId,
         ),
@@ -271,8 +273,8 @@ class _SatelliteGlobeState extends State<SatelliteGlobe> {
       observer = _V3.fromLatLon(lat, lon) * _earthRadiusKm;
     }
 
-    final coneTopKm = (maxAltKm <= 0 ? 1000.0 : maxAltKm).clamp(500.0, 3000.0) *
-        1.05;
+    final coneTopKm =
+        (maxAltKm <= 0 ? 1000.0 : maxAltKm).clamp(500.0, 3000.0) * 1.05;
     final fitRadiusKm = _earthRadiusKm + 1500;
     final halfSize = math.min(size.width, size.height) / 2 - 6;
     final pxPerKm = math.max(1.0, halfSize) / fitRadiusKm * _zoom;
@@ -499,27 +501,6 @@ class _ImmediateScaleGestureRecognizer extends ScaleGestureRecognizer {
   }
 }
 
-class _EngineEntry {
-  final String key;
-  final so.Sgp4Engine engine;
-  final double periodMinutes;
-  _EngineEntry(this.key, this.engine, this.periodMinutes);
-}
-
-/// Greenwich Mean Sidereal Time (IAU-1982) in radians, treating UTC as UT1.
-double _gmstRad(DateTime utc) {
-  final jd = utc.millisecondsSinceEpoch / 86400000.0 + 2440587.5;
-  final t = (jd - 2451545.0) / 36525.0;
-  var seconds =
-      67310.54841 +
-      (876600.0 * 3600.0 + 8640184.812866) * t +
-      0.093104 * t * t -
-      6.2e-6 * t * t * t;
-  seconds %= 86400;
-  if (seconds < 0) seconds += 86400;
-  return seconds / 86400 * 2 * math.pi;
-}
-
 class _V3 {
   final double x;
   final double y;
@@ -543,15 +524,6 @@ class _V3 {
   _V3 cross(_V3 o) =>
       _V3(y * o.z - z * o.y, z * o.x - x * o.z, x * o.y - y * o.x);
   double get length => math.sqrt(x * x + y * y + z * z);
-}
-
-/// Rotation from the TEME (quasi-inertial) frame into Earth-fixed axes.
-class _Rot {
-  final double c;
-  final double s;
-  const _Rot(this.c, this.s);
-  factory _Rot.fromGmst(double g) => _Rot(math.cos(g), math.sin(g));
-  _V3 apply(_V3 p) => _V3(c * p.x + s * p.y, -s * p.x + c * p.y, p.z);
 }
 
 /// Orthographic camera looking at the Earth's centre from above
@@ -582,8 +554,10 @@ class _GlobeView {
 
   double get radiusPx => _earthRadiusKm * pxPerKm;
 
-  Offset project(_V3 p) =>
-      Offset(center.dx + p.dot(east) * pxPerKm, center.dy - p.dot(north) * pxPerKm);
+  Offset project(_V3 p) => Offset(
+    center.dx + p.dot(east) * pxPerKm,
+    center.dy - p.dot(north) * pxPerKm,
+  );
 
   /// True when [p] (km, Earth-fixed) is behind the Earth from the viewer.
   bool hidden(_V3 p) {
@@ -668,10 +642,7 @@ class _GlobePainter extends CustomPainter {
       r * 1.04,
       Paint()
         ..shader = RadialGradient(
-          colors: [
-            const Color(0x5542A5F5),
-            const Color(0x0042A5F5),
-          ],
+          colors: [const Color(0x5542A5F5), const Color(0x0042A5F5)],
           stops: const [0.93, 1.0],
         ).createShader(Rect.fromCircle(center: c, radius: r * 1.04)),
     );
@@ -868,12 +839,14 @@ class _GlobePainter extends CustomPainter {
     final path = Path();
     for (var lon = -180; lon < 180; lon += 30) {
       _addSurfaceLine(path, [
-        for (var lat = -90; lat <= 90; lat += 5) _V3.fromLatLon(lat * 1.0, lon * 1.0),
+        for (var lat = -90; lat <= 90; lat += 5)
+          _V3.fromLatLon(lat * 1.0, lon * 1.0),
       ]);
     }
     for (var lat = -60; lat <= 60; lat += 30) {
       _addSurfaceLine(path, [
-        for (var lon = -180; lon <= 180; lon += 5) _V3.fromLatLon(lat * 1.0, lon * 1.0),
+        for (var lon = -180; lon <= 180; lon += 5)
+          _V3.fromLatLon(lat * 1.0, lon * 1.0),
       ]);
     }
     canvas.drawPath(path, paint);
@@ -916,7 +889,9 @@ class _GlobePainter extends CustomPainter {
     final rTop = re + scene.coneTopKm;
     final range =
         -re * math.sin(el) +
-        math.sqrt(re * re * math.sin(el) * math.sin(el) + rTop * rTop - re * re);
+        math.sqrt(
+          re * re * math.sin(el) * math.sin(el) + rTop * rTop - re * re,
+        );
 
     const steps = 72;
     final rim = <_V3>[];
@@ -943,7 +918,8 @@ class _GlobePainter extends CustomPainter {
       ..strokeWidth = 0.9;
 
     // Light from the upper-left, toward the viewer, to shade cone facets.
-    final light = (view.east * -0.5) + (view.north * 0.7) + (view.forward * 0.5);
+    final light =
+        (view.east * -0.5) + (view.north * 0.7) + (view.forward * 0.5);
     final lightN = light * (1 / light.length);
 
     // The apex sits on the surface; when it faces away from the viewer only
@@ -1038,7 +1014,11 @@ class _GlobePainter extends CustomPainter {
         : (sat.selected ? selectedColor : satColor);
     final radius = sat.visible ? 5.0 : (sat.selected ? 4.5 : 3.0);
     if (sat.visible) {
-      canvas.drawCircle(o, radius + 4, Paint()..color = color.withValues(alpha: 0.25));
+      canvas.drawCircle(
+        o,
+        radius + 4,
+        Paint()..color = color.withValues(alpha: 0.25),
+      );
     }
     if (sat.selected) {
       canvas.drawCircle(

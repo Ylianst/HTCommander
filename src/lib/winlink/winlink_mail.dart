@@ -425,7 +425,7 @@ class WinLinkMail {
 
   /// Serializes to a JSON-compatible map matching the C# backup format, used by
   /// the mail backup / restore feature.
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson({bool includeAttachments = true}) => {
     'MID': mid,
     'DateTime': dateTime.toIso8601String(),
     'From': from,
@@ -436,7 +436,8 @@ class WinLinkMail {
     'Body': body,
     'Tag': tag,
     'Location': location,
-    'Attachments': attachments?.map((a) => a.toJson()).toList(),
+    if (includeAttachments)
+      'Attachments': attachments?.map((a) => a.toJson()).toList(),
     'Flags': flags,
     'Mailbox': mailbox,
   };

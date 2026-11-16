@@ -424,6 +424,7 @@
 
   "settingsLimitsIntro": "Ogranicz liczbę wpisów historii zachowywanych między uruchomieniami. Ustaw na „Bez ograniczeń”, aby zachować wszystko.",
   "settingsHistoryLimits": "Limity historii",
+  "chatHistory": "Zapisana historia",
   "settingsUnlimited": "Bez ograniczeń",
   "settingsLimitAprsMessages": "Wiadomości APRS",
   "settingsLimitPackets": "Pakiety",

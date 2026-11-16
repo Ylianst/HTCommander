@@ -49,6 +49,7 @@ import '../utils/channel_share.dart';
 import '../utils/callsign_input_formatter.dart';
 import '../utils/comms_export.dart';
 import '../dialogs/message_details_dialog.dart' show CommsMessageDetails;
+import '../dialogs/stored_history_dialog.dart';
 
 /// A configured APRS route (a display name plus a comma-separated path).
 class _AprsRouteDef {
@@ -67,6 +68,8 @@ class _AprsRouteDef {
 /// `ChatMessage` carried (image index, auth state, visibility) so we can update
 /// delivery icons when ACK/REJ packets arrive.
 class _AprsEntry {
+  final int id;
+  ChatMessage? message;
   final AprsPacket aprsPacket;
   final AX25Packet packet;
   String routingString;
@@ -87,6 +90,7 @@ class _AprsEntry {
   final String? peerCallsign;
 
   _AprsEntry({
+    required this.id,
     required this.aprsPacket,
     required this.packet,
     required this.routingString,
@@ -177,6 +181,9 @@ class _AprsTabState extends State<AprsTab>
 
   final List<_AprsEntry> _entries = [];
   List<ChatMessage> _messages = [];
+  int _nextEntryId = 0;
+  int _internetEntryCount = 0;
+  int _rfEntryCount = 0;
 
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _destinationController = TextEditingController(
@@ -263,6 +270,13 @@ class _AprsTabState extends State<AprsTab>
   @override
   void initState() {
     super.initState();
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'StoredChatHistoryAvailable',
+      callback: (_, _, _) {
+        if (mounted) setState(() {});
+      },
+    );
 
     // Load persisted settings from device 0.
     _callsign = _broker.getValue<String>(0, 'CallSign', '') ?? '';
@@ -689,7 +703,9 @@ class _AprsTabState extends State<AprsTab>
   Widget _meshUserAvatar(String peer, {double radius = 20}) {
     final book = _meshBook[peer];
     final key =
-        book?.callsign ?? _meshContactByPrefix(peer)?['key']?.toString() ?? peer;
+        book?.callsign ??
+        _meshContactByPrefix(peer)?['key']?.toString() ??
+        peer;
     return ContactAvatar(
       callsign: key,
       avatarIcon: book?.avatarIcon,
@@ -725,7 +741,8 @@ class _AprsTabState extends State<AprsTab>
     final stations = <StationInfo>[
       if (raw is List)
         for (final item in raw)
-          if (item is Map) StationInfo.fromJson(Map<String, dynamic>.from(item)),
+          if (item is Map)
+            StationInfo.fromJson(Map<String, dynamic>.from(item)),
     ];
     stations.removeWhere(
       (s) =>
@@ -926,7 +943,8 @@ class _AprsTabState extends State<AprsTab>
   /// Full public key for a direct-message peer, when the address book or the
   /// radio knows it.
   String? _meshKeyForPeer(String peer) =>
-      _meshBook[peer]?.callsign ?? _meshContactByPrefix(peer)?['key']?.toString();
+      _meshBook[peer]?.callsign ??
+      _meshContactByPrefix(peer)?['key']?.toString();
 
   /// The callsign the sender's name starts with (e.g. "KK7VZT-Base"). The
   /// name the node advertises is tried before the address-book name.
@@ -984,10 +1002,7 @@ class _AprsTabState extends State<AprsTab>
           l10n.meshDetailType,
           group ? l10n.meshGroupMessage : l10n.meshDirectMessage,
         ),
-        AprsDetailItem(
-          l10n.meshDetailConversation,
-          _meshTitle(m.kind, m.peer),
-        ),
+        AprsDetailItem(l10n.meshDetailConversation, _meshTitle(m.kind, m.peer)),
         AprsDetailItem(l10n.meshDetailFrom, from),
         if (callsign != null) ...[
           AprsDetailItem(l10n.cslFieldCallsign, callsign),
@@ -1057,10 +1072,7 @@ class _AprsTabState extends State<AprsTab>
         if (canResend)
           PopupMenuItem(value: 'resend', child: Text(l10n.meshResend)),
         if (_viewAllMesh)
-          PopupMenuItem(
-            value: 'open',
-            child: Text(_meshTitle(m.kind, m.peer)),
-          ),
+          PopupMenuItem(value: 'open', child: Text(_meshTitle(m.kind, m.peer))),
         if (canAddContact)
           PopupMenuItem(value: 'addContact', child: Text(l10n.aprsAddContact)),
         if (_meshCallsignFor(m) != null)
@@ -1748,10 +1760,12 @@ class _AprsTabState extends State<AprsTab>
     return null;
   }
 
-  ChatMessage _entryToMessage(int index, _AprsEntry e) {
+  ChatMessage _entryToMessage(_AprsEntry e) {
+    final cached = e.message;
+    if (cached != null) return cached;
     final trimmed = e.messageText.trim();
-    return ChatMessage(
-      id: '$index',
+    return e.message = ChatMessage(
+      id: '${e.id}',
       route: e.routingString,
       senderCallsign: e.senderCallsign,
       // Symbol-only packets carry no comment; render a single space so the
@@ -1817,7 +1831,7 @@ class _AprsTabState extends State<AprsTab>
     for (var i = 0; i < _entries.length; i++) {
       final e = _entries[i];
       if (!_entryInCurrentView(e)) continue;
-      list.add(_entryToMessage(i, e));
+      list.add(_entryToMessage(e));
     }
     if (mounted) {
       setState(() => _messages = list);
@@ -1845,9 +1859,9 @@ class _AprsTabState extends State<AprsTab>
   /// the entire message list. A full rebuild re-created a [ChatMessage] for
   /// every entry (O(n) allocations) and ran on every incoming packet, so cost
   /// grew with history size. Appending keeps the per-packet cost constant.
-  void _appendMessage(int index, _AprsEntry e) {
+  void _appendMessage(_AprsEntry e) {
     if (!_entryInCurrentView(e)) return;
-    final msg = _entryToMessage(index, e);
+    final msg = _entryToMessage(e);
     if (mounted) {
       setState(() => _messages.add(msg));
     } else {
@@ -1856,14 +1870,15 @@ class _AprsTabState extends State<AprsTab>
   }
 
   /// Ports the C# `AddAprsPacket` display logic.
-  void _addAprsPacket(
+  _AprsEntry? _parseAprsPacket(
     AprsPacket aprsPacket,
     bool sender, {
     bool rebuild = true,
+    bool updateDelivery = true,
   }) {
     final packet = aprsPacket.packet;
-    if (packet == null) return;
-    if (packet.addresses.isEmpty) return;
+    if (packet == null) return null;
+    if (packet.addresses.isEmpty) return null;
 
     String? messageId;
     String? messageText;
@@ -1903,12 +1918,16 @@ class _AprsTabState extends State<AprsTab>
 
       // ACK / REJ update prior sent messages and return.
       if (aprsPacket.messageData.msgType == MessageType.mtAck) {
-        if (forSelf) _updateDeliveryIcon(aprsPacket, packet, 0, rebuild);
-        return;
+        if (forSelf && updateDelivery) {
+          _updateDeliveryIcon(aprsPacket, packet, 0, rebuild);
+        }
+        return null;
       }
       if (aprsPacket.messageData.msgType == MessageType.mtRej) {
-        if (forSelf) _updateDeliveryIcon(aprsPacket, packet, 1, rebuild);
-        return;
+        if (forSelf && updateDelivery) {
+          _updateDeliveryIcon(aprsPacket, packet, 1, rebuild);
+        }
+        return null;
       }
 
       if (sender) {
@@ -1981,11 +2000,12 @@ class _AprsTabState extends State<AprsTab>
       // instead of dropping them entirely.
       final hasSymbol =
           aprsPacket.symbolTable.isNotEmpty && aprsPacket.symbol.isNotEmpty;
-      if (!hasSymbol) return;
+      if (!hasSymbol) return null;
       messageText = '';
     }
 
     final entry = _AprsEntry(
+      id: _nextEntryId++,
       aprsPacket: aprsPacket,
       packet: packet,
       routingString: routingString,
@@ -2000,6 +2020,21 @@ class _AprsTabState extends State<AprsTab>
       visible: _computeVisible(messageType, aprsPacket.fromAprsIs, sender),
       peerCallsign: peerCallsign,
     );
+    if (entry.imageIndex == 3) {
+      entry.latitude = pos.coordinateSet.latitude.value;
+      entry.longitude = pos.coordinateSet.longitude.value;
+    }
+    return entry;
+  }
+
+  void _addAprsPacket(
+    AprsPacket aprsPacket,
+    bool sender, {
+    bool rebuild = true,
+  }) {
+    final entry = _parseAprsPacket(aprsPacket, sender, rebuild: rebuild);
+    if (entry == null) return;
+    final packet = entry.packet;
 
     var removedLaterDuplicate = false;
     if (aprsPacket.dataType == PacketDataType.message) {
@@ -2030,7 +2065,7 @@ class _AprsTabState extends State<AprsTab>
         duplicatesToRemove.add(n);
       }
       if (duplicatesToRemove.isNotEmpty) {
-        _entries.removeWhere(duplicatesToRemove.contains);
+        _removeEntries(duplicatesToRemove.toSet());
         removedLaterDuplicate = true;
       }
     } else {
@@ -2049,15 +2084,11 @@ class _AprsTabState extends State<AprsTab>
       }
     }
 
-    if (entry.imageIndex == 3) {
-      entry.latitude = pos.coordinateSet.latitude.value;
-      entry.longitude = pos.coordinateSet.longitude.value;
-    }
-
     if (!rebuild) {
       // Bulk historical load: append now; the caller sorts afterwards.
       _entries.add(entry);
-      _pruneAprsIsHistory();
+      _countEntry(entry);
+      _pruneHistory();
       return;
     }
 
@@ -2071,42 +2102,56 @@ class _AprsTabState extends State<AprsTab>
       insertIndex--;
     }
     _entries.insert(insertIndex, entry);
+    _countEntry(entry);
     final appendedAtEnd = insertIndex == _entries.length - 1;
-    // Pruning shifts entry indices, so a full rebuild is required then instead
-    // of a cheap append; likewise when the entry slotted in out of order.
-    final pruned = _pruneAprsIsHistory();
-    if (pruned || removedLaterDuplicate || !appendedAtEnd) {
+    _pruneHistory();
+    if (removedLaterDuplicate || !appendedAtEnd) {
       _rebuildMessages();
     } else {
-      _appendMessage(_entries.length - 1, entry);
+      _appendMessage(entry);
     }
   }
 
-  /// Maximum number of APRS-IS (internet-gated) messages retained in memory.
-  /// The app may run for weeks or years, so internet history is bounded; RF
-  /// messages are unaffected.
-  static const int _maxAprsIsEntries = 1000;
+  static const int _maxEntriesPerSource = 1000;
 
-  /// Drops the oldest APRS-IS entries beyond [_maxAprsIsEntries]. Returns true
-  /// when any entry was removed, in which case callers must fully rebuild the
-  /// message list because remaining entry indices have shifted.
-  bool _pruneAprsIsHistory() {
-    var count = 0;
-    for (final e in _entries) {
-      if (e.aprsPacket.fromAprsIs) count++;
+  void _countEntry(_AprsEntry entry) {
+    if (entry.aprsPacket.fromAprsIs) {
+      _internetEntryCount++;
+    } else {
+      _rfEntryCount++;
     }
-    if (count <= _maxAprsIsEntries) return false;
-    // Entries are appended in arrival order, so removing the first matching
-    // ones drops the oldest internet messages.
-    var toRemove = count - _maxAprsIsEntries;
-    _entries.removeWhere((e) {
-      if (toRemove > 0 && e.aprsPacket.fromAprsIs) {
-        toRemove--;
-        return true;
+  }
+
+  void _removeEntries(Set<_AprsEntry> removed) {
+    if (removed.isEmpty) return;
+    _entries.removeWhere(removed.contains);
+    for (final entry in removed) {
+      if (entry.aprsPacket.fromAprsIs) {
+        _internetEntryCount--;
+      } else {
+        _rfEntryCount--;
       }
-      return false;
-    });
-    return true;
+    }
+    _messages.removeWhere((message) => removed.contains(message.tag));
+  }
+
+  void _pruneHistory() {
+    var internet = _internetEntryCount - _maxEntriesPerSource;
+    var rf = _rfEntryCount - _maxEntriesPerSource;
+    if (internet <= 0 && rf <= 0) return;
+    final removed = <_AprsEntry>{};
+    for (final entry in _entries) {
+      if (entry.aprsPacket.fromAprsIs ? internet > 0 : rf > 0) {
+        removed.add(entry);
+        if (entry.aprsPacket.fromAprsIs) {
+          internet--;
+        } else {
+          rf--;
+        }
+      }
+      if (internet <= 0 && rf <= 0) break;
+    }
+    _removeEntries(removed);
   }
 
   void _updateDeliveryIcon(
@@ -2124,6 +2169,7 @@ class _AprsTabState extends State<AprsTab>
             (n.authState == AuthState.none &&
                 packet.authState == AuthState.none)) {
           n.imageIndex = imageIndex;
+          n.message = null;
           updated = true;
         }
       }
@@ -2842,6 +2888,8 @@ class _AprsTabState extends State<AprsTab>
     if (!mounted) return;
     setState(() {
       _entries.clear();
+      _internetEntryCount = 0;
+      _rfEntryCount = 0;
       _messages = [];
     });
   }
@@ -2852,11 +2900,50 @@ class _AprsTabState extends State<AprsTab>
     final peer = data is Map ? data['peer']?.toString() : null;
     if (peer == null || peer.isEmpty) return;
     setState(() {
-      _entries.removeWhere(
-        (e) => e.peerCallsign != null && e.peerCallsign!.toUpperCase() == peer,
+      _removeEntries(
+        _entries
+            .where(
+              (e) =>
+                  e.peerCallsign != null &&
+                  e.peerCallsign!.toUpperCase() == peer,
+            )
+            .toSet(),
       );
     });
     _rebuildMessages();
+  }
+
+  void _showStoredHistory() {
+    showDialog<void>(
+      context: context,
+      builder: (_) => StoredHistoryDialog(
+        sources: const {'rf': 'APRS', 'internet': 'APRS-IS'},
+        messageBuilder: (data, id) {
+          if (data['invalid'] == true) return null;
+          final aprs = AprsPacket.fromJson(data);
+          final packet = aprs.packet;
+          if (packet == null) return null;
+          if (aprs.fromAprsIs && packet.addresses.length > 1) {
+            final self = _stationId.isEmpty
+                ? _callsign
+                : '$_callsign-$_stationId';
+            if (self.isNotEmpty &&
+                packet.addresses[1].callSignWithId.toUpperCase() ==
+                    self.toUpperCase()) {
+              packet.incoming = false;
+            }
+          }
+          final entry = _parseAprsPacket(
+            aprs,
+            !packet.incoming,
+            updateDelivery: false,
+          );
+          return entry == null ? null : _entryToMessage(entry);
+        },
+        onMessageDoubleTap: _onMessageDoubleTap,
+        onMessageContextMenu: _onMessageContextMenu,
+      ),
+    );
   }
 
   void _showMenu(BuildContext context) {
@@ -2994,10 +3081,7 @@ class _AprsTabState extends State<AprsTab>
             padding: menuItemPadding,
             enabled: _meshConnected,
             child: Row(
-              children: [
-                const SizedBox(width: 20),
-                Text(l10n.meshRemoveGroup),
-              ],
+              children: [const SizedBox(width: 20), Text(l10n.meshRemoveGroup)],
             ),
           ),
         const PopupMenuDivider(height: 8),
@@ -3107,7 +3191,9 @@ class _AprsTabState extends State<AprsTab>
     }
     if (messages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).commsNoMessagesToSave)),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).commsNoMessagesToSave),
+        ),
       );
       return;
     }
@@ -3279,6 +3365,21 @@ class _AprsTabState extends State<AprsTab>
                   ),
                   if (_selectedContact != null)
                     _buildConversationAvatarOverlay(),
+                  if (_broker.getValue<bool>(
+                        1,
+                        'StoredChatHistoryAvailable',
+                        false,
+                      ) ==
+                      true)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: IconButton.filledTonal(
+                        tooltip: AppLocalizations.of(context).chatHistory,
+                        icon: const Icon(Icons.history),
+                        onPressed: _showStoredHistory,
+                      ),
+                    ),
                   if (channelHover)
                     Positioned.fill(
                       child: IgnorePointer(child: _buildChannelDropOverlay()),
@@ -3709,7 +3810,8 @@ class _AprsTabState extends State<AprsTab>
         : (c.lastFromMe ? '→ ${c.lastMessage}' : c.lastMessage);
     final avatar = _avatarDataFor(c.callsign);
     return ListTile(
-      selected: !_viewAllMessages && !_inMeshView && _selectedContact == c.callsign,
+      selected:
+          !_viewAllMessages && !_inMeshView && _selectedContact == c.callsign,
       selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.4),
       leading: ContactAvatar(
         callsign: c.callsign,
@@ -4108,8 +4210,7 @@ class _AprsTabState extends State<AprsTab>
                 ),
               const SizedBox(width: 8),
               if (_meshEnabled &&
-                  (_meshConfigured ||
-                      _meshState != MeshCoreState.disconnected))
+                  (_meshConfigured || _meshState != MeshCoreState.disconnected))
                 _buildMeshStatusIcon(),
               // Beacon active indicator - opens beacon settings on tap.
               if (_beaconInterval > 0) _buildBeaconIcon(),

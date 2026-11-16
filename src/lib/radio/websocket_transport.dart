@@ -100,6 +100,7 @@ class WebSocketRadioTransport implements RadioTransport {
   /// Invoked with the raw JSON payload when the host sends a `history:` message.
   /// Wired up by [BluetoothService] to seed the comms/APRS tabs.
   void Function(String json)? onHistory;
+  void Function(String json)? onStoredHistory;
 
   /// Invoked with the raw JSON payload for a full device-0 settings snapshot
   /// (`settings:`). Wired up by [BluetoothService].
@@ -273,6 +274,10 @@ class WebSocketRadioTransport implements RadioTransport {
   }
 
   void _onControlMessage(String message) {
+    if (message.startsWith('storedhistory:')) {
+      onStoredHistory?.call(message.substring('storedhistory:'.length));
+      return;
+    }
     // `log:` prefixed messages are host-side diagnostics; ignore here.
     if (message.startsWith(_kHistoryPrefix)) {
       onHistory?.call(message.substring(_kHistoryPrefix.length));
@@ -427,6 +432,8 @@ class WebSocketRadioTransport implements RadioTransport {
   /// also removed from the host's database and does not come back on reload.
   /// Returns false if the socket is not available.
   bool sendClear(Map<String, Object?> data) => _sendText(_kClearPrefix, data);
+  bool sendStoredHistory(Map<String, Object?> data) =>
+      _sendText('storedhistory:', data);
 
   /// Asks the host to disconnect / cancel an active Winlink sync.
   bool sendWinlinkDisconnect() {

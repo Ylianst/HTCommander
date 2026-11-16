@@ -48,6 +48,23 @@ discards late results and releases decoder resources on the owning worker.
 Web, which does not receive local radio audio, retains an ordered local fallback
 because Dart isolates are unavailable there.
 
+**History WAV recordings:** clip creation and byte/duration accounting remain
+immediate, but the comms handler no longer opens, writes, renames or deletes
+recordings synchronously inside audio callbacks. A shared FIFO uses asynchronous
+file I/O, coalescing adjacent events over 20 ms into batches up to 64 KiB.
+Its 1 MiB allocation budget includes
+in-flight writes; at most 32 clips may be opening/draining. Borrowed audio slices
+are copied before returning to the producer. Overflow or an I/O failure explicitly
+logs a failed clip and prevents partial/gapped audio from being added to history;
+there is no synchronous fallback or silent frame dropping. Close drains PCM,
+patches the exact RIFF/data sizes, flushes and closes before renaming or publishing
+history; short clips are discarded after drain. `CommsHandler.flush()` finalizes
+the current clip and waits for pending recording/history persistence, covering
+the existing desktop-close and mobile-background hooks. Synchronous `dispose()`
+initiates the same drain as a best effort; callers terminating the process must
+await `flush()` first. Focused regressions: `flutter test
+test/wav_recording_writer_test.dart` from `src`.
+
 Modem frames are returned immediately when decoded, without waiting for an
 audio-end marker or unrelated image/telemetry work. FX.25 suppression and its
 700 ms plain-HDLC fallback timer live with the decoder. Channel and lock metadata

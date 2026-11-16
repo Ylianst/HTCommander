@@ -1200,6 +1200,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsHistoryLimits => '历史记录限制';
 
   @override
+  String get chatHistory => '已保存的历史记录';
+
+  @override
   String get settingsUnlimited => '无限制';
 
   @override

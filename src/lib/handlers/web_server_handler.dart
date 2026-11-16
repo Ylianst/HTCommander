@@ -21,6 +21,7 @@ resolves to an inert stub.
 */
 
 import 'dart:convert';
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
@@ -33,6 +34,7 @@ import '../services/bluetooth_service.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../services/host_bridge.dart';
+import '../services/stored_chat_history.dart';
 import '../services/web/web_server.dart';
 import '../winlink/winlink_mail.dart';
 import 'agent_api.dart';
@@ -671,6 +673,9 @@ class WebServerHandler {
           .toList(growable: false);
 
       final payload = <String, Object?>{
+        'storedHistoryAvailable':
+            _broker.getValue<bool>(1, 'StoredChatHistoryAvailable', false) ==
+            true,
         if (decoded is List) 'decodedText': decoded,
         if (aprs != null && aprs.isNotEmpty) 'aprs': aprs,
       };
@@ -681,10 +686,38 @@ class WebServerHandler {
     }
   }
 
+  Future<void> _sendStoredHistory(WebSocketClient client, String json) async {
+    Object? request;
+    try {
+      request = jsonDecode(json);
+      final history = DataBroker.getDataHandler<StoredChatHistory>(
+        'StoredChatHistory',
+      );
+      if (history == null) {
+        throw StateError('Stored chat history is unavailable');
+      }
+      final page = await history.page(request);
+      if (!_disposed) client.sendText('storedhistory:${jsonEncode(page)}');
+    } catch (error) {
+      _broker.logError('[WebServer] Stored history request failed: $error');
+      if (!_disposed) {
+        client.sendText(
+          'storedhistory:${jsonEncode({'requestId': request is Map ? request['requestId'] : null, 'error': '$error'})}',
+        );
+      }
+    }
+  }
+
   void _onTextMessage(WebSocketClient client, String message) {
     if (_disposed) return;
     // Automation clients (test agents) use their own authenticated channel.
     if (_agent.handle(client, message)) return;
+    if (message.startsWith('storedhistory:')) {
+      unawaited(
+        _sendStoredHistory(client, message.substring('storedhistory:'.length)),
+      );
+      return;
+    }
     if (message.startsWith('setsetting:')) {
       _applyClientSetting(message.substring('setsetting:'.length));
       return;
