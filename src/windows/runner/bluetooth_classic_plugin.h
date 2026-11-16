@@ -7,6 +7,7 @@
 namespace flutter {
 class BinaryMessenger;
 }
+class NativePcmOutput;
 
 /// Native Windows Bluetooth Classic (RFCOMM) plugin.
 ///
@@ -19,7 +20,8 @@ class BinaryMessenger;
 ///   - EventChannel    com.htcommander/bluetooth_classic_audio
 class BluetoothClassicPlugin {
  public:
-  explicit BluetoothClassicPlugin(flutter::BinaryMessenger* messenger);
+  BluetoothClassicPlugin(flutter::BinaryMessenger* messenger,
+                         std::shared_ptr<NativePcmOutput> output);
   ~BluetoothClassicPlugin();
 
   BluetoothClassicPlugin(const BluetoothClassicPlugin&) = delete;

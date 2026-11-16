@@ -357,6 +357,38 @@ class BluetoothClassicMacOS {
     }
   }
 
+  /// Windows-only controls for the Bluetooth-reader-to-speaker fast path.
+  Future<void> configureNativeAudioPlayback(
+    String address, {
+    required bool enabled,
+    required bool audible,
+    required bool muted,
+    required double volume,
+  }) async {
+    final configured = await _channel
+        .invokeMethod<bool>('configureNativeAudioPlayback', {
+          'address': address,
+          'enabled': enabled,
+          'audible': audible,
+          'muted': muted,
+          'volume': volume,
+        });
+    if (configured != true) {
+      throw StateError('Native Bluetooth playback was not configured');
+    }
+  }
+
+  Future<Map<Object?, Object?>> getNativeAudioPlaybackStats(
+    String address,
+  ) async {
+    final stats = await _channel.invokeMapMethod<Object?, Object?>(
+      'getNativeAudioPlaybackStats',
+      {'address': address},
+    );
+    if (stats == null) throw StateError('Missing native playback statistics');
+    return stats;
+  }
+
   /// Disconnect the audio RFCOMM channel of a device.
   Future<void> disconnectAudio(String address) async {
     try {

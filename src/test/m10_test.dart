@@ -150,6 +150,18 @@ void main() {
     expect(M10Decoder().decodeFrame(bad), isNull);
   });
 
+  test('native M10 matches Dart with fractional timing and inverted audio', () {
+    for (final rate in [32000, 48000]) {
+      final pcm = _modulate([frame, frame, frame], rate);
+      for (int i = 0; i < pcm.length; i++) {
+        pcm[i] = -pcm[i];
+      }
+      final reference = M10Demodulator(rate, useNative: false).demodulate(pcm);
+      expect(reference, isNotEmpty);
+      expect(M10Demodulator(rate).demodulate(pcm), reference);
+    }
+  });
+
   test('demodulates M10 from clean audio (48kHz)', () {
     final pcm = _modulate([frame, frame, frame, frame], 48000);
     final frames = M10Demodulator(48000).demodulate(pcm);

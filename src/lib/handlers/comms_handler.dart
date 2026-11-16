@@ -57,7 +57,7 @@ import '../radio/radio_models.dart'
     show kAprsSatLockUsage, kSatelliteLockUsages;
 import '../radio/tnc_data_fragment.dart';
 import '../radiosonde/radiosonde_fix.dart';
-import '../radiosonde/radiosonde_monitor.dart';
+import '../radiosonde/radiosonde_worker.dart';
 import '../sarsat/sarsat_1g_decoder.dart';
 import '../sarsat/sarsat_country_codes.dart';
 import '../sarsat/sarsat_monitor.dart';
@@ -68,6 +68,7 @@ import '../services/db/app_database.dart';
 import '../services/notification_service.dart';
 import '../services/tts_service.dart';
 import '../sstv/sstv_monitor.dart';
+import '../sstv/sstv_worker.dart';
 import '../utils/num_parsing.dart';
 import 'speech_to_text_engine.dart';
 
@@ -341,7 +342,7 @@ class CommsHandler {
   // SSTV auto-decode state.
   static const String _sstvFolderName = 'SSTV';
   static const int _sstvSampleRate = 32000;
-  SstvMonitor? _sstvMonitor;
+  SstvWorker? _sstvMonitor;
   StreamSubscription<SstvDecodingStarted>? _sstvStartedSub;
   StreamSubscription<SstvDecodingProgress>? _sstvProgressSub;
   StreamSubscription<SstvDecodingComplete>? _sstvCompleteSub;
@@ -367,10 +368,9 @@ class CommsHandler {
   // the monitor is always allocated but only fed audio from a channel named
   // "radiosonde" (case-insensitive). The radio audio pipeline is 32 kHz.
   static const int _radiosondeSampleRate = 32000;
-  RadiosondeMonitor? _radiosondeMonitor;
-  StreamSubscription<RadiosondeFix>? _radiosondeDecodedSub;
+  RadiosondeWorker? _radiosondeMonitor;
+  StreamSubscription<RadiosondeReception>? _radiosondeDecodedSub;
   int _radiosondeDeviceId = -1; // radio locked for the current receive run
-  int _radiosondeEmitDeviceId = -1; // radio a decoded fix is attributed to
 
   /// Whether an SSTV image is currently being received/decoded. Setting this
   /// publishes an `SstvReceiving` flag on the SSTV device so the software modem
@@ -403,6 +403,7 @@ class CommsHandler {
   String? _sstvFilename;
   bool _sstvImageSaved = false;
   bool _sstvPartialSaveInFlight = false;
+  Future<void>? _sstvPartialSaveTask;
   DateTime _lastSstvPartialSave = DateTime.fromMillisecondsSinceEpoch(0);
 
   // Decoded text history.
@@ -1170,9 +1171,7 @@ class CommsHandler {
     }
 
     // Finalize any in-progress SSTV decoding when the audio stream ends.
-    if (_sstvDecoding && deviceId == _sstvDeviceId) {
-      _finalizeSstvOnAudioEnd();
-    }
+    _sstvMonitor?.end(deviceId);
 
     // Flush CW decoding at the end of a receive burst so the last characters
     // are emitted, then release the burst lock so another radio can be picked.
@@ -1193,8 +1192,7 @@ class CommsHandler {
     // Decode the buffered DFM radiosonde run at the end of the receive run,
     // then release the run lock so another radio can be picked.
     if (_radiosondeMonitor != null && deviceId == _radiosondeDeviceId) {
-      _radiosondeEmitDeviceId = deviceId;
-      _radiosondeMonitor!.flush();
+      _radiosondeMonitor!.flush(deviceId);
       _radiosondeDeviceId = -1;
     }
 
@@ -1358,21 +1356,19 @@ class CommsHandler {
       // Decode SSTV even on muted channels: muting silences playback but we
       // still want to detect and decode incoming SSTV images.
       if (_isCommsUsage(usage) && !transmit && channelName != 'APRS') {
-        // Lock onto a single device for the duration of a decode.
-        if (!_sstvDecoding) _sstvDeviceId = deviceId;
-        if (deviceId == _sstvDeviceId) {
-          // Remember whether this channel is flagged as muted so the auto-mute
-          // can be skipped: a muted channel's audio is already silenced.
-          _sstvChannelMuted = muted;
-          if (channelName.isNotEmpty) _currentChannelName = channelName;
-          final bytes = data['data'] ?? data['Data'];
-          if (bytes is Uint8List) {
-            final offset = _readInt(data['offset'] ?? data['Offset']) ?? 0;
-            final length =
-                _readInt(data['length'] ?? data['Length']) ??
-                (bytes.length - offset);
-            monitor.processPcm16(bytes, offset, length);
-          }
+        // The worker owns source locking, including detection still in flight.
+        final bytes = data['data'] ?? data['Data'];
+        if (bytes is Uint8List) {
+          final offset = _readInt(data['offset'] ?? data['Offset']) ?? 0;
+          final length =
+              _readInt(data['length'] ?? data['Length']) ??
+              (bytes.length - offset);
+          monitor.processPcm16(
+            bytes,
+            offset,
+            length,
+            context: SstvReceiveContext(deviceId, channelName, muted),
+          );
         }
       }
     }
@@ -1447,7 +1443,6 @@ class CommsHandler {
           channelName.toLowerCase() == 'radiosonde') {
         if (_radiosondeDeviceId <= 0) _radiosondeDeviceId = deviceId;
         if (deviceId == _radiosondeDeviceId) {
-          _radiosondeEmitDeviceId = deviceId;
           if (channelName.isNotEmpty) _currentChannelName = channelName;
           final bytes = data['data'] ?? data['Data'];
           if (bytes is Uint8List) {
@@ -1455,7 +1450,13 @@ class CommsHandler {
             final length =
                 _readInt(data['length'] ?? data['Length']) ??
                 (bytes.length - offset);
-            radiosonde.processPcm16(bytes, offset, length);
+            radiosonde.processPcm16(
+              bytes,
+              offset,
+              length,
+              deviceId: deviceId,
+              channelName: channelName,
+            );
           }
         }
       }
@@ -1759,13 +1760,43 @@ class CommsHandler {
   /// Creates a fresh SSTV monitor and subscribes to its decoding events.
   void _initializeSstvMonitor() {
     _cleanupSstvMonitor();
-    final monitor = SstvMonitor(sampleRate: _sstvSampleRate);
-    _sstvStartedSub = monitor.onDecodingStarted.listen(_onSstvDecodingStarted);
+    final monitor = SstvWorker(
+      sampleRate: _sstvSampleRate,
+      onError: (error, stack) {
+        _broker.logError('[CommsHandler] SSTV receive error: $error\n$stack');
+        if (_sstvDecoding) {
+          _onSstvDecodingComplete(
+            SstvDecodingComplete(
+              modeName: 'SSTV (receive error)',
+              width: 0,
+              height: 0,
+              image: null,
+            ),
+          );
+        }
+      },
+    );
+    void setContext() {
+      final context = monitor.context!;
+      _sstvDeviceId = context.deviceId;
+      _sstvChannelMuted = context.muted;
+      _currentChannelName = context.channelName;
+    }
+    _sstvStartedSub = monitor.onDecodingStarted.listen((event) {
+      setContext();
+      _onSstvDecodingStarted(event);
+    });
     _sstvProgressSub = monitor.onDecodingProgress.listen(
-      _onSstvDecodingProgress,
+      (event) {
+        setContext();
+        _onSstvDecodingProgress(event);
+      },
     );
     _sstvCompleteSub = monitor.onDecodingComplete.listen(
-      _onSstvDecodingComplete,
+      (event) {
+        setContext();
+        _onSstvDecodingComplete(event);
+      },
     );
     _sstvMonitor = monitor;
     _broker.logInfo('[CommsHandler] SSTV monitor initialized');
@@ -1841,11 +1872,17 @@ class CommsHandler {
 
   void _initializeRadiosondeMonitor() {
     _cleanupRadiosondeMonitor();
-    final monitor = RadiosondeMonitor(sampleRate: _radiosondeSampleRate);
-    _radiosondeDecodedSub = monitor.onDecoded.listen(_onRadiosondeDecoded);
+    final monitor = RadiosondeWorker(
+      sampleRate: _radiosondeSampleRate,
+      onError: (error, stack) => _broker.logError(
+        '[CommsHandler] Radiosonde receive error: $error\n$stack',
+      ),
+    );
+    _radiosondeDecodedSub = monitor.onDecoded.listen((event) {
+      _onRadiosondeDecoded(event.fix, event.deviceId, event.channelName);
+    });
     _radiosondeMonitor = monitor;
     _radiosondeDeviceId = -1;
-    _radiosondeEmitDeviceId = -1;
     _broker.logInfo('[CommsHandler] DFM radiosonde monitor initialized');
   }
 
@@ -1855,7 +1892,6 @@ class CommsHandler {
     _radiosondeMonitor?.dispose();
     _radiosondeMonitor = null;
     _radiosondeDeviceId = -1;
-    _radiosondeEmitDeviceId = -1;
   }
 
   /// Coalescing window: repeated fixes for the same sonde within this window of
@@ -1866,14 +1902,10 @@ class CommsHandler {
   /// repeats for the same sonde within [_radiosondeCoalesceWindow] into a
   /// single bubble (bumping its count and refreshing its data/location but
   /// never its original time).
-  void _onRadiosondeDecoded(RadiosondeFix f) {
+  void _onRadiosondeDecoded(RadiosondeFix f, int deviceId, String channel) {
     if (_disposed) return;
-    final deviceId = _radiosondeEmitDeviceId > 0
-        ? _radiosondeEmitDeviceId
-        : _targetDeviceId;
     if (deviceId <= 0) return;
     final now = DateTime.now();
-    final channel = _getVfoAChannelName(deviceId);
     final sondeKey = f.id.isNotEmpty ? f.id : f.sondeType;
 
     // Find a recent bubble for the same sonde (entries are chronological).
@@ -2172,7 +2204,8 @@ class CommsHandler {
     final due = now.difference(_lastSstvPartialSave).inMilliseconds >= 600;
     if (due && !_sstvPartialSaveInFlight) {
       _lastSstvPartialSave = now;
-      unawaited(_saveSstvPartialImage(progressText));
+      _sstvPartialSaveTask = _saveSstvPartialImage(progressText);
+      unawaited(_sstvPartialSaveTask);
     } else {
       _dispatchSstvTextReady(
         progressText,
@@ -2191,6 +2224,10 @@ class CommsHandler {
     try {
       final monitor = _sstvMonitor;
       final filename = _sstvFilename;
+      final entry = _currentSstvEntry;
+      final deviceId = _sstvDeviceId;
+      final channel = _currentChannelName;
+      final time = _sstvStartTime;
       if (monitor == null || filename == null) return;
       final partial = monitor.getPartialImage();
       if (partial == null) return;
@@ -2198,16 +2235,23 @@ class CommsHandler {
       if (dir == null) return;
       final pngBytes = await _encodeSstvPng(partial);
       if (pngBytes == null) return;
+      if (_disposed || !_sstvDecoding || !identical(entry, _currentSstvEntry)) {
+        return;
+      }
       final fullPath = '${dir.path}${Platform.pathSeparator}$filename';
       await File(fullPath).writeAsBytes(pngBytes, flush: true);
+      if (_disposed || !_sstvDecoding || !identical(entry, _currentSstvEntry)) {
+        return;
+      }
       _sstvImageSaved = true;
       _dispatchSstvTextReady(
         progressText,
-        _currentChannelName,
-        _sstvStartTime,
+        channel,
+        time,
         false,
         filename: filename,
         imageUpdated: true,
+        deviceId: deviceId,
       );
     } catch (e) {
       _broker.logError('[CommsHandler] Error saving partial SSTV image: $e');
@@ -2221,31 +2265,12 @@ class CommsHandler {
     unawaited(_handleSstvComplete(e.modeName, e.image));
   }
 
-  /// Finalizes any in-progress SSTV decoding when the audio stream ends,
-  /// saving whatever partial image has been decoded so far.
-  void _finalizeSstvOnAudioEnd() {
-    try {
-      _broker.logInfo(
-        '[CommsHandler] Audio ended during SSTV decoding, finalizing partial reception',
-      );
-      final monitor = _sstvMonitor;
-      SstvImage? partialImage;
-      if (monitor != null) {
-        partialImage = monitor.getPartialImage();
-        monitor.reset();
-      }
-      final modeName = (_currentSstvEntry?.text ?? 'SSTV')
-          .replaceAll('Receiving ', '')
-          .replaceAll('...', '');
-      unawaited(_handleSstvComplete(modeName, partialImage));
-    } catch (e) {
-      _broker.logError('[CommsHandler] Error finalizing SSTV on audio end: $e');
-      _sstvDecoding = false;
-    }
-  }
-
   /// Saves a decoded SSTV image to disk and records it in the text history.
   Future<void> _handleSstvComplete(String modeName, SstvImage? image) async {
+    final deviceId = _sstvDeviceId;
+    final entry = _currentSstvEntry;
+    _currentSstvEntry = null;
+    final partialSave = _sstvPartialSaveTask;
     _broker.logInfo(
       '[CommsHandler] SSTV image decoded: $modeName (${image?.width ?? 0}x${image?.height ?? 0})',
     );
@@ -2271,7 +2296,6 @@ class CommsHandler {
     _sstvAutoMuted = false;
 
     if (image == null) {
-      _currentSstvEntry = null;
       _dispatchSstvTextReady(
         '$modeName - Reception failed',
         _currentChannelName,
@@ -2288,15 +2312,15 @@ class CommsHandler {
         _sstvFilename ?? 'SSTV_${_formatTimestamp(now)}_$safeMode.png';
 
     try {
+      await partialSave;
+      if (_disposed) return;
       final dir = await _ensureSstvImagesDir();
       if (dir == null) {
-        _currentSstvEntry = null;
         return;
       }
       final pngBytes = await _encodeSstvPng(image);
       if (pngBytes == null) {
         _broker.logError('[CommsHandler] Failed to encode SSTV image');
-        _currentSstvEntry = null;
         return;
       }
       final fullPath = '${dir.path}${Platform.pathSeparator}$filename';
@@ -2304,7 +2328,6 @@ class CommsHandler {
       _broker.logInfo('[CommsHandler] SSTV image saved: $filename');
 
       // Finalize the partial entry (or create one) in the text history.
-      final entry = _currentSstvEntry;
       if (entry != null) {
         entry.text = modeName;
         entry.filename = filename;
@@ -2321,7 +2344,6 @@ class CommsHandler {
           ),
         );
       }
-      _currentSstvEntry = null;
       _trimHistory();
       unawaited(_saveVoiceTextHistory());
       _dispatchDecodedTextHistory();
@@ -2333,10 +2355,10 @@ class CommsHandler {
         true,
         filename: filename,
         imageUpdated: true,
+        deviceId: deviceId,
       );
     } catch (e) {
       _broker.logError('[CommsHandler] Error saving SSTV image: $e');
-      _currentSstvEntry = null;
     }
   }
 
@@ -2350,10 +2372,12 @@ class CommsHandler {
     bool completed, {
     String? filename,
     bool imageUpdated = false,
+    int? deviceId,
   }) {
-    if (_sstvDeviceId <= 0) return;
+    final targetDeviceId = deviceId ?? _sstvDeviceId;
+    if (_disposed || targetDeviceId <= 0) return;
     _broker.dispatch(
-      deviceId: _sstvDeviceId,
+      deviceId: targetDeviceId,
       name: 'TextReady',
       data: <String, Object?>{
         'text': text,

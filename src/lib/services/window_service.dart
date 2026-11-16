@@ -56,8 +56,9 @@ class WindowService {
   /// the window's title-bar button without announcing).
   Future<void> _reconcileChildren() async {
     try {
-      final existing =
-          (await WindowController.getAll()).map((w) => w.windowId).toSet();
+      final existing = (await WindowController.getAll())
+          .map((w) => w.windowId)
+          .toSet();
       final closed = _childWindows
           .where((w) => !existing.contains(w.windowId))
           .toList(growable: false);
@@ -85,8 +86,7 @@ class WindowService {
       ),
     );
 
-    // Register the child with the data broker so every dispatch on the main
-    // window is forwarded to this detached window (and vice-versa).
+    // Register the mirror; transient events are routed by its subscriptions.
     DataBroker.registerChildWindow(controller.windowId);
 
     _childWindows.add(controller);

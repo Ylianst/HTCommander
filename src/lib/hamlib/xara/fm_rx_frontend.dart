@@ -13,6 +13,7 @@ import 'dart:typed_data';
 
 import 'dsp.dart';
 import 'fm_ctrl.dart';
+import 'native_dsp.dart';
 import 'ofdm_const.dart';
 
 const double fs6 = 6000.0;
@@ -32,14 +33,16 @@ class FrontEnd {
   final Float64List _hi = Float64List(frontTaps);
   final SampleTrack _x = SampleTrack(4 * frontTaps);
   int _outNext = 0;
+  NativeXaraFir? _native;
 
-  FrontEnd() {
+  FrontEnd({bool useNative = true}) {
     final List<double> lp = kaiserLowpass(frontTaps, 3000.0, fs, 6.76);
     for (int i = 0; i < frontTaps; i++) {
       final double a = 2.0 * math.pi * 3000.0 * (i - _d) / fs;
       _hr[i] = lp[i] * math.cos(a);
       _hi[i] = lp[i] * math.sin(a);
     }
+    if (useNative) _native = createNativeFir(_hr, _hi, dec);
   }
 
   /// Returns the absolute 6 kHz index of the first output sample and the
@@ -49,6 +52,15 @@ class FrontEnd {
     final int m0 = _outNext;
     final int mHi = floorDiv(_x.end - 1 - _d, dec);
     final int n = mHi >= m0 ? mHi - m0 + 1 : 0;
+    final native = _native;
+    if (native != null && n > 0) {
+      final int start = dec * m0 - _d;
+      final samples = Float64List(frontTaps + (n - 1) * dec);
+      _x.fill(start, start + samples.length, samples);
+      final out = native.process(samples, n);
+      _outNext = m0 + n;
+      return (m0, out);
+    }
     final Float64List out = Float64List(2 * n);
     final int base = _x.base;
     for (int o = 0; o < n; o++) {
@@ -112,7 +124,8 @@ class CtrlDetector {
   _Best? _best;
   int _hold = 0;
 
-  CtrlDetector(this.codebook, List<int> enabled) : _enabled = List<int>.of(enabled);
+  CtrlDetector(this.codebook, List<int> enabled)
+    : _enabled = List<int>.of(enabled);
 
   void setEnabled(List<int> enabled) {
     _enabled = List<int>.of(enabled);

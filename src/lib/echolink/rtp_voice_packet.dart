@@ -82,14 +82,26 @@ class RtpVoicePacket {
   /// Serializes the packet (header + payload) into a new [Uint8List].
   Uint8List toBytes() {
     final Uint8List out = Uint8List(headerSize + payload.length);
-    final ByteData bd = ByteData.sublistView(out);
+    writeHeader(out, version: version, pt: pt, seqNum: seqNum,
+        timestamp: timestamp, ssrc: ssrc);
+    out.setRange(headerSize, headerSize + payload.length, payload);
+    return out;
+  }
+
+  /// Writes only the 12-byte header, leaving any payload in [out] untouched.
+  static void writeHeader(Uint8List out, {
+    int version = audioVersion,
+    int pt = ptGsm,
+    required int seqNum,
+    int timestamp = 0,
+    int ssrc = 0,
+  }) {
+    final ByteData bd = ByteData.sublistView(out, 0, headerSize);
     bd.setUint8(0, version & 0xFF);
     bd.setUint8(1, pt & 0xFF);
     bd.setUint16(2, seqNum & 0xFFFF, Endian.big);
     bd.setUint32(4, timestamp & 0xFFFFFFFF, Endian.big);
     bd.setUint32(8, ssrc & 0xFFFFFFFF, Endian.big);
-    out.setRange(headerSize, headerSize + payload.length, payload);
-    return out;
   }
 
   /// Parses a received datagram. Returns null if it is too short to contain a

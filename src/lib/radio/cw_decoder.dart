@@ -28,6 +28,9 @@ typedef CwDecodedCallback = void Function(String text, int wpm);
 /// transmissions are reported through [onDecoded]. A transmission is considered
 /// finished after [idleFinishMs] of silence, or when [flush] is called (e.g. at
 /// the end of a receive burst).
+///
+/// PCM conversion storage grows to the largest block received and is retained
+/// across [reset]. Goertzel scratch storage is reused and cleared every window.
 class CwDecoder {
   CwDecoder({
     this.sampleRate = 32000,
@@ -53,6 +56,8 @@ class CwDecoder {
       _probeFreqs.add(f.toDouble());
     }
     _coeffs = Float64List.fromList(probes);
+    _s1 = Float64List(_coeffs.length);
+    _s2 = Float64List(_coeffs.length);
     _halfN = windowSize / 2.0;
   }
 
@@ -89,6 +94,9 @@ class CwDecoder {
   CwDecodedCallback? onDecoded;
 
   late final Float64List _coeffs;
+  late final Float64List _s1;
+  late final Float64List _s2;
+  Float64List _pcmSamples = Float64List(0);
   final List<double> _probeFreqs = <double>[];
   late final double _halfN;
 
@@ -121,20 +129,29 @@ class CwDecoder {
   void processPcm16(Uint8List pcm, int offset, int length) {
     if (length <= 1) return;
     final count = length ~/ 2;
-    final samples = Float64List(count);
+    if (_pcmSamples.length < count) {
+      _pcmSamples = Float64List(count);
+    }
+    final samples = _pcmSamples;
     for (int i = 0; i < count; i++) {
       final b = offset + i * 2;
       int raw = pcm[b] | (pcm[b + 1] << 8);
       if (raw >= 0x8000) raw -= 0x10000;
       samples[i] = raw / 32768.0;
     }
-    addSamples(samples);
+    _addSamples(samples, count);
   }
 
   /// Feeds float audio samples normalized to -1..1.
   void addSamples(Float64List samples) {
-    if (samples.isEmpty) return;
-    _buffer.addAll(samples);
+    _addSamples(samples, samples.length);
+  }
+
+  void _addSamples(Float64List samples, int count) {
+    if (count == 0) return;
+    for (int i = 0; i < count; i++) {
+      _buffer.add(samples[i]);
+    }
     while (_buffer.length - _readPos >= windowSize) {
       _processWindow(_readPos);
       _readPos += hopSize;
@@ -151,8 +168,10 @@ class CwDecoder {
     final n = windowSize;
     final probeCount = _coeffs.length;
     // Per-probe Goertzel recurrences plus the frame energy.
-    final s1 = Float64List(probeCount);
-    final s2 = Float64List(probeCount);
+    final s1 = _s1;
+    final s2 = _s2;
+    s1.fillRange(0, probeCount, 0.0);
+    s2.fillRange(0, probeCount, 0.0);
     double energy = 0.0;
     for (int i = 0; i < n; i++) {
       final x = _buffer[start + i];
@@ -205,7 +224,9 @@ class CwDecoder {
     _lastFrameMs = frameMs;
     _updateEnvelope(frameMs, toneOn);
 
-    if (!_committedTone && _hasContent && frameMs - _lastEdgeMs >= idleFinishMs) {
+    if (!_committedTone &&
+        _hasContent &&
+        frameMs - _lastEdgeMs >= idleFinishMs) {
       _finish(frameMs);
     }
   }
@@ -267,7 +288,7 @@ class CwDecoder {
   String _decodeSegments() {
     final marks = <double>[
       for (final s in _segments)
-        if (s.tone) s.ms
+        if (s.tone) s.ms,
     ];
     if (marks.isEmpty) return '';
     final unit = _estimateUnit(marks);

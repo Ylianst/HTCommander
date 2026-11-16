@@ -55,13 +55,19 @@ List<Uint8List> phaseIndices(int? key) {
 }
 
 final List<(int?, Phasors)> _phasorCache = <(int?, Phasors)>[];
+// VB's randInt(32) includes both endpoints.
+final List<Cx> _phaseValues = List<Cx>.generate(
+  33,
+  (d) => Cx.polar(1.0, math.pi * d / 15.0),
+  growable: false,
+);
 
 Phasors phasors(int? key) {
   for (final (int? k, Phasors p) in _phasorCache) {
     if (k == key) return p;
   }
   final Phasors p = phaseIndices(key)
-      .map((r) => List<Cx>.unmodifiable(r.map((d) => Cx.polar(1.0, math.pi * d / 15.0))))
+      .map((r) => List<Cx>.unmodifiable(r.map((d) => _phaseValues[d])))
       .toList(growable: false);
   if (_phasorCache.length >= 8) _phasorCache.removeAt(0);
   _phasorCache.add((key, p));
@@ -75,7 +81,10 @@ Uint8List fmEncode(FmBandwidth bw, FmRecord record, List<int> frame) {
   final RecordTables t = fmCodeTables(bw)[record.index];
   final Uint8List info = frameBits(frame, l.layout.k);
   whiten(info, fmWhitening());
-  return interleave(turboEncode(info, t.turbo, l.puncturePeriodValue, l.n), t.chan);
+  return interleave(
+    turboEncode(info, t.turbo, l.puncturePeriodValue, l.n),
+    t.chan,
+  );
 }
 
 /// FM frame codec (encode + turbo decode) for one bandwidth.
@@ -90,10 +99,20 @@ class FmCodec {
 
   RecordTables tables(FmRecord record) => fmCodeTables(bw)[record.index];
 
-  Uint8List encode(FmRecord record, List<int> frame) => fmEncode(bw, record, frame);
+  Uint8List encode(FmRecord record, List<int> frame) =>
+      fmEncode(bw, record, frame);
 
   FrameOut decode(FmRecord record, List<double> llrTx) {
     final FmLevel l = level(record);
-    return decodeFrame(_turbo, tables(record), l.layout.k, l.n, l.puncturePeriodValue, fmWhitening(), early, llrTx);
+    return decodeFrame(
+      _turbo,
+      tables(record),
+      l.layout.k,
+      l.n,
+      l.puncturePeriodValue,
+      fmWhitening(),
+      early,
+      llrTx,
+    );
   }
 }

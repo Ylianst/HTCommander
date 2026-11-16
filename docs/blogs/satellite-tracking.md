@@ -46,6 +46,14 @@ its sub-point with its radio-horizon **footprint circle**, and the selected
 satellite gets its **ground track** — the path it traces over the Earth for the
 next ~50 minutes either side of now.
 
+Satellite markers/footprints, satellite ground tracks, and aircraft update in
+independent map layers. Station markers, MeshCore markers, and station tracks
+are cached until their data, filters, or display settings change, so a moving
+satellite does not rebuild unrelated markers or re-sort them. Stations,
+MeshCore nodes, and Winlink gateways retain their shared north-to-south overlap
+ordering; gateway visibility follows the map camera. Hidden map tabs defer live
+layer rendering until shown again.
+
 It works **offline on first run** (a small seed of orbital data ships in the
 app) and quietly refreshes itself from the internet when it can.
 
@@ -88,8 +96,21 @@ frequencies, each cached to disk with a bundled seed as the offline fallback.
 
 **Tracking engine.** A background handler joins those two sources into a catalog
 of workable FM birds, then once per second propagates each one and publishes its
-position, look-angle, and Doppler. Pass predictions are computed when they need
-to be (on a location change), not every tick.
+position, look-angle, and Doppler. The radio reuses that tick's position rather
+than propagating the tracked bird again; target changes still tune immediately.
+Its one-second update cadence does not wait for prediction results.
+
+A persistent prediction worker runs the 48-hour searches and horizon-LOS
+searches on an isolate on native platforms. The catalog's next pass, selected
+bird's pass list, and radio countdown share the same in-flight search and
+five-minute cached pass snapshot. Expired AOS entries are filtered out, and
+snapshots refresh after five minutes. Observer (including altitude), catalog,
+and minimum-elevation changes invalidate predictions; late replies cannot
+overwrite a newer selection, tracking target, or disabled feature. No-pass
+tracking results are retried at most once a minute, not every radio tick.
+On web, where Dart isolates are unavailable, the same worker protocol uses a
+cooperative search that yields between small sample batches and preserves the
+package's 30-second grid and fully-bracketed-pass policy.
 
 **UI.** The tab and the map overlay are pure display + selection. They subscribe
 to the handler's broadcasts and never do orbital math themselves.

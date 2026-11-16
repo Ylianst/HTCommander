@@ -27,6 +27,7 @@ import '../hamlib/fx25.dart';
 import '../hamlib/fx25_send.dart';
 import '../hamlib/gen_tone.dart';
 import '../hamlib/hdlc_send.dart';
+import '../hamlib/native_packet_modem.dart';
 
 /// One DART frame to modulate: raw payload plus the on-air mode and sequence
 /// number chosen by the caller (the caller owns the monotonic sequence).
@@ -130,11 +131,13 @@ class ModemTxEncoder {
     return _request(<String, Object?>{
       'kind': 'dart',
       'frames': frames
-          .map((DartTxFrame f) => <String, Object?>{
-                'payload': f.payload,
-                'mode': f.mode.index,
-                'seqNum': f.seqNum,
-              })
+          .map(
+            (DartTxFrame f) => <String, Object?>{
+              'payload': f.payload,
+              'mode': f.mode.index,
+              'seqNum': f.seqNum,
+            },
+          )
           .toList(growable: false),
     });
   }
@@ -289,8 +292,11 @@ Uint8List? _buildPacketPcm(Map message, List<String> logs) {
   audioConfig.channels[0].txtail = txtail;
 
   final AudioBuffer buffer = AudioBuffer(AudioConfig.maxAudioDevices);
-  final GenTone genTone = GenTone(buffer);
-  genTone.init(audioConfig, 50);
+  final _PacketBitCollector? nativeTone = nativePacketModemEnabled
+      ? _PacketBitCollector()
+      : null;
+  final ToneBitSink genTone =
+      nativeTone ?? (GenTone(buffer)..init(audioConfig, 50));
   final HdlcSend hdlcSend = HdlcSend(genTone, audioConfig);
   final Fx25Send fx25Send = Fx25Send()..init(genTone);
 
@@ -298,8 +304,10 @@ Uint8List? _buildPacketPcm(Map message, List<String> logs) {
   buffer.clearAll();
 
   // Half a second of leading silence so PTT is fully keyed before data tones.
-  for (int i = 0; i < sampleRate ~/ 2; i++) {
-    buffer.put(0, 0);
+  if (nativeTone == null) {
+    for (int i = 0; i < sampleRate ~/ 2; i++) {
+      buffer.put(0, 0);
+    }
   }
 
   // Single preamble for the whole transmission.
@@ -312,14 +320,22 @@ Uint8List? _buildPacketPcm(Map message, List<String> logs) {
     final Uint8List frameData = entry as Uint8List;
     int sent = -1;
     if (fecEnabled && frameData.length >= ax25MinDataLen) {
-      sent = fx25Send.sendFrame(chan, frameData, frameData.length,
-          fx25SmallestFec);
+      sent = fx25Send.sendFrame(
+        chan,
+        frameData,
+        frameData.length,
+        fx25SmallestFec,
+      );
       if (sent < 0) {
-        logs.add('TX FX.25: sendFrame rejected the frame (too small/large for '
-            'any FX.25 block) - falling back to plain AX.25.');
+        logs.add(
+          'TX FX.25: sendFrame rejected the frame (too small/large for '
+          'any FX.25 block) - falling back to plain AX.25.',
+        );
       } else {
-        logs.add('TX FX.25: encoded ${frameData.length}-byte frame into '
-            '$sent bits.');
+        logs.add(
+          'TX FX.25: encoded ${frameData.length}-byte frame into '
+          '$sent bits.',
+        );
       }
     }
     if (sent < 0) {
@@ -331,6 +347,17 @@ Uint8List? _buildPacketPcm(Map message, List<String> logs) {
   // Single postamble.
   hdlcSend.sendFlags(chan, txtail, true, (device) {});
 
+  if (nativeTone != null) {
+    return encodeNativePacketTones(
+      audioConfig.channels[chan],
+      sampleRate,
+      50,
+      nativeTone.bits,
+      leadingSamples: sampleRate ~/ 2,
+      trailingSamples: sampleRate ~/ 10,
+    );
+  }
+
   // 1/10th of a second of trailing silence so the final tones are fully sent
   // before PTT is released.
   for (int i = 0; i < sampleRate ~/ 10; i++) {
@@ -340,6 +367,27 @@ Uint8List? _buildPacketPcm(Map message, List<String> logs) {
   final Int16List samples = buffer.getAndClear(0);
   if (samples.isEmpty) return null;
   return _packSamples(samples);
+}
+
+/// Retains one byte per NRZI level instead of a boxed integer per PCM sample.
+/// The existing framing and FEC writers still own every on-air bit.
+class _PacketBitCollector implements ToneBitSink {
+  Uint8List _bits = Uint8List(4096);
+  int _length = 0;
+
+  Uint8List get bits => Uint8List.sublistView(_bits, 0, _length);
+
+  @override
+  void putBit(int chan, int dat) {
+    if (chan != 0 || (dat != 0 && dat != 1)) {
+      throw ArgumentError('Packet tone collector requires channel 0 NRZI bits');
+    }
+    if (_length == _bits.length) {
+      final grown = Uint8List(_bits.length * 2)..setAll(0, _bits);
+      _bits = grown;
+    }
+    _bits[_length++] = dat;
+  }
 }
 
 /// Pack 16-bit samples into little-endian PCM bytes, clamping to range.

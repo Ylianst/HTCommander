@@ -13,14 +13,21 @@ import 'dart:typed_data';
 
 import 'crc.dart';
 import 'fec.dart';
+import 'native_dsp.dart';
 
 const int _len = 1024;
 const int _segments = 4;
 const double _neg = -1e9;
 
 final (List<List<int>>, List<List<bool>>) _trellis = () {
-  final List<List<int>> next = List<List<int>>.generate(8, (_) => List<int>.filled(2, 0));
-  final List<List<bool>> par = List<List<bool>>.generate(8, (_) => List<bool>.filled(2, false));
+  final List<List<int>> next = List<List<int>>.generate(
+    8,
+    (_) => List<int>.filled(2, 0),
+  );
+  final List<List<bool>> par = List<List<bool>>.generate(
+    8,
+    (_) => List<bool>.filled(2, false),
+  );
   for (int s = 0; s < 8; s++) {
     final int r0 = (s >> 2) & 1, r1 = (s >> 1) & 1, r2 = s & 1;
     for (int u = 0; u < 2; u++) {
@@ -72,7 +79,12 @@ int usedLen(int k, int p) => puncturedLen(k, p);
 Split split(List<double> llr, List<int> perm, int p) {
   final int k = perm.length;
   final int tLen = k + 3;
-  final Split s = Split(Float64List(tLen), Float64List(tLen), Float64List(tLen), Float64List(tLen));
+  final Split s = Split(
+    Float64List(tLen),
+    Float64List(tLen),
+    Float64List(tLen),
+    Float64List(tLen),
+  );
   int i = 0;
   double next() {
     if (i >= llr.length) throw StateError('too few LLRs');
@@ -128,20 +140,56 @@ class CrcCheck {
 }
 
 class TurboDecoder {
-  const TurboDecoder();
+  final bool useNative;
 
-  Decoded decode(Split sp, List<int> perm, int iters, double scale, (int, CrcCheck)? early) {
+  const TurboDecoder({this.useNative = true});
+
+  Decoded decode(
+    Split sp,
+    List<int> perm,
+    int iters,
+    double scale,
+    (int, CrcCheck)? early,
+  ) {
+    if (useNative && nativeDspEnabled) {
+      final (bits, ran) = decodeNativeTurbo(
+        sp.ls,
+        sp.lp1,
+        sp.ls2,
+        sp.lp2,
+        perm,
+        iters,
+        scale,
+        early == null ? 0 : (early.$1 < 1 ? 1 : early.$1),
+        early?.$2.white ?? const <int>[],
+        early?.$2.nbytes ?? 0,
+      );
+      return Decoded(bits, ran);
+    }
     _initTables();
     return _run(scale, sp, perm, iters, early);
   }
 }
 
-double _g(int i, double g0, double g1) => switch (i) { 0 => g0, 1 => g1, 2 => -g1, _ => -g0 };
+double _g(int i, double g0, double g1) => switch (i) {
+  0 => g0,
+  1 => g1,
+  2 => -g1,
+  _ => -g0,
+};
 
 /// Forward recursion over one window: stores each step's alpha in [cells] and
 /// leaves the alpha after the window in [a].
-void _alpha(Float64List x, int xOff, Float64List p, int pOff, int n, Float64List a, Float64List cells,
-    Float64List nb) {
+void _alpha(
+  Float64List x,
+  int xOff,
+  Float64List p,
+  int pOff,
+  int n,
+  Float64List a,
+  Float64List cells,
+  Float64List nb,
+) {
   for (int t = 0; t < n; t++) {
     final int c = 8 * t;
     for (int s = 0; s < 8; s++) {
@@ -163,8 +211,21 @@ void _alpha(Float64List x, int xOff, Float64List p, int pOff, int n, Float64List
 
 /// Backward recursion over one window; writes extrinsic LLRs for its first
 /// [outLen] steps to `out[outOff..]` and leaves the boundary beta in [b].
-void _beta(double scale, Float64List x, int xOff, Float64List p, int pOff, int n, Float64List b,
-    Float64List cells, Float64List out, int outOff, int outLen, Float64List bs, Float64List nb) {
+void _beta(
+  double scale,
+  Float64List x,
+  int xOff,
+  Float64List p,
+  int pOff,
+  int n,
+  Float64List b,
+  Float64List cells,
+  Float64List out,
+  int outOff,
+  int outLen,
+  Float64List bs,
+  Float64List nb,
+) {
   for (int t = n - 1; t >= 0; t--) {
     final double xv = x[xOff + t], pv = p[pOff + t];
     final double g0 = 0.5 * (xv + pv), g1 = 0.5 * (xv - pv);
@@ -193,9 +254,24 @@ void _beta(double scale, Float64List x, int xOff, Float64List p, int pOff, int n
   }
 }
 
-final Float64List _term = Float64List.fromList(<double>[0.0, _neg, _neg, _neg, _neg, _neg, _neg, _neg]);
+final Float64List _term = Float64List.fromList(<double>[
+  0.0,
+  _neg,
+  _neg,
+  _neg,
+  _neg,
+  _neg,
+  _neg,
+  _neg,
+]);
 
-Decoded _run(double scale, Split sp, List<int> perm, int iters, (int, CrcCheck)? early) {
+Decoded _run(
+  double scale,
+  Split sp,
+  List<int> perm,
+  int iters,
+  (int, CrcCheck)? early,
+) {
   final int k = perm.length;
   final int tLen = k + 3;
   final List<Float64List> ls = <Float64List>[sp.ls, sp.ls2];
@@ -211,10 +287,14 @@ Decoded _run(double scale, Split sp, List<int> perm, int iters, (int, CrcCheck)?
   final Float64List le21 = Float64List(k);
   final Uint8List bits = Uint8List(k);
   // pb[d][parity] holds 8 states per window; ap[d][parity] 8 per segment.
-  final List<List<Float64List>> pb =
-      List.generate(2, (_) => List<Float64List>.generate(2, (_) => Float64List(8 * (nwin + 1))));
-  final List<List<Float64List>> ap =
-      List.generate(2, (_) => List<Float64List>.generate(2, (_) => Float64List(8 * (nseg + 1))));
+  final List<List<Float64List>> pb = List.generate(
+    2,
+    (_) => List<Float64List>.generate(2, (_) => Float64List(8 * (nwin + 1))),
+  );
+  final List<List<Float64List>> ap = List.generate(
+    2,
+    (_) => List<Float64List>.generate(2, (_) => Float64List(8 * (nseg + 1))),
+  );
   final Float64List x = Float64List(seg);
   final Float64List cells = Float64List(8 * _len);
   final Float64List a = Float64List(8);
@@ -231,7 +311,9 @@ Decoded _run(double scale, Split sp, List<int> perm, int iters, (int, CrcCheck)?
         final int s0 = i * seg;
         final int s1 = (i + 1) * seg < tLen ? (i + 1) * seg : tLen;
         for (int t = s0; t < s1; t++) {
-          x[t - s0] = t >= k ? lsd[t] : (d == 0 ? ls[0][t] + src[t] : ls[1][t] + src[perm[t]]);
+          x[t - s0] = t >= k
+              ? lsd[t]
+              : (d == 0 ? ls[0][t] + src[t] : ls[1][t] + src[perm[t]]);
         }
         if (i == 0) {
           a.setAll(0, _term);
@@ -247,7 +329,21 @@ Decoded _run(double scale, Split sp, List<int> perm, int iters, (int, CrcCheck)?
             b.setRange(0, 8, pb[d][old], 8 * (e ~/ _len));
           }
           final int kk = (k < e ? k : e) - s;
-          _beta(scale, x, s - s0, lp[d], s, e - s, b, cells, ext[d], s, kk > 0 ? kk : 0, bs, nb);
+          _beta(
+            scale,
+            x,
+            s - s0,
+            lp[d],
+            s,
+            e - s,
+            b,
+            cells,
+            ext[d],
+            s,
+            kk > 0 ? kk : 0,
+            bs,
+            nb,
+          );
           pb[d][nw].setRange(8 * (s ~/ _len), 8 * (s ~/ _len) + 8, b);
         }
         if (i + 1 < nseg) ap[d][nw].setRange(8 * (i + 1), 8 * (i + 2), a);
@@ -261,7 +357,12 @@ Decoded _run(double scale, Split sp, List<int> perm, int iters, (int, CrcCheck)?
       bits[j] = bit;
     }
     ran = it;
-    if (early != null && it >= early.$1 && it < iters && !changed && early.$2.ok(bits)) break;
+    if (early != null &&
+        it >= early.$1 &&
+        it < iters &&
+        !changed &&
+        early.$2.ok(bits))
+      break;
   }
   return Decoded(bits, ran);
 }

@@ -106,6 +106,12 @@ class EchoLinkQso {
   /// True if the connection was initiated by the remote station.
   bool get isRemoteInitiated => _remoteInitiated;
 
+  /// Releases audio resources when the owner discards this QSO.
+  void dispose() {
+    _encoder.dispose();
+    _decoder.dispose();
+  }
+
   void _setState(QsoState s) {
     if (_state != s) {
       _state = s;

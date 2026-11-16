@@ -20,6 +20,7 @@ import 'package:htcommander/hamlib/xara/fm_level.dart';
 import 'package:htcommander/hamlib/xara/fm_session.dart';
 import 'package:htcommander/hamlib/xara/fm_station.dart';
 import 'package:htcommander/hamlib/xara/kiss_command.dart';
+import 'package:htcommander/hamlib/xara/resample.dart';
 import 'package:htcommander/hamlib/xara/station.dart';
 import 'package:htcommander/hamlib/xara/xara_driver.dart';
 
@@ -139,8 +140,62 @@ bool same(List<int> a, List<int> b) {
   return true;
 }
 
+Int16List referenceBurst(FmStation station, int rate, int keyUp, int block) {
+  List<double> output = <double>[];
+  while (station.keyedFirst < 0 && station.now < 96000) {
+    output = List<double>.filled(block, 0.0);
+    station.process(List<double>.filled(block, 0.0), output);
+  }
+  if (station.keyedFirst < 0) throw StateError('Reference station did not transmit');
+  final List<double> burst = List<double>.filled(keyUp, 0.0, growable: true);
+  int from = station.keyedFirst;
+  while (true) {
+    if (!station.transmitting) {
+      if (station.keyedFirst >= 0) burst.addAll(output.sublist(from, station.keyedLast + 1));
+      break;
+    }
+    burst.addAll(output.sublist(from));
+    output = List<double>.filled(block, 0.0);
+    station.process(List<double>.filled(block, 0.0), output);
+    from = 0;
+  }
+  final Resampler r = Resampler(48000.0, rate.toDouble());
+  final List<double> samples = <double>[...r.process(burst), ...r.flush()];
+  return Int16List.fromList(<int>[for (final double v in samples) (v * 32767.0).round().clamp(-32768, 32767)]);
+}
+
 void main() {
   group('xara driver', () {
+    test('streamed TX matches whole-burst PCM at fractional and identity rates', () {
+      for (final (rate, keyUp, block, kiss) in <(int, int, int, bool)>[
+        (32000, 0, 480, false),
+        (32000, 14400, 127, true),
+        (44100, 137, 479, true),
+        (48000, 0, 480, false),
+      ]) {
+        final FmStation actual = station('N0CALL', 1, 0);
+        final FmStation reference = station('N0CALL', 1, 0);
+        for (final FmStation s in <FmStation>[actual, reference]) {
+          if (kiss) {
+            expect(s.kiss(KissCommand.generic, bytes(700, 23)), isTrue);
+          } else {
+            expect(s.connect('N0CALL', 'N1CALL', const <String>[]), isTrue);
+          }
+        }
+        final XaraDriver driver = XaraDriver(actual, hostRate: rate, delay: 0, keyUp: keyUp, block: block);
+        final List<Int16List> bursts = <Int16List>[];
+        for (int wall = block; wall < 96000 && bursts.isEmpty; wall += block) {
+          bursts.addAll(driver.tick(wall));
+        }
+        expect(
+          bursts.single,
+          referenceBurst(reference, rate, keyUp, block),
+          reason: '$rate Hz, $keyUp pre-roll samples, $block-sample blocks, KISS $kiss',
+        );
+        expect(actual.now, reference.now);
+      }
+    });
+
     test('a burst is rendered whole at the host rate', () {
       final XaraDriver d = XaraDriver(station('N0CALL', 1, 0));
       expect(d.station.connect('N0CALL', 'N1CALL', const <String>[]), isTrue);

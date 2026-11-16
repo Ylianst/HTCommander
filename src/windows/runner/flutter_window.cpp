@@ -42,10 +42,10 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
-  bluetooth_plugin_ = std::make_unique<BluetoothClassicPlugin>(
-      flutter_controller_->engine()->messenger());
   pcm_player_plugin_ = std::make_unique<PcmPlayerPlugin>(
       flutter_controller_->engine()->messenger());
+  bluetooth_plugin_ = std::make_unique<BluetoothClassicPlugin>(
+      flutter_controller_->engine()->messenger(), pcm_player_plugin_->output());
   tts_plugin_ = std::make_unique<TtsPlugin>(
       flutter_controller_->engine()->messenger());
 
@@ -98,10 +98,11 @@ bool FlutterWindow::OnCreate() {
     // lifetime.
     static std::vector<std::unique_ptr<BluetoothClassicPlugin>> bt_plugins;
     static std::vector<std::unique_ptr<PcmPlayerPlugin>> pcm_plugins;
-    bt_plugins.push_back(
-        std::make_unique<BluetoothClassicPlugin>(engine->messenger()));
     pcm_plugins.push_back(
         std::make_unique<PcmPlayerPlugin>(engine->messenger()));
+    bt_plugins.push_back(
+        std::make_unique<BluetoothClassicPlugin>(
+            engine->messenger(), pcm_plugins.back()->output()));
   });
 
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
@@ -119,6 +120,9 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  bluetooth_plugin_.reset();
+  pcm_player_plugin_.reset();
+  tts_plugin_.reset();
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

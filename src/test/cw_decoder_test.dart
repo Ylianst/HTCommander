@@ -23,13 +23,42 @@ import 'package:htcommander/radio/cw_decoder.dart';
 const int _fs = 32000;
 
 const Map<String, String> _morse = {
-  'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
-  'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
-  'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.',
-  'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
-  'Y': '-.--', 'Z': '--..',
-  '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-',
-  '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.',
+  'A': '.-',
+  'B': '-...',
+  'C': '-.-.',
+  'D': '-..',
+  'E': '.',
+  'F': '..-.',
+  'G': '--.',
+  'H': '....',
+  'I': '..',
+  'J': '.---',
+  'K': '-.-',
+  'L': '.-..',
+  'M': '--',
+  'N': '-.',
+  'O': '---',
+  'P': '.--.',
+  'Q': '--.-',
+  'R': '.-.',
+  'S': '...',
+  'T': '-',
+  'U': '..-',
+  'V': '...-',
+  'W': '.--',
+  'X': '-..-',
+  'Y': '-.--',
+  'Z': '--..',
+  '0': '-----',
+  '1': '.----',
+  '2': '..---',
+  '3': '...--',
+  '4': '....-',
+  '5': '.....',
+  '6': '-....',
+  '7': '--...',
+  '8': '---..',
+  '9': '----.',
 };
 
 /// Renders on/off-keyed CW for [text]. During "key down" the sample value comes
@@ -118,8 +147,7 @@ Float64List _silence(int ms) => Float64List(_fs * ms ~/ 1000);
 /// (empty if nothing was decoded).
 String _decode(Float64List samples, {CwDecoder? decoder}) {
   final results = <String>[];
-  final dec = decoder ??
-      CwDecoder(onDecoded: (text, wpm) => results.add(text));
+  final dec = decoder ?? CwDecoder(onDecoded: (text, wpm) => results.add(text));
   dec.onDecoded ??= (text, wpm) => results.add(text);
   const chunk = 800;
   for (int i = 0; i < samples.length; i += chunk) {
@@ -217,6 +245,67 @@ void main() {
       dec.processPcm16(pcm, 0, pcm.length);
       dec.flush();
       expect(results.join(' '), 'CQ');
+    });
+
+    test('reuses PCM storage across varying lengths, offsets and resets', () {
+      final expected = <(String, int)>[];
+      final actual = <(String, int)>[];
+      final reference = CwDecoder(onDecoded: (t, w) => expected.add((t, w)));
+      final decoder = CwDecoder(onDecoded: (t, w) => actual.add((t, w)));
+      const chunks = [2048, 1, 17, 640, 4096, 3, 128];
+      final packet = Uint8List(4096 * 2 + 5);
+      for (final (text, hz) in [('PARIS', 700.0), ('SOS', 400.0)]) {
+        final samples = _renderCw(text, _tone(hz, 0.5));
+        final quantized = Float64List(samples.length);
+        for (int i = 0; i < samples.length; i++) {
+          quantized[i] = (samples[i] * 32767).round() / 32768.0;
+        }
+        reference.addSamples(quantized);
+        reference.flush();
+        int position = 0;
+        int block = 0;
+        while (position < samples.length) {
+          final count = math.min(
+            chunks[block++ % chunks.length],
+            samples.length - position,
+          );
+          packet.fillRange(0, packet.length, 0xa5);
+          for (int i = 0; i < count; i++) {
+            final value = (samples[position + i] * 32767).round();
+            packet[3 + i * 2] = value & 0xff;
+            packet[4 + i * 2] = (value >> 8) & 0xff;
+          }
+          decoder.processPcm16(packet, 3, count * 2 + 1);
+          decoder.processPcm16(packet, 3, 0);
+          decoder.processPcm16(packet, 3, 1);
+          position += count;
+        }
+        decoder.flush();
+        expect(actual, expected);
+        expect(actual.last.$1, text);
+        expect(decoder.lastToneHz, reference.lastToneHz);
+        decoder.reset();
+        reference.reset();
+      }
+    });
+
+    test('clears Goertzel scratch between windows with custom probes', () {
+      final results = <String>[];
+      final decoder = CwDecoder(
+        bandLowHz: 500,
+        bandHighHz: 800,
+        probeStepHz: 50,
+        onDecoded: (text, _) => results.add(text),
+      );
+      for (final hz in [600.0, 750.0]) {
+        decoder.addSamples(_renderCw('SOS', _tone(hz, 0.5)));
+        decoder.addSamples(_silence(2000));
+        expect(results, List.filled(results.length, 'SOS'));
+        expect(results.length, hz == 600.0 ? 1 : 2);
+        expect(decoder.lastToneHz, hz);
+      }
+      decoder.flush();
+      expect(results, ['SOS', 'SOS']);
     });
 
     test('auto-finishes after an idle gap without an explicit flush', () {

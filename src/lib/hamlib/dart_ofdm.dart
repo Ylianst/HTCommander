@@ -33,6 +33,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'dart_constellation.dart';
+import 'native_dart_dsp.dart';
+import 'xara/native_dsp.dart' as xara;
 
 /// DART OFDM parameters.
 class DartOfdmParams {
@@ -82,11 +84,38 @@ class DartOfdmParams {
   }
 }
 
+final class _DartFftBuffers {
+  final Float64List re, im;
+  final xara.NativeXaraFft plan;
+
+  _DartFftBuffers(int n)
+    : re = Float64List(n),
+      im = Float64List(n),
+      plan = _createPlan(n);
+
+  static xara.NativeXaraFft _createPlan(int n) {
+    final plan = createNativeDartFft(n);
+    if (plan == null) throw StateError('Native DART FFT unavailable');
+    return plan;
+  }
+}
+
 /// DFT-spread OFDM modulator and demodulator.
 class DartOfdm {
   final DartOfdmParams params;
+  final bool useNative;
 
-  DartOfdm(this.params);
+  DartOfdm(this.params, {this.useNative = true});
+
+  static _DartFftBuffers? _nativeBuffers(int n, bool useNative) =>
+      useNative &&
+          nativeDartDspEnabled &&
+          xara.nativeDspEnabled &&
+          n >= 2 &&
+          n <= 2048 &&
+          n & (n - 1) == 0
+      ? _fftBuffers.putIfAbsent(n, () => _DartFftBuffers(n))
+      : null;
 
   /// Modulate one OFDM symbol from data symbols.
   /// [dataSymbols] has length == params.numDataCarriers.
@@ -107,17 +136,42 @@ class DartOfdm {
     }
 
     // Optional DFT-spread precoding (SC-FDMA)
-    final List<Complex> tones =
-        dftSpread ? _dftSpread(dataSymbols, inverse: false) : dataSymbols;
+    final List<Complex> tones = dftSpread
+        ? _dftSpread(dataSymbols, inverse: false, useNative: useNative)
+        : dataSymbols;
+
+    final buffers = _nativeBuffers(params.fftSize, useNative);
+    if (buffers != null) {
+      final re = buffers.re, im = buffers.im;
+      re.fillRange(0, re.length, 0);
+      im.fillRange(0, im.length, 0);
+      for (int i = 0; i < tones.length; i++) {
+        final k = params.activeCarriers[i];
+        re[k] = tones[i].i;
+        im[k] = tones[i].q;
+      }
+      buffers.plan.transform(re, im, true);
+      final output = Float64List(params.symbolLength);
+      for (int i = 0; i < params.cpLength; i++) {
+        output[i] = re[params.fftSize - params.cpLength + i] / params.fftSize;
+      }
+      for (int i = 0; i < params.fftSize; i++) {
+        output[params.cpLength + i] = re[i] / params.fftSize;
+      }
+      return output;
+    }
 
     // Subcarrier mapping — place tones into active FFT bins
-    final freqDomain = List<Complex>.filled(params.fftSize, const Complex(0, 0));
+    final freqDomain = List<Complex>.filled(
+      params.fftSize,
+      const Complex(0, 0),
+    );
     for (int i = 0; i < params.numDataCarriers; i++) {
       freqDomain[params.activeCarriers[i]] = tones[i];
     }
 
     // IFFT to time domain
-    final timeDomain = _fft(freqDomain, inverse: true);
+    final timeDomain = _fft(freqDomain, inverse: true, useNative: useNative);
 
     // Add cyclic prefix
     final output = Float64List(params.symbolLength);
@@ -153,6 +207,25 @@ class DartOfdm {
       );
     }
 
+    final buffers = _nativeBuffers(params.fftSize, useNative);
+    if (buffers != null) {
+      _transformSamples(samples, buffers);
+      final equalized = List<Complex>.generate(params.numDataCarriers, (i) {
+        final k = params.activeCarriers[i];
+        final h = channelEstimate[i];
+        final denom = h.magnitudeSquared + noiseVar;
+        if (!(denom > 1e-10)) return const Complex(0, 0);
+        final re = buffers.re[k], im = buffers.im[k];
+        return Complex(
+          (re * h.i + im * h.q) / denom,
+          (im * h.i - re * h.q) / denom,
+        );
+      });
+      return dftSpread
+          ? _dftSpread(equalized, inverse: true, useNative: useNative)
+          : equalized;
+    }
+
     // Step 1: Remove cyclic prefix
     final rxTime = List<Complex>.generate(
       params.fftSize,
@@ -160,7 +233,7 @@ class DartOfdm {
     );
 
     // Step 2: FFT to frequency domain
-    final freqDomain = _fft(rxTime, inverse: false);
+    final freqDomain = _fft(rxTime, inverse: false, useNative: useNative);
 
     // Step 3: Extract active subcarriers and equalize (ZF or MMSE)
     final equalized = List<Complex>.filled(
@@ -182,7 +255,9 @@ class DartOfdm {
     }
 
     // Step 4: undo DFT-spread (SC-FDMA de-precoding)
-    return dftSpread ? _dftSpread(equalized, inverse: true) : equalized;
+    return dftSpread
+        ? _dftSpread(equalized, inverse: true, useNative: useNative)
+        : equalized;
   }
 
   /// Demodulate one OFDM symbol returning raw (un-equalized) FFT bins for the
@@ -193,11 +268,19 @@ class DartOfdm {
         'Expected ${params.symbolLength} samples, got ${samples.length}',
       );
     }
+    final buffers = _nativeBuffers(params.fftSize, useNative);
+    if (buffers != null) {
+      _transformSamples(samples, buffers);
+      return List<Complex>.generate(params.numDataCarriers, (i) {
+        final k = params.activeCarriers[i];
+        return Complex(buffers.re[k], buffers.im[k]);
+      });
+    }
     final rxTime = List<Complex>.generate(
       params.fftSize,
       (i) => Complex(samples[params.cpLength + i], 0.0),
     );
-    final freqDomain = _fft(rxTime, inverse: false);
+    final freqDomain = _fft(rxTime, inverse: false, useNative: useNative);
     final bins = List<Complex>.filled(
       params.numDataCarriers,
       const Complex(0, 0),
@@ -208,6 +291,12 @@ class DartOfdm {
     return bins;
   }
 
+  void _transformSamples(Float64List samples, _DartFftBuffers buffers) {
+    buffers.re.setRange(0, params.fftSize, samples, params.cpLength);
+    buffers.im.fillRange(0, params.fftSize, 0);
+    buffers.plan.transform(buffers.re, buffers.im, false);
+  }
+
   /// Estimate channel from a known preamble symbol.
   /// [rxSamples] = received preamble symbol (length = symbolLength).
   /// [txSymbols] = known transmitted data symbols for the preamble.
@@ -216,12 +305,27 @@ class DartOfdm {
     Float64List rxSamples,
     List<Complex> txSymbols,
   ) {
+    if (_nativeBuffers(params.fftSize, useNative) != null) {
+      final bins = demodulateSymbolRaw(
+        Float64List.sublistView(rxSamples, 0, params.symbolLength),
+      );
+      return List<Complex>.generate(params.numDataCarriers, (i) {
+        if (i >= txSymbols.length) return const Complex(0, 0);
+        final x = txSymbols[i], y = bins[i];
+        final power = x.magnitudeSquared;
+        if (!(power > 1e-10)) return const Complex(0, 0);
+        return Complex(
+          (y.i * x.i + y.q * x.q) / power,
+          (y.q * x.i - y.i * x.q) / power,
+        );
+      });
+    }
     // Remove CP and FFT
     final rxTime = List<Complex>.generate(
       params.fftSize,
       (i) => Complex(rxSamples[params.cpLength + i], 0.0),
     );
-    final rxFreq = _fft(rxTime, inverse: false);
+    final rxFreq = _fft(rxTime, inverse: false, useNative: useNative);
 
     // Modulate the known TX symbols (same as modulateSymbol without CP)
     final txFreq = List<Complex>.filled(params.fftSize, const Complex(0, 0));
@@ -230,10 +334,7 @@ class DartOfdm {
     }
 
     // H[k] = Y[k] / X[k] for active carriers
-    final h = List<Complex>.filled(
-      params.numDataCarriers,
-      const Complex(0, 0),
-    );
+    final h = List<Complex>.filled(params.numDataCarriers, const Complex(0, 0));
     for (int i = 0; i < params.numDataCarriers; i++) {
       final int k = params.activeCarriers[i];
       final Complex y = rxFreq[k];
@@ -251,13 +352,48 @@ class DartOfdm {
 
   /// Convert a sequence of OFDM symbols (time-domain) to PCM audio samples.
   /// Scales to fit within [-amplitude, +amplitude] range for 16-bit output.
-  static Int16List toPcm(List<Float64List> symbols, {double amplitude = 0.8}) {
+  static Int16List toPcm(
+    List<Float64List> symbols, {
+    double amplitude = 0.8,
+    bool useNative = true,
+  }) {
     // Concatenate all symbol samples
     int totalSamples = 0;
     for (final sym in symbols) {
       totalSamples += sym.length;
     }
     final output = Int16List(totalSamples);
+
+    if (useNative && nativeDartDspEnabled) {
+      double peak = 0;
+      for (final symbol in symbols) {
+        for (int i = 0; i < symbol.length; i += 4096) {
+          final value = nativeDartPeak(
+            Float64List.sublistView(
+              symbol,
+              i,
+              math.min(i + 4096, symbol.length),
+            ),
+          );
+          if (value > peak) peak = value;
+        }
+      }
+      if (peak < 1e-10) return output;
+      final scale = amplitude * 32767.0 / peak;
+      int offset = 0;
+      for (final symbol in symbols) {
+        for (int i = 0; i < symbol.length; i += 4096) {
+          final end = math.min(i + 4096, symbol.length);
+          nativeDartToPcm(
+            Float64List.sublistView(symbol, i, end),
+            scale,
+            Int16List.sublistView(output, offset + i, offset + end),
+          );
+        }
+        offset += symbol.length;
+      }
+      return output;
+    }
 
     // Find peak for normalization
     double peak = 0;
@@ -281,8 +417,18 @@ class DartOfdm {
   }
 
   /// Convert PCM audio samples back to floating-point, normalized.
-  static Float64List fromPcm(Int16List pcm) {
+  static Float64List fromPcm(Int16List pcm, {bool useNative = true}) {
     final output = Float64List(pcm.length);
+    if (useNative && nativeDartDspEnabled) {
+      for (int i = 0; i < pcm.length; i += 4096) {
+        final end = math.min(i + 4096, pcm.length);
+        nativeDartFromPcm(
+          Int16List.sublistView(pcm, i, end),
+          Float64List.sublistView(output, i, end),
+        );
+      }
+      return output;
+    }
     for (int i = 0; i < pcm.length; i++) {
       output[i] = pcm[i] / 32767.0;
     }
@@ -295,18 +441,19 @@ class DartOfdm {
   /// Exposed so the receiver can reconstruct the transmitted subcarrier values
   /// X[k] from known data symbols (for decision-directed channel estimation).
   List<Complex> dftSpread(List<Complex> symbols, {bool inverse = false}) {
-    return _dftSpread(symbols, inverse: inverse);
+    return _dftSpread(symbols, inverse: inverse, useNative: useNative);
   }
 
-  /// Cached DFT-spread twiddle tables, keyed by transform size M and direction.
+  /// Cached forward DFT twiddles, keyed by transform size M. The inverse shares
+  /// the cosine table and negates sine values instead of storing another pair.
   /// The transform size (number of active carriers) is fixed, so the cos/sin
   /// values are computed once and reused across every symbol. The stored values
   /// and the accumulation order below are unchanged from computing them inline,
   /// so the transform output is bit-identical.
   static final Map<int, Float64List> _dftCosFwd = {};
   static final Map<int, Float64List> _dftSinFwd = {};
-  static final Map<int, Float64List> _dftCosInv = {};
-  static final Map<int, Float64List> _dftSinInv = {};
+  static final Map<int, (Float64List, Float64List)> _dftBuffers = {};
+  static final Map<int, _DartFftBuffers> _fftBuffers = {};
 
   /// DFT-spread precoding (unitary, arbitrary size).
   ///
@@ -318,17 +465,21 @@ class DartOfdm {
   /// power so downstream noise-variance/LLR estimates stay consistent. The
   /// twiddle factors are cached per size (see above) rather than recomputed per
   /// call — numerically identical, just fewer trig evaluations.
-  static List<Complex> _dftSpread(List<Complex> input, {required bool inverse}) {
+  static List<Complex> _dftSpread(
+    List<Complex> input, {
+    required bool inverse,
+    bool useNative = true,
+  }) {
     final int m = input.length;
     if (m == 0) return const [];
     final double norm = 1.0 / math.sqrt(m);
 
-    final cosMap = inverse ? _dftCosInv : _dftCosFwd;
-    final sinMap = inverse ? _dftSinInv : _dftSinFwd;
+    final cosMap = _dftCosFwd;
+    final sinMap = _dftSinFwd;
     Float64List? cosTab = cosMap[m];
     Float64List? sinTab = sinMap[m];
     if (cosTab == null || sinTab == null) {
-      final double sign = inverse ? 1.0 : -1.0;
+      const double sign = -1.0;
       cosTab = Float64List(m * m);
       sinTab = Float64List(m * m);
       for (int k = 0; k < m; k++) {
@@ -342,6 +493,22 @@ class DartOfdm {
       sinMap[m] = sinTab;
     }
 
+    if (useNative && nativeDartDspEnabled && m <= 128) {
+      final (packed, transformed) = _dftBuffers.putIfAbsent(
+        m,
+        () => (Float64List(2 * m), Float64List(2 * m)),
+      );
+      for (int i = 0; i < m; i++) {
+        packed[2 * i] = input[i].i;
+        packed[2 * i + 1] = input[i].q;
+      }
+      nativeDartDft(packed, cosTab, sinTab, norm, inverse, transformed);
+      return List<Complex>.generate(
+        m,
+        (i) => Complex(transformed[2 * i], transformed[2 * i + 1]),
+      );
+    }
+
     final out = List<Complex>.filled(m, const Complex(0, 0));
     for (int k = 0; k < m; k++) {
       double re = 0.0;
@@ -349,7 +516,7 @@ class DartOfdm {
       final int krow = k * m;
       for (int n = 0; n < m; n++) {
         final double c = cosTab[krow + n];
-        final double s = sinTab[krow + n];
+        final double s = inverse ? -sinTab[krow + n] : sinTab[krow + n];
         // (input[n].i + j input[n].q) * (c + j s)
         re += input[n].i * c - input[n].q * s;
         im += input[n].i * s + input[n].q * c;
@@ -360,8 +527,12 @@ class DartOfdm {
   }
 
   /// Public FFT access for testing.
-  static List<Complex> fftPublic(List<Complex> input, {required bool inverse}) {
-    return _fft(input, inverse: inverse);
+  static List<Complex> fftPublic(
+    List<Complex> input, {
+    required bool inverse,
+    bool useNative = true,
+  }) {
+    return _fft(input, inverse: inverse, useNative: useNative);
   }
 
   /// In-place FFT (or IFFT if inverse=true).
@@ -372,11 +543,33 @@ class DartOfdm {
   /// the result. The heavy butterfly loop no longer allocates a Complex object
   /// per operation, but performs the exact same arithmetic, so the output is
   /// bit-identical to the previous implementation.
-  static List<Complex> _fft(List<Complex> input, {required bool inverse}) {
+  static List<Complex> _fft(
+    List<Complex> input, {
+    required bool inverse,
+    bool useNative = true,
+  }) {
     final int n = input.length;
     if (n == 1) return [input[0]];
-    if (n & (n - 1) != 0) {
+    if (n == 0 || n & (n - 1) != 0) {
       throw ArgumentError('FFT size must be a power of 2, got $n');
+    }
+
+    final buffers = _nativeBuffers(n, useNative);
+    if (buffers != null) {
+      final re = buffers.re, im = buffers.im;
+      for (int i = 0; i < n; i++) {
+        re[i] = input[i].i;
+        im[i] = input[i].q;
+      }
+      buffers.plan.transform(re, im, inverse);
+      // XARA's FFT is unnormalized in both directions.
+      if (inverse) {
+        for (int i = 0; i < n; i++) {
+          re[i] /= n;
+          im[i] /= n;
+        }
+      }
+      return List<Complex>.generate(n, (i) => Complex(re[i], im[i]));
     }
 
     final re = Float64List(n);

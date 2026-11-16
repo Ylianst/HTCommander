@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io' show File, Platform;
 
@@ -48,6 +49,8 @@ class CapturedPacket {
 
 /// Packets tab - packet inspection and analysis. Subscribes to UniqueDataFrame
 /// events (produced by the FrameDeduplicator) and decodes them for display.
+/// Retains the latest 2,000 arrivals independently of display order, inserting
+/// each into its sorted position and refreshing at most once per frame.
 class PacketsTab extends StatefulWidget {
   const PacketsTab({super.key});
 
@@ -64,6 +67,8 @@ class _PacketsTabState extends State<PacketsTab>
   static const int _storeDeviceId = 1;
 
   final List<CapturedPacket> _packets = [];
+  final ListQueue<CapturedPacket> _packetsInArrivalOrder = ListQueue();
+  int? _refreshFrameId;
   final DataBrokerClient _broker = DataBrokerClient();
 
   /// Maps an upper-cased radio MAC address to its friendly name, so the packet
@@ -143,6 +148,9 @@ class _PacketsTabState extends State<PacketsTab>
 
   @override
   void dispose() {
+    if (_refreshFrameId != null) {
+      WidgetsBinding.instance.cancelFrameCallbackWithId(_refreshFrameId!);
+    }
     _broker.dispose();
     _listFocusNode.dispose();
     _listScrollController.dispose();
@@ -230,7 +238,18 @@ class _PacketsTabState extends State<PacketsTab>
     setState(() {
       _packets
         ..clear()
-        ..addAll(fragments.map(CapturedPacket.new));
+        ..addAll(
+          fragments
+              .skip(
+                fragments.length > _maxPackets
+                    ? fragments.length - _maxPackets
+                    : 0,
+              )
+              .map(CapturedPacket.new),
+        );
+      _packetsInArrivalOrder
+        ..clear()
+        ..addAll(_packets);
       _selectedPacketIndex = null;
       _selectionAnchorIndex = null;
       _applySort(null);
@@ -241,14 +260,55 @@ class _PacketsTabState extends State<PacketsTab>
     if (data is! TncDataFragment) return;
     if (!mounted) return;
 
-    setState(() {
-      final selected = _selectedPacket;
-      _packets.add(CapturedPacket(data));
-      if (_packets.length > _maxPackets) {
-        _packets.removeAt(0);
+    final packet = CapturedPacket(data);
+    _packetsInArrivalOrder.addLast(packet);
+    if (_packetsInArrivalOrder.length > _maxPackets) {
+      final removedIndex = _packets.indexOf(
+        _packetsInArrivalOrder.removeFirst(),
+      );
+      _packets.removeAt(removedIndex);
+      if (_selectedPacketIndex == removedIndex) {
+        _selectedPacketIndex = null;
+      } else if (_selectedPacketIndex != null &&
+          _selectedPacketIndex! > removedIndex) {
+        _selectedPacketIndex = _selectedPacketIndex! - 1;
       }
-      _applySort(selected);
+    }
+    final index = _packetInsertionIndex(packet);
+    _packets.insert(index, packet);
+    if (_selectedPacketIndex != null && _selectedPacketIndex! >= index) {
+      _selectedPacketIndex = _selectedPacketIndex! + 1;
+    }
+    _selectionAnchorIndex = _selectedPacketIndex;
+    _schedulePacketRefresh();
+  }
+
+  void _schedulePacketRefresh() {
+    if (!isTabVisible || _refreshFrameId != null) return;
+    _refreshFrameId = WidgetsBinding.instance.scheduleFrameCallback((_) {
+      _refreshFrameId = null;
+      if (mounted) setState(() {});
     });
+  }
+
+  int _packetInsertionIndex(CapturedPacket packet) {
+    if (_packets.isEmpty || _comparePackets(_packets.last, packet) <= 0) {
+      return _packets.length;
+    }
+    if (_comparePackets(packet, _packets.first) < 0) return 0;
+
+    // Upper bound keeps equal-key packets in arrival order.
+    var low = 0;
+    var high = _packets.length;
+    while (low < high) {
+      final mid = low + ((high - low) ~/ 2);
+      if (_comparePackets(_packets[mid], packet) <= 0) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low;
   }
 
   CapturedPacket? get _selectedPacket {
@@ -472,6 +532,7 @@ class _PacketsTabState extends State<PacketsTab>
     );
     setState(() {
       _packets.clear();
+      _packetsInArrivalOrder.clear();
       _selectedPacketIndex = null;
       _selectionAnchorIndex = null;
     });
@@ -651,24 +712,26 @@ class _PacketsTabState extends State<PacketsTab>
     });
   }
 
+  int _comparePackets(CapturedPacket a, CapturedPacket b) {
+    int result;
+    switch (_sortColumnIndex) {
+      case 0:
+        result = a.time.compareTo(b.time);
+        break;
+      case 1:
+        result = a.channel.compareTo(b.channel);
+        break;
+      case 2:
+        result = a.summary.compareTo(b.summary);
+        break;
+      default:
+        result = 0;
+    }
+    return _sortAscending ? result : -result;
+  }
+
   void _applySort(CapturedPacket? keepSelected) {
-    _packets.sort((a, b) {
-      int result;
-      switch (_sortColumnIndex) {
-        case 0:
-          result = a.time.compareTo(b.time);
-          break;
-        case 1:
-          result = a.channel.compareTo(b.channel);
-          break;
-        case 2:
-          result = a.summary.compareTo(b.summary);
-          break;
-        default:
-          result = 0;
-      }
-      return _sortAscending ? result : -result;
-    });
+    _packets.sort(_comparePackets);
     // Keep the selection pointing at the same packet after sorting. Range
     // selections collapse to the single kept packet since sorting can reorder
     // rows non-contiguously.

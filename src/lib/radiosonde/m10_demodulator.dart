@@ -16,6 +16,7 @@ library;
 
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'native_telemetry.dart';
 
 /// Recovers Meteomodem M10/M20 frames from FM-demodulated audio. Both share the
 /// same modem (9600/9615-baud Manchester + differential); only the sync bytes,
@@ -27,6 +28,7 @@ class M10Demodulator {
     this.frameBytes = 101,
     this.sync0 = 0x64,
     this.sync1 = 0x9F,
+    this.useNative = true,
   });
 
   final int sampleRate;
@@ -34,15 +36,30 @@ class M10Demodulator {
   final int frameBytes;
   final int sync0;
   final int sync1;
+  final bool useNative;
 
   int get _frameBits => frameBytes * 8;
   int get _frameChips => _frameBits * 2;
 
   /// Demodulates [pcm] and returns candidate frames in time order.
-  List<Uint8List> demodulate(Int16List pcm) {
+  List<Uint8List> demodulate(
+    Int16List pcm, {
+    NativeTelemetryRecording? recording,
+  }) {
     final n = pcm.length;
     final nominalSps = sampleRate / chipRate;
     if (n < (_frameChips * nominalSps).ceil()) return const [];
+    if (useNative && nativeTelemetrySupported) {
+      return nativeSondeDemodulate(
+        pcm,
+        sampleRate,
+        recording: recording,
+        mode: NativeSondeMode.differentialBytes,
+        chipRate: chipRate,
+        frameSymbols: _frameChips,
+        header: _headerChips(),
+      ).where((frame) => frame[0] == sync0 && frame[1] == sync1).toList();
+    }
 
     double mean = 0;
     for (int i = 0; i < n; i++) {

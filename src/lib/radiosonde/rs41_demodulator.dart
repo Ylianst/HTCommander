@@ -18,12 +18,14 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'rs41_decoder.dart';
+import 'native_telemetry.dart';
 
 /// Recovers RS41 dewhitened frames from FM-demodulated audio.
 class Rs41Demodulator {
-  Rs41Demodulator(this.sampleRate);
+  Rs41Demodulator(this.sampleRate, {this.useNative = true});
 
   final int sampleRate;
+  final bool useNative;
 
   static const int _baudRate = 4800;
   static const int _headerBits = 64;
@@ -31,10 +33,38 @@ class Rs41Demodulator {
   static const int _frameBits = _frameBytes * 8; // 2560
 
   /// Demodulates [pcm] and returns dewhitened 320-byte frames in time order.
-  List<Uint8List> demodulate(Int16List pcm) {
+  List<Uint8List> demodulate(
+    Int16List pcm, {
+    NativeTelemetryRecording? recording,
+  }) {
     final n = pcm.length;
     final nominalSps = sampleRate / _baudRate;
     if (n < (_frameBits * nominalSps).ceil()) return const [];
+    if (useNative && nativeTelemetrySupported) {
+      final frames = nativeSondeDemodulate(
+        pcm,
+        sampleRate,
+        recording: recording,
+        mode: NativeSondeMode.nrzBytes,
+        chipRate: _baudRate,
+        frameSymbols: _frameBits,
+        header: [
+          for (int j = 0; j < _headerBits; j++)
+            rs41HeaderBits.codeUnitAt(j) == 0x31 ? 1.0 : -1.0,
+        ],
+      );
+      for (final frame in frames) {
+        for (int i = 0; i < frame.length; i++) {
+          frame[i] ^= rs41Mask[i % rs41Mask.length];
+        }
+      }
+      return frames.where((frame) {
+        for (int i = 0; i < rs41DewhitenedHeader.length; i++) {
+          if (frame[i] != rs41DewhitenedHeader[i]) return false;
+        }
+        return true;
+      }).toList();
+    }
 
     // DC-block + prefix sums.
     double mean = 0;

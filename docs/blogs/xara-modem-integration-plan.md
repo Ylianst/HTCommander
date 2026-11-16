@@ -1,11 +1,245 @@
 # Bringing XARA Into HTCommander: A Direct Modem Integration Plan
 
-*Design proposal, October 31, 2026, updated with port and integration progress
-below. XARA FM now runs inside HTCommander's software modem and carries Winlink
-sessions; it has not yet been tested over the air.
-This post records the pure-Dart port we intend to build after reviewing XARA
-and HTCommander's existing DART and audio pipelines. It replaces the initial
-Rust/FFI proposal: portability and ordinary Flutter builds are requirements.*
+*Design proposal, October 31, 2026; native DSP update November 15, 2026.
+XARA FM runs inside HTCommander's software modem and carries Winlink sessions;
+it has not yet been tested over the air. The original pure-Dart design is
+recorded below. The native DSP update supersedes its no-FFI requirement while
+retaining ordinary Flutter builds and the Dart reference implementation.*
+
+## Native DSP acceleration
+
+The session scheduler, ARQ, wire formats, radio integration, and background
+isolate remain in Dart. The numerical hot paths now use
+[C++ kernels](../../src/native/xara_dsp.cpp) through
+[typed FFI bindings](../../src/lib/hamlib/xara/native_dsp_ffi.dart):
+
+- FM receive FIR filtering and decimation;
+- forward/inverse FFTs used by transmit, receive, and busy detection;
+- batched OFDM marker/data correlation, the largest measured RX hotspot;
+- streaming polyphase resampling;
+- the complete windowed turbo-decoder iteration loop, including CRC early exit.
+
+The [existing native-assets hook](../../src/hook/build.dart) builds and bundles
+the library on Windows, Linux, macOS, and Android. No Rust toolchain, external
+modem executable, or manual DLL installation is needed. Platforms outside that
+hook's support (including iOS and web) retain the Dart numerical path; this
+does not enable browser-side or iOS modem integration.
+Native build, allocation, and execution failures are surfaced, not silently
+retried through the Dart kernels.
+
+FIR, FFT, resampling, and correlation use baseline SSE2 on x86-64 or
+double-precision NEON on ARM64, with scalar code for other architectures.
+No AVX CPU requirement or fast-math reassociation is introduced. FFT plans and
+scratch storage are reused, STFT history is stored once in a bounded native
+ring, and correlation positions are batched rather than making an FFI call
+for every candidate. Native allocations are finalized with their owning plans.
+
+### Measurements and validation
+
+The first native pass of the [RX benchmark](../../src/test/xara/xara_fm_rx_bench.dart) measured these
+median processing rates over three runs of the same AOT executable on a
+Windows x64 Intel Core i7-10700:
+
+| Numerical path | Narrowband | Wideband |
+| --- | ---: | ---: |
+| Dart reference | 8.64x real time | 5.54x real time |
+| Native scalar | 21.98x | 18.29x |
+| Native SIMD | 25.79x | 20.97x |
+
+That is about 3.0x/3.8x faster RX than Dart, with SIMD adding about 17%/15%
+over scalar native code. All runs recovered 11/11 narrowband and 13/13 wideband
+frames. These are elapsed-time measurements on a shared machine, not guaranteed
+device performance; they exclude waveform generation and audio-device I/O.
+
+### Follow-up: correlation locality and one STFT history
+
+Profiling the accelerated receiver still put about half the sampled CPU time
+in native OFDM correlation. Its circular history is now stored **bin-major**:
+adjacent candidate times are adjacent in memory. SSE2/NEON can load consecutive
+float32 values and promote them to double precision together, instead of
+gathering each candidate from a different spectrum row. The same ordered
+double-precision arithmetic and wrap handling are retained.
+
+The native receive path also no longer keeps a second copy of differential
+history in Dart. It reuses one scratch row and maintains the same logical
+pruning boundaries as the Dart reference, including discontinuities. The Dart
+fallback still owns its ordinary history.
+
+Three interleaved before/after runs on the same Windows x64 machine measured:
+
+| Metric | First native pass | Follow-up |
+| --- | ---: | ---: |
+| Narrowband RX rate | 26.68x real time | 34.81x |
+| Wideband RX rate | 20.40x | 27.47x |
+| Narrowband retained differential history | 24.04 MiB | 14.33 MiB |
+| Wideband retained differential history | 25.48 MiB | 14.33 MiB |
+
+This is another approximately 30%/35% RX speedup and 40%/44% reduction in the
+measured history storage. Memory figures count differential sample buffers,
+not total process RSS or Dart object overhead. Every run still recovered
+11/11 narrowband and 13/13 wideband frames. The benchmark now prints retained
+history storage as well as processing rate. Tests cover fixed native-history
+memory across pruning/gaps, exact correlation parity at ring wrap, scalar
+native operation, and the Dart reference path.
+
+### Third pass: reusable spectrum rows and direct short FFTs
+
+The STFT now recycles a fixed pool of spectrum rows instead of allocating one
+float32 row on every hop. At 6 kHz baseband and a four-sample hop, this removes
+1,500 row allocations per second per receiver (about 1.46 MiB/s of sample
+payload allocation alone). Retained spectrum-row storage is bounded at 37 KiB.
+The pool has one more slot than the symbol delay so its output row never
+overwrites the previous symbol being compared.
+
+A bounded native leaf kernel rounds FFT output to float32, normalizes the
+differential products with the reference `hypot` rules, and writes directly
+into native history. This removes the intermediate difference row and its
+copy. FFTs of up to 2,048 points also operate directly on pinned Dart buffers,
+avoiding four full-buffer copies per transform. Overlapping real/imaginary
+views preserve the previous copy-back behavior using plan-owned workspace;
+larger transforms retain the non-leaf copy path.
+
+Three interleaved before/after AOT runs measured:
+
+| RX processing rate | Previous pass | Third pass |
+| --- | ---: | ---: |
+| Narrowband | 32.89x real time | 36.27x |
+| Wideband | 25.96x | 29.04x |
+
+This is another approximately 10%/12% improvement on the same Windows x64
+machine, with differential history still at 14.33 MiB and every benchmark
+frame recovered. These elapsed-time results remain subject to shared-machine
+load. Focused tests cover exact fused-kernel parity (including tiny, huge,
+infinite, and NaN inputs), ring wrap, gaps, overlapping FFT views, and the
+large-transform fallback. The full XARA suite passes 284 tests; scalar-native
+and Dart-reference receiver checks also pass.
+
+### Fourth pass: shared phasors and streaming TX conversion
+
+Per-key phasor tables now reference one shared set of immutable complex values.
+The VB-compatible generator's `randInt(32)` includes both endpoints, so all
+**33** phases are preserved with exactly the original trigonometric formula.
+Eight cached keys previously retained 205,824 separate complex objects; they
+now share 33. The per-key indexing lists remain unchanged.
+
+The host driver also resamples and converts each transmit block immediately,
+including key-up silence, rather than assembling whole-burst floating-point
+input and output lists. Its native resampling workspace now grows with the
+block size instead of the burst duration. Only compact PCM16 chunks and the
+final contiguous PCM16 result span the full burst; station timing, pre-roll,
+resampler phase/flush behavior, and PCM rounding are unchanged.
+
+Three interleaved Windows x64 AOT before/after runs measured these medians:
+
+| Metric | Previous pass | Fourth pass |
+| --- | ---: | ---: |
+| Generate phasors for 64 distinct keys | 115.72 ms | 57.40 ms |
+| Driver TX conversion | 186.56 ms | 66.75 ms |
+| TX benchmark peak process RSS | 122.83 MiB | 25.12 MiB |
+
+The TX workload is a synthetic 20-second, 48 kHz source plus 300 ms of key-up
+silence, delivered through the actual driver at 32 kHz. Both versions produce
+the same 649,692 PCM samples and checksum. This isolates driver buffering and
+conversion, not FM modulation, radio I/O, whole-application memory, or RX
+throughput. The approximately 2.8x speedup and 80% peak-RSS reduction therefore
+apply to this benchmark, not every transmission. Phasor timings include
+generating all indices and turning over the eight-key cache.
+
+Reproduce the setup and TX measurements separately:
+
+```powershell
+cd src
+dart build cli --target=test\xara\xara_tx_bench.dart --output=build\xara_tx_bench
+.\build\xara_tx_bench\bundle\bin\xara_tx_bench.exe phasors
+.\build\xara_tx_bench\bundle\bin\xara_tx_bench.exe tx
+```
+
+Focused regression tests compare streamed output against the previous
+whole-burst algorithm sample for sample at 32, 44.1, and 48 kHz, with different
+block sizes, pre-roll lengths, connect frames, and multi-frame KISS bursts.
+Phasor tests verify exact values and sharing across keyed and unkeyed tables.
+All 286 XARA module/integration tests pass, as do focused scalar-native and
+Dart-reference TX checks, targeted analysis, and JavaScript compilation of
+the conditional backend.
+
+### Fifth pass: marker-gated correlation and sparse timing refinement
+
+The receiver already requires a minimum marker score before a candidate can
+be detected. Data correlation now runs only where that **existing** marker
+test passes, rather than evaluating the more expensive fourth-power data
+terms for candidates that cannot be accepted. This applies to both the native
+and Dart paths. The native kernel retains its SIMD processing for passing
+candidate pairs and skips pairs where neither lane passes. Marker scores,
+threshold equality, ordered accumulation, and every passing candidate's data
+score are unchanged. The native API still computes unrestricted metrics by
+default; skipping is explicitly requested by the receiver.
+
+Timing refinement also uses only the marker cells and their preceding symbol
+rows to evaluate its seven candidate offsets. It then constructs one full
+symbol matrix at the selected time, rather than retaining seven full matrices.
+This sparse path is used only when its total FFT count, including the final
+full matrix, is lower than the original path; dense patterns keep their
+original refinement. The original carrier-major coherence sum, peak/midpoint
+selection, and all data demapping are preserved. QAM derotation now uses the
+selected private matrix directly instead of copying it.
+
+Three interleaved Windows x64 AOT before/after runs measured these medians:
+
+| RX processing rate | Previous pass | Fifth pass |
+| --- | ---: | ---: |
+| Narrowband | 36.35x real time | 58.66x |
+| Wideband | 30.36x | 49.10x |
+
+This is approximately another 61%/62% RX speedup in the generated-stream
+benchmark, not a change to radio bitrate. Shared-machine load affects elapsed
+times. All runs recover 11/11 narrowband and 13/13 wideband frames. Retained
+differential history remains 14.33 MiB and spectrum rows remain 37 KiB; the
+matrix saving concerns temporary decode storage, not total process RSS.
+
+Before/after trace comparisons also match exactly for clean and noisy streams
+on **native SIMD, scalar native, and Dart** backends: decoded-frame and
+constellation fingerprints, frame timing, coherence, SNR, and iteration counts
+are unchanged. Focused tests cover exact correlation parity at the marker
+threshold, rejected SIMD lanes, NaN markers, ring wrap, full-matrix versus
+sparse timing, equal-peak midpoint selection, and boundary/large timestamps.
+No codec precision, modulation, FEC iteration schedule, or acceptance
+threshold was reduced.
+All 288 XARA module/integration tests pass, along with scalar-native and
+Dart-reference receiver checks, targeted analysis, warning-clean x64 native
+compilation, and JavaScript conditional-backend compilation.
+
+The RX benchmark accepts `--trace` to print frame-quality fingerprints and
+`--noise` to add reproducible noise. These diagnostic runs are separate from
+the default performance measurement:
+
+```powershell
+.\build\xara_bench\bundle\bin\xara_fm_rx_bench.exe --trace
+.\build\xara_bench\bundle\bin\xara_fm_rx_bench.exe --trace --noise
+```
+
+Build the benchmark with native assets (plain `dart compile exe` does not bundle
+them):
+
+```powershell
+cd src
+dart build cli --target=test\xara\xara_fm_rx_bench.dart --output=build\xara_bench
+.\build\xara_bench\bundle\bin\xara_fm_rx_bench.exe
+$env:HT_XARA_SCALAR = 'true'
+.\build\xara_bench\bundle\bin\xara_fm_rx_bench.exe
+$env:HT_XARA_SCALAR = 'false'
+$env:HT_XARA_DART = 'true'
+.\build\xara_bench\bundle\bin\xara_fm_rx_bench.exe
+Remove-Item Env:\HT_XARA_DART
+Remove-Item Env:\HT_XARA_SCALAR
+```
+
+The two diagnostic switches also accept Dart defines (for example
+`flutter test --dart-define=HT_XARA_SCALAR=true test\xara`).
+[Native parity tests](../../src/test/xara/xara_native_dsp_test.dart) compare FFT
+outputs, ring-wrapped correlation metrics, FIR/resampling output and sample
+indices, and turbo bits/CRC iteration counts against Dart, including chunk and
+decoder-window boundaries. Existing vector, loopback, and session tests
+continue to exercise the default native path.
 
 HTCommander already turns radio audio into data with AFSK, PSK, and DART. The
 next candidate is [XARA](https://github.com/x0rro/xara), an MIT-licensed Rust modem
@@ -18,10 +252,10 @@ with localhost command and data sockets. HTCommander should continue to own the
 radio, Bluetooth, audio devices, and user interface. XARA should supply the
 modulation, decoding, and link protocol.
 
-**The XARA modem will be implemented entirely in Dart.** No Rust toolchain,
-FFI bridge, native modem binaries, or per-platform modem build steps will be
-required to build or run HTCommander. This does not remove existing native
-Flutter plugins; the new modem must not introduce another native dependency.
+**The original modem port was implemented entirely in Dart.** Its reference
+numerical kernels remain available, but supported native builds now select the
+C++ DSP kernels described above. No Rust toolchain or separate modem process
+is required.
 Throughout this post, **Dart** means the language, while **DART** is the existing
 Data Adaptive Rate Transport modem. XARA will coexist with DART, not replace it.
 
@@ -339,7 +573,10 @@ PTT modules. Port only the relevant station behavior, replace those small
 host/UI types with Dart core types, and preserve its scheduling semantics.
 The TCP-oriented `Tnc` wrapper is not needed.
 
-## Decision: a pure-Dart port
+## Original decision: a pure-Dart port
+
+This section records the original porting approach. Its numerical-kernel and
+no-native-dependency requirements are superseded by the native DSP update above.
 
 Port XARA's DSP, wire codecs, ARQ sessions, and station scheduler into Dart.
 Keep the engine independent of Flutter, audio devices, DataBroker, and wall-clock
@@ -402,7 +639,7 @@ Start with scalar algorithms and `Float64List`/integer typed buffers, reusable
 FFT plans, bounded ring buffers, and precomputed tables. Avoid object allocation
 per sample and repeated large-buffer copies. Profile turbo decoding and receiver
 search in release/AOT builds, not only debug mode. Optimize only after parity
-tests pass; performance problems do not silently authorize falling back to FFI.
+tests pass. The native DSP update above follows this parity-first approach.
 
 ## Where it belongs beside DART
 
@@ -563,12 +800,13 @@ diagnostics should be batched, while payloads and critical TX events remain
 ordered and lossless or fail explicitly.
 
 Use HTCommander's existing Dart/Flutter builds on Windows, macOS, Linux,
-Android, and iOS. There are no new modem DLLs, shared libraries, Rust targets,
-or linker configuration. Start integration testing on Windows, then exercise
+Android, and iOS. The native-assets hook now builds the DSP shared library on
+its supported platforms; iOS retains Dart DSP. No Rust targets or manual linker
+configuration are needed. Start integration testing on Windows, then exercise
 the same engine on the other platforms with particular attention to mobile
 CPU use, memory, background lifecycle, and audio delivery.
 
-Pure Dart removes native modem packaging work, not the need for platform tests.
+Automatic native packaging does not remove the need for platform tests.
 Do not promise usable mobile speeds before release-build performance and audio
 tests pass. Initially the desktop-hosted web UI controls the host-side modem
 through its existing bridge. Browser-side DSP is a separate milestone requiring

@@ -33,7 +33,7 @@ import 'gen_tone.dart';
 class Fx25Send {
   static const int _maxRadioChannels = 16;
 
-  GenTone? _genTone;
+  ToneBitSink? _genTone;
   late List<int> _numberOfBitsSent;
   late List<int> _nrziOutput;
 
@@ -43,7 +43,7 @@ class Fx25Send {
   }
 
   /// Initialize the FX.25 send module with a tone generator.
-  void init(GenTone genTone) {
+  void init(ToneBitSink genTone) {
     _genTone = genTone;
     _numberOfBitsSent.fillRange(0, _numberOfBitsSent.length, 0);
     _nrziOutput.fillRange(0, _nrziOutput.length, 0);

@@ -10,6 +10,7 @@ import 'delay.dart';
 import 'filter.dart';
 import 'frequency_modulation.dart';
 import 'kaiser.dart';
+import 'native_demodulator.dart';
 import 'phasor.dart';
 import 'schmitt_trigger.dart';
 import 'simple_moving_average.dart';
@@ -18,6 +19,9 @@ import 'sstv_round.dart';
 enum SyncPulseWidth { fiveMilliSeconds, nineMilliSeconds, twentyMilliSeconds }
 
 class Demodulator {
+  final NativeSstvDemodulator? _native;
+  bool _disposed = false;
+  Float64List _pcmSamples = Float64List(0);
   final SimpleMovingAverage _syncPulseFilter;
   final ComplexConvolution _baseBandLowPass;
   final FrequencyModulation _frequencyModulation;
@@ -42,7 +46,11 @@ class Demodulator {
   static const double blackFrequency = 1500;
   static const double whiteFrequency = 2300;
 
-  factory Demodulator(int sampleRate) {
+  factory Demodulator(
+    int sampleRate, {
+    bool useNative = !const bool.fromEnvironment('HT_SSTV_DART'),
+    bool useSimd = !const bool.fromEnvironment('HT_SSTV_SCALAR'),
+  }) {
     const double scanLineBandwidth = whiteFrequency - blackFrequency;
     const double syncPulse5msSeconds = 0.005;
     const double syncPulse9msSeconds = 0.009;
@@ -87,7 +95,20 @@ class Demodulator {
     const double syncLowFrequency =
         (syncPulseFrequency + syncHighFrequency) / 2;
 
+    final native = useNative
+        ? createNativeSstvDemodulator(
+            sampleRate,
+            baseBandLowPass.taps,
+            syncPulseFilterSamples,
+            sstvRound(syncPulse5msMinSeconds * sampleRate),
+            sstvRound(syncPulse5msMaxSeconds * sampleRate),
+            sstvRound(syncPulse9msMaxSeconds * sampleRate),
+            sstvRound(syncPulse20msMaxSeconds * sampleRate),
+            useSimd: useSimd,
+          )
+        : null;
     return Demodulator._(
+      native,
       SimpleMovingAverage(syncPulseFilterSamples),
       baseBandLowPass,
       FrequencyModulation(scanLineBandwidth, sampleRate.toDouble()),
@@ -108,6 +129,7 @@ class Demodulator {
   }
 
   Demodulator._(
+    this._native,
     this._syncPulseFilter,
     this._baseBandLowPass,
     this._frequencyModulation,
@@ -124,6 +146,13 @@ class Demodulator {
   ) : _baseBand = Complex();
 
   bool process(Float64List buffer, int channelSelect) {
+    if (_disposed) throw StateError('SSTV demodulator is disposed');
+    final native = _native;
+    if (native != null) {
+      final detected = native.process(buffer, channelSelect);
+      _readNativeSync(native);
+      return detected;
+    }
     bool syncPulseDetected = false;
     final channels = channelSelect > 0 ? 2 : 1;
     for (int i = 0; i < buffer.length ~/ channels; ++i) {
@@ -173,5 +202,44 @@ class Demodulator {
       }
     }
     return syncPulseDetected;
+  }
+
+  /// The returned samples must be consumed before the next call or disposal.
+  (Float64List, bool) processPcm16(Uint8List pcm, int offset, int length) {
+    if (_disposed) throw StateError('SSTV demodulator is disposed');
+    RangeError.checkValidRange(offset, offset + length, pcm.length);
+    RangeError.checkValueInInterval(length, 0, 0x7fffffff, 'length');
+    final native = _native;
+    if (native != null) {
+      final result = native.processPcm16(pcm, offset, length);
+      _readNativeSync(native);
+      return result;
+    }
+    final count = length ~/ 2;
+    final Float64List samples;
+    if (count > 4096) {
+      samples = Float64List(count);
+    } else {
+      if (count > _pcmSamples.length) _pcmSamples = Float64List(count);
+      samples = Float64List.sublistView(_pcmSamples, 0, count);
+    }
+    for (int i = 0; i < count; ++i) {
+      final index = offset + 2 * i;
+      final raw = pcm[index] | (pcm[index + 1] << 8);
+      samples[i] = (raw >= 0x8000 ? raw - 0x10000 : raw) / 32768.0;
+    }
+    return (samples, process(samples, 0));
+  }
+
+  void _readNativeSync(NativeSstvDemodulator native) {
+    syncPulseWidthValue = SyncPulseWidth.values[native.syncWidth];
+    syncPulseOffset = native.syncOffset;
+    frequencyOffset = native.frequencyOffset;
+  }
+
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _native?.dispose();
   }
 }

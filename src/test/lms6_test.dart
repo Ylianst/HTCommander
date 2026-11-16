@@ -133,6 +133,17 @@ void main() {
     expect(got!.latitude, closeTo(40.0, 1e-5));
     expect(got.longitude, closeTo(-105.0, 1e-5));
   });
+
+  test('native LMS6 matches Dart bits and preserves error correction input', () {
+    final transmitted = _buildTransmitted(_buildFrame(sn: 123456, frnr: 42,
+        lat: 40, lon: -105, alt: 1600, towMs: 43200000));
+    for (final rate in [32000, 48000]) {
+      final pcm = _modulate([transmitted, transmitted, transmitted], rate);
+      final reference = Lms6Demodulator(rate, useNative: false).demodulate(pcm);
+      expect(reference, isNotEmpty);
+      expect(Lms6Demodulator(rate).demodulate(pcm), reference);
+    }
+  });
 }
 
 /// Modulates transmitted bit blocks to FM-demod NRZ audio (continuous).

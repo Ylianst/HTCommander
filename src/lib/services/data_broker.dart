@@ -26,8 +26,8 @@ enum DataBrokerRole {
   /// Single window / no detached windows. Everything is process-local.
   standalone,
 
-  /// Main window. Owns the authoritative data store and forwards every
-  /// dispatch to all detached (child) windows.
+  /// Main window. Mirrors stored values to all detached windows and sends
+  /// transient events only to windows with matching subscriptions.
   host,
 
   /// Detached window. Mirrors the host's data store (populated by a snapshot
@@ -76,8 +76,10 @@ class DataBroker {
   /// Internal data store: (deviceId, name) -> value
   final Map<_DataKey, Object?> _dataStore = {};
 
-  /// List of active subscriptions
-  final List<_Subscription> _subscriptions = [];
+  final Map<_DataKey, List<_Subscription>> _subscriptions = {};
+  final Map<DataBrokerClient, List<_Subscription>> _clientSubscriptions = {};
+  final Map<_DataKey, List<_Subscription>> _matchingSubscriptions = {};
+  int _nextSubscriptionOrder = 0;
 
   /// Registered data handlers
   final Map<String, Object> _dataHandlers = {};
@@ -104,6 +106,7 @@ class DataBroker {
   /// Host only: push channels to each detached child window, keyed by windowId.
   /// Used to forward dispatches from the main window to detached windows.
   final Map<String, WindowMethodChannel> _childChannels = {};
+  final Map<String, Set<_DataKey>> _childSubscriptions = {};
 
   /// Client only: the channel used to reach the host window.
   WindowMethodChannel? _clientToHost;
@@ -271,9 +274,7 @@ class DataBroker {
     if (kIsWeb) return;
     try {
       final dir = await getApplicationSupportDirectory();
-      final file = File(
-        '${dir.path}${Platform.pathSeparator}$_prefsFileName',
-      );
+      final file = File('${dir.path}${Platform.pathSeparator}$_prefsFileName');
       if (!await file.exists()) return;
       final backupPath = '${file.path}.corrupt';
       final backup = File(backupPath);
@@ -367,7 +368,7 @@ class DataBroker {
         broker._applyLocal(deviceId, name, data, store, allowEmpty: allowEmpty);
         break;
       case DataBrokerRole.host:
-        // Apply on the host, then forward to every detached window.
+        // Keep mirrors current; transient events go only to interested windows.
         broker._applyLocal(deviceId, name, data, store, allowEmpty: allowEmpty);
         broker._forwardToChildren(deviceId, name, data, store);
         break;
@@ -396,8 +397,13 @@ class DataBroker {
   ///
   /// This is the process-local part of a dispatch, shared by every role. It
   /// never crosses a window boundary.
-  void _applyLocal(int deviceId, String name, Object? data, bool store,
-      {bool allowEmpty = false}) {
+  void _applyLocal(
+    int deviceId,
+    String name,
+    Object? data,
+    bool store, {
+    bool allowEmpty = false,
+  }) {
     if (store) {
       final key = _DataKey(deviceId, name);
       _dataStore[key] = data;
@@ -419,25 +425,39 @@ class DataBroker {
       }
     }
 
-    // Find and invoke matching subscriptions
-    final matchingSubscriptions = <_Subscription>[];
-    for (final sub in _subscriptions) {
-      final deviceMatches =
-          (sub.deviceId == allDevices) || (sub.deviceId == deviceId);
-      final nameMatches = (sub.name == allNames) || (sub.name == name);
-      if (deviceMatches && nameMatches) {
-        matchingSubscriptions.add(sub);
-      }
-    }
-
-    // Invoke callbacks
-    for (final sub in matchingSubscriptions) {
+    for (final sub in _listenersFor(deviceId, name)) {
       try {
         sub.callback(deviceId, name, data);
       } catch (e) {
         // Swallow exceptions from callbacks to prevent broker failure
         debugPrint('DataBroker: Callback error for ($deviceId, $name): $e');
       }
+    }
+  }
+
+  List<_Subscription> _listenersFor(int deviceId, String name) {
+    final key = _DataKey(deviceId, name);
+    final cached = _matchingSubscriptions[key];
+    if (cached != null) return cached;
+    final matches = <_Subscription>[];
+    for (final candidate in _matchingKeys(deviceId, name)) {
+      final bucket = _subscriptions[candidate];
+      if (bucket != null) matches.addAll(bucket);
+    }
+    if (matches.isEmpty) return const [];
+    matches.sort((a, b) => a.order.compareTo(b.order));
+    // Never mutate cached lists: an in-flight dispatch owns its snapshot even
+    // when a callback changes subscriptions or dispatches recursively.
+    _matchingSubscriptions[key] = matches;
+    return matches;
+  }
+
+  static Iterable<_DataKey> _matchingKeys(int deviceId, String name) sync* {
+    yield _DataKey(deviceId, name);
+    if (name != allNames) yield _DataKey(deviceId, allNames);
+    if (deviceId != allDevices) {
+      yield _DataKey(allDevices, name);
+      if (name != allNames) yield const _DataKey(allDevices, allNames);
     }
   }
 
@@ -739,6 +759,9 @@ class DataBroker {
   static void reset() {
     _instance._dataStore.clear();
     _instance._subscriptions.clear();
+    _instance._clientSubscriptions.clear();
+    _instance._matchingSubscriptions.clear();
+    _instance._sendSubscriptions();
   }
 
   /// Internal method to subscribe. Called by DataBrokerClient.
@@ -748,19 +771,25 @@ class DataBroker {
     String name,
     DataCallback callback,
   ) {
-    _instance._subscriptions.add(
-      _Subscription(
-        client: client,
-        deviceId: deviceId,
-        name: name,
-        callback: callback,
-      ),
+    final broker = _instance;
+    final key = _DataKey(deviceId, name);
+    final subscription = _Subscription(
+      client: client,
+      deviceId: deviceId,
+      name: name,
+      callback: callback,
+      order: broker._nextSubscriptionOrder++,
     );
+    final isNewKey = !broker._subscriptions.containsKey(key);
+    (broker._subscriptions[key] ??= []).add(subscription);
+    (broker._clientSubscriptions[client] ??= []).add(subscription);
+    broker._matchingSubscriptions.clear();
+    if (isNewKey) broker._sendSubscriptions();
   }
 
   /// Internal method to unsubscribe all subscriptions for a client.
   static void unsubscribe(DataBrokerClient client) {
-    _instance._subscriptions.removeWhere((s) => s.client == client);
+    _instance._removeSubscriptions(client);
   }
 
   /// Internal method to unsubscribe a specific subscription for a client.
@@ -769,9 +798,27 @@ class DataBroker {
     int deviceId,
     String name,
   ) {
-    _instance._subscriptions.removeWhere(
-      (s) => s.client == client && s.deviceId == deviceId && s.name == name,
-    );
+    _instance._removeSubscriptions(client, key: _DataKey(deviceId, name));
+  }
+
+  void _removeSubscriptions(DataBrokerClient client, {_DataKey? key}) {
+    final owned = _clientSubscriptions[client];
+    if (owned == null) return;
+    var interestsChanged = false;
+    owned.removeWhere((sub) {
+      final subKey = _DataKey(sub.deviceId, sub.name);
+      if (key != null && key != subKey) return false;
+      final bucket = _subscriptions[subKey]!;
+      bucket.remove(sub);
+      if (bucket.isEmpty) {
+        _subscriptions.remove(subKey);
+        interestsChanged = true;
+      }
+      return true;
+    });
+    if (owned.isEmpty) _clientSubscriptions.remove(client);
+    _matchingSubscriptions.clear();
+    if (interestsChanged) _sendSubscriptions();
   }
 
   // ========== Data Handlers ==========
@@ -920,6 +967,62 @@ class DataBroker {
     return value;
   }
 
+  /// PCM buffers bypass JSON; metadata and registered objects keep the
+  /// existing JSON representation. StandardMethodCodec carries Uint8List.
+  Map<String, Object?>? _encodeTransport(Object? value) {
+    if (value is Uint8List) return {'bytes': value};
+    Uint8List? bytes;
+    if (value is Map<String, Object?> && value['data'] is Uint8List) {
+      bytes = value['data'] as Uint8List;
+      value = Map<String, Object?>.of(value)..remove('data');
+    }
+    final payload = _encode(value);
+    if (payload == null && value != null) return null;
+    return {'payload': payload, 'bytes': ?bytes};
+  }
+
+  Object? _decodeTransport(Map<String, Object?> args) {
+    if (!args.containsKey('bytes')) {
+      return _decode(args['payload'] as String?);
+    }
+    final bytes = args['bytes'] as Uint8List;
+    if (!args.containsKey('payload')) return bytes;
+    final metadata = _decode(args['payload'] as String?);
+    if (metadata is! Map<String, dynamic>) {
+      throw const FormatException('DataBroker: invalid PCM metadata');
+    }
+    return metadata..['data'] = bytes;
+  }
+
+  Map<String, Object?> _subscriptionMessage() => {
+    'windowId': _selfWindowId,
+    'subscriptions': [
+      for (final key in _subscriptions.keys)
+        {'deviceId': key.deviceId, 'name': key.name},
+    ],
+  };
+
+  void _sendSubscriptions() {
+    if (_role != DataBrokerRole.client || _clientToHost == null) return;
+    _clientToHost!
+        .invokeMethod('subscriptions', _subscriptionMessage())
+        .catchError((Object e) {
+          debugPrint('DataBroker: failed to forward subscriptions to host: $e');
+          return null;
+        });
+  }
+
+  void _updateChildSubscriptions(Map<String, Object?> args) {
+    final windowId = args['windowId'] as String;
+    final subscriptions = args['subscriptions'] as List;
+    final keys = {
+      for (final entry in subscriptions)
+        _DataKey((entry as Map)['deviceId'] as int, entry['name'] as String),
+    };
+    registerChildWindow(windowId);
+    _childSubscriptions[windowId] = keys;
+  }
+
   // ========== Cross-window transport (host + client) ==========
 
   /// Promotes this broker to the authoritative host and starts listening for
@@ -958,6 +1061,7 @@ class DataBroker {
       );
       broker._clientInChannel = inChannel;
       await inChannel.setMethodCallHandler(broker._onClientCall);
+      broker._sendSubscriptions();
     } catch (e) {
       debugPrint('DataBroker: failed to start client channel: $e');
     }
@@ -967,15 +1071,19 @@ class DataBroker {
   static void registerChildWindow(String windowId) {
     final broker = _instance;
     if (!_ipcSupported) return;
-    broker._childChannels[windowId] = WindowMethodChannel(
-      _winChannelName(windowId),
-      mode: ChannelMode.unidirectional,
+    broker._childChannels.putIfAbsent(
+      windowId,
+      () => WindowMethodChannel(
+        _winChannelName(windowId),
+        mode: ChannelMode.unidirectional,
+      ),
     );
   }
 
   /// Host only: stops forwarding dispatches to a detached window.
   static void unregisterChildWindow(String windowId) {
     _instance._childChannels.remove(windowId);
+    _instance._childSubscriptions.remove(windowId);
   }
 
   /// Client only: gracefully detaches this window from the host before its
@@ -1014,13 +1122,18 @@ class DataBroker {
     if (channel == null) return;
     for (var attempt = 0; attempt < 50; attempt++) {
       try {
-        final result = await channel.invokeMethod<dynamic>('snapshot');
+        final result = await channel.invokeMethod<dynamic>(
+          'snapshot',
+          broker._subscriptionMessage(),
+        );
         if (result is List) {
           for (final entry in result) {
             if (entry is Map) {
               final deviceId = entry['deviceId'] as int;
               final name = entry['name'] as String;
-              final data = broker._decode(entry['payload'] as String?);
+              final data = broker._decodeTransport(
+                entry.cast<String, Object?>(),
+              );
               broker._applyLocal(deviceId, name, data, true);
             }
           }
@@ -1043,21 +1156,31 @@ class DataBroker {
         final name = args['name'] as String;
         final store = args['store'] as bool? ?? true;
         final from = args['from'] as String?;
-        final data = _decode(args['payload'] as String?);
+        final data = _decodeTransport(args);
         // Apply on the host (notifies host-side handlers and subscribers),
-        // then forward to every OTHER detached window.
+        // then forward to interested OTHER detached windows.
         _applyLocal(deviceId, name, data, store);
         _forwardToChildren(deviceId, name, data, store, exclude: from);
         return null;
       case 'snapshot':
+        if (call.arguments != null) {
+          _updateChildSubscriptions(
+            (call.arguments as Map).cast<String, Object?>(),
+          );
+        }
         return _buildSnapshot();
+      case 'subscriptions':
+        _updateChildSubscriptions(
+          (call.arguments as Map).cast<String, Object?>(),
+        );
+        return null;
       case 'detach':
         // A detached window is closing. Stop forwarding to it immediately so we
         // never invoke a method channel on an engine that is being destroyed.
         final args = (call.arguments as Map).cast<String, Object?>();
         final windowId = args['windowId'] as String?;
         if (windowId != null) {
-          _childChannels.remove(windowId);
+          unregisterChildWindow(windowId);
           onChildWindowDetached?.call(windowId);
         }
         return null;
@@ -1072,7 +1195,7 @@ class DataBroker {
       final deviceId = args['deviceId'] as int;
       final name = args['name'] as String;
       final store = args['store'] as bool? ?? true;
-      final data = _decode(args['payload'] as String?);
+      final data = _decodeTransport(args);
       _applyLocal(deviceId, name, data, store);
     }
     return null;
@@ -1082,19 +1205,16 @@ class DataBroker {
   List<Map<String, Object?>> _buildSnapshot() {
     final out = <Map<String, Object?>>[];
     _dataStore.forEach((key, value) {
-      final payload = _encode(value);
-      if (payload == null && value != null) return; // unencodable, skip
-      out.add({
-        'deviceId': key.deviceId,
-        'name': key.name,
-        'payload': payload,
-      });
+      final transport = _encodeTransport(value);
+      if (transport == null) return;
+      out.add({'deviceId': key.deviceId, 'name': key.name, ...transport});
     });
     return out;
   }
 
-  /// Host only: forwards a dispatch to all detached windows (optionally
-  /// excluding the window that originated it).
+  /// Stored values keep every mirror current, even before a widget subscribes.
+  /// Transient events go only to matching windows. Encode once, and only if
+  /// there is a recipient.
   void _forwardToChildren(
     int deviceId,
     String name,
@@ -1103,18 +1223,28 @@ class DataBroker {
     String? exclude,
   }) {
     if (_childChannels.isEmpty) return;
-    final payload = _encode(data);
-    if (payload == null && data != null) return; // unencodable, skip
-    final args = {
-      'deviceId': deviceId,
-      'name': name,
-      'payload': payload,
-      'store': store,
-    };
+    Map<String, Object?>? args;
     _childChannels.forEach((windowId, channel) {
       if (windowId == exclude) return;
+      if (!store) {
+        final interests = _childSubscriptions[windowId];
+        if (interests == null ||
+            !_matchingKeys(deviceId, name).any(interests.contains)) {
+          return;
+        }
+      }
+      if (args == null) {
+        final transport = _encodeTransport(data);
+        if (transport == null) return;
+        args = {
+          'deviceId': deviceId,
+          'name': name,
+          ...transport,
+          'store': store,
+        };
+      }
       channel.invokeMethod('onData', args).catchError((Object e) {
-        // Window may not have registered its handler yet, or has closed.
+        debugPrint('DataBroker: failed to forward data to $windowId: $e');
         return null;
       });
     });
@@ -1124,21 +1254,22 @@ class DataBroker {
   void _sendToHost(int deviceId, String name, Object? data, bool store) {
     final channel = _clientToHost;
     if (channel == null) return;
-    final payload = _encode(data);
-    if (payload == null && data != null) return; // unencodable, skip
-    channel.invokeMethod('dispatch', {
-      'deviceId': deviceId,
-      'name': name,
-      'payload': payload,
-      'store': store,
-      'from': _selfWindowId,
-    }).catchError((Object e) {
-      debugPrint('DataBroker: failed to forward dispatch to host: $e');
-      return null;
-    });
+    final transport = _encodeTransport(data);
+    if (transport == null) return;
+    channel
+        .invokeMethod('dispatch', {
+          'deviceId': deviceId,
+          'name': name,
+          ...transport,
+          'store': store,
+          'from': _selfWindowId,
+        })
+        .catchError((Object e) {
+          debugPrint('DataBroker: failed to forward dispatch to host: $e');
+          return null;
+        });
   }
 }
-
 
 /// Internal structure for storing data keys.
 class _DataKey {
@@ -1165,11 +1296,13 @@ class _Subscription {
   final int deviceId;
   final String name;
   final DataCallback callback;
+  final int order;
 
   const _Subscription({
     required this.client,
     required this.deviceId,
     required this.name,
     required this.callback,
+    required this.order,
   });
 }

@@ -158,4 +158,14 @@ void main() {
     expect(got!.latitude, closeTo(48.5, 1e-5));
     expect(got.longitude, closeTo(2.3, 1e-5));
   });
+
+  test('native M20 matches Dart at both radio rates', () {
+    for (final rate in [32000, 48000]) {
+      final pcm = _modulate([frame, frame, frame], rate);
+      final reference = M10Demodulator(rate, chipRate: 9600, frameBytes: 70,
+          sync0: 0x45, sync1: 0x20, useNative: false).demodulate(pcm);
+      expect(reference, isNotEmpty);
+      expect(_m20Demod(rate).demodulate(pcm), reference);
+    }
+  });
 }

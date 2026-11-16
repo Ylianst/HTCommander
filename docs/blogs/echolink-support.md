@@ -2,7 +2,7 @@
 
 *How HTCommander joins the EchoLink network — the 20-year-old system that ties
 repeaters, links, and operators together over the internet — without a repeater,
-a soundcard interface, or a single line of C. This post walks the whole stack:
+a soundcard interface, or a native EchoLink protocol library. This post walks the whole stack:
 the GSM voice codec, the UDP/TCP ports, the directory login, the RTCP handshake
 that opens a QSO, how voice and chat are wrapped, what the callsign suffixes and
 node numbers mean, a NAT gotcha that quietly eats your audio — and how to get an
@@ -26,9 +26,10 @@ just one that lives on the internet instead of on 2 metres. So we added it as a
 first-class "radio" you can switch to inside the app, sitting right next to your
 Bluetooth handhelds.
 
-The whole implementation is pure Dart. There is no native EchoLink library
-underneath — the protocol is simple enough (and old enough) that porting it
-directly is the cleanest option. The core is a faithful port of the
+The protocol implementation is pure Dart. There is no native EchoLink protocol
+library underneath — the protocol is simple enough (and old enough) that porting
+it directly is the cleanest option. GSM audio uses a small native codec on
+supported platforms, with a Dart fallback. The protocol core is a faithful port of the
 [SvxLink](https://github.com/sm0svx/svxlink) project's `EchoLib`, which has been
 the open-source reference for the EchoLink protocol for years.
 
@@ -93,10 +94,61 @@ The numbers:
 | Packet payload | 4 frames = 640 samples = **80 ms** of audio |
 | Bit layout | "toast" format (the EchoLink/SvxLink convention) |
 
-HTCommander ships its own pure-Dart GSM 06.10 encoder/decoder (a port of the
-venerable `libgsm`, which also lives in the repo as a reference). Every voice
+HTCommander ships a native GSM 06.10 encoder/decoder based on the permissively
+licensed `libgsm` 1.0.24, plus its existing pure-Dart reference codec. Every voice
 packet on the wire carries **four** GSM frames — 132 bytes of payload for 80 ms
 of speech.
+
+On Windows, Linux, macOS and Android, EchoLink batches all four frames into one
+FFI call. Each direction owns independent codec state and reusable native
+buffers, allocated only on its first audio operation and released on QSO teardown
+(with native finalizers as a backstop). Reset, disposal, empty TX and rejected RX
+packets do not allocate unused codec state.
+The protocol and RTP framing remain Dart. Other platforms retain the Dart codec.
+
+TX encodes directly into the final 144-byte RTP datagram, avoiding a temporary
+132-byte payload buffer, a payload copy, and a packet-wrapper object. The Dart
+fallback also writes its four frames into that final buffer. Returned packets
+and decoded PCM remain caller-owned; later codec calls never overwrite them.
+
+The encoder uses exact integer **SSE2** dot products on x64 and **NEON** on
+ARM64 for pitch search and LPC autocorrelation, with a scalar path elsewhere.
+Recursive filters retain their sequential arithmetic to preserve bit-exact
+output. Native failures are surfaced, never silently retried with a different
+codec halfway through a stream.
+
+If all 40 internal predictor residuals are exactly zero, the encoder skips the
+pitch search and returns its unchanged lag/gain result. This is not a quiet-audio
+threshold: filter tails and reconstructed-history updates are still processed.
+LPC also skips autocorrelation for exactly zero input. Preprocessing bypasses
+its recursive arithmetic only when all 160 PCM samples and all three filter
+state values are exactly zero. Subsequent codec stages still update their state;
+neither shortcut approximates quiet audio or truncates filter tails.
+
+Use `--dart-define=HT_GSM_DART=true` to select the Dart reference backend, or
+`--dart-define=HT_GSM_SCALAR=true` to disable explicit SIMD. The native tests
+compare scalar/SIMD output, resets, malformed-frame state, and extreme/random
+inputs with Dart; packet tests also compare against the checked-in libgsm golden
+vectors. Run from `src`:
+
+```
+flutter test test/gsm_bit_exact_test.dart test/native_gsm_test.dart test/echolink_audio_test.dart test/echolink_client_test.dart
+dart run benchmark/gsm_codec_benchmark.dart
+```
+
+The benchmark includes FFI copies and reports codec time per 80 ms packet,
+including a separate digital-silence encoding measurement.
+For release-performance comparisons, build an AOT bundle; for example on
+Windows:
+
+```powershell
+dart build cli --target=benchmark\gsm_codec_benchmark.dart --packages=.dart_tool\package_config.json --output=build\gsm-benchmark
+.\build\gsm-benchmark\bundle\bin\gsm_codec_benchmark.exe
+```
+
+Native storage reduces
+per-frame Dart allocation pressure; this does not guarantee lower total process
+RSS, since the native library also adds code pages.
 
 There's a sample-rate mismatch to bridge, though. HTCommander's internal audio
 engine runs at **32 kHz**, while EchoLink is **8 kHz**. So the pipeline includes

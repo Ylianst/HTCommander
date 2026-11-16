@@ -3771,25 +3771,11 @@ Uint8List _encodeSstvPcm(Map<String, Object?> args) {
   final sampleRate = args['sampleRate'] as int;
 
   final encoder = Encoder(sampleRate);
-  final samples = encoder.encode(pixels, width, height, modeName);
-
-  // Prepend 2 seconds of silence so the transmitter PTT is fully keyed up
-  // before the SSTV leader tone begins (32 kHz mono 16-bit => 2 bytes/sample).
-  final int silenceSamples = sampleRate * 2;
-  final int silenceBytes = silenceSamples * 2;
-
-  final pcm = Uint8List((silenceSamples + samples.length) * 2);
-  final view = ByteData.view(pcm.buffer);
-  for (int i = 0; i < samples.length; i++) {
-    var s = samples[i];
-    if (s > 1.0) {
-      s = 1.0;
-    } else if (s < -1.0) {
-      s = -1.0;
-    }
-    view.setInt16(silenceBytes + i * 2, (s * 32767).round(), Endian.little);
-  }
-  return pcm;
+  // Keep the two-second PTT key-up lead before the SSTV leader tone.
+  return encoder.encodePcm16(
+    pixels, width, height, modeName,
+    silenceSamples: sampleRate * 2,
+  );
 }
 
 /// Decodes WAV file [bytes] and converts the audio to 32000 Hz mono signed

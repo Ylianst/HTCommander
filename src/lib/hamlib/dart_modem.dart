@@ -110,7 +110,8 @@ class DartModeParams {
   /// Constant-envelope 4-FSK fallback. Amplitude-immune; lowest throughput.
   static const modeF = DartModeParams._(
     mode: DartMode.modeF,
-    constellation: ConstellationType.bpsk, // placeholder (FSK has no constellation)
+    constellation:
+        ConstellationType.bpsk, // placeholder (FSK has no constellation)
     ldpcRate: LdpcRate.r1_2,
     bitsPerSymbol: 2,
     description: '4-FSK R1/2 (fallback)',
@@ -119,13 +120,20 @@ class DartModeParams {
 
   static DartModeParams fromMode(DartMode mode) {
     switch (mode) {
-      case DartMode.mode0: return mode0;
-      case DartMode.mode1: return mode1;
-      case DartMode.mode2: return mode2;
-      case DartMode.mode3: return mode3;
-      case DartMode.mode4: return mode4;
-      case DartMode.mode5: return mode5;
-      case DartMode.modeF: return modeF;
+      case DartMode.mode0:
+        return mode0;
+      case DartMode.mode1:
+        return mode1;
+      case DartMode.mode2:
+        return mode2;
+      case DartMode.mode3:
+        return mode3;
+      case DartMode.mode4:
+        return mode4;
+      case DartMode.mode5:
+        return mode5;
+      case DartMode.modeF:
+        return modeF;
     }
   }
 
@@ -341,7 +349,8 @@ class DartDecodeResult {
 
   /// Build a [DartPacketInfo] describing this received frame.
   DartPacketInfo toPacketInfo() {
-    final mode = DartMode.values[header.modeIndex.clamp(0, DartMode.modeF.index)];
+    final mode =
+        DartMode.values[header.modeIndex.clamp(0, DartMode.modeF.index)];
     final modeParams = DartModeParams.fromMode(mode);
     return DartPacketInfo(
       direction: DartDirection.receive,
@@ -393,14 +402,18 @@ class DartModem {
   /// only path (useful for A/B testing the pilot benefit).
   final bool pilotsEnabled;
 
+  /// Disable to compare against the portable Dart numerical kernels.
+  final bool useNative;
+
   DartModem({
     DartOfdmParams? params,
     DartFskParams? fskParams,
     this.pilotsEnabled = true,
+    this.useNative = true,
   }) : ofdmParams = params ?? DartOfdmParams() {
-    preamble = DartPreamble(ofdmParams: ofdmParams);
-    ofdm = DartOfdm(ofdmParams);
-    fsk = DartFsk(fskParams ?? DartFskParams());
+    preamble = DartPreamble(ofdmParams: ofdmParams, useNative: useNative);
+    ofdm = DartOfdm(ofdmParams, useNative: useNative);
+    fsk = DartFsk(fskParams ?? DartFskParams(), useNative: useNative);
   }
 
   /// Known pilot data symbols (reuse the preamble's BPSK PN — known to both
@@ -455,7 +468,10 @@ class DartModem {
     // --- Encode header (mode 0: BPSK, LDPC 1/2) ---
     final headerBits = header.toBits(); // 144 bits
     final headerCodedBits = _ldpcEncodeBlock(headerBits, LdpcRate.r1_2);
-    final headerSymbols = _mapToSymbols(headerCodedBits, ConstellationType.bpsk);
+    final headerSymbols = _mapToSymbols(
+      headerCodedBits,
+      ConstellationType.bpsk,
+    );
     final headerOfdmSymbols = _modulateSymbols(headerSymbols);
 
     // --- Encode payload ---
@@ -464,20 +480,27 @@ class DartModem {
     // Convert to bits
     final payloadBits = _bytesToBits(payloadWithCrc);
     // LDPC encode (pad to block boundaries)
-    final payloadCodedBits = _ldpcEncodeStream(payloadBits, modeParams.ldpcRate);
+    final payloadCodedBits = _ldpcEncodeStream(
+      payloadBits,
+      modeParams.ldpcRate,
+    );
     // Interleave
     final interleavedBits = _interleave(payloadCodedBits);
     // Scramble (PN15 energy dispersal) so repetitive payloads still produce a
     // noise-like, low-PAPR symbol stream.
     final scrambledBits = _scramble(interleavedBits);
     // Map to symbols
-    final payloadSymbols = _mapToSymbols(scrambledBits, modeParams.constellation);
+    final payloadSymbols = _mapToSymbols(
+      scrambledBits,
+      modeParams.constellation,
+    );
     // Modulate to OFDM symbols, then (optionally) intersperse known pilot
     // symbols so the receiver can track carrier phase noise independently of
     // its decisions.
     final payloadDataOfdm = _modulateSymbols(payloadSymbols);
-    final payloadOfdmSymbols =
-        pilotsEnabled ? _insertPayloadPilots(payloadDataOfdm) : payloadDataOfdm;
+    final payloadOfdmSymbols = pilotsEnabled
+        ? _insertPayloadPilots(payloadDataOfdm)
+        : payloadDataOfdm;
 
     // --- Assemble frame ---
     // Lead-in silence lets the SBC filterbank warm up before the preamble,
@@ -495,7 +518,7 @@ class DartModem {
       tail,
     ];
 
-    return DartOfdm.toPcm(allSymbols);
+    return DartOfdm.toPcm(allSymbols, useNative: useNative);
   }
 
   /// Encode a Mode F (constant-envelope 4-FSK) frame. Header and payload are
@@ -558,7 +581,7 @@ class DartModem {
       payloadFsk,
       Float64List(_guardSamples),
     ];
-    return DartOfdm.toPcm(parts);
+    return DartOfdm.toPcm(parts, useNative: useNative);
   }
 
   /// Root-mean-square amplitude of a real signal (0 for an empty buffer).
@@ -582,19 +605,24 @@ class DartModem {
     int searchStart = 0,
     PreambleDetection? detection,
   }) {
-    final rxSamples = DartOfdm.fromPcm(pcm);
+    final rxSamples = DartOfdm.fromPcm(pcm, useNative: useNative);
     final double durationMs = pcm.length * 1000.0 / ofdmParams.sampleRate;
 
     // Detect preamble (shared by both waveforms). Callers streaming audio can
     // pass a detection already computed by [detectPreamble] to avoid running
     // the O(N) correlation twice; otherwise scan from [searchStart].
-    final det = detection ??
+    final det =
+        detection ??
         preamble.detectDetailed(rxSamples, searchStart: searchStart);
     if (det.position < 0) return null;
 
     // Try OFDM first; fall back to Mode F (FSK).
-    return _decodeOfdm(rxSamples, det, durationMs,
-            captureConstellation: captureConstellation) ??
+    return _decodeOfdm(
+          rxSamples,
+          det,
+          durationMs,
+          captureConstellation: captureConstellation,
+        ) ??
         _decodeFsk(rxSamples, det, durationMs);
   }
 
@@ -607,7 +635,7 @@ class DartModem {
   /// preamble) and then feed the result straight into [decode] via its
   /// `detection` argument, so the correlation only runs once per pass.
   PreambleDetection detectPreamble(Int16List pcm, {int searchStart = 0}) {
-    final rxSamples = DartOfdm.fromPcm(pcm);
+    final rxSamples = DartOfdm.fromPcm(pcm, useNative: useNative);
     return preamble.detectDetailed(rxSamples, searchStart: searchStart);
   }
 
@@ -640,7 +668,10 @@ class DartModem {
         ofdmParams.numDataCarriers;
 
     final headerRxSymbols = _demodulateOfdmSymbols(
-      rxSamples, headerStart, headerOfdmCount, channelEst,
+      rxSamples,
+      headerStart,
+      headerOfdmCount,
+      channelEst,
     );
     if (headerRxSymbols == null) return null;
 
@@ -707,13 +738,19 @@ class DartModem {
     final Float64List driftHolder = Float64List(1);
     final payloadRxSymbols = pilotsEnabled
         ? _demodulateOfdmSymbolsPilots(
-            rxSamples, payloadStart, payloadOfdmCount, refinedChannel,
+            rxSamples,
+            payloadStart,
+            payloadOfdmCount,
+            refinedChannel,
             payloadConst,
             noiseVar: noiseVar,
             driftOut: driftHolder,
           )
         : _demodulateOfdmSymbolsTracked(
-            rxSamples, payloadStart, payloadOfdmCount, refinedChannel,
+            rxSamples,
+            payloadStart,
+            payloadOfdmCount,
+            refinedChannel,
             payloadConst,
             noiseVar: noiseVar,
           );
@@ -722,7 +759,11 @@ class DartModem {
     // Soft-demap payload
     final payloadLlrs = Float64List(totalCodedBits);
     int llrIdx = 0;
-    for (int i = 0; i < payloadRxSymbols.length && llrIdx < totalCodedBits; i++) {
+    for (
+      int i = 0;
+      i < payloadRxSymbols.length && llrIdx < totalCodedBits;
+      i++
+    ) {
       final softBits = payloadConst.softDemap(payloadRxSymbols[i], noiseVar);
       for (int b = 0; b < softBits.length && llrIdx < totalCodedBits; b++) {
         payloadLlrs[llrIdx++] = softBits[b];
@@ -736,7 +777,9 @@ class DartModem {
     // LDPC decode (counting the bit errors corrected)
     final corrections = Int32List(1);
     final payloadBits = _ldpcDecodeStream(
-      deinterleavedLlrs, modeParams.ldpcRate, payloadBitsNeeded,
+      deinterleavedLlrs,
+      modeParams.ldpcRate,
+      payloadBitsNeeded,
       corrOut: corrections,
     );
     if (payloadBits == null) return null;
@@ -746,7 +789,9 @@ class DartModem {
     if (payloadBytes.length < 4) return null;
 
     final dataBytes = Uint8List.sublistView(
-      payloadBytes, 0, payloadBytes.length - 4,
+      payloadBytes,
+      0,
+      payloadBytes.length - 4,
     );
     final int rxCrc = _extractCrc32(payloadBytes);
     final int computedCrc = _computeCrc32(dataBytes);
@@ -761,7 +806,10 @@ class DartModem {
 
     return DartDecodeResult(
       header: header,
-      payload: dataBytes.sublist(0, header.payloadLength.clamp(0, dataBytes.length)),
+      payload: dataBytes.sublist(
+        0,
+        header.payloadLength.clamp(0, dataBytes.length),
+      ),
       crcOk: rxCrc == computedCrc,
       quality: quality,
       durationMs: durationMs,
@@ -788,7 +836,11 @@ class DartModem {
       return null;
     }
 
-    final headerLlrs = fsk.demodulateSoft(rxSamples, headerStart, headerCodedBits);
+    final headerLlrs = fsk.demodulateSoft(
+      rxSamples,
+      headerStart,
+      headerCodedBits,
+    );
     final headerBits = _ldpcDecodeStream(headerLlrs, LdpcRate.r1_2, 144);
     if (headerBits == null) return null;
 
@@ -810,13 +862,20 @@ class DartModem {
       return null;
     }
 
-    final payloadLlrs =
-        fsk.demodulateSoft(rxSamples, payloadStart, totalCodedBits);
+    final snr = Float64List(1);
+    final payloadLlrs = fsk.demodulateSoft(
+      rxSamples,
+      payloadStart,
+      totalCodedBits,
+      snrOut: snr,
+    );
     final descrambledLlrs = _descramble(payloadLlrs);
     final deinterleavedLlrs = _deinterleave(descrambledLlrs);
     final corrections = Int32List(1);
     final payloadBits = _ldpcDecodeStream(
-      deinterleavedLlrs, LdpcRate.r1_2, payloadBitsNeeded,
+      deinterleavedLlrs,
+      LdpcRate.r1_2,
+      payloadBitsNeeded,
       corrOut: corrections,
     );
     if (payloadBits == null) return null;
@@ -824,15 +883,16 @@ class DartModem {
     final payloadBytes = _bitsToBytes(payloadBits);
     if (payloadBytes.length < 4) return null;
     final dataBytes = Uint8List.sublistView(
-      payloadBytes, 0, payloadBytes.length - 4,
+      payloadBytes,
+      0,
+      payloadBytes.length - 4,
     );
     final int rxCrc = _extractCrc32(payloadBytes);
     final int computedCrc = _computeCrc32(dataBytes);
 
     // Quality: FSK has no constellation EVM, so derive SNR from tone
     // separation and report the preamble correlation.
-    final int numSymbols = (totalCodedBits + 1) ~/ 2;
-    final double snrDb = fsk.estimateSnrDb(rxSamples, payloadStart, numSymbols);
+    final double snrDb = snr[0];
     final quality = DartSignalQuality(
       evmPercent: snrDb > 0 ? (100.0 / (1 + snrDb)) : 99.0,
       snrDb: snrDb,
@@ -842,7 +902,10 @@ class DartModem {
 
     return DartDecodeResult(
       header: header,
-      payload: dataBytes.sublist(0, header.payloadLength.clamp(0, dataBytes.length)),
+      payload: dataBytes.sublist(
+        0,
+        header.payloadLength.clamp(0, dataBytes.length),
+      ),
       crcOk: rxCrc == computedCrc,
       quality: quality,
       durationMs: durationMs,
@@ -906,7 +969,7 @@ class DartModem {
     // Pad info bits to code.k
     final padded = Uint8List(code.k);
     padded.setRange(0, math.min(infoBits.length, code.k), infoBits);
-    return DartLdpc.encode(code, padded);
+    return DartLdpc.encode(code, padded, useNative: useNative);
   }
 
   /// LDPC-encode a bit stream (multiple blocks, padded).
@@ -914,15 +977,16 @@ class DartModem {
     final code = DartLdpc.getCode(rate);
     final int numBlocks = (bits.length + code.k - 1) ~/ code.k;
     final output = Uint8List(numBlocks * code.n);
+    final block = Uint8List(code.k);
 
     for (int b = 0; b < numBlocks; b++) {
       final int start = b * code.k;
-      final block = Uint8List(code.k);
       final int copyLen = math.min(code.k, bits.length - start);
+      block.fillRange(copyLen, code.k, 0);
       if (copyLen > 0) {
         block.setRange(0, copyLen, bits, start);
       }
-      final coded = DartLdpc.encode(code, block);
+      final coded = DartLdpc.encode(code, block, useNative: useNative);
       output.setRange(b * code.n, (b + 1) * code.n, coded);
     }
     return output;
@@ -948,8 +1012,15 @@ class DartModem {
 
     for (int s = 0; s < numOfdmSymbols; s++) {
       final int start = s * carriersPerSymbol;
-      final block = List<Complex>.filled(carriersPerSymbol, const Complex(0, 0));
-      for (int i = 0; i < carriersPerSymbol && start + i < symbols.length; i++) {
+      final block = List<Complex>.filled(
+        carriersPerSymbol,
+        const Complex(0, 0),
+      );
+      for (
+        int i = 0;
+        i < carriersPerSymbol && start + i < symbols.length;
+        i++
+      ) {
         block[i] = symbols[start + i];
       }
       ofdmSymbols.add(ofdm.modulateSymbol(block));
@@ -965,24 +1036,12 @@ class DartModem {
   /// channel bit error stays a single error — it does not multiply — so the
   /// soft LDPC decoder downstream sees the clean additive-noise channel it was
   /// designed for.
-  static const int _scramblerSeed = 0x7FFF; // 15 ones (any non-zero 15-bit seed)
+  static const int _scramblerSeed =
+      0x7FFF; // 15 ones (any non-zero 15-bit seed)
 
-  /// Generate [length] bits of the PN15 sequence (polynomial x^15 + x^14 + 1,
-  /// period 32767) starting from [_scramblerSeed]. Period comfortably exceeds
-  /// the largest DART frame's coded-bit count, so it never repeats within a
-  /// frame.
-  static Uint8List _prbs15(int length) {
-    final out = Uint8List(length);
-    int state = _scramblerSeed & 0x7FFF;
-    for (int i = 0; i < length; i++) {
-      // Output the LSB, then advance: new bit = tap14 XOR tap13 (0-indexed).
-      final int bit = state & 1;
-      out[i] = bit;
-      final int feedback = ((state >> 14) ^ (state >> 13)) & 1;
-      state = ((state >> 1) | (feedback << 14)) & 0x7FFF;
-    }
-    return out;
-  }
+  /// Advance the frame-synchronous PN15 generator (x^15 + x^14 + 1).
+  static int _advancePrbs15(int state) =>
+      ((state >> 1) | ((((state >> 14) ^ (state >> 13)) & 1) << 14)) & 0x7FFF;
 
   /// Scramble coded bits by XOR-ing them with the PN15 sequence (TX side).
   /// Applied to the interleaved coded bits, the last bit-domain step before the
@@ -990,10 +1049,11 @@ class DartModem {
   /// noise-like symbol stream (flat spectrum, low PAPR).
   Uint8List _scramble(Uint8List bits) {
     if (bits.isEmpty) return bits;
-    final pn = _prbs15(bits.length);
     final out = Uint8List(bits.length);
+    int state = _scramblerSeed;
     for (int i = 0; i < bits.length; i++) {
-      out[i] = bits[i] ^ pn[i];
+      out[i] = bits[i] ^ (state & 1);
+      state = _advancePrbs15(state);
     }
     return out;
   }
@@ -1003,10 +1063,11 @@ class DartModem {
   /// inverted, so negate the LLR. Lossless for the soft LDPC decoder.
   Float64List _descramble(Float64List llrs) {
     if (llrs.isEmpty) return llrs;
-    final pn = _prbs15(llrs.length);
     final out = Float64List(llrs.length);
+    int state = _scramblerSeed;
     for (int i = 0; i < llrs.length; i++) {
-      out[i] = pn[i] == 1 ? -llrs[i] : llrs[i];
+      out[i] = (state & 1) == 1 ? -llrs[i] : llrs[i];
+      state = _advancePrbs15(state);
     }
     return out;
   }
@@ -1018,7 +1079,7 @@ class DartModem {
     // Block size = 648 (matches LDPC block). Write columns, read rows.
     const int blockSize = 648;
     final int numBlocks = (bits.length + blockSize - 1) ~/ blockSize;
-    final output = Uint8List(numBlocks * blockSize);
+    final output = Uint8List(bits.length);
 
     // Number of columns in the interleaver matrix
     const int numCols = 24; // chosen to break SBC frame-boundary bursts
@@ -1037,7 +1098,7 @@ class DartModem {
         }
       }
     }
-    return Uint8List.fromList(output.sublist(0, bits.length));
+    return output;
   }
 
   // --- Private RX helpers ---
@@ -1056,7 +1117,11 @@ class DartModem {
     final allSymbols = <Complex>[];
     for (int s = 0; s < numOfdmSymbols; s++) {
       final int offset = startSample + s * symbolLen;
-      final slice = Float64List.sublistView(rxSamples, offset, offset + symbolLen);
+      final slice = Float64List.sublistView(
+        rxSamples,
+        offset,
+        offset + symbolLen,
+      );
       final symbols = ofdm.demodulateSymbol(slice, channelEst);
       allSymbols.addAll(symbols);
     }
@@ -1097,17 +1162,23 @@ class DartModem {
     double phaseAccum = 0.0;
     for (int s = 0; s < numOfdmSymbols; s++) {
       final int offset = startSample + s * symbolLen;
-      final slice =
-          Float64List.sublistView(rxSamples, offset, offset + symbolLen);
-      final symbols = ofdm.demodulateSymbol(slice, channelEst, noiseVar: noiseVar);
+      final slice = Float64List.sublistView(
+        rxSamples,
+        offset,
+        offset + symbolLen,
+      );
+      final symbols = ofdm.demodulateSymbol(
+        slice,
+        channelEst,
+        noiseVar: noiseVar,
+      );
 
       // Predict this symbol's phase from the running estimate and de-rotate.
       final double cosP = math.cos(-phaseAccum);
       final double sinP = math.sin(-phaseAccum);
       for (int i = 0; i < symbols.length; i++) {
         final Complex c = symbols[i];
-        symbols[i] =
-            Complex(c.i * cosP - c.q * sinP, c.i * sinP + c.q * cosP);
+        symbols[i] = Complex(c.i * cosP - c.q * sinP, c.i * sinP + c.q * cosP);
       }
 
       // Measure the residual common phase error from decisions on the
@@ -1125,8 +1196,10 @@ class DartModem {
         final double sinR = math.sin(-residual);
         for (int i = 0; i < symbols.length; i++) {
           final Complex c = symbols[i];
-          symbols[i] =
-              Complex(c.i * cosR - c.q * sinR, c.i * sinR + c.q * cosR);
+          symbols[i] = Complex(
+            c.i * cosR - c.q * sinR,
+            c.i * sinR + c.q * cosR,
+          );
         }
         // Carry the correction forward so the next symbol is predicted at the
         // updated absolute phase (first-order ramp tracking).
@@ -1171,8 +1244,11 @@ class DartModem {
     final raw = List<List<Complex>>.filled(total, const <Complex>[]);
     for (int p = 0; p < total; p++) {
       final int offset = startSample + p * symbolLen;
-      final slice =
-          Float64List.sublistView(rxSamples, offset, offset + symbolLen);
+      final slice = Float64List.sublistView(
+        rxSamples,
+        offset,
+        offset + symbolLen,
+      );
       raw[p] = ofdm.demodulateSymbol(slice, channelEst, noiseVar: noiseVar);
     }
 
@@ -1204,8 +1280,10 @@ class DartModem {
           anchored = true;
         } else {
           // Unwrap toward the running estimate.
-          phaseAccum +=
-              math.atan2(math.sin(theta - phaseAccum), math.cos(theta - phaseAccum));
+          phaseAccum += math.atan2(
+            math.sin(theta - phaseAccum),
+            math.cos(theta - phaseAccum),
+          );
         }
         pilotPos.add(p);
         pilotAbsPhase.add(phaseAccum);
@@ -1290,8 +1368,11 @@ class DartModem {
     for (int s = 0; s < headerOfdmCount; s++) {
       final int offset = headerStart + s * symbolLen;
       if (offset + symbolLen > rxSamples.length) break;
-      final slice =
-          Float64List.sublistView(rxSamples, offset, offset + symbolLen);
+      final slice = Float64List.sublistView(
+        rxSamples,
+        offset,
+        offset + symbolLen,
+      );
       // Raw FFT bins (no equalization).
       final rawBins = ofdm.demodulateSymbolRaw(slice);
 
@@ -1311,11 +1392,8 @@ class DartModem {
         final Complex x = tones[i];
         final Complex y = rawBins[i];
         // Y * conj(X)
-        accIQ[i] = accIQ[i] +
-            Complex(
-              y.i * x.i + y.q * x.q,
-              y.q * x.i - y.i * x.q,
-            );
+        accIQ[i] =
+            accIQ[i] + Complex(y.i * x.i + y.q * x.q, y.q * x.i - y.i * x.q);
         accPow[i] += x.magnitudeSquared;
       }
     }
@@ -1337,9 +1415,7 @@ class DartModem {
     if (llrs.isEmpty) return llrs;
     const int blockSize = 648;
     final int numBlocks = (llrs.length + blockSize - 1) ~/ blockSize;
-    final padded = Float64List(numBlocks * blockSize);
-    padded.setRange(0, llrs.length, llrs);
-    final output = Float64List(padded.length);
+    final output = Float64List(llrs.length);
 
     const int numCols = 24;
     final int numRows = (blockSize + numCols - 1) ~/ numCols;
@@ -1351,13 +1427,13 @@ class DartModem {
         for (int row = 0; row < numRows; row++) {
           final int readIdx = base + col * numRows + row;
           final int writeIdx = base + row * numCols + col;
-          if (readIdx < padded.length && writeIdx < output.length) {
-            output[writeIdx] = padded[readIdx];
+          if (readIdx < llrs.length && writeIdx < output.length) {
+            output[writeIdx] = llrs[readIdx];
           }
         }
       }
     }
-    return Float64List.fromList(output.sublist(0, llrs.length));
+    return output;
   }
 
   /// LDPC decode a stream of LLRs, return decoded info bits.
@@ -1371,12 +1447,13 @@ class DartModem {
   }) {
     final code = DartLdpc.getCode(rate);
     final int numBlocks = (infoBitsNeeded + code.k - 1) ~/ code.k;
-    final output = Uint8List(numBlocks * code.k);
+    final output = Uint8List(infoBitsNeeded);
+    final blockLlr = Float64List(code.n);
 
     for (int b = 0; b < numBlocks; b++) {
       final int start = b * code.n;
-      final blockLlr = Float64List(code.n);
       final int copyLen = math.min(code.n, llrs.length - start);
+      blockLlr.fillRange(math.max(0, copyLen), code.n, 0);
       if (copyLen > 0) {
         blockLlr.setRange(0, copyLen, llrs, start);
       }
@@ -1386,17 +1463,25 @@ class DartModem {
       // treats them as known. Known bits constrain the codeword and improve
       // decoding — the gain is largest for short frames, where padding
       // dominates the block.
-      final int realInBlock =
-          (infoBitsNeeded - b * code.k).clamp(0, code.k);
+      final int realInBlock = (infoBitsNeeded - b * code.k).clamp(0, code.k);
       const double knownLlr = 1e6;
       for (int i = realInBlock; i < code.k; i++) {
         blockLlr[i] = knownLlr;
       }
-      final decoded = DartLdpc.decode(code, blockLlr, corrOut: corrOut);
+      final decoded = DartLdpc.decode(
+        code,
+        blockLlr,
+        corrOut: corrOut,
+        useNative: useNative,
+      );
       if (decoded == null) return null;
-      output.setRange(b * code.k, (b + 1) * code.k, decoded);
+      output.setRange(
+        b * code.k,
+        math.min((b + 1) * code.k, output.length),
+        decoded,
+      );
     }
-    return Uint8List.fromList(output.sublist(0, infoBitsNeeded));
+    return output;
   }
 
   /// Estimate noise variance from received symbols (for LLR computation).

@@ -24,6 +24,7 @@ import 'lms6_demodulator.dart';
 import 'm10_decoder.dart';
 import 'm10_demodulator.dart';
 import 'm20_decoder.dart';
+import 'native_telemetry.dart';
 import 'radiosonde_fix.dart';
 import 'rs41_decoder.dart';
 import 'rs41_demodulator.dart';
@@ -35,8 +36,13 @@ class RadiosondeMonitor {
     : _dfmDemod = DfmDemodulator(sampleRate),
       _rs41Demod = Rs41Demodulator(sampleRate),
       _m10Demod = M10Demodulator(sampleRate),
-      _m20Demod = M10Demodulator(sampleRate,
-          chipRate: 9600, frameBytes: 70, sync0: 0x45, sync1: 0x20),
+      _m20Demod = M10Demodulator(
+        sampleRate,
+        chipRate: 9600,
+        frameBytes: 70,
+        sync0: 0x45,
+        sync1: 0x20,
+      ),
       _imetDemod = ImetDemodulator(sampleRate),
       _lms6Demod = Lms6Demodulator(sampleRate),
       _sampleRate = sampleRate;
@@ -54,6 +60,7 @@ class RadiosondeMonitor {
   final Lms6Demodulator _lms6Demod;
   final Lms6Decoder _lms6Decoder = Lms6Decoder();
   final int _sampleRate;
+  final NativeTelemetryRecording? _recording = createNativeTelemetryRecording();
   bool _disposed = false;
 
   // Accumulated 16-bit LE PCM for the current run.
@@ -97,9 +104,10 @@ class RadiosondeMonitor {
       bytes.offsetInBytes,
       bytes.lengthInBytes ~/ 2,
     );
+    _recording?.upload(samples, _sampleRate);
 
     // DFM.
-    for (final bits in _dfmDemod.demodulate(samples)) {
+    for (final bits in _dfmDemod.demodulate(samples, recording: _recording)) {
       if (_disposed) return;
       final fix = _dfmDecoder.decodeFrame(bits);
       if (fix != null) {
@@ -123,7 +131,7 @@ class RadiosondeMonitor {
     }
 
     // RS41.
-    for (final frame in _rs41Demod.demodulate(samples)) {
+    for (final frame in _rs41Demod.demodulate(samples, recording: _recording)) {
       if (_disposed) return;
       final fix = _rs41Decoder.decodeFrame(frame);
       if (fix != null) {
@@ -146,7 +154,7 @@ class RadiosondeMonitor {
     }
 
     // M10.
-    for (final frame in _m10Demod.demodulate(samples)) {
+    for (final frame in _m10Demod.demodulate(samples, recording: _recording)) {
       if (_disposed) return;
       final fix = _m10Decoder.decodeFrame(frame);
       if (fix != null) {
@@ -169,7 +177,7 @@ class RadiosondeMonitor {
     }
 
     // M20.
-    for (final frame in _m20Demod.demodulate(samples)) {
+    for (final frame in _m20Demod.demodulate(samples, recording: _recording)) {
       if (_disposed) return;
       final fix = _m20Decoder.decodeFrame(frame);
       if (fix != null) {
@@ -192,7 +200,7 @@ class RadiosondeMonitor {
     }
 
     // iMet (Bell-202 AFSK byte stream).
-    final imetBytes = _imetDemod.demodulate(samples);
+    final imetBytes = _imetDemod.demodulate(samples, recording: _recording);
     if (imetBytes.isNotEmpty) {
       final now = DateTime.now().toUtc();
       for (final fix in _imetDecoder.decodeStream(imetBytes)) {
@@ -201,7 +209,13 @@ class RadiosondeMonitor {
         DateTime dt;
         try {
           dt = DateTime.utc(
-              now.year, now.month, now.day, fix.hour, fix.minute, fix.second);
+            now.year,
+            now.month,
+            now.day,
+            fix.hour,
+            fix.minute,
+            fix.second,
+          );
         } catch (_) {
           dt = now;
         }
@@ -224,7 +238,7 @@ class RadiosondeMonitor {
     }
 
     // LMS6 (NRZ 4800, convolutional + RS).
-    final lms6Blocks = _lms6Demod.demodulate(samples);
+    final lms6Blocks = _lms6Demod.demodulate(samples, recording: _recording);
     if (lms6Blocks.isNotEmpty) {
       final now = DateTime.now().toUtc();
       for (final block in lms6Blocks) {
@@ -235,7 +249,13 @@ class RadiosondeMonitor {
         DateTime dt;
         try {
           dt = DateTime.utc(
-              now.year, now.month, now.day, fix.hour, fix.minute, fix.second);
+            now.year,
+            now.month,
+            now.day,
+            fix.hour,
+            fix.minute,
+            fix.second,
+          );
         } catch (_) {
           dt = now;
         }
@@ -262,6 +282,7 @@ class RadiosondeMonitor {
     if (_disposed) return;
     _disposed = true;
     _buffer.clear();
+    _recording?.dispose();
     _decodedController.close();
   }
 }

@@ -119,4 +119,31 @@ void main() {
     expect(f.longitude, closeTo(2.3, 1e-4));
     expect(f.altitude, 1500);
   });
+
+  test('native iMet matches Dart including a truncated trailing mark', () {
+    for (final rate in [32000, 48000]) {
+      final pcm = _modulate(_framing(packet), rate);
+      final reference = ImetDemodulator(rate, useNative: false).demodulate(pcm);
+      expect(reference, isNotEmpty);
+      expect(ImetDemodulator(rate).demodulate(pcm), reference);
+      final truncated = Int16List.sublistView(pcm, 0, pcm.length - rate ~/ 100);
+      expect(ImetDemodulator(rate).demodulate(truncated),
+          ImetDemodulator(rate, useNative: false).demodulate(truncated));
+    }
+  });
+
+  test('native tone-table wrapping matches Dart with noise and DC offset', () {
+    final framed = _framing([...packet, ...packet, ...packet]);
+    for (final rate in [32000, 37500, 44100, 48000]) {
+      final pcm = _modulate(framed, rate);
+      final random = math.Random(19);
+      for (int i = 0; i < pcm.length; i++) {
+        pcm[i] += 500 + random.nextInt(601) - 300;
+      }
+      final reference = ImetDemodulator(rate, useNative: false).demodulate(pcm);
+      expect(ImetDecoder().decodeStream(reference), isNotEmpty);
+      expect(ImetDemodulator(rate).demodulate(pcm), reference,
+          reason: 'tone-table wrapping at $rate Hz');
+    }
+  });
 }

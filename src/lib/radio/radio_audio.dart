@@ -8,6 +8,8 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/services.dart' show RootIsolateToken;
 
 import '../services/bluetooth_classic_macos.dart';
@@ -25,8 +27,10 @@ import 'radio.dart';
 /// the PCM playback device (background isolates cannot receive messages from
 /// the host platform, so plugin channels must live here), plus all DataBroker
 /// interaction. It forwards raw received bytes to the engine, feeds the engine's
-/// decoded PCM to the speaker, relays the engine's transmit bytes back over
-/// Bluetooth, and translates engine events into DataBroker dispatches.
+/// decoded PCM to the speaker on platforms without native receive playback,
+/// relays transmit bytes, and translates engine events into DataBroker dispatches.
+/// On Windows the Bluetooth reader also decodes directly into the shared native
+/// output worker. Dart's receive PCM remains available for recording/data/web.
 class RadioAudio {
   // Audio format: 32 kHz, 16-bit, mono (matches the radio's SBC stream).
   static const int _sampleRate = 32000;
@@ -66,6 +70,7 @@ class RadioAudio {
   final PcmPlayer _pcm = PcmPlayer();
   bool _pcmSoundReady = false;
   int _bufferedFrames = 0;
+  bool _nativeRxPlayback = false;
 
   // The device ID of the radio currently selected (preferred) in the main form,
   // published on DataBroker device 1 as 'SelectedRadioDeviceId'. When connected
@@ -257,7 +262,12 @@ class RadioAudio {
         } else if (pcm is Uint8List) {
           bytes = pcm;
         }
-        if (bytes != null) _playPcm(_int16FromBytes(bytes));
+        if (bytes != null) {
+          _playPcm(
+            _int16FromBytes(bytes),
+            received: message['received'] == true,
+          );
+        }
         break;
       case 'audioStart':
         _dispatchAudioDataStart(
@@ -272,6 +282,9 @@ class RadioAudio {
           (message['transmit'] as bool?) ?? false,
           (message['startMs'] as int?) ?? 0,
         );
+        if (_nativeRxPlayback && message['transmit'] == false) {
+          unawaited(_reportNativePlaybackStats());
+        }
         break;
       case 'audioData':
         _dispatchAudioDataAvailable(message);
@@ -307,6 +320,38 @@ class RadioAudio {
       'muteChannel': radio.isOnMuteChannel(),
       'receiving': radio.htStatus?.isInRx ?? false,
     });
+    _syncNativePlayback();
+  }
+
+  Future<void> _configureNativePlayback({required bool enabled}) {
+    return BluetoothClassicMacOS.instance.configureNativeAudioPlayback(
+      macAddress,
+      enabled: enabled,
+      audible: _isAudibleRadio,
+      muted: _isMuted || radio.isOnMuteChannel(),
+      volume: PcmPlayer.hostOutputVolume,
+    );
+  }
+
+  void _syncNativePlayback() {
+    if (!_nativeRxPlayback) return;
+    unawaited(
+      _configureNativePlayback(enabled: _running || _connecting).catchError((
+        Object error,
+      ) {
+        _debug('Native playback control error: $error');
+      }),
+    );
+  }
+
+  Future<void> _reportNativePlaybackStats() async {
+    try {
+      final stats = await BluetoothClassicMacOS.instance
+          .getNativeAudioPlaybackStats(macAddress);
+      _debug('Native RX playback: $stats');
+    } catch (error) {
+      _debug('Native playback statistics error: $error');
+    }
   }
 
   void _onHtStatus(int deviceId, String name, Object? data) {
@@ -336,6 +381,7 @@ class RadioAudio {
     if (data == _selectedRadioDeviceId) return;
     _selectedRadioDeviceId = data;
     if (!_isAudibleRadio) _bufferedFrames = 0;
+    _syncNativePlayback();
   }
 
   // ---------------------------------------------------------------------------
@@ -364,6 +410,7 @@ class RadioAudio {
     if (vol == null) return;
     _outputVolume = vol;
     PcmPlayer.hostOutputVolume = vol;
+    _syncNativePlayback();
     _sendToEngine(<String, Object?>{'cmd': 'setVolume', 'value': vol});
     _broker.dispatch(
       deviceId: deviceId,
@@ -376,6 +423,7 @@ class RadioAudio {
   void _onSetMute(int deviceId, String name, Object? data) {
     if (data is bool) {
       _isMuted = data;
+      _syncNativePlayback();
       _sendToEngine(<String, Object?>{'cmd': 'setMute', 'value': data});
       _broker.dispatch(
         deviceId: deviceId,
@@ -505,6 +553,9 @@ class RadioAudio {
       // engine before we start pumping bytes into it.
       await _initPcmSound();
       await _ensureEngine();
+      _nativeRxPlayback =
+          !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+      if (_nativeRxPlayback) await _configureNativePlayback(enabled: true);
 
       // Listen for audio-channel connection events so we can react to drops.
       _audioConnSub = BluetoothClassicMacOS.instance.audioConnectionEvents
@@ -595,6 +646,10 @@ class RadioAudio {
       _debug('Audio start error: $e');
       _running = false;
       _connecting = false;
+      if (_nativeRxPlayback) {
+        _syncNativePlayback();
+        _nativeRxPlayback = false;
+      }
       _dispatchAudioStateChanged(false);
     }
   }
@@ -604,6 +659,15 @@ class RadioAudio {
     if (!_running && !_connecting) return;
     _running = false;
     _connecting = false;
+    if (_nativeRxPlayback) {
+      try {
+        await _configureNativePlayback(enabled: false);
+        await _reportNativePlaybackStats();
+      } catch (error) {
+        _debug('Native playback stop error: $error');
+      }
+      _nativeRxPlayback = false;
+    }
 
     await _audioDataSub?.cancel();
     _audioDataSub = null;
@@ -720,11 +784,17 @@ class RadioAudio {
     _bufferedFrames = remainingFrames;
   }
 
-  Future<void> _playPcm(Int16List pcm) async {
-    if (!_pcmSoundReady) return;
+  Future<void> _playPcm(Int16List pcm, {bool received = false}) async {
+    if (!_running || !_pcmSoundReady) return;
     // Only the radio selected in the main form is audible. Non-selected radios
     // still decode, record and process data; they just don't feed the speaker.
     if (!_isAudibleRadio) return;
+    if (_nativeRxPlayback && received) {
+      // The speaker already received these samples on the Bluetooth reader.
+      // Preserve the full-volume browser mirror without feeding it twice.
+      PcmPlayer.playbackTap?.call(pcm, _sampleRate, 1);
+      return;
+    }
     // If we are too far behind real time, drop this chunk to catch up.
     if (_bufferedFrames > _maxBufferedFrames) return;
 
@@ -756,6 +826,7 @@ class RadioAudio {
   // ---------------------------------------------------------------------------
 
   void _dispatchAudioStateChanged(bool enabled) {
+    _syncNativePlayback();
     _broker.dispatch(
       deviceId: deviceId,
       name: 'AudioState',

@@ -158,6 +158,103 @@ is a genuine "best-effort" decoder, not a certified receiver.
 
 ---
 
+## Native audio processing
+
+On Windows, Linux, macOS, and Android, both audio front ends now run in the
+shared C++17
+[`telemetry_dsp.cpp`](../../src/native/telemetry_dsp.cpp) native asset.
+Web and iOS retain the original Dart implementation; `useNative: false` on
+`Sarsat1gDemodulator` selects it explicitly for comparisons.
+
+The native coherent path estimates the carrier with eight parallel Goertzel
+recurrences, keeping the complete 501-frequency, 1 Hz search grid over
+the nominal carrier +/-250 Hz. Recurrences reset every 1024 samples to bound
+numerical drift, particularly near DC and Nyquist. Each segment's complex DFT
+is phase-aligned before summation, preserving coherence across the complete
+recording; summing segment powers instead would change the carrier search.
+This reduces the per-sample arithmetic without decimation or narrowing the
+frequency search. It correlates
+constant-sign template runs using prefix sums. The FM path updates its
+delayed autocorrelation in constant time per sample instead of rescanning
+the delay window. I baseband is overwritten with phase prefix sums, avoiding
+separate DC-blocked and phase arrays and reducing the large working arrays
+from three to two. Sample-sized working arrays stay native and are freed
+after decoding. The monitor retains a reusable native PCM recording context
+between bursts; one upload supplies both front ends. Uploads and decoding are
+non-leaf FFI calls. Dart still performs BCH correction, protocol/position
+parsing, deduplication, and event delivery. Native failures surface as errors;
+they are not silently retried.
+
+The shared sync correlator uses SSE2 (x86) or NEON (AArch64) to evaluate four
+adjacent audio offsets at once, preserving the scalar tap accumulation order;
+other targets retain a scalar implementation. Boxcar and FM-autocorrelation
+ring indices use wrapping counters rather than per-sample integer divisions.
+
+Tests compare corrected frame bits with Dart for noisy bursts at the center
+and edges of the carrier search, a fractional-Hz carrier, and the real FM
+self-test recording, and reject silence.
+This changes execution efficiency, not the receive-only feature's
+best-effort, non-certified status.
+
+For the included 0.868-second, 32 kHz self-test recording, a Windows x64 AOT
+initial benchmark measured **280.6 ms Dart versus 36.2 ms native (7.7x faster)**.
+Peak process RSS was **20.1 versus 13.9 MiB**. These are whole-process
+measurements, not app-wide CPU/memory guarantees: each backend runs in a
+separate process, with a warmup and three timed decodes (median reported).
+
+A follow-up paired measurement of the original and optimized native builds
+measured **35.9 ms versus 15.3 ms (57% less time, 2.3x faster)** for the same
+recording, with the same corrected beacon frame. Peak process RSS dropped
+slightly, from 13.95 to 13.73 MiB; the main benefit here is reduced CPU work.
+
+The subsequent SIMD/ring-index pass, including the eight-frequency batching,
+measured **15.17 ms versus 13.01 ms (14% less time)** against the preceding
+native build. These are medians of three separate-process benchmark medians
+with alternating before/after order. The corrected frame was unchanged, and
+peak process RSS remained approximately 13.7 MiB.
+
+A subsequent paired comparison of the oscillator-based carrier scan and the
+segmented Goertzel scan measured **12.96 ms versus 8.37 ms (35% less time)**
+on the clean recording. These are medians of three separate-process benchmark
+medians with alternating order. Peak process RSS stayed approximately
+13.74 MiB, and the corrected frame was unchanged. Validation included 135
+matching carrier selections against the old scan under AddressSanitizer
+(including segment tails, long runs, and near-DC/Nyquist frequencies), plus
+the SARSAT tests and a late burst in a five-second receive run.
+
+### Avoiding the damaged-frame BCH allocation cliff
+
+The remaining frame validation stays in Dart for both native and fallback
+front ends. It now calculates each BCH polynomial remainder once and searches
+candidate errors by XORing cached single-bit syndromes, rather than performing
+polynomial division and allocating a temporary list for every candidate.
+The two syndrome tables contain 432 bytes of data, plus object overhead.
+The existing one-, two-, then three-bit search order and the BCH-2 data-only
+correction span are preserved, including ambiguous and uncorrectable results.
+
+A six-frame correction-only workload (clean, late one/two/three-bit BCH-1
+errors, an uncorrectable BCH-1 pattern, and three BCH-2 data errors) measured
+**659.0 ms before versus 0.126 ms after** in Windows x64 AOT. The before/after
+corrected bits and correction counts were identical. Peak benchmark-process
+RSS dropped from **16.76 to 13.68 MiB**. These are medians of three
+separate-process benchmark medians, with alternating order.
+
+This is a worst-case error-correction improvement, **not** a comparable
+speedup for clean audio: the clean recording still takes approximately
+13 ms end-to-end. Differential checks against 64 captured legacy results
+passed on both Dart VM and JavaScript, in addition to the SARSAT tests.
+
+Build the benchmark with the native assets, then run from `src`:
+
+```powershell
+dart build cli --target tool\benchmark_telemetry.dart --output build\telemetry_benchmark
+.\build\telemetry_benchmark\bundle\bin\benchmark_telemetry.exe native sarsat test\sarsat_samples\sarsat_selftest_beacon.wav
+.\build\telemetry_benchmark\bundle\bin\benchmark_telemetry.exe dart sarsat test\sarsat_samples\sarsat_selftest_beacon.wav
+.\build\telemetry_benchmark\bundle\bin\benchmark_telemetry.exe native sarsat-bch test\sarsat_samples\sarsat_selftest_beacon.wav
+```
+
+Use `dart build cli`, not `dart compile exe`, to bundle native-asset libraries.
+
 ## The demodulators, step by step
 
 A 406 beacon can reach us in two very different audio *shapes*, so the

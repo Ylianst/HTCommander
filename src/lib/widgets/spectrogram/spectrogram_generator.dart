@@ -11,6 +11,10 @@ Design notes for efficiency:
   * The FFT uses preallocated scratch buffers and a reusable twiddle table.
   * A Hann window and the dB/log10 constant are precomputed once.
   * The RGBA render buffer is supplied by the caller and reused frame to frame.
+  * Incremental renders recolor only new columns, shifting cached pixels in
+    scroll mode or overwriting their wrapped positions in roll mode.
+  * Fixed-width history is a reusable ring; FFTs that would already have
+    scrolled out of view are skipped. PCM converts directly into the buffer.
 */
 
 import 'dart:math' as math;
@@ -56,13 +60,11 @@ class SpectrogramGenerator {
 
   /// One Float64List per spectrogram column; length is the image width.
   final List<Float64List> _ffts = [];
+  int _firstColumn = 0;
 
   int _fftsProcessed = 0;
   int _rollOffset = 0;
   int _fixedWidth = 0;
-
-  /// Cached empty column reused when padding to the fixed width.
-  late final Float64List _emptyColumn;
 
   static const double _log10Mul = 20.0 / math.ln10;
 
@@ -72,8 +74,9 @@ class SpectrogramGenerator {
     int? stepSize,
     this.minFreq = 0,
     this.maxFreq = double.infinity,
+    bool useNative = true,
   }) : stepSize = (stepSize ?? (fftSize ~/ 20)).clamp(1, fftSize),
-       _fft = SpectrogramFft(fftSize),
+       _fft = SpectrogramFft(fftSize, useNative: useNative),
        _window = Float64List(fftSize),
        _re = Float64List(fftSize),
        _im = Float64List(fftSize) {
@@ -89,7 +92,6 @@ class SpectrogramGenerator {
         ? fftSize ~/ 2
         : (maxFreq / hzPerPixel).floor();
     height = fftIndex2 - fftIndex1;
-    _emptyColumn = Float64List(height);
 
     // Hann window.
     if (fftSize == 1) {
@@ -124,11 +126,7 @@ class SpectrogramGenerator {
     final sampleCount = count ~/ 2;
     if (sampleCount <= 0) return;
     final data = ByteData.sublistView(bytes, offset, offset + sampleCount * 2);
-    final samples = Float64List(sampleCount);
-    for (int i = 0; i < sampleCount; i++) {
-      samples[i] = data.getInt16(i * 2, Endian.little).toDouble();
-    }
-    _buffer.addAll(samples, 0, sampleCount);
+    _buffer.addPcm16(data);
   }
 
   /// Reset the next-column marker so the next processed FFT lands at the far
@@ -137,12 +135,16 @@ class SpectrogramGenerator {
     _rollOffset = -_fftsProcessed + offset;
   }
 
-  /// Process every complete FFT window currently buffered.
+  /// Advance through buffered FFT windows, computing only retained history.
   void process() {
     final count = fftsToProcess;
     if (count < 1) return;
 
-    for (int f = 0; f < count; f++) {
+    final skipped = _fixedWidth > 0 ? math.max(0, count - width) : 0;
+    if (skipped > 0) {
+      _firstColumn = (_firstColumn + skipped) % width;
+    }
+    for (int f = skipped; f < count; f++) {
       final srcIndex = f * stepSize;
       for (int i = 0; i < fftSize; i++) {
         _re[i] = _buffer[srcIndex + i] * _window[i];
@@ -151,37 +153,43 @@ class SpectrogramGenerator {
 
       _fft.forward(_re, _im);
 
-      final column = Float64List(height);
+      final Float64List column;
+      if (_fixedWidth > 0) {
+        column = _ffts[_firstColumn];
+        _firstColumn = (_firstColumn + 1) % width;
+      } else {
+        column = Float64List(height);
+        _ffts.add(column);
+      }
       for (int i = 0; i < height; i++) {
         final idx = fftIndex1 + i;
         final re = _re[idx];
         final im = _im[idx];
         column[i] = math.sqrt(re * re + im * im) / fftSize;
       }
-      _ffts.add(column);
     }
 
     _fftsProcessed += count;
     _buffer.removeFront(count * stepSize);
-    _padOrTrimForFixedWidth();
   }
 
   /// Keep exactly [columns] FFT columns in memory, padding the left with blank
-  /// columns or trimming the oldest ones.
+  /// columns or trimming the oldest ones. Nonpositive values allow history to
+  /// grow again without discarding the currently retained columns.
   void setFixedWidth(int columns) {
+    if (columns == _fixedWidth) return;
+    final keep = columns > 0 ? math.min(columns, width) : width;
+    final retained = List<Float64List>.generate(
+      keep,
+      (i) => _ffts[(_firstColumn + width - keep + i) % width],
+    );
+    _ffts.clear();
+    for (int i = keep; i < columns; i++) {
+      _ffts.add(Float64List(height));
+    }
+    _ffts.addAll(retained);
+    _firstColumn = 0;
     _fixedWidth = columns;
-    _padOrTrimForFixedWidth();
-  }
-
-  void _padOrTrimForFixedWidth() {
-    if (_fixedWidth <= 0) return;
-    final overhang = _ffts.length - _fixedWidth;
-    if (overhang > 0) {
-      _ffts.removeRange(0, overhang);
-    }
-    while (_ffts.length < _fixedWidth) {
-      _ffts.insert(0, _emptyColumn);
-    }
   }
 
   /// Render the stored FFT columns into [rgba] (length must be
@@ -191,6 +199,12 @@ class SpectrogramGenerator {
   /// clamping to 0..255, then colormap lookup. Low frequencies are drawn at the
   /// bottom of the image. When [roll] is true new columns wrap around starting
   /// at [nextColumnIndex] instead of scrolling.
+  ///
+  /// Set [newColumnCount] to the number of FFTs processed since this buffer was
+  /// last rendered to update only the new columns. The buffer must contain the
+  /// previous frame with unchanged dimensions, settings and roll offset
+  /// configuration. Omit it after resizing, clearing, [rollReset], or changing
+  /// rendering settings. Counts at least [width] rebuild the entire image.
   void renderInto(
     Uint8List rgba, {
     required SpectrogramColormap colormap,
@@ -198,23 +212,40 @@ class SpectrogramGenerator {
     bool decibel = false,
     double dbScale = 1,
     bool roll = false,
+    int? newColumnCount,
   }) {
+    if (newColumnCount != null) {
+      RangeError.checkNotNegative(newColumnCount, 'newColumnCount');
+    }
     final w = width;
     final h = height;
     if (w <= 0 || h <= 0) return;
+
+    final count = math.min(newColumnCount ?? w, w);
+    if (count == 0) return;
+
+    if (!roll && count < w) {
+      final rowBytes = w * 4;
+      final newBytes = count * 4;
+      for (int row = 0; row < h; row++) {
+        final start = row * rowBytes;
+        rgba.setRange(
+          start,
+          start + rowBytes - newBytes,
+          rgba,
+          start + newBytes,
+        );
+      }
+    }
 
     final r = colormap.r;
     final g = colormap.g;
     final b = colormap.b;
     final rollOffset = nextColumnIndex;
 
-    for (int col = 0; col < w; col++) {
-      int sourceCol = col;
-      if (roll) {
-        sourceCol += w - (rollOffset % w);
-        if (sourceCol >= w) sourceCol -= w;
-      }
-      final column = _ffts[sourceCol];
+    for (int sourceCol = w - count; sourceCol < w; sourceCol++) {
+      final col = roll ? (sourceCol + rollOffset) % w : sourceCol;
+      final column = _ffts[(_firstColumn + sourceCol) % w];
 
       for (int row = 0; row < h; row++) {
         double value = column[row];
@@ -238,11 +269,17 @@ class SpectrogramGenerator {
 
   /// Discard all stored audio and FFT columns.
   void clear() {
-    _ffts.clear();
+    if (_fixedWidth > 0) {
+      for (final column in _ffts) {
+        column.fillRange(0, height, 0);
+      }
+    } else {
+      _ffts.clear();
+    }
+    _firstColumn = 0;
     _buffer.clear();
     _fftsProcessed = 0;
     _rollOffset = 0;
-    _padOrTrimForFixedWidth();
   }
 
   /// Frequency (Hz) and magnitude of the dominant bin in the most recent FFT.
@@ -250,7 +287,7 @@ class SpectrogramGenerator {
     if (_ffts.isEmpty) {
       return (freqHz: double.nan, magnitude: double.nan);
     }
-    final freqs = _ffts.last;
+    final freqs = _ffts[(_firstColumn + width - 1) % width];
     int peakIndex = 0;
     double peakMagnitude = 0;
     for (int i = 0; i < freqs.length; i++) {
@@ -279,6 +316,15 @@ class _SampleBuffer {
   void addAll(Float64List src, int srcOffset, int count) {
     _ensureTail(count);
     _data.setRange(_end, _end + count, src, srcOffset);
+    _end += count;
+  }
+
+  void addPcm16(ByteData samples) {
+    final count = samples.lengthInBytes ~/ 2;
+    _ensureTail(count);
+    for (int i = 0; i < count; i++) {
+      _data[_end + i] = samples.getInt16(i * 2, Endian.little).toDouble();
+    }
     _end += count;
   }
 

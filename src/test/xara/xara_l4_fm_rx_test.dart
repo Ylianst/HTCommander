@@ -13,8 +13,10 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/hamlib/xara/call.dart';
+import 'package:htcommander/hamlib/xara/complex.dart';
 import 'package:htcommander/hamlib/xara/dsp.dart';
 import 'package:htcommander/hamlib/xara/fm_ctrl.dart';
+import 'package:htcommander/hamlib/xara/fm_code.dart';
 import 'package:htcommander/hamlib/xara/fm_frame.dart';
 import 'package:htcommander/hamlib/xara/fm_level.dart';
 import 'package:htcommander/hamlib/xara/fm_rx.dart';
@@ -97,8 +99,94 @@ void _check(List<FmEvent> ev, _Stream s) {
   expect(codes, wantCodes);
 }
 
+class _CountingTrack extends SampleTrack {
+  int fills = 0;
+
+  _CountingTrack(super.keep) : super(stride: 2);
+
+  @override
+  void fill(int a, int b, Float64List re, [Float64List? im, int off = 0]) {
+    fills++;
+    super.fill(a, b, re, im, off);
+  }
+}
+
+(int, double) _referenceTiming(SampleTrack buf, FmLevel l, List<List<bool>> map, Phasors phases, int t0) {
+  final Fft fft = Fft.plan(nf);
+  final List<int> bins = l.bins.toList();
+  final List<double> values = <double>[];
+  for (int t = t0 - 3; t <= t0 + 3; t++) {
+    final Float64List re = Float64List(nf), im = Float64List(nf);
+    final List<List<Cx>> cells = <List<Cx>>[];
+    for (int r = 0; r < l.nsym; r++) {
+      final int a = t + r * symLen;
+      buf.fill(a, a + nf, re, im);
+      fft.transform(re, im);
+      cells.add(<Cx>[for (final int b in bins) Cx(re[b], im[b]) * phases[b][r]]);
+    }
+    Cx sum = Cx.zero;
+    int count = 0;
+    for (int b = 0; b < l.nc; b++) {
+      for (int r = 1; r < l.nsym; r++) {
+        if (map[b][r]) {
+          sum = sum + unit(cells[r - 1][b].conj() * cells[r][b]);
+          count++;
+        }
+      }
+    }
+    values.add(sum.norm / count);
+  }
+  final int selected = peakMid(values, argmax(values), 0.02);
+  return (t0 - 3 + selected, values[selected]);
+}
+
 void main() {
   group('fm rx building blocks', () {
+    test('marker-only refinement preserves full-matrix timing and never adds FFTs', () {
+      for (final (bw, record, zero) in <(FmBandwidth, FmRecord, bool)>[
+        (FmBandwidth.narrow, const FmRecord(1), false),
+        (FmBandwidth.narrow, const FmRecord(3), false),
+        (FmBandwidth.wide, const FmRecord(8), false),
+        (FmBandwidth.wide, const FmRecord(13), false),
+        (FmBandwidth.narrow, FmRecord.connect, true),
+      ]) {
+        final FmLevel l = bw.level(record);
+        final List<int> other = fmCodeTables(bw)[record.index].other;
+        final Phasors phases = phasors(recordKey(record, 123));
+        final List<List<bool>> map = symbolMap(l, other);
+        final Set<int> markerRows = <int>{};
+        for (int b = 0; b < l.nc; b++) {
+          for (int r = 1; r < l.nsym; r++) {
+            if (map[b][r]) markerRows.addAll(<int>[r - 1, r]);
+          }
+        }
+        final int length = l.nsym * symLen + 6;
+        final TestRng rng = TestRng(37);
+        final Float64List samples = Float64List(2 * length);
+        if (!zero) {
+          for (int i = 0; i < samples.length; i++) {
+            samples[i] = 0.1 * rng.gauss();
+          }
+        }
+        final _CountingTrack buf = _CountingTrack(length)..append((1 << 32) + 17, samples);
+        final int t0 = buf.base + 3;
+        final (int time, double coherence) = _referenceTiming(buf, l, map, phases, t0);
+        final OfdmEngine engine = OfdmEngine(l, other, phases);
+        final FmCodec codec = FmCodec(bw);
+        buf.fills = 0;
+        expect(engine.decode(buf, codec, t0 - 1, 0), isNull);
+        expect(engine.decode(buf, codec, t0 + 1, 0), isNull);
+        expect(buf.fills, 0);
+        final FmFrameRx frame = engine.decode(buf, codec, t0, 2, <Cx>[])!;
+        expect(frame.t, time);
+        expect(frame.coherence, coherence);
+        if (zero) expect(frame.t, t0, reason: 'equal timing peaks retain their midpoint');
+        final int sparseFfts = 7 * markerRows.length + l.nsym;
+        expect(buf.fills, math.min(7 * l.nsym, sparseFfts),
+            reason: '${bw.name} record ${record.index}');
+      }
+    });
+
     test('front end is a 3 kHz complex band-pass decimating by 8', () {
       final FrontEnd fe = FrontEnd();
       for (final (double hz, bool pass) in const [(1500.0, true), (3000.0, true), (5000.0, true), (8000.0, false), (11000.0, false)]) {

@@ -12,8 +12,9 @@ that you already know digital signal processing.
 
 **A note on names and status.** [XARA](https://github.com/x0rro/xara) is an
 MIT-licensed modem written in Rust. Its upstream documentation reports VARA
-compatibility; HTCommander ports the FM modem into pure Dart and runs it inside
-the app. Here, **XARA-FM** means that FM implementation, not a new, separate
+compatibility; HTCommander runs its FM port inside the app, with Dart session
+control and [native DSP acceleration](xara-modem-integration-plan.md#native-dsp-acceleration)
+on supported platforms. Here, **XARA-FM** means that FM implementation, not a new, separate
 over-the-air protocol. It is also distinct from HTCommander's **DART** modem;
 **Dart** is the programming language.
 

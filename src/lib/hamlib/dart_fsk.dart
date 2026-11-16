@@ -31,6 +31,8 @@ limitations under the License.
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'native_dart_dsp.dart';
+
 /// Parameters for the constant-envelope 4-CPFSK waveform.
 class DartFskParams {
   /// Audio sample rate (Hz).
@@ -60,8 +62,30 @@ class DartFskParams {
 /// Constant-envelope 4-CPFSK modulator/demodulator.
 class DartFsk {
   final DartFskParams params;
+  final bool useNative;
 
-  DartFsk(this.params);
+  DartFsk(this.params, {this.useNative = true});
+
+  bool get _native =>
+      useNative &&
+      nativeDartDspEnabled &&
+      params.samplesPerSymbol > 0 &&
+      params.samplesPerSymbol <= 2048;
+  late final Float64List _cosine = _toneTable(false);
+  late final Float64List _sine = _toneTable(true);
+  final Float64List _energies = Float64List(4);
+  final Float64List _quality = Float64List(2);
+
+  Float64List _toneTable(bool sine) {
+    final sps = params.samplesPerSymbol;
+    return Float64List.fromList([
+      for (int t = 0; t < 4; t++)
+        for (int i = 0; i < sps; i++)
+          sine
+              ? math.sin(2 * math.pi * params.tones[t] / params.sampleRate * i)
+              : math.cos(2 * math.pi * params.tones[t] / params.sampleRate * i),
+    ]);
+  }
 
   /// Modulate a bit stream into continuous-phase FSK audio samples.
   /// Bits are packed 2 per symbol (MSB first); a trailing odd bit is padded 0.
@@ -69,6 +93,27 @@ class DartFsk {
     final int sps = params.samplesPerSymbol;
     final int numSymbols = (bits.length + 1) ~/ 2;
     final out = Float64List(numSymbols * sps);
+
+    if (_native) {
+      final steps = Float64List.fromList([
+        for (final tone in params.tones) 2 * math.pi * tone / params.sampleRate,
+      ]);
+      final chunkSymbols = 4096 ~/ sps;
+      double phase = 0;
+      for (int s = 0; s < numSymbols; s += chunkSymbols) {
+        final end = math.min(s + chunkSymbols, numSymbols);
+        phase = nativeDartFskModulate(
+          Uint8List.sublistView(bits, 2 * s, math.min(2 * end, bits.length)),
+          sps,
+          steps,
+          _cosine,
+          _sine,
+          phase,
+          Float64List.sublistView(out, s * sps, end * sps),
+        );
+      }
+      return out;
+    }
 
     double phase = 0.0;
     int idx = 0;
@@ -94,7 +139,10 @@ class DartFsk {
     final int numSymbols = (numBits + 1) ~/ 2;
     final bits = Uint8List(numSymbols * 2);
     for (int s = 0; s < numSymbols; s++) {
-      final energies = _toneEnergies(samples, startSample + s * params.samplesPerSymbol);
+      final energies = _toneEnergies(
+        samples,
+        startSample + s * params.samplesPerSymbol,
+      );
       int bestSym = 0;
       double bestE = -1;
       for (int t = 0; t < 4; t++) {
@@ -111,12 +159,53 @@ class DartFsk {
 
   /// Soft-decision demodulate: return per-bit LLRs for [numBits] bits.
   /// Positive LLR → bit is likely 0, negative → likely 1 (min-sum convention).
-  Float64List demodulateSoft(Float64List samples, int startSample, int numBits) {
+  /// Optional [snrOut] receives the same quality metric as [estimateSnrDb],
+  /// reusing the tone energies instead of scanning the samples again.
+  Float64List demodulateSoft(
+    Float64List samples,
+    int startSample,
+    int numBits, {
+    Float64List? snrOut,
+  }) {
     final int numSymbols = (numBits + 1) ~/ 2;
     final llrs = Float64List(numSymbols * 2);
+    if (snrOut != null && snrOut.isEmpty) {
+      throw ArgumentError('SNR output must not be empty');
+    }
+    if (_native) {
+      if (numSymbols > 0) {
+        RangeError.checkNotNegative(startSample, 'startSample');
+      }
+      _quality.fillRange(0, 2, 0);
+      final sps = params.samplesPerSymbol;
+      final chunkSymbols = 4096 ~/ sps;
+      for (int s = 0; s < numSymbols; s += chunkSymbols) {
+        final count = math.min(chunkSymbols, numSymbols - s);
+        final start = math.min(startSample + s * sps, samples.length);
+        final end = math.min(start + count * sps, samples.length);
+        nativeDartFskSoft(
+          Float64List.sublistView(samples, start, end),
+          _cosine,
+          _sine,
+          sps,
+          Float64List.sublistView(llrs, 2 * s, 2 * (s + count)),
+          _quality,
+          snrOut != null,
+        );
+      }
+      if (snrOut != null) {
+        snrOut[0] = _snrDb(_quality[0], _quality[1]);
+      }
+      return Float64List.sublistView(llrs, 0, numBits);
+    }
     const double scale = 4.0;
+    double ratioSum = 0;
+    int ratioCount = 0;
     for (int s = 0; s < numSymbols; s++) {
-      final energies = _toneEnergies(samples, startSample + s * params.samplesPerSymbol);
+      final energies = _toneEnergies(
+        samples,
+        startSample + s * params.samplesPerSymbol,
+      );
       // Amplitudes, normalized to the strongest tone for a stable LLR scale.
       double maxA = 1e-12;
       final a = List<double>.filled(4, 0);
@@ -133,9 +222,21 @@ class DartFsk {
       if (2 * s + 1 < llrs.length) {
         llrs[2 * s + 1] = scale * (math.max(a[0], a[2]) - math.max(a[1], a[3]));
       }
+      if (snrOut != null &&
+          startSample + (s + 1) * params.samplesPerSymbol <= samples.length) {
+        energies.sort();
+        if (energies[2] > 1e-12) {
+          ratioSum += energies[3] / energies[2];
+          ratioCount++;
+        }
+      }
     }
+    if (snrOut != null) snrOut[0] = _snrDb(ratioSum, ratioCount.toDouble());
     return Float64List.sublistView(llrs, 0, numBits);
   }
+
+  static double _snrDb(double ratioSum, double count) =>
+      count == 0 ? 0 : 10 * (math.log(ratioSum / count) / math.ln10);
 
   /// Estimate a coarse SNR (dB) across a run of symbols from the ratio of the
   /// winning tone energy to the runner-up (a tone-separation quality metric).
@@ -163,6 +264,22 @@ class DartFsk {
   /// beginning at [offset].
   List<double> _toneEnergies(Float64List samples, int offset) {
     final int sps = params.samplesPerSymbol;
+    if (_native) {
+      RangeError.checkNotNegative(offset, 'offset');
+      final start = math.min(offset, samples.length);
+      nativeDartFskEnergy(
+        Float64List.sublistView(
+          samples,
+          start,
+          math.min(start + sps, samples.length),
+        ),
+        _cosine,
+        _sine,
+        sps,
+        _energies,
+      );
+      return _energies;
+    }
     final energies = List<double>.filled(4, 0);
     for (int t = 0; t < 4; t++) {
       final double f = params.tones[t];

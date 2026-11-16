@@ -1,18 +1,7 @@
 // Copyright 2026 Ylian Saint-Hilaire - Apache 2.0
 //
-// Windows PCM playback plugin using the Win32 waveOut (winmm) API.
-//
-// flutter_pcm_sound only supports Android / iOS / macOS, so this native plugin
-// provides the equivalent streaming PCM sink on Windows for the radio audio
-// path. It plays 16-bit signed PCM fed in chunks and reports the remaining
-// buffered frame count back to Dart so the caller can bound latency.
-//
-// Threading: all waveOut device calls and the EventChannel sink are touched
-// only on the platform thread. The waveOut completion callback runs on a
-// system MM thread and is restricted (by the Win32 docs) to PostMessage, so it
-// simply posts a message to a message-only window owned by this plugin; the
-// window procedure then does the real work back on the platform thread.
-
+// The platform thread owns Flutter channels and notification delivery only.
+// NativePcmOutput owns the shared device and its independent playback worker.
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -20,9 +9,10 @@
 #include <mmsystem.h>
 
 #include <cstdint>
-#include <cstring>
+#include <cstdio>
+#include <limits>
 #include <memory>
-#include <set>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -36,6 +26,7 @@
 #include <flutter/method_result.h>
 #include <flutter/standard_method_codec.h>
 
+#include "native_pcm_output.h"
 #include "pcm_player_plugin.h"
 
 namespace {
@@ -45,84 +36,87 @@ using flutter::EncodableValue;
 
 constexpr char kMethodChannelName[] = "com.htcommander/pcm_player";
 constexpr char kEventChannelName[] = "com.htcommander/pcm_player_feed";
-constexpr UINT kBufferDoneMessage = WM_USER + 0x51;
+constexpr UINT kFeedMessage = WM_USER + 0x51;
 constexpr wchar_t kWindowClassName[] = L"HTCommanderPcmPlayerWindow";
 
-// Reads an int value from an EncodableMap, returning |fallback| if missing.
 int GetIntArg(const EncodableMap* args, const char* key, int fallback) {
   if (!args) return fallback;
-  auto it = args->find(EncodableValue(std::string(key)));
+  const auto it = args->find(EncodableValue(std::string(key)));
   if (it == args->end()) return fallback;
   if (const auto* v = std::get_if<int32_t>(&it->second)) return *v;
   if (const auto* v = std::get_if<int64_t>(&it->second)) {
-    return static_cast<int>(*v);
+    if (*v >= (std::numeric_limits<int>::min)() &&
+        *v <= (std::numeric_limits<int>::max)()) {
+      return static_cast<int>(*v);
+    }
   }
   return fallback;
 }
 
-// Reads a string value from an EncodableMap, returning empty if missing.
 std::string GetStringArg(const EncodableMap* args, const char* key) {
   if (!args) return "";
-  auto it = args->find(EncodableValue(std::string(key)));
+  const auto it = args->find(EncodableValue(std::string(key)));
   if (it == args->end()) return "";
   if (const auto* v = std::get_if<std::string>(&it->second)) return *v;
   return "";
 }
 
+// No worker captures the plugin or a sink. Notification messages carry no
+// pointers and are coalesced while the platform thread is busy.
+struct FeedNotification {
+  std::mutex mutex;
+  HWND window = nullptr;
+  bool pending = false;
+};
+
 }  // namespace
 
-// ---------------------------------------------------------------------------
-// Pimpl
-// ---------------------------------------------------------------------------
 struct PcmPlayerPlugin::Impl {
   explicit Impl(flutter::BinaryMessenger* messenger);
   ~Impl();
 
-  // ---- platform-thread-only state ----
-  HWAVEOUT hwo = nullptr;
-  int sample_rate = 32000;
-  int channels = 1;
-  int64_t buffered_frames = 0;  // frames still queued in the device
-  int feed_threshold = 0;
+  std::shared_ptr<NativePcmOutput> output =
+      std::make_shared<NativePcmOutput>();
+  std::shared_ptr<FeedNotification> notification =
+      std::make_shared<FeedNotification>();
   HWND hwnd = nullptr;
-  std::set<WAVEHDR*> outstanding;
+  int feed_threshold = 0;
   std::unique_ptr<flutter::EventSink<EncodableValue>> feed_sink;
-
   std::unique_ptr<flutter::MethodChannel<EncodableValue>> method_channel;
   std::unique_ptr<flutter::EventChannel<EncodableValue>> event_channel;
 
   void HandleMethodCall(
       const flutter::MethodCall<EncodableValue>& call,
       std::unique_ptr<flutter::MethodResult<EncodableValue>> result);
-
-  bool Setup(int rate, int chans, const std::string& deviceId);
   EncodableValue ListDevices();
-  bool Feed(const std::vector<uint8_t>& data);
-  void Release();
-
   void EnsureWindow();
-  void DestroyWindowSafe();
-  void OnBufferDone(WAVEHDR* hdr);
-
-  static void CALLBACK WaveOutProc(HWAVEOUT, UINT msg, DWORD_PTR instance,
-                                   DWORD_PTR param1, DWORD_PTR param2);
   static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 };
 
 PcmPlayerPlugin::Impl::Impl(flutter::BinaryMessenger* messenger) {
-  method_channel =
-      std::make_unique<flutter::MethodChannel<EncodableValue>>(
-          messenger, kMethodChannelName,
-          &flutter::StandardMethodCodec::GetInstance());
+  EnsureWindow();
+  const std::weak_ptr<FeedNotification> weak_notification = notification;
+  output->SetFeedCallback([weak_notification](int64_t) {
+    if (const auto state = weak_notification.lock()) {
+      std::lock_guard<std::mutex> lock(state->mutex);
+      if (state->window && !state->pending) {
+        state->pending =
+            PostMessageW(state->window, kFeedMessage, 0, 0) != FALSE;
+      }
+    }
+  });
+
+  method_channel = std::make_unique<flutter::MethodChannel<EncodableValue>>(
+      messenger, kMethodChannelName,
+      &flutter::StandardMethodCodec::GetInstance());
   method_channel->SetMethodCallHandler(
       [this](const auto& call, auto result) {
         HandleMethodCall(call, std::move(result));
       });
 
-  event_channel =
-      std::make_unique<flutter::EventChannel<EncodableValue>>(
-          messenger, kEventChannelName,
-          &flutter::StandardMethodCodec::GetInstance());
+  event_channel = std::make_unique<flutter::EventChannel<EncodableValue>>(
+      messenger, kEventChannelName,
+      &flutter::StandardMethodCodec::GetInstance());
   auto handler =
       std::make_unique<flutter::StreamHandlerFunctions<EncodableValue>>(
           [this](const EncodableValue*,
@@ -140,108 +134,70 @@ PcmPlayerPlugin::Impl::Impl(flutter::BinaryMessenger* messenger) {
 }
 
 PcmPlayerPlugin::Impl::~Impl() {
-  Release();
-  DestroyWindowSafe();
+  method_channel->SetMethodCallHandler(nullptr);
+  event_channel->SetStreamHandler(nullptr);
+  output->SetFeedCallback(nullptr);
+  {
+    std::lock_guard<std::mutex> lock(notification->mutex);
+    notification->window = nullptr;
+  }
+  if (hwnd) {
+    SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
+    DestroyWindow(hwnd);
+  }
+  feed_sink.reset();
+  output->Release();
 }
 
 void PcmPlayerPlugin::Impl::HandleMethodCall(
     const flutter::MethodCall<EncodableValue>& call,
     std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {
   const std::string& method = call.method_name();
-  const auto* args = std::get_if<EncodableMap>(call.arguments());
+  const auto* args = call.arguments()
+                         ? std::get_if<EncodableMap>(call.arguments())
+                         : nullptr;
 
   if (method == "setLogLevel" || method == "start") {
     result->Success();
-    return;
-  }
-  if (method == "setup") {
+  } else if (method == "setup") {
     const int rate = GetIntArg(args, "sampleRate", 32000);
-    const int chans = GetIntArg(args, "channels", 1);
-    const std::string deviceId = GetStringArg(args, "deviceId");
-    result->Success(EncodableValue(Setup(rate, chans, deviceId)));
-    return;
-  }
-  if (method == "listDevices") {
+    const int channels = GetIntArg(args, "channels", 1);
+    if (output->Setup(rate, channels, GetStringArg(args, "deviceId"))) {
+      result->Success(EncodableValue(true));
+    } else {
+      result->Error("setup_failed",
+                    "Unable to open PCM output; see native output log.");
+    }
+  } else if (method == "listDevices") {
     result->Success(ListDevices());
-    return;
-  }
-  if (method == "setFeedThreshold") {
+  } else if (method == "setFeedThreshold") {
     feed_threshold = GetIntArg(args, "threshold", 0);
     result->Success();
-    return;
-  }
-  if (method == "feed") {
+  } else if (method == "feed") {
+    const std::vector<uint8_t>* bytes = nullptr;
     if (args) {
-      auto it = args->find(EncodableValue(std::string("buffer")));
+      const auto it = args->find(EncodableValue(std::string("buffer")));
       if (it != args->end()) {
-        if (const auto* bytes =
-                std::get_if<std::vector<uint8_t>>(&it->second)) {
-          result->Success(EncodableValue(Feed(*bytes)));
-          return;
-        }
+        bytes = std::get_if<std::vector<uint8_t>>(&it->second);
       }
     }
-    result->Success(EncodableValue(false));
-    return;
-  }
-  if (method == "release") {
-    Release();
+    if (!bytes) {
+      OutputDebugStringA("[NativePcmOutput] Missing PCM byte buffer\n");
+      std::fputs("[NativePcmOutput] Missing PCM byte buffer\n", stderr);
+      result->Error("invalid_arguments", "feed requires a PCM byte buffer.");
+    } else if (output->Feed(bytes->data(), bytes->size())) {
+      result->Success(EncodableValue(true));
+    } else {
+      result->Error("feed_failed",
+                    "PCM feed rejected (closed, invalid, overflow, or device "
+                    "failure); see native output log/counters.");
+    }
+  } else if (method == "release") {
+    output->Release();
     result->Success();
-    return;
+  } else {
+    result->NotImplemented();
   }
-  result->NotImplemented();
-}
-
-bool PcmPlayerPlugin::Impl::Setup(int rate, int chans,
-                                   const std::string& deviceId) {
-  Release();
-  sample_rate = rate > 0 ? rate : 32000;
-  channels = chans > 0 ? chans : 1;
-
-  WAVEFORMATEX fmt = {};
-  fmt.wFormatTag = WAVE_FORMAT_PCM;
-  fmt.nChannels = static_cast<WORD>(channels);
-  fmt.nSamplesPerSec = static_cast<DWORD>(sample_rate);
-  fmt.wBitsPerSample = 16;
-  fmt.nBlockAlign = static_cast<WORD>(channels * 2);
-  fmt.nAvgBytesPerSec = fmt.nSamplesPerSec * fmt.nBlockAlign;
-  fmt.cbSize = 0;
-
-  EnsureWindow();
-
-  // Resolve the device ID: empty means WAVE_MAPPER (OS default), otherwise
-  // parse it as a numeric waveOut device index.
-  UINT devId = WAVE_MAPPER;
-  if (!deviceId.empty()) {
-    try {
-      unsigned long idx = std::stoul(deviceId);
-      if (idx < waveOutGetNumDevs()) {
-        devId = static_cast<UINT>(idx);
-      }
-    } catch (...) {
-      // Invalid id string – fall through to WAVE_MAPPER.
-    }
-  }
-
-  HWAVEOUT handle = nullptr;
-  MMRESULT r = waveOutOpen(
-      &handle, devId, &fmt,
-      reinterpret_cast<DWORD_PTR>(&PcmPlayerPlugin::Impl::WaveOutProc),
-      reinterpret_cast<DWORD_PTR>(this), CALLBACK_FUNCTION);
-  // If the selected device fails, fall back to the default.
-  if (r != MMSYSERR_NOERROR && devId != WAVE_MAPPER) {
-    r = waveOutOpen(
-        &handle, WAVE_MAPPER, &fmt,
-        reinterpret_cast<DWORD_PTR>(&PcmPlayerPlugin::Impl::WaveOutProc),
-        reinterpret_cast<DWORD_PTR>(this), CALLBACK_FUNCTION);
-  }
-  if (r != MMSYSERR_NOERROR) {
-    hwo = nullptr;
-    return false;
-  }
-  hwo = handle;
-  buffered_frames = 0;
-  return true;
 }
 
 EncodableValue PcmPlayerPlugin::Impl::ListDevices() {
@@ -250,149 +206,74 @@ EncodableValue PcmPlayerPlugin::Impl::ListDevices() {
   for (UINT i = 0; i < count; ++i) {
     WAVEOUTCAPSW caps = {};
     if (waveOutGetDevCapsW(i, &caps, sizeof(caps)) == MMSYSERR_NOERROR) {
-      // Convert the wide-char device name to UTF-8.
-      int len = WideCharToMultiByte(CP_UTF8, 0, caps.szPname, -1,
-                                    nullptr, 0, nullptr, nullptr);
+      const int length = WideCharToMultiByte(
+          CP_UTF8, 0, caps.szPname, -1, nullptr, 0, nullptr, nullptr);
       std::string name;
-      if (len > 0) {
-        name.resize(len - 1);  // exclude null terminator
-        WideCharToMultiByte(CP_UTF8, 0, caps.szPname, -1,
-                            name.data(), len, nullptr, nullptr);
+      if (length > 0) {
+        name.resize(static_cast<size_t>(length));
+        WideCharToMultiByte(CP_UTF8, 0, caps.szPname, -1, name.data(),
+                            length, nullptr, nullptr);
+        name.pop_back();
       }
       EncodableMap entry;
       entry[EncodableValue("id")] = EncodableValue(std::to_string(i));
       entry[EncodableValue("label")] = EncodableValue(name);
-      devices.push_back(EncodableValue(entry));
+      devices.emplace_back(entry);
     }
   }
   return EncodableValue(devices);
 }
 
-bool PcmPlayerPlugin::Impl::Feed(const std::vector<uint8_t>& data) {
-  if (!hwo || data.empty()) return false;
-
-  char* buf = new char[data.size()];
-  std::memcpy(buf, data.data(), data.size());
-
-  WAVEHDR* hdr = new WAVEHDR();
-  std::memset(hdr, 0, sizeof(WAVEHDR));
-  hdr->lpData = buf;
-  hdr->dwBufferLength = static_cast<DWORD>(data.size());
-
-  if (waveOutPrepareHeader(hwo, hdr, sizeof(WAVEHDR)) != MMSYSERR_NOERROR) {
-    delete[] buf;
-    delete hdr;
-    return false;
-  }
-  if (waveOutWrite(hwo, hdr, sizeof(WAVEHDR)) != MMSYSERR_NOERROR) {
-    waveOutUnprepareHeader(hwo, hdr, sizeof(WAVEHDR));
-    delete[] buf;
-    delete hdr;
-    return false;
-  }
-
-  outstanding.insert(hdr);
-  const int frame_bytes = channels * 2;
-  buffered_frames +=
-      static_cast<int64_t>(data.size()) / (frame_bytes > 0 ? frame_bytes : 2);
-  return true;
-}
-
-void PcmPlayerPlugin::Impl::Release() {
-  // Null the handle first so any late buffer-done messages bail out without
-  // touching freed memory (everything here runs on the platform thread).
-  HWAVEOUT handle = hwo;
-  hwo = nullptr;
-  if (handle) {
-    waveOutReset(handle);  // marks all queued buffers done
-    for (auto* hdr : outstanding) {
-      waveOutUnprepareHeader(handle, hdr, sizeof(WAVEHDR));
-      delete[] hdr->lpData;
-      delete hdr;
-    }
-    outstanding.clear();
-    waveOutClose(handle);
-  }
-  buffered_frames = 0;
-}
-
-void PcmPlayerPlugin::Impl::OnBufferDone(WAVEHDR* hdr) {
-  // Ignore stale completions that arrive after Release() / unknown buffers.
-  if (!hwo || !hdr || outstanding.find(hdr) == outstanding.end()) return;
-
-  const int frame_bytes = channels * 2;
-  const int64_t frames =
-      hdr->dwBufferLength / (frame_bytes > 0 ? frame_bytes : 2);
-
-  waveOutUnprepareHeader(hwo, hdr, sizeof(WAVEHDR));
-  outstanding.erase(hdr);
-  delete[] hdr->lpData;
-  delete hdr;
-
-  buffered_frames -= frames;
-  if (buffered_frames < 0) buffered_frames = 0;
-
-  if (feed_sink) {
-    feed_sink->Success(EncodableValue(static_cast<int32_t>(buffered_frames)));
-  }
-}
-
 void PcmPlayerPlugin::Impl::EnsureWindow() {
-  if (hwnd) return;
-  HINSTANCE instance = ::GetModuleHandleW(nullptr);
-
-  WNDCLASSEXW wc = {};
-  wc.cbSize = sizeof(wc);
-  wc.lpfnWndProc = &PcmPlayerPlugin::Impl::WndProc;
-  wc.hInstance = instance;
-  wc.lpszClassName = kWindowClassName;
-  ::RegisterClassExW(&wc);  // ignore "already registered"
-
-  hwnd = ::CreateWindowExW(0, kWindowClassName, L"", 0, 0, 0, 0, 0,
-                           HWND_MESSAGE, nullptr, instance, this);
-}
-
-void PcmPlayerPlugin::Impl::DestroyWindowSafe() {
-  if (hwnd) {
-    ::DestroyWindow(hwnd);
-    hwnd = nullptr;
+  const HINSTANCE instance = GetModuleHandleW(nullptr);
+  WNDCLASSEXW window_class = {};
+  window_class.cbSize = sizeof(window_class);
+  window_class.lpfnWndProc = &Impl::WndProc;
+  window_class.hInstance = instance;
+  window_class.lpszClassName = kWindowClassName;
+  RegisterClassExW(&window_class);
+  hwnd = CreateWindowExW(0, kWindowClassName, L"", 0, 0, 0, 0, 0,
+                          HWND_MESSAGE, nullptr, instance, this);
+  {
+    std::lock_guard<std::mutex> lock(notification->mutex);
+    notification->window = hwnd;
+  }
+  if (!hwnd) {
+    OutputDebugStringA("[NativePcmOutput] Cannot create feed notification window\n");
+    std::fputs("[NativePcmOutput] Cannot create feed notification window\n", stderr);
   }
 }
 
-void CALLBACK PcmPlayerPlugin::Impl::WaveOutProc(HWAVEOUT, UINT msg,
-                                                 DWORD_PTR instance,
-                                                 DWORD_PTR param1,
-                                                 DWORD_PTR /*param2*/) {
-  // Only PostMessage is permitted from a waveOut callback.
-  if (msg != WOM_DONE) return;
-  auto* self = reinterpret_cast<Impl*>(instance);
-  if (self && self->hwnd) {
-    ::PostMessageW(self->hwnd, kBufferDoneMessage, 0,
-                   static_cast<LPARAM>(param1));
-  }
-}
-
-LRESULT CALLBACK PcmPlayerPlugin::Impl::WndProc(HWND hwnd, UINT msg,
-                                                WPARAM wparam, LPARAM lparam) {
-  if (msg == WM_NCCREATE) {
-    auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
-    ::SetWindowLongPtrW(hwnd, GWLP_USERDATA,
-                        reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return ::DefWindowProcW(hwnd, msg, wparam, lparam);
-  }
-  if (msg == kBufferDoneMessage) {
-    auto* self =
-        reinterpret_cast<Impl*>(::GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-    if (self) self->OnBufferDone(reinterpret_cast<WAVEHDR*>(lparam));
+LRESULT CALLBACK PcmPlayerPlugin::Impl::WndProc(
+    HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
+  if (message == WM_NCCREATE) {
+    const auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
+    SetWindowLongPtrW(window, GWLP_USERDATA,
+                      reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+  } else if (message == kFeedMessage) {
+    auto* self = reinterpret_cast<Impl*>(
+        GetWindowLongPtrW(window, GWLP_USERDATA));
+    if (self) {
+      {
+        std::lock_guard<std::mutex> lock(self->notification->mutex);
+        self->notification->pending = false;
+      }
+      // Read the current queue, not a stale completion from before reconfigure.
+      if (self->feed_sink) {
+        self->feed_sink->Success(
+            EncodableValue(self->output->buffered_frames()));
+      }
+    }
     return 0;
   }
-  return ::DefWindowProcW(hwnd, msg, wparam, lparam);
+  return DefWindowProcW(window, message, wparam, lparam);
 }
 
-// ---------------------------------------------------------------------------
-// Public wrapper
-// ---------------------------------------------------------------------------
 PcmPlayerPlugin::PcmPlayerPlugin(flutter::BinaryMessenger* messenger)
     : impl_(std::make_unique<Impl>(messenger)) {}
 
 PcmPlayerPlugin::~PcmPlayerPlugin() = default;
+
+std::shared_ptr<NativePcmOutput> PcmPlayerPlugin::output() const {
+  return impl_->output;
+}

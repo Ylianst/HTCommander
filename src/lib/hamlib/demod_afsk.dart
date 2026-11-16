@@ -69,6 +69,8 @@ class AfskState {
   // Mixer outputs for Center (profile B)
   final Float32List cIRaw = Float32List(Dsp.maxFilterSize);
   final Float32List cQRaw = Float32List(Dsp.maxFilterSize);
+  int _markSpacePos = 0;
+  int _centerPos = 0;
 
   // Root Raised Cosine filter settings
   int useRrc = 0; // Use RRC rather than generic low pass
@@ -98,6 +100,7 @@ class DemodulatorState {
   final Float32List rawCb = Float32List(
     Dsp.maxFilterSize,
   ); // Audio input circular buffer
+  int _rawCbPos = 0;
 
   // Low pass filter
   double lpfBaud = 0; // Cutoff as fraction of baud rate
@@ -192,23 +195,30 @@ class DemodAfsk {
     return math.sqrt(x * x + y * y);
   }
 
-  /// Add sample to buffer and shift the rest down.
-  static void _pushSample(double val, Float32List buff, int size) {
-    buff.setRange(1, size, buff.sublist(0, size - 1));
-    buff[0] = val;
-  }
-
-  /// FIR filter convolution kernel.
+  /// Accumulate newest-to-oldest across the circular history's two spans.
   static double _convolve(
     Float32List data,
     Float32List filter,
     int filterTaps,
+    int position,
   ) {
     double sum = 0.0;
-    for (int j = 0; j < filterTaps; j++) {
-      sum += filter[j] * data[j];
+    int j = 0;
+    for (int i = position; i < filterTaps; i++) {
+      sum += filter[j++] * data[i];
+    }
+    for (int i = 0; i < position; i++) {
+      sum += filter[j++] * data[i];
     }
     return sum;
+  }
+
+  /// Restore linear ordering before initialization can change the tap count.
+  static void _linearize(Float32List data, int size, int position) {
+    if (position == 0) return;
+    final tail = data.sublist(0, position);
+    data.setRange(0, size - position, data, position);
+    data.setRange(size - position, size, tail);
   }
 
   /// Automatic Gain Control. Result settles to 1 unit peak to peak.
@@ -260,6 +270,22 @@ class DemodAfsk {
     DemodulatorState d,
   ) {
     _initTables();
+
+    _linearize(d.rawCb, d.preFilterTaps, d._rawCbPos);
+    for (final buffer in [
+      d.afsk.mIRaw,
+      d.afsk.mQRaw,
+      d.afsk.sIRaw,
+      d.afsk.sQRaw,
+    ]) {
+      _linearize(buffer, d.lpFilterTaps, d.afsk._markSpacePos);
+    }
+    for (final buffer in [d.afsk.cIRaw, d.afsk.cQRaw]) {
+      _linearize(buffer, d.lpFilterTaps, d.afsk._centerPos);
+    }
+    d._rawCbPos = 0;
+    d.afsk._markSpacePos = 0;
+    d.afsk._centerPos = 0;
 
     d.profile = profile;
     d.numSlicers = 1;
@@ -487,43 +513,53 @@ class DemodAfsk {
   ) {
     // Apply prefilter if enabled
     if (d.usePrefilter != 0) {
-      _pushSample(fsam, d.rawCb, d.preFilterTaps);
-      fsam = _convolve(d.rawCb, d.preFilter, d.preFilterTaps);
+      if (--d._rawCbPos < 0) d._rawCbPos = d.preFilterTaps - 1;
+      d.rawCb[d._rawCbPos] = fsam;
+      fsam = _convolve(d.rawCb, d.preFilter, d.preFilterTaps, d._rawCbPos);
     }
 
+    if (--d.afsk._markSpacePos < 0) {
+      d.afsk._markSpacePos = d.lpFilterTaps - 1;
+    }
+    final position = d.afsk._markSpacePos;
+
     // Mix with Mark local oscillator
-    _pushSample(
-      fsam * _fcos256(d.afsk.mOscPhase),
-      d.afsk.mIRaw,
-      d.lpFilterTaps,
-    );
-    _pushSample(
-      fsam * _fsin256(d.afsk.mOscPhase),
-      d.afsk.mQRaw,
-      d.lpFilterTaps,
-    );
+    d.afsk.mIRaw[position] = fsam * _fcos256(d.afsk.mOscPhase);
+    d.afsk.mQRaw[position] = fsam * _fsin256(d.afsk.mOscPhase);
     d.afsk.mOscPhase = (d.afsk.mOscPhase + d.afsk.mOscDelta) & 0xFFFFFFFF;
 
     // Mix with Space local oscillator
-    _pushSample(
-      fsam * _fcos256(d.afsk.sOscPhase),
-      d.afsk.sIRaw,
-      d.lpFilterTaps,
-    );
-    _pushSample(
-      fsam * _fsin256(d.afsk.sOscPhase),
-      d.afsk.sQRaw,
-      d.lpFilterTaps,
-    );
+    d.afsk.sIRaw[position] = fsam * _fcos256(d.afsk.sOscPhase);
+    d.afsk.sQRaw[position] = fsam * _fsin256(d.afsk.sOscPhase);
     d.afsk.sOscPhase = (d.afsk.sOscPhase + d.afsk.sOscDelta) & 0xFFFFFFFF;
 
     // Apply lowpass filters and calculate amplitudes
-    final double mI = _convolve(d.afsk.mIRaw, d.lpFilter, d.lpFilterTaps);
-    final double mQ = _convolve(d.afsk.mQRaw, d.lpFilter, d.lpFilterTaps);
+    final double mI = _convolve(
+      d.afsk.mIRaw,
+      d.lpFilter,
+      d.lpFilterTaps,
+      position,
+    );
+    final double mQ = _convolve(
+      d.afsk.mQRaw,
+      d.lpFilter,
+      d.lpFilterTaps,
+      position,
+    );
     final double mAmp = _fastHypot(mI, mQ);
 
-    final double sI = _convolve(d.afsk.sIRaw, d.lpFilter, d.lpFilterTaps);
-    final double sQ = _convolve(d.afsk.sQRaw, d.lpFilter, d.lpFilterTaps);
+    final double sI = _convolve(
+      d.afsk.sIRaw,
+      d.lpFilter,
+      d.lpFilterTaps,
+      position,
+    );
+    final double sQ = _convolve(
+      d.afsk.sQRaw,
+      d.lpFilter,
+      d.lpFilterTaps,
+      position,
+    );
     final double sAmp = _fastHypot(sI, sQ);
 
     // Capture mark and space peak amplitudes for display
@@ -611,25 +647,31 @@ class DemodAfsk {
   ) {
     // Apply prefilter if enabled
     if (d.usePrefilter != 0) {
-      _pushSample(fsam, d.rawCb, d.preFilterTaps);
-      fsam = _convolve(d.rawCb, d.preFilter, d.preFilterTaps);
+      if (--d._rawCbPos < 0) d._rawCbPos = d.preFilterTaps - 1;
+      d.rawCb[d._rawCbPos] = fsam;
+      fsam = _convolve(d.rawCb, d.preFilter, d.preFilterTaps, d._rawCbPos);
     }
 
+    if (--d.afsk._centerPos < 0) d.afsk._centerPos = d.lpFilterTaps - 1;
+    final position = d.afsk._centerPos;
+
     // Mix with Center frequency local oscillator
-    _pushSample(
-      fsam * _fcos256(d.afsk.cOscPhase),
-      d.afsk.cIRaw,
-      d.lpFilterTaps,
-    );
-    _pushSample(
-      fsam * _fsin256(d.afsk.cOscPhase),
-      d.afsk.cQRaw,
-      d.lpFilterTaps,
-    );
+    d.afsk.cIRaw[position] = fsam * _fcos256(d.afsk.cOscPhase);
+    d.afsk.cQRaw[position] = fsam * _fsin256(d.afsk.cOscPhase);
     d.afsk.cOscPhase = (d.afsk.cOscPhase + d.afsk.cOscDelta) & 0xFFFFFFFF;
 
-    final double cI = _convolve(d.afsk.cIRaw, d.lpFilter, d.lpFilterTaps);
-    final double cQ = _convolve(d.afsk.cQRaw, d.lpFilter, d.lpFilterTaps);
+    final double cI = _convolve(
+      d.afsk.cIRaw,
+      d.lpFilter,
+      d.lpFilterTaps,
+      position,
+    );
+    final double cQ = _convolve(
+      d.afsk.cQRaw,
+      d.lpFilter,
+      d.lpFilterTaps,
+      position,
+    );
 
     final double phase = math.atan2(cQ, cI);
     double rate = phase - d.afsk.prevPhase;

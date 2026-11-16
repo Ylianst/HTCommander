@@ -28,6 +28,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/echolink/echolink_audio.dart';
 import 'package:htcommander/echolink/rtp_voice_packet.dart';
+import 'package:htcommander/gsm/gsm_codec.dart';
 
 Directory _vectorsDir() {
   for (final String p in <String>['test/gsm_vectors', 'src/test/gsm_vectors']) {
@@ -117,6 +118,85 @@ void main() {
   });
 
   group('RtpVoicePacket', () {
+    test('header writer preserves payload and typed-data view boundaries', () {
+      final storage = Uint8List(25)..fillRange(0, 25, 0xA5);
+      final packet = Uint8List.sublistView(storage, 3, 23);
+      RtpVoicePacket.writeHeader(packet,
+          version: 0xC0, pt: RtpVoicePacket.ptSpeex, seqNum: 0x1234,
+          timestamp: 0x56789ABC, ssrc: 0xDEF01234);
+      expect(packet.sublist(0, 12), [
+        0xC0, 0x96, 0x12, 0x34, 0x56, 0x78,
+        0x9A, 0xBC, 0xDE, 0xF0, 0x12, 0x34,
+      ]);
+      expect(packet.sublist(12), everyElement(0xA5));
+      expect(storage.sublist(0, 3), everyElement(0xA5));
+      expect(storage.sublist(23), everyElement(0xA5));
+    });
+
+    test('unused codecs handle reset, empty TX and rejected RX before first use', () {
+      final enc = EchoLinkAudioEncoder(ssrc: 0x87654321);
+      final dec = EchoLinkAudioDecoder();
+      final pcm = Int16List.fromList(
+        List.generate(samplesPerPacket, (i) => (i * 193 % 65536) - 32768),
+      );
+      try {
+        enc.reset(initialSeq: 0xFFFF);
+        dec.reset();
+        expect(enc.encode(Int16List(0)), isEmpty);
+        expect(() => enc.encodePacket(Int16List(639)), throwsArgumentError);
+        expect(() => enc.encodePacket(pcm, pcmOff: -1), throwsRangeError);
+        expect(dec.decodePacket(Uint8List(4)), isNull);
+        expect(dec.decodePacket(Uint8List(144)), isNull);
+        expect(enc.nextSeq, 0xFFFF);
+        final packet = enc.encodePacket(pcm);
+        expect(packet.sublist(0, 12), [
+          0xC0, 0x03, 0xFF, 0xFF, 0, 0, 0, 0, 0x87, 0x65, 0x43, 0x21,
+        ]);
+        final frames = GsmEncoder().encode(pcm);
+        expect(packet.sublist(12), frames);
+        expect(dec.decodePacket(packet), GsmDecoder().decode(frames));
+      } finally {
+        enc.dispose();
+        dec.dispose();
+      }
+      final unusedEncoder = EchoLinkAudioEncoder()..reset();
+      final unusedDecoder = EchoLinkAudioDecoder()..reset();
+      unusedEncoder.dispose();
+      unusedDecoder.dispose();
+      expect(() => unusedEncoder.encodePacket(pcm), throwsStateError);
+      expect(() => unusedDecoder.decodePacket(Uint8List(144)), throwsStateError);
+    });
+
+    test('audio buffers survive later calls, offsets, reset and disposal', () {
+      final enc = EchoLinkAudioEncoder(initialSeq: 37, ssrc: 73);
+      final dec = EchoLinkAudioDecoder();
+      final pcm = Int16List.fromList(
+        List.generate(samplesPerPacket, (i) => (i * 193 % 65536) - 32768),
+      );
+      final padded = Int16List(samplesPerPacket + 9)..setAll(5, pcm);
+      final first = enc.encodePacket(padded, pcmOff: 5);
+      final saved = Uint8List.fromList(first);
+      final datagram = Uint8List(first.length + 7)..setAll(3, first);
+      final decoded = dec.decodePacket(datagram, 3)!;
+      final savedPcm = Int16List.fromList(decoded);
+      enc.encodePacket(pcm);
+      dec.decodePacket(first);
+      enc.reset(initialSeq: 37);
+      dec.reset();
+      expect(enc.encodePacket(pcm), first);
+      expect(dec.decodePacket(first), decoded);
+      enc.dispose();
+      dec.dispose();
+      enc.dispose();
+      dec.dispose();
+      expect(first, saved);
+      expect(decoded, savedPcm);
+      expect(() => enc.encodePacket(pcm), throwsStateError);
+      expect(enc.reset, throwsStateError);
+      expect(() => dec.decodePacket(first), throwsStateError);
+      expect(dec.reset, throwsStateError);
+    });
+
     test('toBytes/parse round-trip', () {
       final Uint8List payload = Uint8List.fromList(
           List<int>.generate(payloadBytes, (int i) => (i * 7) & 0xFF));

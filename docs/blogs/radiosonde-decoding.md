@@ -101,6 +101,103 @@ turn into a coordinate, so RS92 is out of scope.
 
 ---
 
+## Native audio processing
+
+The original Dart implementation remains the reference and the fallback. On
+Windows, Linux, macOS, and Android, the six families now use the C++17
+[`telemetry_dsp.cpp`](../../src/native/telemetry_dsp.cpp) front end, built and
+bundled by Dart's native-asset build hook. Web and iOS continue to use Dart.
+No external decoder executable, download, or additional runtime is needed.
+
+The per-sample matched-filter scans, timing recovery, and bit slicing run
+natively for DFM, RS41, M10/M20, and LMS6. iMet's tone detection, transition
+reconstruction, and serial deframing also run natively. Only compact candidate
+frames cross back into Dart; the existing error correction, CRCs, stateful
+serial/calibration assembly, coordinate parsing, and monitor events are
+unchanged. The monitor reuses a native recording context: each run is uploaded
+once for all six families, and its DC-removed prefix sums are computed once and
+shared by the matched-filter formats. PCM and prefix capacity survive between
+runs; a new upload invalidates the cached sums, including same-sized uploads.
+Contexts are disposed with the monitor and backed by native finalizers.
+Per-call candidate and other temporary buffers are still freed after each
+call, including on failure. Native errors are surfaced rather than silently
+retried in Dart. Recording uploads and demodulation remain non-leaf FFI calls,
+so long scans do not pin Dart recordings or block GC.
+
+Consecutive equal-sign sync chips share one prefix-sum lookup. Correlation
+scores are processed in overlapping blocks of about 32 KiB instead of an
+audio-sized array; the overlap preserves local maxima, ties, and peaks
+crossing block boundaries. iMet's two tone tables use their exact common
+period, `sampleRate / gcd(sampleRate, 200)`: at 32/48 kHz this makes the
+tables 200 times smaller without approximating either tone.
+
+The shared correlator processes four adjacent scan offsets at a time using
+SSE2 on x86 or NEON on AArch64, with a scalar fallback elsewhere. Vector lanes
+are offsets, not filter taps: each score retains the scalar addition order,
+so peak ties and thresholds do not change. iMet advances incoming/outgoing
+tone-table indices with wrapping counters instead of per-sample divisions.
+
+Each demodulator accepts `useNative: false` for reference comparisons.
+Tests compare every candidate frame against Dart, including both real DFM
+recordings, fractional sample timing, noise, inverted signals, cropped
+recording edges, score-block boundaries, and tone-table wrapping.
+
+### Performance measurement
+
+An initial Windows x64 AOT measurement over six seconds of the included DFM recordings,
+running **all six sonde demodulators**, produced:
+
+| Sample rate | Dart median | Native median | Speedup | Dart / native peak process RSS |
+|---|---:|---:|---:|---:|
+| 32 kHz | 356.7 ms | 44.2 ms | 8.1x | 49.0 / 19.2 MiB |
+| 48 kHz | 514.7 ms | 73.8 ms | 7.0x | 47.2 / 22.1 MiB |
+
+A follow-up paired measurement of the first native version and the optimized
+native version above produced identical outputs (482 candidate frames/bytes
+in each six-second recording):
+
+| Sample rate | First native | Optimized native | Time saved | Peak process RSS, before / after |
+|---|---:|---:|---:|---:|
+| 32 kHz | 44.3 ms | 33.1 ms | 25% | 19.2 / 17.7 MiB |
+| 48 kHz | 66.2 ms | 48.6 ms | 27% | 22.5 / 20.0 MiB |
+
+The iMet front end alone took 2.88 ms versus 1.67 ms (42% less time) at
+32 kHz on that input; its peak process RSS dropped from 17.0 to 16.0 MiB.
+
+A further paired comparison of the block-based version and the SIMD version
+measured:
+
+| Sample rate | Block-based native | SIMD native | Additional time saved |
+|---|---:|---:|---:|
+| 32 kHz | 32.84 ms | 15.21 ms | 54% |
+| 48 kHz | 48.54 ms | 21.87 ms | 55% |
+
+These are medians of three separate-process benchmark medians, alternating
+the before/after order. Both versions returned the same 482 candidate
+frames/bytes. Peak process RSS was effectively unchanged (17.7 / 20.0 MiB
+at 32 / 48 kHz); this pass reduces CPU work rather than audio buffer sizes.
+A separate iMet comparison measured 1.68 ms versus 1.25 ms after removing
+the table-index divisions.
+
+These are elapsed decode times, not an app-wide CPU percentage or memory
+guarantee. RSS includes the benchmark process, input loading, and allocator
+retention, not just decoder buffers. Each result is the median of three runs
+after a warmup, with each backend run in a separate process. Other hardware
+and signals will differ.
+
+To reproduce from `src`, build the benchmark **with its native assets**:
+
+```powershell
+dart build cli --target tool\benchmark_telemetry.dart --output build\telemetry_benchmark
+.\build\telemetry_benchmark\bundle\bin\benchmark_telemetry.exe native sonde test\radiosonde_samples\DFM09_32k.wav
+.\build\telemetry_benchmark\bundle\bin\benchmark_telemetry.exe dart sonde test\radiosonde_samples\DFM09_32k.wav
+```
+
+`dart compile exe` alone does not bundle the build-hook libraries; use
+`dart build cli`. The benchmark reads at most six seconds of mono PCM16 audio.
+Replace `sonde` with `dfm`, `rs41`, `m10`, `m20`, `imet`, or `lms6` to measure
+an individual front end.
+
 ## One channel, six modems
 
 You don't pick a sonde type. The **monitor**

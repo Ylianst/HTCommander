@@ -18,7 +18,9 @@ import 'data_broker.dart';
 /// Registers cross-window serializers with the [DataBroker].
 ///
 /// Detached (child) windows run in a separate OS process, so any value that
-/// crosses the window boundary is transported as JSON. Primitive values, and
+/// crosses the window boundary is transported as JSON, except PCM byte buffers
+/// (direct Uint8List values or the `data` field of an audio map), which use the
+/// platform channel's binary transport. Primitive values, and
 /// `Map`/`List` structures of primitives, round-trip automatically and need no
 /// registration. Values that are dispatched as *typed objects* and consumed on
 /// the other side with a strict type check (e.g. `data is Aircraft` or

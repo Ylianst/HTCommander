@@ -23,6 +23,7 @@ import 'fm_ctrl.dart';
 import 'fm_level.dart';
 import 'fm_rx_frontend.dart';
 import 'fm_tx.dart' show symbolMap;
+import 'native_dsp.dart';
 import 'receiver_common.dart';
 
 const int ofdmHop = 4;
@@ -49,36 +50,80 @@ Cx _pow4(Cx z) {
 /// hop j with the same bin one OFDM symbol earlier.
 class Stft {
   final FftWindow _win = FftWindow(nf);
-  final Track<Float32List> _spectra = Track<Float32List>(2 * sym + 8);
-  final Track<Float32List> diff;
+  // The extra slot keeps the output row separate from the comparison symbol.
+  final List<Float32List> _spectra = List.generate(
+    sym + 1,
+    (_) => Float32List(2 * nf),
+  );
+  int _spectraBase = 0, _spectraEnd = 0;
+  final int _keep;
+  late final Track<Float32List>? _diff;
+  int _nativeBase = 0, _nativeEnd = 0;
   int _stftNext = 0;
+  final NativeXaraRows? nativeRows;
 
-  Stft(int maxSpf) : diff = Track<Float32List>(sym * maxSpf + 64);
+  Stft(int maxSpf, {bool useNative = true})
+    : _keep = sym * maxSpf + 64,
+      nativeRows = useNative
+          ? createNativeRows(2 * (sym * maxSpf + 64) + 1, 2 * nf)
+          : null {
+    _diff = nativeRows == null ? Track<Float32List>(_keep) : null;
+  }
+
+  int get diffBase => _diff?.base ?? _nativeBase;
+  int get diffEnd => _diff?.end ?? _nativeEnd;
+
+  /// Retained differential sample storage, excluding Dart object overhead.
+  int get retainedDifferenceBytes =>
+      (nativeRows?.storageBytes ?? 0) +
+      (_diff?.buf.fold<int>(0, (bytes, row) => bytes + row.lengthInBytes) ?? 0);
+
+  int get retainedSpectrumBytes =>
+      _spectra.length * 2 * nf * Float32List.bytesPerElement;
 
   void update(SampleTrack buf) {
     final int jHi = floorDiv(buf.end - nf, ofdmHop);
-    final int j0 = math.max(_stftNext, floorDiv(buf.base + ofdmHop - 1, ofdmHop));
+    final int j0 = math.max(
+      _stftNext,
+      floorDiv(buf.base + ofdmHop - 1, ofdmHop),
+    );
     for (int j = j0; j <= jHi; j++) {
       _win.at(buf, j * ofdmHop, nf);
-      final Float32List row = Float32List(2 * nf);
-      for (int k = 0; k < nf; k++) {
-        row[2 * k] = _win.re[k];
-        row[2 * k + 1] = _win.im[k];
-      }
-      final Float32List g = Float32List(2 * nf);
-      if (_spectra.contains(j - sym)) {
-        final Float32List prev = _spectra.at(j - sym);
+      final Float32List row = _spectra[j % _spectra.length];
+      final int prior = j - sym;
+      final Float32List? previous = prior >= _spectraBase && prior < _spectraEnd
+          ? _spectra[prior % _spectra.length]
+          : null;
+      final native = nativeRows;
+      if (native == null) {
         for (int k = 0; k < nf; k++) {
-          final double ar = row[2 * k], ai = row[2 * k + 1];
-          final double br = prev[2 * k], bi = prev[2 * k + 1];
-          final double pr = ar * br + ai * bi, pi = ai * br - ar * bi;
-          final double n = hypot(pr, pi) + 1e-30;
-          g[2 * k] = pr / n;
-          g[2 * k + 1] = pi / n;
+          row[2 * k] = _win.re[k];
+          row[2 * k + 1] = _win.im[k];
+        }
+        final Float32List g = Float32List(2 * nf);
+        if (previous != null) {
+          for (int k = 0; k < nf; k++) {
+            final double ar = row[2 * k], ai = row[2 * k + 1];
+            final double br = previous[2 * k], bi = previous[2 * k + 1];
+            final double pr = ar * br + ai * bi, pi = ai * br - ar * bi;
+            final double n = hypot(pr, pi) + 1e-30;
+            g[2 * k] = pr / n;
+            g[2 * k + 1] = pi / n;
+          }
+        }
+        _diff!.append(j, <Float32List>[g]);
+      } else {
+        native.appendSpectrum(j, _win.re, _win.im, row, previous);
+        if (j != _nativeEnd) _nativeBase = j;
+        _nativeEnd = j + 1;
+        // Match Track's pruning boundaries without retaining a second history.
+        if (_nativeEnd - _nativeBase > 2 * _keep) {
+          _nativeBase = _nativeEnd - _keep;
         }
       }
-      _spectra.append(j, <Float32List>[row]);
-      diff.append(j, <Float32List>[g]);
+      if (j != _spectraEnd) _spectraBase = j;
+      _spectraEnd = j + 1;
+      _spectraBase = math.max(_spectraBase, _spectraEnd - _spectra.length);
     }
     _stftNext = math.max(_stftNext, jHi + 1);
   }
@@ -92,8 +137,8 @@ class _Cell {
   final double refIm;
 
   _Cell(this.row, this.carrier, this.bin, Cx ref)
-      : refRe = Float32List.fromList(<double>[ref.re])[0],
-        refIm = Float32List.fromList(<double>[ref.im])[0];
+    : refRe = Float32List.fromList(<double>[ref.re])[0],
+      refIm = Float32List.fromList(<double>[ref.im])[0];
 }
 
 class FmDetection {
@@ -161,20 +206,23 @@ class OfdmEngine {
   final List<List<bool>> _map;
   final List<List<Cx>> _phasors;
   final List<_Cell> _markers = <_Cell>[];
+  late final List<List<(int, int)>> _markerRows;
+  late final bool _markerRefinement;
   late final List<_Cell> _data;
   final List<int> _bins;
   final int span;
   int? _searchNext;
   final Hold<void> _hold;
   final Fft _fft = Fft.plan(nf);
+  NativeXaraPattern? _native;
 
   OfdmEngine(this.l, List<int> other, Phasors phasors)
-      : record = l.record,
-        _map = symbolMap(l, other),
-        _bins = l.bins.toList(),
-        _phasors = <List<Cx>>[],
-        span = l.nsym * symLen,
-        _hold = Hold<void>(sym ~/ 2, sym * (l.nsym - 2)) {
+    : record = l.record,
+      _map = symbolMap(l, other),
+      _bins = l.bins.toList(),
+      _phasors = <List<Cx>>[],
+      span = l.nsym * symLen,
+      _hold = Hold<void>(sym ~/ 2, sym * (l.nsym - 2)) {
     for (int r = 0; r < l.nsym; r++) {
       _phasors.add(<Cx>[for (final int b in _bins) phasors[b][r]]);
     }
@@ -189,44 +237,71 @@ class OfdmEngine {
         }
       }
     }
+    _markerRows = List.generate(l.nsym, (_) => <(int, int)>[]);
+    for (int i = 0; i < _markers.length; i++) {
+      final _Cell m = _markers[i];
+      _markerRows[m.row - 1].add((2 * i, m.carrier));
+      _markerRows[m.row].add((2 * i + 1, m.carrier));
+    }
+    final int markerRows = _markerRows.where((row) => row.isNotEmpty).length;
+    const int candidates = 2 * _refine + 1;
+    _markerRefinement = candidates * markerRows + l.nsym < candidates * l.nsym;
     _data = thin(data, _maxDat);
+    final cells = <_Cell>[..._markers, ..._data];
+    _native = createNativePattern(
+      Int32List.fromList(cells.map((c) => sym * c.row).toList()),
+      Int32List.fromList(cells.map((c) => 2 * c.bin).toList()),
+      Float64List.fromList([
+        for (final c in cells) ...[c.refRe, c.refIm],
+      ]),
+      _markers.length,
+    );
   }
 
   void startAt(int j) => _searchNext = math.max(_searchNext ?? j, j);
 
-  (double, double) _terms(Stft st, int j) {
+  (double, double) _terms(Stft st, int j, double markerMin) {
     double ar = 0.0, ai = 0.0;
     for (final _Cell m in _markers) {
-      final Float32List d = st.diff.at(j + sym * m.row);
+      final Float32List d = st._diff!.at(j + sym * m.row);
       final double dr = d[2 * m.bin], di = d[2 * m.bin + 1];
       ar += dr * m.refRe - di * m.refIm;
       ai += dr * m.refIm + di * m.refRe;
     }
+    final double markerChi = (ar * ar + ai * ai) / _markers.length;
+    if (!(markerChi >= markerMin)) return (markerChi, 0.0);
     double br = 0.0, bi = 0.0;
     for (final _Cell c in _data) {
-      final Float32List d = st.diff.at(j + sym * c.row);
+      final Float32List d = st._diff!.at(j + sym * c.row);
       final double dr = d[2 * c.bin], di = d[2 * c.bin + 1];
       final double sr = dr * dr - di * di, si = 2 * dr * di;
       final double qr = sr * sr - si * si, qi = 2 * sr * si;
       br += qr * c.refRe - qi * c.refIm;
       bi += qr * c.refIm + qi * c.refRe;
     }
-    final double markerChi = (ar * ar + ai * ai) / _markers.length;
-    final double dataChi = _data.isEmpty ? 0.0 : (br * br + bi * bi) / _data.length;
+    final double dataChi = _data.isEmpty
+        ? 0.0
+        : (br * br + bi * bi) / _data.length;
     return (markerChi, dataChi);
   }
 
   List<FmDetection> step(Stft st) {
     final int need = sym * (l.nsym - 1);
-    final int hi = st.diff.end - 1 - need - 2 * _refine;
-    final int lo = math.max(_searchNext ?? st.diff.base, st.diff.base);
+    final int hi = st.diffEnd - 1 - need - 2 * _refine;
+    final int lo = math.max(_searchNext ?? st.diffBase, st.diffBase);
     final List<FmDetection> out = <FmDetection>[];
     if (hi < lo) return out;
+    final rows = st.nativeRows;
     final double markerMin = math.max(mkFrac * _markers.length, 6.0);
+    final terms = rows == null ? null : _native?.terms(rows, lo, hi, markerMin);
     for (int j = lo; j <= hi; j++) {
-      final (double mc, double dc) = _terms(st, j);
+      final (double mc, double dc) = terms == null
+          ? _terms(st, j, markerMin)
+          : (terms[2 * (j - lo)], terms[2 * (j - lo) + 1]);
       final double chi = mc + dc;
-      final (double, void)? cand = mc >= markerMin && chi >= chiMin ? (chi, null) : null;
+      final (double, void)? cand = mc >= markerMin && chi >= chiMin
+          ? (chi, null)
+          : null;
       final (int, double, void)? got = _hold.offer(j, cand);
       if (got != null) out.add(FmDetection(record, got.$1 * ofdmHop, got.$2));
     }
@@ -242,7 +317,10 @@ class OfdmEngine {
       buf.fill(a, a + nf, re, im);
       _fft.transform(re, im);
       final List<Cx> p = _phasors[r];
-      out.add(<Cx>[for (int c = 0; c < _bins.length; c++) Cx(re[_bins[c]], im[_bins[c]]) * p[c]]);
+      out.add(<Cx>[
+        for (int c = 0; c < _bins.length; c++)
+          Cx(re[_bins[c]], im[_bins[c]]) * p[c],
+      ]);
     }
     return out;
   }
@@ -255,9 +333,32 @@ class OfdmEngine {
     return (s.norm / _markers.length, s);
   }
 
+  (double, Cx) _markerCoherence(SampleTrack buf, int t) {
+    final Float64List re = Float64List(nf), im = Float64List(nf);
+    final List<Cx> cells = List<Cx>.filled(2 * _markers.length, Cx.zero);
+    for (int r = 0; r < _markerRows.length; r++) {
+      final List<(int, int)> row = _markerRows[r];
+      if (row.isEmpty) continue;
+      final int a = t + r * symLen;
+      buf.fill(a, a + nf, re, im);
+      _fft.transform(re, im);
+      for (final (int slot, int carrier) in row) {
+        final int bin = _bins[carrier];
+        cells[slot] = Cx(re[bin], im[bin]) * _phasors[r][carrier];
+      }
+    }
+    // Keep the original carrier-major sum order, not the FFT row order.
+    Cx s = Cx.zero;
+    for (int i = 0; i < _markers.length; i++) {
+      s = s + unit(cells[2 * i].conj() * cells[2 * i + 1]);
+    }
+    return (s.norm / _markers.length, s);
+  }
+
   double? earlyCoherence(SampleTrack buf, int t0, int rows0) {
     final int rows = math.min(rows0, l.nsym);
-    if (t0 + rows * symLen + _refine > buf.end || t0 - _refine < buf.base) return null;
+    if (t0 + rows * symLen + _refine > buf.end || t0 - _refine < buf.base)
+      return null;
     final bool qam = l.isQam;
     final List<(int, int)> cells = <(int, int)>[
       for (int r = 1; r < rows; r++)
@@ -278,19 +379,33 @@ class OfdmEngine {
     return best;
   }
 
-  FmFrameRx? decode(SampleTrack buf, FmCodec codec, int t0, int index, [List<Cx>? capture]) {
+  FmFrameRx? decode(
+    SampleTrack buf,
+    FmCodec codec,
+    int t0,
+    int index, [
+    List<Cx>? capture,
+  ]) {
     if (t0 + span + _refine > buf.end || t0 - _refine < buf.base) return null;
-    final List<(List<List<Cx>>, double, Cx)> cand = <(List<List<Cx>>, double, Cx)>[];
+    final List<(List<List<Cx>>?, double, Cx)> cand =
+        <(List<List<Cx>>?, double, Cx)>[];
     for (int t = t0 - _refine; t <= t0 + _refine; t++) {
-      final List<List<Cx>> c = _cells(buf, t, l.nsym);
-      final (double m, Cx s) = _coherence(c);
+      final List<List<Cx>>? c = _markerRefinement
+          ? null
+          : _cells(buf, t, l.nsym);
+      final (double m, Cx s) = c == null
+          ? _markerCoherence(buf, t)
+          : _coherence(c);
       cand.add((c, m, s));
     }
     final List<double> vals = cand.map((x) => x.$2).toList();
     final int i = peakMid(vals, argmax(vals), 0.02);
     final int t = t0 - _refine + i;
-    final (List<List<Cx>> c, double coh, Cx s) = cand[i];
-    final (List<double> llr, double esn0) = l.isQam ? _qamLlr(c, capture) : _dpskLlr(c, s, capture);
+    final (List<List<Cx>>? selected, double coh, Cx s) = cand[i];
+    final List<List<Cx>> c = selected ?? _cells(buf, t, l.nsym);
+    final (List<double> llr, double esn0) = l.isQam
+        ? _qamLlr(c, capture)
+        : _dpskLlr(c, s, capture);
     final FrameOut out = codec.decode(record, llr);
     final double esn0Db = 10.0 * math.log(math.max(esn0, 1e-6)) / math.ln10;
     final double nc = l.nc.toDouble();
@@ -314,7 +429,11 @@ class OfdmEngine {
     final int nc = l.nc;
     final Cx rot = unit(s.conj());
     final List<List<Cx>> d = eqDiff(c, c.length, nc, rot);
-    final double nvar = dpskNvar(d, 1e-30, _markers.map((m) => (m.row - 1, m.carrier)));
+    final double nvar = dpskNvar(
+      d,
+      1e-30,
+      _markers.map((m) => (m.row - 1, m.carrier)),
+    );
     final List<Cx> cst = fmConstellation(2);
     final List<double> llr = <double>[];
     for (int b = 0; b < nc; b++) {
@@ -328,23 +447,27 @@ class OfdmEngine {
     return (llr, 2.0 / nvar);
   }
 
-  (List<double>, double) _qamLlr(List<List<Cx>> c0, List<Cx>? capture) {
+  (List<double>, double) _qamLlr(List<List<Cx>> c, List<Cx>? capture) {
     final int nc = l.nc, nsy = l.nsym;
     bool known(int b, int r) => fmQamPilot(_bins[b], r + 2) || _map[b][r];
     Cx v = Cx.zero;
     for (int b = 0; b < nc; b++) {
       for (int r = 0; r < math.max(nsy - fmPilotPeriod, 0); r++) {
-        if (fmQamPilot(_bins[b], r + 2)) v = v + c0[r][b].conj() * c0[r + fmPilotPeriod][b];
+        if (fmQamPilot(_bins[b], r + 2))
+          v = v + c[r][b].conj() * c[r + fmPilotPeriod][b];
       }
     }
     final double thd = v.arg / fmPilotPeriod;
-    final List<List<Cx>> c = c0.map((row) => List<Cx>.of(row)).toList();
     derotate(c, thd);
     final List<Cx> cst = fmConstellation(l.layout.bps);
-    final double es = cst.fold<double>(0.0, (a, z) => a + z.normSqr) / cst.length;
+    final double es =
+        cst.fold<double>(0.0, (a, z) => a + z.normSqr) / cst.length;
     final Equaliser e = Equaliser();
     for (int b = 0; b < nc; b++) {
-      final List<int> ks = <int>[for (int r = 0; r < nsy; r++) if (known(b, r)) r];
+      final List<int> ks = <int>[
+        for (int r = 0; r < nsy; r++)
+          if (known(b, r)) r,
+      ];
       final List<Cx> hs = ks.map((r) => c[r][b]).toList();
       for (int r = 0; r < nsy; r++) {
         if (!known(b, r)) e.push(c[r][b], r.toDouble(), ks, hs);
@@ -378,14 +501,17 @@ class FmReceiver with Assemble<FmCtrlEvent, FmRecord, FmFrameRx, void, void> {
   int? _probed;
   final FmRxStats stats = FmRxStats();
 
+  int get retainedDifferenceBytes => _stft.retainedDifferenceBytes;
+  int get retainedSpectrumBytes => _stft.retainedSpectrumBytes;
+
   /// When true, decoded frames carry their symbols and are queued in [captured].
   bool captureSymbols = false;
   final List<FmFrameRx> captured = <FmFrameRx>[];
 
   FmReceiver(this.bw, int key, List<FmRecord> records, int nframes)
-      : _key = key,
-        _asm = Assembly<FmRecord, FmFrameRx, void>(nframes),
-        _codec = FmCodec(bw) {
+    : _key = key,
+      _asm = Assembly<FmRecord, FmFrameRx, void>(nframes),
+      _codec = FmCodec(bw) {
     expect(records, nframes);
   }
 
@@ -406,9 +532,17 @@ class FmReceiver with Assemble<FmCtrlEvent, FmRecord, FmFrameRx, void, void> {
 
   OfdmEngine _engine(FmRecord record) {
     final OfdmEngine e = OfdmEngine(
-        bw.level(record), fmCodeTables(bw)[record.index].other, phasors(recordKey(record, _key)));
+      bw.level(record),
+      fmCodeTables(bw)[record.index].other,
+      phasors(recordKey(record, _key)),
+    );
     final int spanHops = e.span ~/ ofdmHop;
-    e.startAt(math.max(_stft.diff.base, _stft.diff.end - spanHops - fs6.toInt() ~/ ofdmHop));
+    e.startAt(
+      math.max(
+        _stft.diffBase,
+        _stft.diffEnd - spanHops - fs6.toInt() ~/ ofdmHop,
+      ),
+    );
     return e;
   }
 
@@ -420,7 +554,8 @@ class FmReceiver with Assemble<FmCtrlEvent, FmRecord, FmFrameRx, void, void> {
     if (nframes != null) _asm.nframes = nframes;
   }
 
-  List<FmRecord> get expected => (_engines.keys.toList()..sort((a, b) => a.index - b.index));
+  List<FmRecord> get expected =>
+      (_engines.keys.toList()..sort((a, b) => a.index - b.index));
 
   void setKey(int key) {
     if (key == _key) return;
@@ -464,7 +599,9 @@ class FmReceiver with Assemble<FmCtrlEvent, FmRecord, FmFrameRx, void, void> {
       final CtrlDetector? c = _ctrl[side.idx];
       if (c != null) {
         for (final CtrlDetection d in c.step(_buf)) {
-          ev.add(CtrlEv<FmCtrlEvent, FmRecord, FmFrameRx>(FmCtrlEvent(d, side)));
+          ev.add(
+            CtrlEv<FmCtrlEvent, FmRecord, FmFrameRx>(FmCtrlEvent(d, side)),
+          );
         }
       }
     }
@@ -491,8 +628,12 @@ class FmReceiver with Assemble<FmCtrlEvent, FmRecord, FmFrameRx, void, void> {
     return p == null ? 0.0 : p[p.length ~/ 100];
   }
 
-  bool _continues(int end) =>
-      continuesAfter(_buf, (end + cp, end + _continueAt), (end - 2 * symLen, end - cp), noiseFloor());
+  bool _continues(int end) => continuesAfter(
+    _buf,
+    (end + cp, end + _continueAt),
+    (end - 2 * symLen, end - cp),
+    noiseFloor(),
+  );
 
   List<FmEvent> _pending() {
     final Pending<FmRecord, FmFrameRx, void>? cur = _asm.cur;
@@ -506,7 +647,10 @@ class FmReceiver with Assemble<FmCtrlEvent, FmRecord, FmFrameRx, void, void> {
         _asm.cur = cur;
         return <FmEvent>[];
       }
-      if (!(cur.frames[0].ok && cur.record != FmRecord.broadcast && _continues(end1))) return finish(cur);
+      if (!(cur.frames[0].ok &&
+          cur.record != FmRecord.broadcast &&
+          _continues(end1)))
+        return finish(cur);
       stats.unexpectedFrame2++;
       cur.two = true;
     }
@@ -541,7 +685,13 @@ class FmReceiver with Assemble<FmCtrlEvent, FmRecord, FmFrameRx, void, void> {
   FmFrameRx? decode(FmRecord record, int t, int index, void hint) {
     final OfdmEngine? e = _engines[record];
     if (e == null) return null;
-    final FmFrameRx? r = e.decode(_buf, _codec, t, index, captureSymbols ? <Cx>[] : null);
+    final FmFrameRx? r = e.decode(
+      _buf,
+      _codec,
+      t,
+      index,
+      captureSymbols ? <Cx>[] : null,
+    );
     if (r != null) stats.decode.count(r.ok);
     if (r != null && captureSymbols) {
       if (captured.length >= 8) captured.removeAt(0);
@@ -551,10 +701,12 @@ class FmReceiver with Assemble<FmCtrlEvent, FmRecord, FmFrameRx, void, void> {
   }
 
   @override
-  bool pairs(Pending<FmRecord, FmFrameRx, void> cur, FmRecord record) => record != FmRecord.broadcast;
+  bool pairs(Pending<FmRecord, FmFrameRx, void> cur, FmRecord record) =>
+      record != FmRecord.broadcast;
 
   @override
-  int frame1End(Pending<FmRecord, FmFrameRx, void> cur) => cur.t + span(cur.record);
+  int frame1End(Pending<FmRecord, FmFrameRx, void> cur) =>
+      cur.t + span(cur.record);
 
   @override
   FmFrameRx? lost(FmRecord record, int back, int t, int sp) {
@@ -562,7 +714,12 @@ class FmReceiver with Assemble<FmCtrlEvent, FmRecord, FmFrameRx, void, void> {
     if (te48 == null) return null;
     final int te = te48 ~/ dec;
     if (back - cpMid < te) return null;
-    return FmFrameRx(record: record, t: back, tEnd: back - cpMid + sp, missing: true);
+    return FmFrameRx(
+      record: record,
+      t: back,
+      tEnd: back - cpMid + sp,
+      missing: true,
+    );
   }
 
   @override
@@ -576,7 +733,8 @@ class FmReceiver with Assemble<FmCtrlEvent, FmRecord, FmFrameRx, void, void> {
   void wait(FmRecord record, FmFrameRx r, void hint) {}
 
   @override
-  int expectedFrames(Pending<FmRecord, FmFrameRx, void> cur) => math.max(_asm.nframes, 1);
+  int expectedFrames(Pending<FmRecord, FmFrameRx, void> cur) =>
+      math.max(_asm.nframes, 1);
 
   @override
   void finished(List<FmFrameRx> frames) => stats.tx++;

@@ -10,6 +10,8 @@ Complex numbers (num_complex semantics) and a radix-2 FFT.
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'native_dsp.dart';
+
 class Cx {
   final double re;
   final double im;
@@ -19,7 +21,8 @@ class Cx {
   static const Cx zero = Cx(0.0, 0.0);
   static const Cx one = Cx(1.0, 0.0);
 
-  factory Cx.polar(double r, double theta) => Cx(r * math.cos(theta), r * math.sin(theta));
+  factory Cx.polar(double r, double theta) =>
+      Cx(r * math.cos(theta), r * math.sin(theta));
 
   Cx operator +(Cx o) => Cx(re + o.re, im + o.im);
   Cx operator -(Cx o) => Cx(re - o.re, im - o.im);
@@ -44,7 +47,8 @@ class Cx {
   double get norm => hypot(re, im);
 
   @override
-  bool operator ==(Object other) => other is Cx && other.re == re && other.im == im;
+  bool operator ==(Object other) =>
+      other is Cx && other.re == re && other.im == im;
 
   @override
   int get hashCode => Object.hash(re, im);
@@ -76,11 +80,12 @@ class Fft {
   final Float64List _cos;
   final Float64List _sin;
   final Int32List _rev;
+  NativeXaraFft? _native;
 
-  Fft(this.n)
-      : _cos = Float64List(n ~/ 2),
-        _sin = Float64List(n ~/ 2),
-        _rev = Int32List(n) {
+  Fft(this.n, {bool useNative = true})
+    : _cos = Float64List(n ~/ 2),
+      _sin = Float64List(n ~/ 2),
+      _rev = Int32List(n) {
     if (n < 1 || (n & (n - 1)) != 0) throw ArgumentError('FFT size $n');
     for (int k = 0; k < n ~/ 2; k++) {
       final double a = 2.0 * math.pi * k / n;
@@ -95,6 +100,7 @@ class Fft {
       }
       _rev[i] = r;
     }
+    if (useNative) _native = createNativeFft(_cos, _sin, _rev);
   }
 
   static final Map<int, Fft> _plans = <int, Fft>{};
@@ -103,6 +109,11 @@ class Fft {
 
   /// Transforms [re]/[im] in place. Forward uses e^{-2 pi i k n / N}.
   void transform(Float64List re, Float64List im, {bool inverse = false}) {
+    final native = _native;
+    if (native != null) {
+      native.transform(re, im, inverse);
+      return;
+    }
     for (int i = 0; i < n; i++) {
       final int j = _rev[i];
       if (j > i) {

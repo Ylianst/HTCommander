@@ -216,6 +216,19 @@ const ColorFilter _darkMapTileFilter = ColorFilter.matrix(<double>[
   0, 0, 0, 1, 0, //
 ]);
 
+class _MapCollectionCache<T> {
+  Object? _key;
+  List<T> _items = const [];
+
+  List<T> get(Object key, List<T> Function() build) {
+    if (_key != key) {
+      _items = build();
+      _key = key;
+    }
+    return _items;
+  }
+}
+
 class _MapTabState extends State<MapTab>
     with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   final MapController _mapController = MapController();
@@ -240,6 +253,24 @@ class _MapTabState extends State<MapTab>
   List<SatellitePosition> _satellites = const [];
   List<List<double>> _satGroundTrack = const [];
   int? _selectedSatId;
+
+  final _airplaneUpdates = ValueNotifier<int>(0);
+  final _satelliteUpdates = ValueNotifier<int>(0);
+  final _satelliteTrackUpdates = ValueNotifier<int>(0);
+  final _stationMarkersCache = _MapCollectionCache<Marker>();
+  final _meshMarkersCache = _MapCollectionCache<Marker>();
+  final _gatewayMarkersCache = _MapCollectionCache<Marker>();
+  final _orderedMarkersCache = _MapCollectionCache<Marker>();
+  final _tracksCache = _MapCollectionCache<Polyline>();
+  final _airplaneMarkersCache = _MapCollectionCache<Marker>();
+  final _satelliteMarkersCache = _MapCollectionCache<Marker>();
+  final _satelliteFootprintsCache = _MapCollectionCache<CircleMarker>();
+  final _satelliteTrackCache = _MapCollectionCache<Polyline>();
+  int _stationRevision = 0;
+  int _gpsRevision = 0;
+  int _contactsRevision = 0;
+  int _filterRevision = 0;
+  int _gatewayRevision = 0;
 
   /// Callsign of the station whose info overlay is currently shown at the
   /// bottom of the map (set by tapping a callsign marker), or null when no
@@ -482,6 +513,7 @@ class _MapTabState extends State<MapTab>
       deviceId: 0,
       name: WinlinkGatewayService.updatedEvent,
       callback: (_, _, _) {
+        _gatewayRevision++;
         if (mounted && _showWinlinkGateways) setState(() {});
       },
     );
@@ -563,6 +595,7 @@ class _MapTabState extends State<MapTab>
       deviceId: 0,
       name: 'Stations',
       callback: (_, _, _) {
+        _contactsRevision++;
         if (mounted) setState(() {});
       },
     );
@@ -710,6 +743,7 @@ class _MapTabState extends State<MapTab>
     if (!mounted) return;
     setState(() {
       _loadInitialRadioPositions();
+      _gpsRevision++;
       _rebuildRadioBands();
     });
   }
@@ -813,6 +847,7 @@ class _MapTabState extends State<MapTab>
       pos = RadioPosition.fromJson(Map<String, dynamic>.from(data));
     }
     setState(() {
+      _gpsRevision++;
       if (pos != null && _positionHasFix(pos)) {
         _radioPositions[deviceId] = pos;
       } else {
@@ -832,6 +867,7 @@ class _MapTabState extends State<MapTab>
       gps = GpsData.fromJson(Map<String, dynamic>.from(data));
     }
     setState(() {
+      _gpsRevision++;
       _serialGps = (gps != null && gps.isFixed) ? gps : null;
     });
   }
@@ -846,7 +882,8 @@ class _MapTabState extends State<MapTab>
     } else {
       airplanes = const [];
     }
-    setState(() => _airplanes = airplanes);
+    _airplanes = airplanes;
+    _airplaneUpdates.value++;
   }
 
   void _onShowAirplanesChanged(int deviceId, String name, Object? data) {
@@ -862,7 +899,8 @@ class _MapTabState extends State<MapTab>
     final list = data is List
         ? data.whereType<SatellitePosition>().toList()
         : const <SatellitePosition>[];
-    setState(() => _satellites = list);
+    _satellites = list;
+    _satelliteUpdates.value++;
   }
 
   void _onSatelliteGroundTrack(int deviceId, String name, Object? data) {
@@ -875,13 +913,15 @@ class _MapTabState extends State<MapTab>
         }
       }
     }
-    setState(() => _satGroundTrack = track);
+    _satGroundTrack = track;
+    _satelliteTrackUpdates.value++;
   }
 
   void _onSelectedSatelliteChanged(int deviceId, String name, Object? data) {
     if (!mounted) return;
     final id = data is int ? data : (data is num ? data.toInt() : null);
-    setState(() => _selectedSatId = id);
+    _selectedSatId = id;
+    _satelliteUpdates.value++;
   }
 
   void _onShowSatellitesChanged(int deviceId, String name, Object? data) {
@@ -982,6 +1022,7 @@ class _MapTabState extends State<MapTab>
       return;
     }
     _aprsStations.clear();
+    _stationRevision++;
     _historicalPacketsLoaded = false;
     _historicalAprsIsLoaded = false;
     if (mounted) setState(() {});
@@ -1031,6 +1072,7 @@ class _MapTabState extends State<MapTab>
         lastMessage: lastMessage,
       );
     }
+    _stationRevision++;
     return true;
   }
 
@@ -1133,6 +1175,7 @@ class _MapTabState extends State<MapTab>
         lastMessage: lastMessage,
       );
     }
+    _stationRevision++;
     return true;
   }
 
@@ -1162,6 +1205,7 @@ class _MapTabState extends State<MapTab>
         isTest: isTest,
       );
     }
+    _stationRevision++;
     return true;
   }
 
@@ -1190,6 +1234,7 @@ class _MapTabState extends State<MapTab>
         isSelf: false,
       );
     }
+    _stationRevision++;
     return true;
   }
 
@@ -1207,6 +1252,7 @@ class _MapTabState extends State<MapTab>
     _filterRefreshTimer = null;
     if (_markerTimeFilter > 0 && isTabVisible) {
       _filterRefreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+        _filterRevision++;
         if (mounted) setState(() {});
       });
     }
@@ -1216,6 +1262,7 @@ class _MapTabState extends State<MapTab>
   void onTabVisibilityChanged(bool visible) {
     // Only run the marker-ageing refresh timer while the Map tab is on-screen.
     _updateFilterRefreshTimer();
+    if (visible) _filterRevision++;
   }
 
   /// True when [time] is within the active time filter window (or no filter).
@@ -1230,6 +1277,9 @@ class _MapTabState extends State<MapTab>
     _filterRefreshTimer?.cancel();
     _positionSaveTimer?.cancel();
     _broker.dispose();
+    _airplaneUpdates.dispose();
+    _satelliteUpdates.dispose();
+    _satelliteTrackUpdates.dispose();
     super.dispose();
   }
 
@@ -4077,9 +4127,38 @@ class _MapTabState extends State<MapTab>
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     final scheme = Theme.of(context).colorScheme;
     final source = _mapSource;
-    final tracks = _showTracks ? _buildTracks() : const <Polyline>[];
-    final stationMarkers = _buildStationMarkers();
-    final meshMarkers = _buildMeshCoreMarkers();
+    final filterKey = (
+      _markerTimeFilter,
+      _filterRevision,
+      _showContactsOnly,
+      _contactsRevision,
+    );
+    final locale = Localizations.localeOf(context);
+    final tracks = _showTracks
+        ? _tracksCache.get((
+            _stationRevision,
+            filterKey,
+            _showAprsIs,
+          ), _buildTracks)
+        : const <Polyline>[];
+    final stationMarkers = _stationMarkersCache.get((
+      _stationRevision,
+      _gpsRevision,
+      filterKey,
+      _showAprsIs,
+      _largeMarkers,
+      _showAprsSymbols,
+      Theme.of(context).brightness,
+      locale,
+    ), _buildStationMarkers);
+    final meshMarkers = _meshMarkersCache.get((
+      _meshStations,
+      filterKey,
+      _meshCoreEnabled,
+      _showMeshCore,
+      _largeMarkers,
+      locale,
+    ), _buildMeshCoreMarkers);
     final selectedMesh = _selectedMeshStation;
     return Column(
       children: [
@@ -4164,29 +4243,81 @@ class _MapTabState extends State<MapTab>
                         ),
                       ),
                     ),
-                  if (tracks.isNotEmpty) PolylineLayer(polylines: tracks),
+                  if (tracks.isNotEmpty)
+                    PolylineLayer(
+                      key: const ValueKey('mapStationTracks'),
+                      polylines: tracks,
+                    ),
                   // Winlink gateways and station markers share one layer,
                   // ordered north to south so southern markers draw on top.
                   if (_showWinlinkGateways ||
                       stationMarkers.isNotEmpty ||
                       meshMarkers.isNotEmpty)
-                    MarkerLayer(
-                      markers: _sortNorthToSouth([
-                        if (_showWinlinkGateways)
-                          ..._buildWinlinkGatewayMarkers(),
-                        ...stationMarkers,
-                        ...meshMarkers,
-                      ]),
+                    Builder(
+                      builder: (context) {
+                        final gateways = _showWinlinkGateways
+                            ? _gatewayMarkersCache.get((
+                                MapCamera.of(context),
+                                _gatewayRevision,
+                                _radioBands,
+                                Theme.of(context).brightness,
+                              ), _buildWinlinkGatewayMarkers)
+                            : const <Marker>[];
+                        return MarkerLayer(
+                          key: const ValueKey('mapStationMarkers'),
+                          markers: _orderedMarkersCache.get(
+                            (gateways, stationMarkers, meshMarkers),
+                            () => _sortNorthToSouth([
+                              ...gateways,
+                              ...stationMarkers,
+                              ...meshMarkers,
+                            ]),
+                          ),
+                        );
+                      },
                     ),
-                  if (_showAirplanes && _airplanes.isNotEmpty)
-                    MarkerLayer(markers: _buildAirplaneMarkers()),
-                  if (_showSatellites && _satelliteSupport) ...[
-                    if (_satellites.isNotEmpty)
-                      CircleLayer(circles: _buildSatelliteFootprints()),
-                    if (_satGroundTrack.length > 1)
-                      PolylineLayer(polylines: _buildSatelliteTrack()),
-                    if (_satellites.isNotEmpty)
-                      MarkerLayer(markers: _buildSatelliteMarkers()),
+                  if (_showAirplanes && isTabVisible)
+                    ValueListenableBuilder<int>(
+                      valueListenable: _airplaneUpdates,
+                      builder: (context, revision, child) => MarkerLayer(
+                        key: const ValueKey('mapAirplaneMarkers'),
+                        markers: _airplaneMarkersCache.get((
+                          revision,
+                          _airplanes,
+                          locale,
+                        ), _buildAirplaneMarkers),
+                      ),
+                    ),
+                  if (_showSatellites && _satelliteSupport && isTabVisible) ...[
+                    ValueListenableBuilder<int>(
+                      valueListenable: _satelliteUpdates,
+                      builder: (context, revision, child) => CircleLayer(
+                        key: const ValueKey('mapSatelliteFootprints'),
+                        circles: _satelliteFootprintsCache.get((
+                          _satellites,
+                          _selectedSatId,
+                        ), _buildSatelliteFootprints),
+                      ),
+                    ),
+                    ValueListenableBuilder<int>(
+                      valueListenable: _satelliteTrackUpdates,
+                      builder: (context, revision, child) => PolylineLayer(
+                        key: const ValueKey('mapSatelliteTrack'),
+                        polylines: _satelliteTrackCache.get((
+                          _satGroundTrack,
+                        ), _buildSatelliteTrack),
+                      ),
+                    ),
+                    ValueListenableBuilder<int>(
+                      valueListenable: _satelliteUpdates,
+                      builder: (context, revision, child) => MarkerLayer(
+                        key: const ValueKey('mapSatelliteMarkers'),
+                        markers: _satelliteMarkersCache.get((
+                          _satellites,
+                          _selectedSatId,
+                        ), _buildSatelliteMarkers),
+                      ),
+                    ),
                   ],
                   // Distance measuring overlay: a dashed line and two draggable
                   // markers. Drawn above the station markers so it stays visible.

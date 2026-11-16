@@ -28,7 +28,7 @@ import 'gen_tone.dart';
 
 /// HDLC frame encoder for transmitting data.
 class HdlcSend {
-  final GenTone _genTone;
+  final ToneBitSink _genTone;
   // ignore: unused_field
   final AudioConfig _audioConfig;
   late List<int> _stuff;

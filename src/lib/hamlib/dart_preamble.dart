@@ -32,6 +32,7 @@ import 'dart:typed_data';
 
 import 'dart_constellation.dart';
 import 'dart_ofdm.dart';
+import 'native_dart_dsp.dart';
 
 /// Result of a preamble detection attempt.
 class PreambleDetection {
@@ -41,10 +42,7 @@ class PreambleDetection {
   /// Normalized cross-correlation peak (0..1) — detection confidence.
   final double correlation;
 
-  const PreambleDetection({
-    required this.position,
-    required this.correlation,
-  });
+  const PreambleDetection({required this.position, required this.correlation});
 }
 
 /// Zadoff-Chu sequence generator and preamble utilities.
@@ -64,6 +62,7 @@ class DartPreamble {
 
   /// Length of the ZC sequence (should be prime for ideal properties).
   final int zcLength;
+  final bool useNative;
 
   /// The known preamble data symbols used for channel estimation.
   /// These are BPSK (+1/-1) on each active subcarrier — known to both TX and RX.
@@ -71,6 +70,9 @@ class DartPreamble {
 
   /// The correlation reference (time-domain ZC half, as real samples).
   late final Float64List _corrReference;
+  late final NativeDartCorrelation? _nativeCorrelation = useNative
+      ? NativeDartCorrelation.create(_corrReference)
+      : null;
 
   /// Total preamble length in samples.
   late final int preambleSamples;
@@ -79,6 +81,7 @@ class DartPreamble {
     required this.ofdmParams,
     this.root = 7,
     int? zcLength,
+    this.useNative = true,
   }) : zcLength = zcLength ?? _defaultZcLength(ofdmParams) {
     // Generate known channel-estimation symbols (BPSK PN sequence on data carriers)
     channelEstSymbols = _generatePnSymbols(ofdmParams.numDataCarriers);
@@ -97,7 +100,7 @@ class DartPreamble {
 
     // Channel-estimation symbol: place known pilots directly on each
     // subcarrier (no DFT-spread) so estimateChannel can read H[k] per tone.
-    final ofdm = DartOfdm(ofdmParams);
+    final ofdm = DartOfdm(ofdmParams, useNative: useNative);
     final ceSymbol = ofdm.modulateSymbol(channelEstSymbols, dftSpread: false);
 
     // The constant-envelope ZC sequence has amplitude ~1.0, while an OFDM
@@ -139,11 +142,16 @@ class DartPreamble {
   /// [searchStart] skips the first that-many sample positions; callers that
   /// stream audio use it to avoid re-correlating samples already checked in a
   /// previous pass (positions before it are known to contain no preamble).
-  int detect(Float64List rxSamples,
-      {double threshold = 0.6, int searchStart = 0}) {
-    return detectDetailed(rxSamples,
-            threshold: threshold, searchStart: searchStart)
-        .position;
+  int detect(
+    Float64List rxSamples, {
+    double threshold = 0.6,
+    int searchStart = 0,
+  }) {
+    return detectDetailed(
+      rxSamples,
+      threshold: threshold,
+      searchStart: searchStart,
+    ).position;
   }
 
   /// Detect preamble and also report the correlation peak (detection
@@ -178,7 +186,42 @@ class DartPreamble {
 
     // Normalized correlation of the reference against the half starting at
     // [start]. Returns 0 when the window energy is negligible.
+    final native =
+        useNative && nativeDartDspEnabled && refLen > 0 && refLen <= 2048;
+    final fastCorrelation = native ? _nativeCorrelation : null;
+    final correlations = native ? Float64List(64) : null;
+    Float64List? cachedCorrelations;
+    int cachedStart = -1, cachedCount = 0;
     double halfCorr(int start) {
+      if (fastCorrelation != null) {
+        if (start < cachedStart || start >= cachedStart + cachedCount) {
+          cachedStart = start;
+          cachedCount = math.min(
+            fastCorrelation.capacity,
+            rxSamples.length - refLen - start + 1,
+          );
+          cachedCorrelations = fastCorrelation.process(
+            rxSamples,
+            start,
+            cachedCount,
+          );
+        }
+        return cachedCorrelations![start - cachedStart];
+      } else if (correlations != null) {
+        if (start < cachedStart || start >= cachedStart + cachedCount) {
+          cachedStart = start;
+          cachedCount = math.min(64, rxSamples.length - refLen - start + 1);
+          nativeDartCorrelate(
+            rxSamples,
+            _corrReference,
+            refEnergy,
+            start,
+            cachedCount,
+            correlations,
+          );
+        }
+        return correlations[start - cachedStart];
+      }
       double corr = 0;
       double rxEnergy = 0;
       for (int i = 0; i < refLen; i++) {
@@ -264,7 +307,7 @@ class DartPreamble {
       ceSamples[i] = rxSamples[ceStart + i];
     }
 
-    final ofdm = DartOfdm(ofdmParams);
+    final ofdm = DartOfdm(ofdmParams, useNative: useNative);
     return ofdm.estimateChannel(ceSamples, channelEstSymbols);
   }
 
@@ -317,7 +360,9 @@ class DartPreamble {
     int lfsr = 0x1ACE; // fixed seed
     for (int i = 0; i < length; i++) {
       final int bit = lfsr & 1;
-      symbols[i] = bit == 0 ? const Complex(1.0, 0.0) : const Complex(-1.0, 0.0);
+      symbols[i] = bit == 0
+          ? const Complex(1.0, 0.0)
+          : const Complex(-1.0, 0.0);
       // Fibonacci LFSR: x^16 + x^14 + x^13 + x^11 + 1
       final int feedback =
           ((lfsr >> 0) ^ (lfsr >> 2) ^ (lfsr >> 3) ^ (lfsr >> 5)) & 1;

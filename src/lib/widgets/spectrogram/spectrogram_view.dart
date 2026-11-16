@@ -2,7 +2,8 @@
 Spectrogram widget for Flutter.
 
 Provides a [SpectrogramController] that buffers incoming PCM audio, periodically
-runs the sliding-window FFT and rasterizes the result to a `ui.Image`, and a
+runs the sliding-window FFT and incrementally rasterizes new columns to a
+`ui.Image`, and a
 [SpectrogramView] widget that paints that image scaled to fill its bounds.
 
 This is the Flutter equivalent of the C# SpectrogramForm's drawing surface
@@ -31,6 +32,14 @@ import 'spectrogram_generator.dart';
 
 export 'spectrogram_colormap.dart' show SpectrogramColormap;
 
+typedef _RenderSettings = ({
+  SpectrogramColormap colormap,
+  double intensity,
+  bool decibel,
+  double dbScale,
+  bool roll,
+});
+
 /// Owns a [SpectrogramGenerator], drives it on a timer and exposes the latest
 /// rendered [ui.Image]. Notifies listeners whenever a new frame is ready.
 class SpectrogramController extends ChangeNotifier {
@@ -56,6 +65,9 @@ class SpectrogramController extends ChangeNotifier {
   Timer? _timer;
   ui.Image? _image;
   Uint8List? _rgba;
+  _RenderSettings? _renderedSettings;
+  int _frameRevision = 0;
+  bool _hasData = false;
   bool _generating = false;
   bool _disposed = false;
 
@@ -114,6 +126,7 @@ class SpectrogramController extends ChangeNotifier {
     _columnCount = clamped;
     _generator.setFixedWidth(_columnCount);
     _rgba = null; // size changed; reallocate on next render
+    _frameRevision++;
   }
 
   /// Feed 16-bit little-endian PCM audio (e.g. radio or microphone data).
@@ -135,6 +148,10 @@ class SpectrogramController extends ChangeNotifier {
   /// Discard buffered audio and clear the image.
   void clear() {
     _generator.clear();
+    _rgba = null;
+    _renderedSettings = null;
+    _hasData = false;
+    _frameRevision++;
     _image?.dispose();
     _image = null;
     notifyListeners();
@@ -158,11 +175,16 @@ class SpectrogramController extends ChangeNotifier {
       maxFreq: maxFrequency ?? old.maxFreq,
     );
     _generator.setFixedWidth(_columnCount);
-    _rgba = null;
-    _image?.dispose();
-    _image = null;
-    notifyListeners();
+    clear();
   }
+
+  _RenderSettings get _settings => (
+    colormap: _colormap,
+    intensity: intensity,
+    decibel: decibel,
+    dbScale: dbScale,
+    roll: roll,
+  );
 
   void _startTimer() {
     _timer = Timer.periodic(updateInterval, (_) => _tick());
@@ -170,10 +192,15 @@ class SpectrogramController extends ChangeNotifier {
 
   void _tick() {
     if (_disposed || _generating) return;
-    if (_generator.fftsToProcess < 1) return;
-
-    _generator.process();
-    _generator.setFixedWidth(_columnCount);
+    final settings = _settings;
+    final count = _generator.fftsToProcess;
+    if (count > 0) {
+      _generator.process();
+      _hasData = true;
+    }
+    if (!_hasData) return;
+    final renderAll = _rgba == null || _renderedSettings != settings;
+    if (count < 1 && !renderAll) return;
 
     final w = _generator.width;
     final h = _generator.height;
@@ -188,18 +215,22 @@ class SpectrogramController extends ChangeNotifier {
 
     _generator.renderInto(
       buffer,
-      colormap: _colormap,
-      intensity: intensity,
-      decibel: decibel,
-      dbScale: dbScale,
-      roll: roll,
+      colormap: settings.colormap,
+      intensity: settings.intensity,
+      decibel: settings.decibel,
+      dbScale: settings.dbScale,
+      roll: settings.roll,
+      newColumnCount: renderAll ? null : count,
     );
+    _renderedSettings = settings;
 
+    final revision = _frameRevision;
     _generating = true;
     ui.decodeImageFromPixels(buffer, w, h, ui.PixelFormat.rgba8888, (img) {
       _generating = false;
-      if (_disposed) {
+      if (_disposed || revision != _frameRevision || settings != _settings) {
         img.dispose();
+        _renderedSettings = null;
         return;
       }
       _image?.dispose();

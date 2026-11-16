@@ -80,7 +80,6 @@ class SstvDecodingComplete {
 /// and decoded.
 class SstvMonitor {
   late Decoder _decoder;
-  late PixelBuffer _scopeBuffer;
   late PixelBuffer _imageBuffer;
   final int sampleRate;
   bool _disposed = false;
@@ -121,12 +120,10 @@ class SstvMonitor {
 
   /// Initializes the decoder for detecting a new image.
   void _initialize() {
-    // PD 290 is the largest mode at 800x616, use that as the buffer size
-    _scopeBuffer = PixelBuffer(800, 616);
-    _imageBuffer = PixelBuffer(800, 616);
+    _imageBuffer = PixelBuffer(0, 0);
     _imageBuffer.line = -1;
 
-    _decoder = Decoder(_scopeBuffer, _imageBuffer, 'Raw', sampleRate);
+    _decoder = Decoder(null, _imageBuffer, 'Raw', sampleRate);
     _previousLine = -1;
     _isDecoding = false;
     _currentModeName = null;
@@ -135,6 +132,8 @@ class SstvMonitor {
 
   /// Resets the decoder to prepare for detecting a new image.
   void reset() {
+    if (_disposed) return;
+    _decoder.dispose();
     _initialize();
   }
 
@@ -146,20 +145,9 @@ class SstvMonitor {
   /// [length] is the number of bytes to process (must be even).
   void processPcm16(Uint8List pcmData, int offset, int length) {
     if (_disposed) return;
-    if (length <= 0) return;
+    if (length <= 1) return;
 
-    // Convert 16-bit signed PCM to float samples normalized to -1..1
-    final sampleCount = length ~/ 2;
-    final samples = Float64List(sampleCount);
-    for (int i = 0; i < sampleCount; i++) {
-      final byteIndex = offset + i * 2;
-      if (byteIndex + 1 >= offset + length) break;
-      final raw = pcmData[byteIndex] | (pcmData[byteIndex + 1] << 8);
-      final sample = raw >= 0x8000 ? raw - 0x10000 : raw; // to signed 16-bit
-      samples[i] = sample / 32768.0;
-    }
-
-    processFloatSamples(samples);
+    _updateEvents(_decoder.processPcm16(pcmData, offset, length));
   }
 
   /// Feeds float audio samples (normalized -1..1) to the SSTV decoder.
@@ -167,12 +155,13 @@ class SstvMonitor {
     if (_disposed) return;
     if (samples.isEmpty) return;
 
+    _updateEvents(_decoder.process(samples, 0));
+  }
+
+  void _updateEvents(bool newLines) {
     SstvDecodingStarted? startedArgs;
     SstvDecodingProgress? progressArgs;
     SstvDecodingComplete? completeArgs;
-
-    // Process through the decoder (channel 0 = mono)
-    final newLines = _decoder.process(samples, 0);
 
     final currentLine = _imageBuffer.line;
     final height = _imageBuffer.height;
@@ -223,6 +212,7 @@ class SstvMonitor {
       _lastProgressLine = -1;
 
       // Re-initialize decoder for the next potential image
+      _decoder.dispose();
       _initialize();
     } else {
       _previousLine = currentLine;
@@ -262,6 +252,11 @@ class SstvMonitor {
     }
 
     final n = finalWidth * finalHeight;
+    // Completion replaces the decoder before publishing this image, so an
+    // exactly-sized buffer can be transferred without a defensive copy.
+    if (finalPixels.length == n) {
+      return SstvImage(finalWidth, finalHeight, finalPixels);
+    }
     final out = Int32List(n);
     out.setRange(0, math.min(n, finalPixels.length), finalPixels);
     return SstvImage(finalWidth, finalHeight, out);
@@ -286,7 +281,7 @@ class SstvMonitor {
     final totalPixels = width * fullHeight;
     final fullPixels = Int32List(totalPixels);
     const opaqueBlack = 0xFF000000;
-    for (int i = 0; i < totalPixels; i++) {
+    for (int i = width * decodedLines; i < totalPixels; i++) {
       fullPixels[i] = opaqueBlack;
     }
 
@@ -297,7 +292,9 @@ class SstvMonitor {
   }
 
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
+    _decoder.dispose();
     _startedController.close();
     _progressController.close();
     _completeController.close();

@@ -21,7 +21,7 @@ class Decoder {
   final SimpleMovingAverage _pulseFilter;
   final Demodulator _demodulator;
   final PixelBuffer _pixelBuffer;
-  final PixelBuffer _scopeBuffer;
+  final PixelBuffer? _scopeBuffer;
   final PixelBuffer _imageBuffer;
   final Float64List _scanLineBuffer;
   final Float64List _scratchBuffer;
@@ -58,12 +58,15 @@ class Decoder {
   int _currentScanLineSamples = 0;
   double _lastFrequencyOffset = 0;
 
+  /// Pass null for [scopeBuffer] when only decoded images are needed.
   factory Decoder(
-    PixelBuffer scopeBuffer,
+    PixelBuffer? scopeBuffer,
     PixelBuffer imageBuffer,
     String rawName,
-    int sampleRate,
-  ) {
+    int sampleRate, {
+    bool useNative = !const bool.fromEnvironment('HT_SSTV_DART'),
+    bool useSimd = !const bool.fromEnvironment('HT_SSTV_SCALAR'),
+  }) {
     const double pulseFilterSeconds = 0.0025;
     final int pulseFilterSamples =
         sstvRound(pulseFilterSeconds * sampleRate) | 1;
@@ -86,7 +89,7 @@ class Decoder {
 
     final decoder = Decoder._(
       SimpleMovingAverage(pulseFilterSamples),
-      Demodulator(sampleRate),
+      Demodulator(sampleRate, useNative: useNative, useSimd: useSimd),
       PixelBuffer(800, 2),
       scopeBuffer,
       imageBuffer,
@@ -259,6 +262,7 @@ class Decoder {
   }
 
   void _copyUnscaled() {
+    if (_scopeBuffer == null) return;
     final width = math.min(_scopeBuffer.width, _pixelBuffer.width);
     for (int row = 0; row < _pixelBuffer.height; ++row) {
       final line = _scopeBuffer.width * _scopeBuffer.line;
@@ -282,6 +286,7 @@ class Decoder {
   }
 
   void _copyScaled(int scale) {
+    if (_scopeBuffer == null) return;
     for (int row = 0; row < _pixelBuffer.height; ++row) {
       final line = _scopeBuffer.width * _scopeBuffer.line;
       for (int col = 0; col < _pixelBuffer.width; ++col) {
@@ -347,6 +352,7 @@ class Decoder {
       }
       finish = _imageBuffer.line == _imageBuffer.height;
     }
+    if (_scopeBuffer == null) return;
     final scale = _scopeBuffer.width ~/ _pixelBuffer.width;
     if (scale <= 1) {
       _copyUnscaled();
@@ -359,6 +365,7 @@ class Decoder {
   }
 
   void _drawLines(int color, int count) {
+    if (_scopeBuffer == null) return;
     for (int i = 0; i < count; ++i) {
       final a = _scopeBuffer.line * _scopeBuffer.width;
       _scopeBuffer.pixels.fillRange(a, a + _scopeBuffer.width, color);
@@ -384,6 +391,15 @@ class Decoder {
     _adjustSyncPulses(_last9msSyncPulses, shift);
     _adjustSyncPulses(_last20msSyncPulses, shift);
     _scanLineBuffer.setRange(0, _currentSample, _scanLineBuffer, shift);
+  }
+
+  void _sizeImage(IMode mode) {
+    _imageBuffer.width = mode.getWidth();
+    _imageBuffer.height = mode.getHeight();
+    final required = _imageBuffer.width * _imageBuffer.height;
+    if (_imageBuffer.pixels.length < required) {
+      _imageBuffer.pixels = Int32List(required);
+    }
   }
 
   bool _handleHeader() {
@@ -538,8 +554,7 @@ class Decoder {
     }
     if (_lockMode && mode != currentMode) return false;
     mode!.resetState();
-    _imageBuffer.width = mode.getWidth();
-    _imageBuffer.height = mode.getHeight();
+    _sizeImage(mode);
     _imageBuffer.line = 0;
     currentMode = mode;
     _lastSyncPulseIndex = syncPulseIndex + mode.getFirstSyncPulseIndex();
@@ -632,7 +647,7 @@ class Decoder {
             _pixelBuffer,
             _scratchBuffer,
             _scanLineBuffer,
-            _scopeBuffer.width,
+            _scopeBuffer?.width ?? 800,
             pulseIndex,
             scanLineSamples,
             frequencyOffset,
@@ -650,7 +665,7 @@ class Decoder {
           _pixelBuffer,
           _scratchBuffer,
           _scanLineBuffer,
-          _scopeBuffer.width,
+          _scopeBuffer?.width ?? 800,
           syncIndexes[i],
           lineLengths[i],
           frequencyOffset,
@@ -665,15 +680,39 @@ class Decoder {
   }
 
   bool process(Float64List recordBuffer, int channelSelect) {
-    bool newLinesPresent = false;
     final syncPulseDetected = _demodulator.process(recordBuffer, channelSelect);
-    int syncPulseIndex = _currentSample + _demodulator.syncPulseOffset;
     final channels = channelSelect > 0 ? 2 : 1;
-    for (int j = 0; j < recordBuffer.length ~/ channels; ++j) {
-      _scanLineBuffer[_currentSample++] = recordBuffer[j];
-      if (_currentSample >= _scanLineBuffer.length) {
-        _shiftSamples(_currentScanLineSamples);
-        syncPulseIndex -= _currentScanLineSamples;
+    final sampleCount = recordBuffer.length ~/ channels;
+    return _processDemodulated(recordBuffer, sampleCount, syncPulseDetected);
+  }
+
+  bool processPcm16(Uint8List pcm, int offset, int length) {
+    final (samples, detected) = _demodulator.processPcm16(pcm, offset, length);
+    if (samples.isEmpty) return false;
+    return _processDemodulated(samples, samples.length, detected);
+  }
+
+  bool _processDemodulated(
+    Float64List recordBuffer,
+    int sampleCount,
+    bool syncPulseDetected,
+  ) {
+    bool newLinesPresent = false;
+    int syncPulseIndex = _currentSample + _demodulator.syncPulseOffset;
+    if (_currentSample + sampleCount < _scanLineBuffer.length) {
+      _scanLineBuffer.setRange(
+        _currentSample,
+        _currentSample + sampleCount,
+        recordBuffer,
+      );
+      _currentSample += sampleCount;
+    } else {
+      for (int j = 0; j < sampleCount; ++j) {
+        _scanLineBuffer[_currentSample++] = recordBuffer[j];
+        if (_currentSample >= _scanLineBuffer.length) {
+          _shiftSamples(_currentScanLineSamples);
+          syncPulseIndex -= _currentScanLineSamples;
+        }
       }
     }
     if (syncPulseDetected) {
@@ -717,7 +756,7 @@ class Decoder {
           _pixelBuffer,
           _scratchBuffer,
           _scanLineBuffer,
-          _scopeBuffer.width,
+          _scopeBuffer?.width ?? 800,
           _lastSyncPulseIndex,
           _currentScanLineSamples,
           _lastFrequencyOffset,
@@ -729,6 +768,8 @@ class Decoder {
 
     return newLinesPresent;
   }
+
+  void dispose() => _demodulator.dispose();
 
   void setMode(String name) {
     if (_rawMode.getName() == name) {
@@ -749,13 +790,7 @@ class Decoder {
     }
     if (mode != null) {
       _lockMode = true;
-      _imageBuffer.width = mode.getWidth();
-      _imageBuffer.height = mode.getHeight();
-      // Reallocate if buffer is too small.
-      final required = _imageBuffer.width * _imageBuffer.height;
-      if (_imageBuffer.pixels.length < required) {
-        _imageBuffer.pixels = Int32List(required);
-      }
+      _sizeImage(mode);
       currentMode = mode;
       _currentScanLineSamples = mode.getScanLineSamples();
       // For modes without VIS header (like HF Fax), start decoding immediately.

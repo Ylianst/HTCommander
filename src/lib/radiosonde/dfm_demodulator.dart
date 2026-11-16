@@ -24,12 +24,14 @@ library;
 
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'native_telemetry.dart';
 
 /// Recovers DFM 280-bit frames from FM-demodulated audio.
 class DfmDemodulator {
-  DfmDemodulator(this.sampleRate);
+  DfmDemodulator(this.sampleRate, {this.useNative = true});
 
   final int sampleRate;
+  final bool useNative;
 
   static const int _baudRate = 2500; // Manchester symbol rate
   static const int _headerSymbols = 32; // 32 Manchester symbols = 16 bits
@@ -43,10 +45,33 @@ class DfmDemodulator {
   /// Demodulates [pcm] (16-bit signed mono) and returns the recovered 280-bit
   /// frames in time order. Frame integrity (header/ECC) is validated here only
   /// to the extent of the 16-bit sync word; deeper checks are the decoder's.
-  List<List<int>> demodulate(Int16List pcm) {
+  List<List<int>> demodulate(
+    Int16List pcm, {
+    NativeTelemetryRecording? recording,
+  }) {
     final n = pcm.length;
     final nominalSps = sampleRate / _baudRate;
     if (n < (_frameSymbols * nominalSps).ceil()) return const [];
+    if (useNative && nativeTelemetrySupported) {
+      return nativeSondeDemodulate(
+        pcm,
+        sampleRate,
+        recording: recording,
+        mode: NativeSondeMode.manchesterBits,
+        chipRate: _baudRate,
+        frameSymbols: _frameSymbols,
+        header: [
+          for (int j = 0; j < _headerSymbols; j++)
+            _rawHeader.codeUnitAt(j) == 0x31 ? 1.0 : -1.0,
+        ],
+      ).where((bits) {
+        int header = 0;
+        for (int j = 0; j < 16; j++) {
+          header = (header << 1) | bits[j];
+        }
+        return header == _headerValue;
+      }).toList();
+    }
 
     // 1. DC-block (remove mean) into doubles + prefix sums for O(1) block sums.
     final x = Float64List(n);

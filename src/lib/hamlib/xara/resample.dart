@@ -12,6 +12,8 @@ Streaming windowed-sinc sample-rate converter with a polyphase Kaiser kernel.
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'native_dsp.dart';
+
 const double _half = 24.0;
 const double _phases = 512.0;
 const double _beta = 8.0;
@@ -27,14 +29,16 @@ double _bessel(double v) {
   return s;
 }
 
-double _kaiser(double x, double norm) => x.abs() >= 1.0 ? 0.0 : _bessel(_beta * math.sqrt(1.0 - x * x)) / norm;
+double _kaiser(double x, double norm) =>
+    x.abs() >= 1.0 ? 0.0 : _bessel(_beta * math.sqrt(1.0 - x * x)) / norm;
 
 class _Kernel {
   final int half;
   final int phases;
   final Float64List table;
 
-  _Kernel(this.half, this.phases, double cutoff) : table = Float64List((phases + 1) * 2 * half) {
+  _Kernel(this.half, this.phases, double cutoff)
+    : table = Float64List((phases + 1) * 2 * half) {
     final int n = 2 * half;
     final double norm = _bessel(_beta);
     for (int p = 0; p <= phases; p++) {
@@ -74,23 +78,41 @@ class _Kernel {
 class _Stream {
   final _Kernel kernel;
   final List<double> buf;
+  final NativeXaraResampler? native;
   int i;
   double frac = 0.0;
 
-  _Stream(this.kernel)
-      : i = kernel.half - 1,
-        buf = List<double>.filled(kernel.half - 1, 0.0, growable: true);
+  _Stream(this.kernel, bool useNative)
+    : i = kernel.half - 1,
+      native = useNative
+          ? createNativeResampler(kernel.table, kernel.half, kernel.phases)
+          : null,
+      buf = List<double>.filled(kernel.half - 1, 0.0, growable: true);
 
   void run(List<double> x, int whole, double part, List<double> out) {
     buf.addAll(x);
     final int half = kernel.half;
-    while (i + half < buf.length) {
-      out.add(kernel.apply(buf, i + 1 - half, frac));
-      i += whole;
-      frac += part;
-      if (frac >= 1.0) {
-        frac -= 1.0;
-        i += 1;
+    final n = native;
+    if (n != null) {
+      final (samples, nextIndex, nextFraction) = n.process(
+        buf,
+        i,
+        frac,
+        whole,
+        part,
+      );
+      out.addAll(samples);
+      i = nextIndex;
+      frac = nextFraction;
+    } else {
+      while (i + half < buf.length) {
+        out.add(kernel.apply(buf, i + 1 - half, frac));
+        i += whole;
+        frac += part;
+        if (frac >= 1.0) {
+          frac -= 1.0;
+          i += 1;
+        }
       }
     }
     final int used = i + 1 - half;
@@ -107,7 +129,7 @@ class Resampler {
   Resampler._(this._whole, this._part, this._stream);
 
   /// Throws [ArgumentError] unless both rates are within [minRate]..[maxRate].
-  factory Resampler(double rateIn, double rateOut) {
+  factory Resampler(double rateIn, double rateOut, {bool useNative = true}) {
     _checkRate(rateIn);
     _checkRate(rateOut);
     final double cutoff = 0.95 * math.min(rateOut / rateIn, 1.0);
@@ -115,7 +137,7 @@ class Resampler {
     final _Kernel kernel = _Kernel(half, (_phases * cutoff).ceil(), cutoff);
     final double step = rateIn / rateOut;
     final double whole = step.floorToDouble();
-    return Resampler._(whole.toInt(), step - whole, _Stream(kernel));
+    return Resampler._(whole.toInt(), step - whole, _Stream(kernel, useNative));
   }
 
   static void _checkRate(double rate) {
@@ -133,5 +155,7 @@ class Resampler {
     return out;
   }
 
-  List<double> flush() => identity ? <double>[] : process(List<double>.filled(_stream.kernel.half + 1, 0.0));
+  List<double> flush() => identity
+      ? <double>[]
+      : process(List<double>.filled(_stream.kernel.half + 1, 0.0));
 }

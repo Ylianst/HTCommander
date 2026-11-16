@@ -17,26 +17,14 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-import '../echolink/pcm_resampler.dart';
-import '../hamlib/audio_buffer.dart';
 import '../hamlib/audio_config.dart';
 import '../hamlib/dart_constellation.dart';
 import '../hamlib/dart_modem.dart';
-import '../hamlib/demod_afsk.dart';
-import '../hamlib/demod_psk.dart';
-import '../hamlib/fx25.dart';
-import '../hamlib/fx25_rec.dart';
-import '../hamlib/fx25_send.dart';
-import '../hamlib/gen_tone.dart';
-import '../hamlib/hdlc_rec.dart';
-import '../hamlib/hdlc_rec2.dart';
-import '../hamlib/hdlc_send.dart';
-import '../hamlib/ihdlc_receiver.dart';
-import '../hamlib/multi_modem.dart';
 import '../models/radio_models.dart';
 import '../services/data_broker.dart';
 import '../services/data_broker_client.dart';
 import '../utils/num_parsing.dart';
+import 'modem_rx_worker.dart';
 import 'modem_tx_encoder.dart';
 import 'radio_models.dart' as radio;
 import 'tnc_data_fragment.dart';
@@ -84,7 +72,7 @@ class _RadioModemState {
   /// When true, this is a paired Audio Receive Device source: before each frame
   /// is dispatched, the channel id / region / name are refreshed from the live
   /// [deviceId] radio so the frame is attributed to whatever channel the radio
-  /// is tuned to at the moment of decode.
+  /// is tuned to when the audio is submitted for decoding.
   bool followRadioChannel = false;
 
   /// Cached id of the channel named "APRS" on this radio (-1 if none). Used to
@@ -169,65 +157,18 @@ class _ModemInstance {
   /// for audio-device sources.
   final int sampleRate;
 
-  /// Downsamples 48k device audio to DART's native 32k before decode. Null when
-  /// [sampleRate] is already 32k or the mode is not DART.
-  LinearResampler? _dartResampler;
-
-  // Receive chain.
-  DemodAfsk? afskDemodulator;
-  DemodulatorState? afskDemodState;
-  DemodPsk? pskDemodulator;
-  PskDemodulatorState? pskDemodState;
-  HdlcRec2? hdlcReceiver;
-  Fx25Rec? fx25Receiver;
-  _HdlcFx25Bridge? bridge;
-
-  // Transmit chain.
-  GenTone? packetGenTone;
-  AudioBuffer? packetAudioBuffer;
-  HdlcSend? packetHdlcSend;
-  Fx25Send? packetFx25Send;
-
-  // --- DART modem (frame-based; bypasses the HDLC/FX.25/GenTone chain) ---
-  /// Non-null only for [SoftwareModemMode.dart]. Encodes/decodes whole frames.
-  DartModem? dartModem;
+  ModemRxWorker? receiver;
+  TncDataFragment Function()? receiveContext;
 
   /// Payload mode used when transmitting DART frames.
   DartMode dartTxMode = DartMode.mode0;
 
-  /// Rolling receive buffer of 16-bit samples awaiting a DART decode.
-  final _DartSampleBuffer dartRxSamples = _DartSampleBuffer();
-
   /// Monotonic sequence number for transmitted DART frames.
   int dartTxSeq = 0;
-
-  /// Called with a decoded DART payload (a raw AX.25 frame) so the owner can
-  /// dispatch it. Wired up in _buildInstance for DART instances.
-  void Function(Uint8List frame, DartDecodeResult result)? onDartFrame;
-
-  /// When true, DART decodes capture the equalized constellation and every
-  /// decode result (even CRC failures) is reported via [onDartAnalysis] for the
-  /// reception-quality view. Off by default so the live path does no extra
-  /// work unless the user opens the DART Signal Analysis panel.
-  bool dartCaptureQuality = false;
-
-  /// Called for every DART decode result while [dartCaptureQuality] is on, so
-  /// the owner can publish signal-quality/constellation diagnostics. Fires for
-  /// failed-CRC frames too (poor receptions are exactly what we want to see).
-  void Function(DartDecodeResult result)? onDartAnalysis;
 
   /// Non-null only for [SoftwareModemMode.xara]: the VARA FM compatible modem,
   /// running in its own isolate.
   XaraModem? xara;
-
-  // A valid-FCS frame the plain HDLC receiver decoded from inside an FX.25
-  // block, held briefly while we wait to see if the FX.25 Reed-Solomon path
-  // delivers the same frame. If it does not (RS decode failed or the block did
-  // not complete), this copy is delivered as an AX.25 fallback so a good frame
-  // is never lost. See SoftwareModem._onFrameReceived / _flushPendingFrame.
-  Uint8List? pendingFrameData;
-  int pendingFrameChannel = 0;
-  Timer? pendingFrameTimer;
 
   _ModemInstance({
     required this.mode,
@@ -235,244 +176,24 @@ class _ModemInstance {
     required this.fecEnabled,
     required this.audioConfig,
     this.sampleRate = 32000,
-  }) {
-    if (mode == SoftwareModemMode.dart && sampleRate != 32000) {
-      _dartResampler =
-          LinearResampler(inputRate: sampleRate, outputRate: 32000);
-    }
-  }
+  });
 
   /// Feed a block of little-endian 16-bit mono PCM to this pipeline's
   /// demodulator.
   void processSamples(Uint8List data, int offset, int length) {
-    const int chan = 0;
-    const int subchan = 0;
     if (xara != null) {
       xara!.pushRx(data, offset, length);
       return;
     }
-    if (dartModem != null) {
-      _processDartSamples(data, offset, length);
-      return;
-    }
-    if (afskDemodulator != null && afskDemodState != null) {
-      for (int i = offset; i < offset + length - 1; i += 2) {
-        final int sample = (data[i] | (data[i + 1] << 8)).toSigned(16);
-        afskDemodulator!.processSample(chan, subchan, sample, afskDemodState!);
-      }
-    } else if (pskDemodulator != null && pskDemodState != null) {
-      for (int i = offset; i < offset + length - 1; i += 2) {
-        final int sample = (data[i] | (data[i + 1] << 8)).toSigned(16);
-        pskDemodulator!.processSample(chan, subchan, sample, pskDemodState!);
-      }
-    }
-  }
-
-  /// Maximum DART receive buffer (~8 s at 32 kHz) before old audio is dropped.
-  static const int _dartMaxRxSamples = 32000 * 8;
-
-  /// Attempt a decode roughly every this-many new samples (throttle the O(N)
-  /// preamble correlation).
-  static const int _dartDecodeStride = 4000;
-
-  int _dartSamplesSinceDecode = 0;
-
-  /// Incremental preamble-scan watermark: samples in `dartRxSamples[0.._dartScannedPos)`
-  /// have already been correlated and contain no preamble start, so they are
-  /// never re-scanned. This keeps per-pass detection cost proportional to the
-  /// newly-arrived audio instead of the whole (up to 8 s) rolling buffer — the
-  /// difference between light and crippling CPU load while only voice is on the
-  /// channel and no preamble ever locks.
-  int _dartScannedPos = 0;
-
-  /// Buffer incoming PCM and attempt to decode complete DART frames.
-  void _processDartSamples(Uint8List data, int offset, int length) {
-    if (_dartResampler != null) {
-      // Device audio arrives at 48k; DART's waveform is defined at 32k, so
-      // downsample before buffering.
-      final int n = length ~/ 2;
-      final Int16List in16 = Int16List(n);
-      int j = offset;
-      for (int i = 0; i < n; i++) {
-        in16[i] = (data[j] | (data[j + 1] << 8)).toSigned(16);
-        j += 2;
-      }
-      final Int16List out = _dartResampler!.process(in16);
-      for (int i = 0; i < out.length; i++) {
-        dartRxSamples.add(out[i]);
-        _dartSamplesSinceDecode++;
-      }
-    } else {
-      for (int i = offset; i < offset + length - 1; i += 2) {
-        dartRxSamples.add((data[i] | (data[i + 1] << 8)).toSigned(16));
-        _dartSamplesSinceDecode++;
-      }
-    }
-
-    // Throttle decode attempts.
-    if (_dartSamplesSinceDecode < _dartDecodeStride) return;
-    _dartSamplesSinceDecode = 0;
-
-    // Try to decode from the current buffer; on success, consume the frame.
-    while (dartRxSamples.length > 2000) {
-      final Int16List buf = dartRxSamples.view();
-      final int searchLen = buf.length - dartModem!.preambleSamples;
-
-      // Incremental preamble scan: only correlate positions we haven't cleared
-      // yet. Positions before _dartScannedPos are known preamble-free.
-      final detection =
-          dartModem!.detectPreamble(buf, searchStart: _dartScannedPos);
-      if (detection.position < 0) {
-        // No preamble anywhere in the scannable range. Everything we could
-        // fully evaluate this pass is confirmed clear — never re-scan it.
-        if (searchLen >= 0 && _dartScannedPos < searchLen + 1) {
-          _dartScannedPos = searchLen + 1;
-        }
-        break;
-      }
-
-      // A preamble exists; the prefix before it is confirmed clear. Decode from
-      // it, reusing the detection so the correlation is not run a second time.
-      final result = dartModem!.decode(
-        buf,
-        detection: detection,
-        captureConstellation: dartCaptureQuality,
-      );
-      if (result == null) {
-        // Detected but not yet decodable (payload still arriving, or a false
-        // lobe). Hold the watermark at the preamble and wait for more audio;
-        // the memory bound below eventually drops it if it never completes.
-        _dartScannedPos = detection.position;
-        break;
-      }
-      // Report quality for every detected frame (even CRC failures) so the
-      // analysis panel can show how bad receptions look. Gated so nothing is
-      // computed or dispatched unless the panel is enabled.
-      if (dartCaptureQuality) onDartAnalysis?.call(result);
-      if (result.crcOk) {
-        onDartFrame?.call(result.payload, result);
-      }
-      // Consume everything up to the end of this frame.
-      final int consume = result.endSample.clamp(0, dartRxSamples.length);
-      if (consume <= 0) break;
-      dartRxSamples.removeFront(consume);
-      _dartScannedPos -= consume;
-      if (_dartScannedPos < 0) _dartScannedPos = 0;
-    }
-
-    // Bound memory: if no frame is completing, drop the oldest half.
-    if (dartRxSamples.length > _dartMaxRxSamples) {
-      final int drop = dartRxSamples.length ~/ 2;
-      dartRxSamples.removeFront(drop);
-      _dartScannedPos -= drop;
-      if (_dartScannedPos < 0) _dartScannedPos = 0;
-    }
+    receiver?.process(data, offset, length, context: receiveContext?.call());
   }
 
   void dispose() {
-    pendingFrameTimer?.cancel();
-    pendingFrameTimer = null;
-    pendingFrameData = null;
-    afskDemodulator = null;
-    afskDemodState = null;
-    pskDemodulator = null;
-    pskDemodState = null;
-    hdlcReceiver = null;
-    fx25Receiver = null;
-    bridge = null;
-    packetGenTone = null;
-    packetAudioBuffer = null;
-    packetHdlcSend = null;
-    packetFx25Send = null;
-    dartModem = null;
-    _dartResampler = null;
-    dartRxSamples.clear();
-    _dartScannedPos = 0;
-    onDartFrame = null;
-    onDartAnalysis = null;
+    receiver?.dispose();
+    receiver = null;
+    receiveContext = null;
     xara?.dispose();
     xara = null;
-  }
-}
-
-/// Growable 16-bit sample buffer for the DART receive chain.
-///
-/// Backed by a single [Int16List] that grows by doubling. Compared with the
-/// `List<int>` it replaces, it avoids boxing every incoming sample and — the
-/// bigger win — lets the decoder read the buffered audio through a zero-copy
-/// [view] instead of copying the whole (up to several-second) rolling buffer on
-/// every throttled decode attempt. The decoder only ever reads its input (it
-/// immediately converts to floating point internally), so handing it a view is
-/// safe.
-class _DartSampleBuffer {
-  Int16List _data = Int16List(0);
-  int _length = 0;
-
-  int get length => _length;
-
-  /// Append one sample, growing the backing store by doubling when full.
-  void add(int sample) {
-    if (_length == _data.length) {
-      final int newCap = _data.isEmpty ? 4096 : _data.length * 2;
-      final grown = Int16List(newCap);
-      grown.setRange(0, _length, _data);
-      _data = grown;
-    }
-    _data[_length++] = sample;
-  }
-
-  /// Zero-copy view of the [length] buffered samples. Only valid until the next
-  /// mutating call ([add]/[removeFront]/[clear]).
-  Int16List view() =>
-      Int16List.view(_data.buffer, _data.offsetInBytes, _length);
-
-  /// Drop the first [count] samples, shifting the remainder to the front.
-  void removeFront(int count) {
-    if (count <= 0) return;
-    if (count >= _length) {
-      _length = 0;
-      return;
-    }
-    // Leftward move (destination index < source index) — a forward copy is
-    // safe against overlap.
-    _data.setRange(0, _length - count, _data, count);
-    _length -= count;
-  }
-
-  void clear() {
-    _length = 0;
-  }
-}
-
-/// Bridge that feeds bits to both HDLC and FX.25 receivers.
-class _HdlcFx25Bridge implements IHdlcReceiver {
-  final IHdlcReceiver _hdlcReceiver;
-  final Fx25Rec _fx25Receiver;
-  int _prevRaw = 0;
-
-  _HdlcFx25Bridge(this._hdlcReceiver, this._fx25Receiver);
-
-  @override
-  void recBit(
-    int chan,
-    int subchan,
-    int slice,
-    int raw,
-    bool isScrambled,
-    int notUsedRemove,
-  ) {
-    _hdlcReceiver.recBit(chan, subchan, slice, raw, isScrambled, notUsedRemove);
-    // The FX.25 receiver expects the NRZI-decoded data bit (Direwolf calls
-    // fx25_rec_bit() with dbit), not the raw bit. A '1' is no change, a '0' is
-    // a transition. For 9600 the descrambling already happened in demod_9600.
-    final int dbit = (raw == _prevRaw) ? 1 : 0;
-    _prevRaw = raw;
-    _fx25Receiver.recBit(chan, subchan, slice, dbit);
-  }
-
-  @override
-  void dcdChange(int chan, int subchan, int slice, bool dcdOn) {
-    _hdlcReceiver.dcdChange(chan, subchan, slice, dcdOn);
   }
 }
 
@@ -879,7 +600,7 @@ class SoftwareModem {
     _dartTxMode = _parseDartLevel(levelStr);
     // Apply to any live DART instances immediately.
     for (final state in _radioModems.values) {
-      if (state.generalModem?.dartModem != null) {
+      if (state.generalModem?.mode == SoftwareModemMode.dart) {
         state.generalModem!.dartTxMode = _dartTxMode;
       }
     }
@@ -905,7 +626,7 @@ class SoftwareModem {
     _dartAnalysisEnabled = data;
     // Apply to any live DART instances immediately.
     for (final state in _radioModems.values) {
-      state.generalModem?.dartCaptureQuality = _dartAnalysisEnabled;
+      state.generalModem?.receiver?.captureQuality = _dartAnalysisEnabled;
       state.generalModem?.xara?.setAnalysis(_dartAnalysisEnabled);
     }
     _broker.dispatch(
@@ -1191,9 +912,6 @@ class SoftwareModem {
     // Resolve the id of this radio's APRS channel for routing.
     state.aprsChannelId = _getAprsChannelId(deviceId);
 
-    // Initialize FX.25 subsystem
-    Fx25.init(0);
-
     // Build the two modem pipelines that are enabled.
     final SoftwareModemMode generalMode = _effectiveGeneralMode(state);
     if (generalMode != SoftwareModemMode.none) {
@@ -1222,8 +940,7 @@ class SoftwareModem {
 
   /// For a paired Audio Receive Device source ([state.followRadioChannel]),
   /// refresh its channel id / region / name from the live radio's `HtStatus`
-  /// and `Channels` on the broker so the frame about to be built is attributed
-  /// to whatever channel the radio is currently tuned to.
+  /// and `Channels` before submitting PCM to the receive worker.
   void _refreshFollowedChannel(_RadioModemState state) {
     if (!state.followRadioChannel) return;
     final int devId = state.deviceId;
@@ -1305,20 +1022,6 @@ class SoftwareModem {
       sampleRate: sampleRate,
     );
 
-    // DART is frame-based: it owns its own preamble/FEC/framing and bypasses the
-    // HDLC/FX.25/GenTone/Direwolf-demod chain. Wire up its decode callback and
-    // return early.
-    if (mode == SoftwareModemMode.dart) {
-      instance.dartModem = DartModem();
-      instance.dartTxMode = _dartTxMode;
-      instance.dartCaptureQuality = _dartAnalysisEnabled;
-      instance.onDartFrame = (frame, result) =>
-          _onDartFrameReceived(state, instance, frame, result);
-      instance.onDartAnalysis = (result) => _onDartAnalysis(result);
-      _debug('Built DART modem instance for device ${state.deviceId}');
-      return instance;
-    }
-
     if (mode == SoftwareModemMode.xara) {
       final String myCall = (_broker.getValue<String>(0, 'CallSign', '') ?? '')
           .trim()
@@ -1372,51 +1075,45 @@ class SoftwareModem {
       return instance;
     }
 
-    // Receive chain: HDLC + FX.25 receivers fed through the NRZI bridge. The
-    // frame callbacks capture both the radio state and this instance so decoded
-    // frames are attributed to the right pipeline.
-    final hdlcReceiver = HdlcRec2();
-    hdlcReceiver.addFrameReceived((e) => _onFrameReceived(state, instance, e));
-    hdlcReceiver.init(audioConfig);
-    final fx25Receiver =
-        Fx25Rec(_Fx25MultiModemWrapper(state, instance, this));
-    final bridge = _HdlcFx25Bridge(hdlcReceiver, fx25Receiver);
-    instance.hdlcReceiver = hdlcReceiver;
-    instance.fx25Receiver = fx25Receiver;
-    instance.bridge = bridge;
-
-    switch (mode) {
-      case SoftwareModemMode.afsk1200:
-        final demod = DemodAfsk(bridge);
-        final demodState = DemodulatorState();
-        demod.init(sampleRate, 1200, 1200, 2200, 'A', demodState);
-        instance.afskDemodulator = demod;
-        instance.afskDemodState = demodState;
-        break;
-      case SoftwareModemMode.psk2400:
-        final demod = DemodPsk(bridge);
-        final demodState = PskDemodulatorState();
-        demod.init(
-            ModemType.qpsk, V26Alternative.b, sampleRate, 2400, 'B', demodState);
-        instance.pskDemodulator = demod;
-        instance.pskDemodState = demodState;
-        break;
-      case SoftwareModemMode.dart:
-        break; // handled by the early return above
-      case SoftwareModemMode.xara:
-        break; // handled by the early return above
-      case SoftwareModemMode.none:
-        break;
-    }
-
-    // Transmit chain.
-    final audioBuffer = AudioBuffer(AudioConfig.maxAudioDevices);
-    final genTone = GenTone(audioBuffer);
-    genTone.init(audioConfig, 50);
-    instance.packetAudioBuffer = audioBuffer;
-    instance.packetGenTone = genTone;
-    instance.packetHdlcSend = HdlcSend(genTone, audioConfig);
-    instance.packetFx25Send = Fx25Send()..init(genTone);
+    if (mode == SoftwareModemMode.none) return instance;
+    instance.dartTxMode = _dartTxMode;
+    instance.receiveContext = () {
+      _refreshFollowedChannel(state);
+      final fragment = TncDataFragment(
+        finalFragment: true,
+        fragmentId: 0,
+        data: Uint8List(0),
+        channelId: state.currentChannelId,
+        regionId: state.currentRegionId,
+        channelName: state.currentChannelName,
+        incoming: true,
+        encoding: instance.encoding,
+        time: DateTime.now(),
+        radioMac: state.macAddress,
+        radioDeviceId: state.deviceId,
+      );
+      if (state.lockIsLocked &&
+          (fragment.channelId == state.lockChannelId ||
+              state.lockUsage == radio.kAprsSatLockUsage)) {
+        fragment.usage = state.lockUsage;
+        if (state.lockUsage == radio.kAprsSatLockUsage) {
+          fragment.channelName = 'APRS';
+        }
+      }
+      return fragment;
+    };
+    instance.receiver = ModemRxWorker(
+      mode: switch (mode) {
+        SoftwareModemMode.afsk1200 => ModemRxMode.afsk1200,
+        SoftwareModemMode.psk2400 => ModemRxMode.psk2400,
+        _ => ModemRxMode.dart,
+      },
+      sampleRate: sampleRate,
+      onEvent: _onModemRxEvent,
+      onError: (error, stack) => _broker.logError(
+        '[SoftwareModem] Device ${state.deviceId} receive error: $error\n$stack',
+      ),
+    )..captureQuality = _dartAnalysisEnabled;
 
     _debug('Built ${mode.name} modem instance for device ${state.deviceId}');
     return instance;
@@ -1426,155 +1123,27 @@ class SoftwareModem {
   // Frame reception
   // ---------------------------------------------------------------------------
 
-  void _onFrameReceived(
-    _RadioModemState state,
-    _ModemInstance instance,
-    FrameReceivedEventArgs e,
-  ) {
+  void _onModemRxEvent(ModemRxEvent event) {
     if (_disposed) return;
-
-    // An FX.25 transmission carries a standard HDLC-framed AX.25 frame inside
-    // its Reed-Solomon block, so the plain HDLC receiver also decodes it. If the
-    // FX.25 receiver is currently mid-block, this is that embedded frame - drop
-    // it here so the packet is reported once, via the FX.25 path, with the
-    // correct FX.25 frame type and corrected-symbol count. (Matches Direwolf's
-    // fx25_rec_busy suppression in hdlc_rec.)
-    if (instance.fx25Receiver != null &&
-        instance.fx25Receiver!.isBusy(e.channel)) {
-      // The plain HDLC receiver decoded this frame (valid FCS) from inside an
-      // FX.25 block. Rather than dropping it and relying solely on the FX.25
-      // path, buffer it briefly: if the FX.25 Reed-Solomon decode succeeds it
-      // delivers the frame (with the FX.25 type) and cancels this copy; if the
-      // RS decode fails or the block never completes, the timer delivers this
-      // buffered copy as an AX.25 fallback so a valid frame is never lost.
-      instance.pendingFrameData = Uint8List(e.frameLength)
-        ..setRange(0, e.frameLength, e.frame);
-      instance.pendingFrameChannel = e.channel;
-      instance.pendingFrameTimer?.cancel();
-      instance.pendingFrameTimer = Timer(
-        const Duration(milliseconds: 700),
-        () => _flushPendingFrame(state, instance),
-      );
-      _debug(
-        'RX AX.25: buffered ${e.frameLength}-byte frame during FX.25 block '
-        '(delivered as fallback if FX.25 FEC does not).',
-      );
-      return;
-    }
-
-    final Uint8List frameData = Uint8List(e.frameLength);
-    frameData.setRange(0, e.frameLength, e.frame);
-
+    final result = event.dartResult;
+    if (result != null && _dartAnalysisEnabled) _onDartAnalysis(result);
+    final frame = event.frame;
+    if (frame == null || frame.isEmpty) return;
+    final fragment = event.context as TncDataFragment;
+    fragment.data = frame;
+    fragment.frameType =
+        event.fx25 ? FragmentFrameType.fx25 : FragmentFrameType.ax25;
+    fragment.corrections = event.corrections;
+    fragment.dartMode = result?.header.modeIndex ?? -1;
     _debug(
-      'RX AX.25 (no FEC): decoded ${e.frameLength}-byte frame: '
-      '${_hex(frameData)}',
+      'RX ${result != null ? "DART" : event.fx25 ? "FX.25" : "AX.25"}: '
+      '${frame.length}-byte frame, ${event.corrections} corrections: ${_hex(frame)}',
     );
-
-    _refreshFollowedChannel(state);
-    final fragment = TncDataFragment(
-      finalFragment: true,
-      fragmentId: 0,
-      data: frameData,
-      channelId: state.currentChannelId,
-      regionId: state.currentRegionId,
-      channelName: state.currentChannelName,
-      incoming: true,
-      encoding: instance.encoding,
-      time: DateTime.now(),
-      radioMac: state.macAddress,
-      radioDeviceId: state.deviceId,
+    _dispatchDecodedFrame(
+      fragment.radioDeviceId!,
+      fragment,
+      applyCurrentLock: false,
     );
-
-    if (e.correctionInfo != null) {
-      if (e.correctionInfo!.fecType == FecType.fx25) {
-        fragment.frameType = FragmentFrameType.fx25;
-        fragment.corrections = e.correctionInfo!.rsSymbolsCorrected >= 0
-            ? e.correctionInfo!.rsSymbolsCorrected
-            : 0;
-      } else {
-        fragment.frameType = FragmentFrameType.ax25;
-        fragment.corrections =
-            e.correctionInfo!.correctedBitPositions.length;
-      }
-    } else {
-      fragment.frameType = FragmentFrameType.ax25;
-      fragment.corrections = 0;
-    }
-
-    _dispatchDecodedFrame(state.deviceId, fragment);
-  }
-
-  /// Deliver a frame that the plain HDLC receiver decoded inside an FX.25 block
-  /// when the FX.25 Reed-Solomon path did not deliver it (RS decode failed or
-  /// the block never completed). Called from the timer armed in
-  /// _onFrameReceived; the FX.25 delivery path cancels this by clearing
-  /// [instance.pendingFrameData] first.
-  void _flushPendingFrame(_RadioModemState state, _ModemInstance instance) {
-    final Uint8List? pending = instance.pendingFrameData;
-    instance.pendingFrameTimer = null;
-    if (pending == null) return;
-    instance.pendingFrameData = null;
-
-    _debug(
-      'RX AX.25 (fallback): FX.25 FEC did not deliver; delivering buffered '
-      '${pending.length}-byte frame: ${_hex(pending)}',
-    );
-
-    _refreshFollowedChannel(state);
-    final fragment = TncDataFragment(
-      finalFragment: true,
-      fragmentId: 0,
-      data: pending,
-      channelId: state.currentChannelId,
-      regionId: state.currentRegionId,
-      channelName: state.currentChannelName,
-      incoming: true,
-      encoding: instance.encoding,
-      frameType: FragmentFrameType.ax25,
-      time: DateTime.now(),
-      radioMac: state.macAddress,
-      radioDeviceId: state.deviceId,
-    );
-    fragment.corrections = 0;
-    _dispatchDecodedFrame(state.deviceId, fragment);
-  }
-
-  /// Deliver a DART-decoded frame. The DART payload is the raw AX.25 frame
-  /// (DART's own CRC-32 has already validated it), so it is dispatched straight
-  /// through as an AX.25 fragment tagged with the DART encoding.
-  void _onDartFrameReceived(
-    _RadioModemState state,
-    _ModemInstance instance,
-    Uint8List frame,
-    DartDecodeResult result,
-  ) {
-    if (_disposed) return;
-    if (frame.isEmpty) return;
-
-    _debug(
-      'RX DART: mode ${result.header.modeIndex} '
-      '(${result.quality}) ${frame.length}-byte frame, '
-      '${result.ldpcCorrections} LDPC corrections: ${_hex(frame)}',
-    );
-
-    _refreshFollowedChannel(state);
-    final fragment = TncDataFragment(
-      finalFragment: true,
-      fragmentId: 0,
-      data: Uint8List.fromList(frame),
-      channelId: state.currentChannelId,
-      regionId: state.currentRegionId,
-      channelName: state.currentChannelName,
-      incoming: true,
-      encoding: instance.encoding,
-      frameType: FragmentFrameType.ax25,
-      time: DateTime.now(),
-      radioMac: state.macAddress,
-      radioDeviceId: state.deviceId,
-      dartMode: result.header.modeIndex,
-    );
-    fragment.corrections = result.ldpcCorrections;
-    _dispatchDecodedFrame(state.deviceId, fragment);
   }
 
   // ---------------------------------------------------------------------------
@@ -1946,8 +1515,9 @@ class SoftwareModem {
       return;
     }
 
-    if (target.dartModem == null &&
-        (target.packetAudioBuffer == null || target.packetGenTone == null)) {
+    if (target.mode != SoftwareModemMode.dart &&
+        target.mode != SoftwareModemMode.afsk1200 &&
+        target.mode != SoftwareModemMode.psk2400) {
       _debug('TransmitPacket: Transmitter not initialized');
       return;
     }
@@ -2231,7 +1801,7 @@ class SoftwareModem {
     // DART is frame-based: encode each queued frame with its own preamble/FEC
     // and concatenate, bracketed by PTT lead-in/tail silence. Assign the
     // (main-isolate-owned) sequence numbers here before handing off.
-    if (instance.dartModem != null) {
+    if (instance.mode == SoftwareModemMode.dart) {
       final List<DartTxFrame> dartFrames = <DartTxFrame>[];
       for (final _PendingTransmission tx in frames) {
         dartFrames.add(
@@ -2291,14 +1861,19 @@ class SoftwareModem {
   // Utilities
   // ---------------------------------------------------------------------------
 
-  void _dispatchDecodedFrame(int deviceId, TncDataFragment fragment) {
+  void _dispatchDecodedFrame(
+    int deviceId,
+    TncDataFragment fragment, {
+    bool applyCurrentLock = true,
+  }) {
     // Tag the frame with the radio's locked usage when it was received on the
     // locked channel, so usage-filtered handlers (Torrent / BBS / Terminal)
     // process it. Mirrors the hardware modem path in Radio._accumulateFragment.
     // APRSSat is VFO-driven (lock.channelId is -1 and never matches), so while
     // it holds the lock every received frame is tagged as APRS traffic.
     final state = _radioModems[deviceId];
-    if (state != null &&
+    if (applyCurrentLock &&
+        state != null &&
         state.lockIsLocked &&
         state.lockUsage != null &&
         (fragment.channelId == state.lockChannelId ||
@@ -2331,9 +1906,9 @@ class SoftwareModem {
   /// [SoftwareModemMode.none] simply removes any existing source.
   ///
   /// When [followRadioChannel] is true the [channelName] is ignored and each
-  /// decoded frame instead inherits the channel id / region / name the
+  /// submitted audio block instead inherits the channel id / region / name the
   /// [attributeDeviceId] radio is currently tuned to (a paired device follows
-  /// its radio across channel changes).
+  /// its radio across channel changes without relabeling queued audio).
   void registerExternalSource({
     required int sourceId,
     required SoftwareModemMode mode,
@@ -2381,6 +1956,16 @@ class SoftwareModem {
     instance.processSamples(data, offset, length ?? (data.length - offset));
   }
 
+  /// Waits for PCM already submitted to the receive workers to be processed.
+  Future<void> get receiveIdle => Future.wait<void>([
+    for (final state in _radioModems.values) ...[
+      if (state.generalModem?.receiver case final receiver?) receiver.idle,
+      if (state.aprsModem?.receiver case final receiver?) receiver.idle,
+    ],
+    for (final instance in _externalInstances.values)
+      if (instance.receiver case final receiver?) receiver.idle,
+  ]);
+
   /// Remove a previously registered external source and free its pipeline.
   void unregisterExternalSource(int sourceId) {
     final instance = _externalInstances.remove(sourceId);
@@ -2405,58 +1990,3 @@ class SoftwareModem {
   static int? _readInt(Object? v) => asIntOrNull(v);
 }
 
-/// Wrapper for MultiModem to process FX.25 frames.
-class _Fx25MultiModemWrapper extends MultiModem {
-  final _RadioModemState _state;
-  final _ModemInstance _instance;
-  final SoftwareModem _parent;
-
-  _Fx25MultiModemWrapper(this._state, this._instance, this._parent) {
-    addPacketReady(_onPacketReady);
-  }
-
-  void _onPacketReady(PacketReadyEventArgs e) {
-    if (e.packet == null) return;
-
-    final Uint8List frameData = Uint8List(e.packet!.frameLen);
-    frameData.setRange(0, e.packet!.frameLen, e.packet!.frameData);
-
-    if (frameData.isEmpty) return;
-
-    // FX.25 delivered the frame - cancel the buffered plain-HDLC fallback copy
-    // so the same frame is not reported twice.
-    _instance.pendingFrameTimer?.cancel();
-    _instance.pendingFrameTimer = null;
-    _instance.pendingFrameData = null;
-
-    _parent._debug(
-      'RX FX.25: delivered ${frameData.length}-byte frame '
-      '(${e.correctionInfo?.rsSymbolsCorrected ?? 0} byte(s) corrected): '
-      '${SoftwareModem._hex(frameData)}',
-    );
-
-    _parent._refreshFollowedChannel(_state);
-    final fragment = TncDataFragment(
-      finalFragment: true,
-      fragmentId: 0,
-      data: frameData,
-      channelId: _state.currentChannelId,
-      regionId: _state.currentRegionId,
-      channelName: _state.currentChannelName,
-      incoming: true,
-      encoding: _instance.encoding,
-      frameType: FragmentFrameType.fx25,
-      time: DateTime.now(),
-      radioMac: _state.macAddress,
-      radioDeviceId: _state.deviceId,
-    );
-
-    if (e.correctionInfo != null && e.correctionInfo!.rsSymbolsCorrected >= 0) {
-      fragment.corrections = e.correctionInfo!.rsSymbolsCorrected;
-    } else {
-      fragment.corrections = 0;
-    }
-
-    _parent._dispatchDecodedFrame(_state.deviceId, fragment);
-  }
-}

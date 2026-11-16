@@ -15,6 +15,7 @@ import 'dart:typed_data';
 
 import 'sarsat_1g_decoder.dart';
 import 'sarsat_1g_demodulator.dart';
+import '../radiosonde/native_telemetry.dart';
 
 /// Monitors received audio for 406 MHz v1g distress beacons.
 class SarsatMonitor {
@@ -24,6 +25,7 @@ class SarsatMonitor {
 
   final Sarsat1gDemodulator _demod;
   final int _sampleRate;
+  final NativeTelemetryRecording? _recording = createNativeTelemetryRecording();
   bool _disposed = false;
 
   // Accumulated 16-bit LE PCM for the current burst.
@@ -70,7 +72,8 @@ class SarsatMonitor {
       bytes.offsetInBytes,
       bytes.lengthInBytes ~/ 2,
     );
-    final frames = _demod.decode(samples);
+    _recording?.upload(samples, _sampleRate);
+    final frames = _demod.decode(samples, recording: _recording);
     for (final f in frames) {
       if (_disposed) return;
       _decodedController.add(f);
@@ -81,6 +84,7 @@ class SarsatMonitor {
     if (_disposed) return;
     _disposed = true;
     _buffer.clear();
+    _recording?.dispose();
     _decodedController.close();
   }
 }

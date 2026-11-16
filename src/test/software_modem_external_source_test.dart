@@ -102,7 +102,7 @@ void main() {
     (name: 'unnamed APRS audio falls back to channel id', channel: '', statusId: 29, aprs: true),
     (name: 'unnamed data audio falls back to channel id', channel: '', statusId: 14, aprs: false),
   ]) {
-    test(scenario.name, () {
+    test(scenario.name, () async {
       const deviceId = 110;
       final client = DataBrokerClient();
       client.dispatch(
@@ -163,6 +163,7 @@ void main() {
           },
           store: false,
         );
+        await modem.receiveIdle;
         expect(frames, isNotEmpty);
         expect(frames.first.data, frame);
         expect(
@@ -179,7 +180,7 @@ void main() {
   }
 
   test('external AFSK source decodes and dispatches an attributed DataFrame',
-      () {
+      () async {
     final SoftwareModem modem = SoftwareModem();
     modem.init();
 
@@ -206,6 +207,7 @@ void main() {
     );
 
     modem.feedExternalSamples(300, _encodeAfsk1200(frame));
+    await modem.receiveIdle;
 
     expect(frames, isNotEmpty);
     final TncDataFragment f = frames.first;
@@ -224,7 +226,7 @@ void main() {
     modem.dispose();
   });
 
-  test('a paired source attributes frames to the radio device id', () {
+  test('a paired source attributes frames to the radio device id', () async {
     final SoftwareModem modem = SoftwareModem();
     modem.init();
 
@@ -252,6 +254,7 @@ void main() {
     );
 
     modem.feedExternalSamples(301, _encodeAfsk1200(frame));
+    await modem.receiveIdle;
 
     expect(frames, isNotEmpty);
     final TncDataFragment f = frames.first;
@@ -264,7 +267,7 @@ void main() {
   });
 
   test('a followRadioChannel source stamps the paired radio\'s live channel',
-      () {
+      () async {
     final SoftwareModem modem = SoftwareModem();
     modem.init();
 
@@ -311,7 +314,16 @@ void main() {
     );
 
     modem.feedExternalSamples(305, _encodeAfsk1200(frame));
-
+    // Retune while decoding is still queued. Earlier audio must keep the old
+    // attribution, while later frames follow the newly selected channel.
+    client.dispatch(
+      deviceId: 105,
+      name: 'HtStatus',
+      data: <String, dynamic>{'currChId': 0, 'currRegion': 2},
+      store: true,
+    );
+    modem.feedExternalSamples(305, _encodeAfsk1200(frame));
+    await modem.receiveIdle;
     expect(frames, isNotEmpty);
     final TncDataFragment f = frames.first;
     expect(f.data, equals(frame));
@@ -320,26 +332,14 @@ void main() {
     expect(f.regionId, 2);
     expect(f.channelName, 'Repeater 15');
     expect(f.radioMac, '11:22:33:44:55:66');
-
-    // Retuning the radio moves later frames to the new channel without a
-    // re-register (the channel is resolved live at decode time).
-    client.dispatch(
-      deviceId: 105,
-      name: 'HtStatus',
-      data: <String, dynamic>{'currChId': 0, 'currRegion': 2},
-      store: true,
-    );
-    frames.clear();
-    modem.feedExternalSamples(305, _encodeAfsk1200(frame));
-    expect(frames, isNotEmpty);
-    expect(frames.first.channelId, 0);
-    expect(frames.first.channelName, 'Channel 0');
+    expect(frames.last.channelId, 0);
+    expect(frames.last.channelName, 'Channel 0');
 
     client.dispose();
     modem.dispose();
   });
 
-  test('external AFSK source decodes at 48 kHz', () {
+  test('external AFSK source decodes at 48 kHz', () async {
     final SoftwareModem modem = SoftwareModem();
     modem.init();
 
@@ -366,6 +366,7 @@ void main() {
     );
 
     modem.feedExternalSamples(300, _encodeAfsk1200(frame, sampleRate: 48000));
+    await modem.receiveIdle;
 
     expect(frames, isNotEmpty);
     expect(frames.first.data, equals(frame));
@@ -374,7 +375,7 @@ void main() {
     modem.dispose();
   });
 
-  test('external PSK source decodes at 48 kHz', () {
+  test('external PSK source decodes at 48 kHz', () async {
     final SoftwareModem modem = SoftwareModem();
     modem.init();
 
@@ -401,6 +402,7 @@ void main() {
     );
 
     modem.feedExternalSamples(302, _encodePsk2400(frame, sampleRate: 48000));
+    await modem.receiveIdle;
 
     expect(frames, isNotEmpty);
     expect(frames.first.data, equals(frame));
@@ -409,7 +411,7 @@ void main() {
     modem.dispose();
   });
 
-  test('external DART source at 48 kHz decodes a 32 kHz-native frame', () {
+  test('external DART source at 48 kHz decodes a 32 kHz-native frame', () async {
     final SoftwareModem modem = SoftwareModem();
     modem.init();
 
@@ -445,6 +447,7 @@ void main() {
     );
 
     modem.feedExternalSamples(303, _pcmToBytes(pcm48));
+    await modem.receiveIdle;
 
     expect(frames, isNotEmpty);
     expect(frames.first.data, equals(payload));

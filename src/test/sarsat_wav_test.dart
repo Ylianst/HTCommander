@@ -60,5 +60,7 @@ void main() {
     expect(f.hasPosition, isTrue);
     expect(f.latitude, closeTo(42.954, 5e-4));
     expect(f.longitude, closeTo(1.364, 5e-4));
+    final reference = Sarsat1gDemodulator(fs, useNative: false).decode(pcm);
+    expect(frames.map((f) => f.bits), reference.map((f) => f.bits));
   });
 }

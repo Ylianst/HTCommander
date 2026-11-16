@@ -16,12 +16,14 @@ import 'dart:typed_data';
 
 import 'convolutional.dart';
 import 'lms6_decoder.dart';
+import 'native_telemetry.dart';
 
 /// Recovers LMS6 transmitted-bit blocks from FM-demodulated audio.
 class Lms6Demodulator {
-  Lms6Demodulator(this.sampleRate);
+  Lms6Demodulator(this.sampleRate, {this.useNative = true});
 
   final int sampleRate;
+  final bool useNative;
 
   static const int _baud = 4800;
   static const int _blockBits = 260 * 8 * 2; // 4160 transmitted bits
@@ -29,10 +31,24 @@ class Lms6Demodulator {
   final List<double> _header = _buildHeader();
 
   /// Demodulates [pcm] and returns candidate transmitted-bit blocks.
-  List<List<int>> demodulate(Int16List pcm) {
+  List<List<int>> demodulate(
+    Int16List pcm, {
+    NativeTelemetryRecording? recording,
+  }) {
     final n = pcm.length;
     final nominalSps = sampleRate / _baud;
     if (n < (_blockBits * nominalSps).ceil()) return const [];
+    if (useNative && nativeTelemetrySupported) {
+      return nativeSondeDemodulate(
+        pcm,
+        sampleRate,
+        recording: recording,
+        mode: NativeSondeMode.nrzBits,
+        chipRate: _baud,
+        frameSymbols: _blockBits,
+        header: _header,
+      );
+    }
 
     double mean = 0;
     for (int i = 0; i < n; i++) {

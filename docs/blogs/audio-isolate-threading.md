@@ -13,6 +13,79 @@ from its background isolate, but native scheduling dependencies remain. See
 [Keeping Bluetooth Transmit Audio Continuous When the Computer Is Busy](bluetooth-audio-transmit-worker.md)
 for the current path, native sender implementation, and platform validation work.
 
+**Native Windows receive playback:** the Bluetooth reader now feeds the shared
+speaker output without a Flutter/Dart round trip. It calls the same C++ framing
+and SBC codec used by the audio isolate, holds 60 ms of initial PCM, then queues
+PCM directly to the shared Windows player. All Windows `waveOut` device work
+and buffer completion handling run on a dedicated worker, not the platform
+window's message loop. Dart still controls mute, selected radio, channel mute,
+volume and device selection. Other platforms retain the isolate playback path.
+
+The existing audio isolate continues decoding independently for recording,
+modem/SSTV processing, metering and browser mirroring. This deliberately costs
+a second receive decode on Windows in exchange for preserving those consumers
+without making local listening wait for them. Received playback events are
+tagged so the host mirrors them to browsers but does not feed the speaker twice;
+local transmit monitoring and other audio sources still use the shared player.
+Device ownership remains reference-counted by `PcmPlayer`; native Bluetooth
+playback does not open a second competing output device.
+
+**Receive decoder workers:** DART and packet-modem (AFSK/PSK, including HDLC and
+FX.25) reception now runs in a persistent worker per modem instance. SSTV and
+buffered radiosonde reception have separate persistent workers. Native DSP calls
+run inside those workers too: native code is faster, but a synchronous FFI call
+would still block whichever isolate calls it. XARA retains its existing worker.
+The synchronous decoder cores remain available for reference tests and tools.
+
+Each receive worker admits only one command to its isolate mailbox at a time.
+The host-side FIFO, including startup and in-flight work, is bounded by both PCM
+bytes and command count: two seconds for each modem, four seconds for SSTV, and
+twelve seconds for radiosondes (256 commands, or 512 for radiosondes). An overrun
+is logged, invalidates queued/stale results, and recreates the affected decoder;
+it never silently joins samples across dropped audio. Decoder failures are
+reported rather than replaying consumed audio on the UI isolate. Shutdown
+discards late results and releases decoder resources on the owning worker.
+Web, which does not receive local radio audio, retains an ordered local fallback
+because Dart isolates are unavailable there.
+
+Modem frames are returned immediately when decoded, without waiting for an
+audio-end marker or unrelated image/telemetry work. FX.25 suppression and its
+700 ms plain-HDLC fallback timer live with the decoder. Channel and lock metadata
+is captured when PCM is submitted, so a retune while decoding is queued does not
+relabel earlier frames. SSTV sends start/progress/image events and partial image
+snapshots; source locking and end-of-run finalization happen in queue order,
+including VIS detection that has not yet reached the UI. Radiosonde flushes are
+also ordered with PCM, with the originating device/channel carried back with each fix.
+Its stateful family decoders retain calibration across normal receive runs.
+
+`getNativeAudioPlaybackStats` on the Bluetooth method channel reports cumulative
+packet, decoded/queued/dropped sample and decode-error counts, the last native
+playback error, and current shared output queue depth. Receive-end/stop logs
+include these diagnostics, plus shared-output underrun, overflow and driver-error
+counters. Queued samples mean accepted for playback, not confirmed audible
+samples. The output underrun counter records completion-driven queue drains,
+including normal ends of audio runs; it is not by itself a count of audible
+glitches. Native transmit writers update half-duplex state directly, so a busy
+UI does not delay turn-around. Native playback protects against host scheduling
+delays, not missing source samples, Bluetooth disconnects, or audio interruptions
+caused by retuning the radio. Hardware listening and UI-stall comparisons remain
+necessary to measure the improvement on a particular machine.
+
+The standalone Windows regression tests use no radio and the output-worker
+tests mock WinMM rather than opening a real audio device. From an MSVC Developer
+Command Prompt, compile the following in a scratch directory (adjust source
+paths to the checkout):
+
+```bat
+cl /nologo /std:c++17 /EHsc /W4 /WX /DNOMINMAX native_radio_playback_test.cpp radio_audio_playback.cpp radio_audio_codec.cpp
+cl /nologo /std:c++17 /EHsc /W4 /WX /DNOMINMAX /D_WINMM_ /Fe:native_pcm_output_test.exe native_pcm_output.cpp native_pcm_output_test.cpp /link user32.lib
+```
+
+Sources: [receive pipeline test](../../src/test/native_radio_playback_test.cpp)
+and [output worker test](../../src/windows/runner/tests/native_pcm_output_test.cpp).
+Run both executables after compiling. The Flutter routing regression lives in
+[native_radio_audio_test.dart](../../src/test/native_radio_audio_test.dart).
+
 ---
 
 > **Update (build notes).** Phase 1 has landed: SBC decode, WAV recording and the
@@ -54,6 +127,29 @@ goes only to the APRS modem. Cached status is used only when the packet has no
 channel tag. This prevents late APRS telemetry from swallowing XARA replies.
 
 ---
+
+## Native DSP buffer ownership
+
+SSTV PCM reception uploads little-endian PCM16 directly into a reusable native
+byte buffer. Normalization is fused into native demodulation, and the Dart image
+decoder consumes a borrowed view of the native frequency output before the next
+block or decoder disposal. This removes the intermediate Dart double PCM buffer
+and the native-to-Dart output copy. The float-sample API keeps its existing
+in-place behavior; web/iOS and explicit Dart-reference decoders retain portable
+PCM conversion. Native DSP calls remain non-leaf, including large blocks.
+
+Telemetry monitors retain native recording contexts between runs. Radiosonde
+decoding uploads each recording once for all six formats and shares one cached
+DC-removed prefix sum between matched-filter formats. SARSAT uploads once for
+both front ends. New uploads invalidate recording-derived caches. Contexts are
+explicitly disposed with their monitors and have native finalizers; compact
+candidate frames are copied into owned Dart lists before native results are
+freed. Reuse reduces allocation churn, not necessarily retained process RSS.
+
+For comparisons, run `dart run tool/benchmark_telemetry.dart native sonde
+test/radiosonde_samples/DFM09_32k.wav` and repeat with `native-copy` to use separate
+uploads per format. `dart run benchmark/sstv_receive_benchmark.dart` compares
+float and direct-PCM native reception against the Dart reference.
 
 ## The symptom: audio that stutters when the UI is busy
 

@@ -352,14 +352,19 @@ class AudioEngine {
   // Playback: hand finished PCM to the host, which owns the audio device.
   // ---------------------------------------------------------------------------
 
-  void _emitPlay(Int16List pcm) {
+  void _emitPlay(Int16List pcm, {bool received = false}) {
     _emitPlayBytes(
       pcm.buffer.asUint8List(pcm.offsetInBytes, pcm.lengthInBytes),
+      received: received,
     );
   }
 
-  void _emitPlayBytes(Uint8List pcm) {
-    _emit(<String, Object?>{'evt': 'play', 'pcm': _wrap(pcm)});
+  void _emitPlayBytes(Uint8List pcm, {bool received = false}) {
+    _emit(<String, Object?>{
+      'evt': 'play',
+      'pcm': _wrap(pcm),
+      'received': received,
+    });
   }
 
   // Routes received speaker PCM through the start-of-run pre-roll buffer. The
@@ -368,7 +373,7 @@ class AudioEngine {
   void _emitReceivePlayback(Int16List pcm) {
     if (pcm.isEmpty) return;
     if (_rxPrerollFlushed) {
-      _emitPlay(pcm);
+      _emitPlay(pcm, received: true);
       return;
     }
     _rxPrerollChunks.add(pcm);
@@ -382,7 +387,7 @@ class AudioEngine {
   // direct playback for the rest of the run.
   void _flushRxPreroll() {
     for (final Int16List chunk in _rxPrerollChunks) {
-      _emitPlay(chunk);
+      _emitPlay(chunk, received: true);
     }
     _rxPrerollChunks.clear();
     _rxPrerollSampleCount = 0;

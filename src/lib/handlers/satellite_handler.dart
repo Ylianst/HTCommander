@@ -12,6 +12,7 @@ import 'package:satellite_observer/satellite_observer.dart' as so;
 import '../gps/gps_data.dart';
 import '../models/radio_models.dart';
 import '../satellite/satellite_models.dart';
+import '../satellite/satellite_predictor.dart';
 import '../satellite/tle_repository.dart';
 import '../satellite/transponder_repository.dart';
 import '../satellite/user_satellite_store.dart';
@@ -56,6 +57,18 @@ class SatelliteHandler {
   /// One reusable propagator/observer per satellite (rebuilt on location or
   /// catalog change; construction runs SGP4 init once, so it is cached).
   final Map<int, so.SatelliteObserver> _observers = {};
+  SatellitePredictor? _predictor;
+  int _predictionGeneration = 0;
+  int _selectionGeneration = 0;
+  int _trackGeneration = 0;
+  bool _nextPassesPending = false;
+  DateTime? _nextPassesComputedAt;
+  DateTime? _selectedPassesComputedAt;
+  bool _trackPredictionPending = false;
+  bool _trackLosPending = false;
+  DateTime? _trackPredictionCheckedAt;
+  DateTime? _trackLosCheckedAt;
+  bool? _trackAboveHorizon;
 
   Timer? _tick;
   bool _disposed = false;
@@ -65,6 +78,7 @@ class SatelliteHandler {
   so.Observer? _observer;
   double? _lastObsLat;
   double? _lastObsLon;
+  double? _lastObsAltM;
   double _minElevationDeg = 10;
   int? _selectedNoradId;
 
@@ -170,12 +184,16 @@ class SatelliteHandler {
         (_broker.getValue<num>(_settingsDeviceId, 'SatMinElevationDeg', 10) ??
                 10)
             .toDouble();
-    _selectedNoradId =
-        _broker.getValue<int>(_settingsDeviceId, 'SelectedSatelliteId', null);
+    _selectedNoradId = _broker.getValue<int>(
+      _settingsDeviceId,
+      'SelectedSatelliteId',
+      null,
+    );
 
     // Satellite tracking is opt-in; do no work (and no network fetch) until the
     // user enables it in the Application settings.
-    if ((_broker.getValue<int>(_settingsDeviceId, 'SatelliteSupport', 0) ?? 0) ==
+    if ((_broker.getValue<int>(_settingsDeviceId, 'SatelliteSupport', 0) ??
+            0) ==
         1) {
       await _enable();
     }
@@ -214,6 +232,7 @@ class SatelliteHandler {
     _tick = null;
     _catalog.clear();
     _observers.clear();
+    _invalidatePredictions();
     _publishCatalog();
     _recomputeAllNextPasses();
     _recomputePasses();
@@ -239,6 +258,7 @@ class SatelliteHandler {
   /// `{radioDeviceId, noradId, usageIndex}` map to start and `null` to stop.
   /// While active, each tick pushes a [SatelliteTrackUpdate] to the radio.
   void _onTrackTargetChanged(int deviceId, String name, Object? data) {
+    _resetTrackPrediction();
     if (data is Map) {
       final radioId = (data['radioDeviceId'] as num?)?.toInt();
       final norad = (data['noradId'] as num?)?.toInt();
@@ -246,15 +266,11 @@ class SatelliteHandler {
       _trackRadioDeviceId = radioId;
       _trackNoradId = norad;
       _trackUsageIndex = (data['usageIndex'] as num?)?.toInt() ?? 0;
-      _trackNextAosUtc = null; // force a fresh next-pass computation
-      _trackLosUtc = null;
       _sendTrackUpdate(); // push immediately so the radio tunes without delay
     } else {
       _trackRadioDeviceId = null;
       _trackNoradId = null;
       _trackUsageIndex = 0;
-      _trackNextAosUtc = null;
-      _trackLosUtc = null;
     }
   }
 
@@ -264,6 +280,8 @@ class SatelliteHandler {
     final id = data is int ? data : (data is num ? data.toInt() : null);
     if (id == _selectedNoradId) return;
     _selectedNoradId = id;
+    _selectionGeneration++;
+    _selectedPassesComputedAt = null;
     _broker.dispatch(
       deviceId: _settingsDeviceId,
       name: 'SelectedSatelliteId',
@@ -383,6 +401,8 @@ class SatelliteHandler {
     final v = data is num ? data.toDouble() : null;
     if (v == null || v == _minElevationDeg) return;
     _minElevationDeg = v;
+    _invalidatePredictions();
+    _createPredictor();
     _recomputeAllNextPasses();
     _recomputePasses();
   }
@@ -458,8 +478,10 @@ class SatelliteHandler {
       if (liveTle == null) continue;
       final usages = transponders[noradId];
       if (usages == null || !usages.any((t) => t.isWorkableFm)) continue;
-      _catalog[noradId] =
-          SatelliteInfo(tle: liveTle, transponders: _orderUsages(usages));
+      _catalog[noradId] = SatelliteInfo(
+        tle: liveTle,
+        transponders: _orderUsages(usages),
+      );
     }
   }
 
@@ -473,6 +495,7 @@ class SatelliteHandler {
   ];
 
   void _rebuildObservers() {
+    _invalidatePredictions();
     _observers.clear();
     final observer = _observer;
     if (observer == null) return;
@@ -492,11 +515,53 @@ class SatelliteHandler {
         debugPrint('SatelliteHandler: bad elements for ${info.name}: $e');
       }
     }
+    _createPredictor();
+  }
+
+  void _createPredictor() {
+    final observer = _observer;
+    if (!_enabled || observer == null || _observers.isEmpty) return;
+    _predictor = SatellitePredictor(
+      observer: observer,
+      satellites: [for (final id in _observers.keys) _catalog[id]!],
+    );
+  }
+
+  void _resetTrackPrediction() {
+    _trackGeneration++;
+    _trackPredictionPending = false;
+    _trackLosPending = false;
+    _trackPredictionCheckedAt = null;
+    _trackLosCheckedAt = null;
+    _trackNextAosUtc = null;
+    _trackLosUtc = null;
+    _trackAboveHorizon = null;
+  }
+
+  void _invalidatePredictions() {
+    _predictionGeneration++;
+    _selectionGeneration++;
+    _predictor?.dispose();
+    _predictor = null;
+    _nextPassesPending = false;
+    _nextPassesComputedAt = null;
+    _selectedPassesComputedAt = null;
+    _lastNextPasses = const [];
+    _lastSelectedPasses = const [];
+    _resetTrackPrediction();
   }
 
   bool _hasManualObserver() {
-    final lat = _broker.getValue<num>(_settingsDeviceId, 'SatObserverLat', null);
-    final lon = _broker.getValue<num>(_settingsDeviceId, 'SatObserverLon', null);
+    final lat = _broker.getValue<num>(
+      _settingsDeviceId,
+      'SatObserverLat',
+      null,
+    );
+    final lon = _broker.getValue<num>(
+      _settingsDeviceId,
+      'SatObserverLon',
+      null,
+    );
     return lat != null && lon != null && (lat != 0 || lon != 0);
   }
 
@@ -516,15 +581,22 @@ class SatelliteHandler {
     double? lat;
     double? lon;
     double altM = 0;
-    final mLat =
-        _broker.getValue<num>(_settingsDeviceId, 'SatObserverLat', null);
-    final mLon =
-        _broker.getValue<num>(_settingsDeviceId, 'SatObserverLon', null);
+    final mLat = _broker.getValue<num>(
+      _settingsDeviceId,
+      'SatObserverLat',
+      null,
+    );
+    final mLon = _broker.getValue<num>(
+      _settingsDeviceId,
+      'SatObserverLon',
+      null,
+    );
     if (mLat != null && mLon != null && (mLat != 0 || mLon != 0)) {
       lat = mLat.toDouble();
       lon = mLon.toDouble();
-        altM = (_broker.getValue<num>(_settingsDeviceId, 'SatObserverAltM', 0) ?? 0)
-          .toDouble();
+      altM =
+          (_broker.getValue<num>(_settingsDeviceId, 'SatObserverAltM', 0) ?? 0)
+              .toDouble();
     } else {
       final gps = _broker.getValue<GpsData>(_gpsDeviceId, 'GpsData', null);
       if (gps != null &&
@@ -551,6 +623,7 @@ class SatelliteHandler {
       _observer = null;
       _lastObsLat = null;
       _lastObsLon = null;
+      _lastObsAltM = null;
       if (had) _publishObserverKnown(false);
       return had;
     }
@@ -559,7 +632,10 @@ class SatelliteHandler {
         _lastObsLat != null &&
         _lastObsLon != null &&
         (lat - _lastObsLat!).abs() < 0.01 &&
-        (lon - _lastObsLon!).abs() < 0.01) {
+        (lon - _lastObsLon!).abs() < 0.01 &&
+        (_hasManualObserver()
+            ? altM == _lastObsAltM
+            : (altM - _lastObsAltM!).abs() < 100)) {
       return false;
     }
 
@@ -568,6 +644,7 @@ class SatelliteHandler {
     _observer = obs;
     _lastObsLat = lat;
     _lastObsLon = lon;
+    _lastObsAltM = altM;
     _publishObserverKnown(true);
     return true;
   }
@@ -632,7 +709,22 @@ class SatelliteHandler {
     );
 
     // Steer a radio locked in Satellite mode toward the tracked bird.
-    _sendTrackUpdate();
+    _sendTrackUpdate(
+      position: positions.where((p) => p.noradId == _trackNoradId).firstOrNull,
+      now: now,
+      reuseTick: true,
+    );
+
+    if (_nextPassesComputedAt == null ||
+        now.difference(_nextPassesComputedAt!) >= const Duration(minutes: 5) ||
+        _lastNextPasses.any((p) => !now.isBefore(p.aos))) {
+      _recomputeAllNextPasses();
+    }
+    if (_selectedPassesComputedAt != null &&
+        now.difference(_selectedPassesComputedAt!) >=
+            const Duration(minutes: 5)) {
+      _recomputePasses();
+    }
 
     // Refresh the selected satellite's ground track roughly twice a minute.
     if (_tickCount++ % 30 == 0) _recomputeGroundTrack();
@@ -641,7 +733,11 @@ class SatelliteHandler {
   /// Computes the Doppler-corrected frequencies and look-angle for the tracked
   /// satellite/usage and pushes them to the locked radio. No-op when not
   /// tracking or when the bird has no computable position/observer yet.
-  void _sendTrackUpdate() {
+  void _sendTrackUpdate({
+    SatellitePosition? position,
+    DateTime? now,
+    bool reuseTick = false,
+  }) {
     final radioId = _trackRadioDeviceId;
     final norad = _trackNoradId;
     if (radioId == null || norad == null) return;
@@ -653,11 +749,11 @@ class SatelliteHandler {
     }
     final usage = info.transponders[_trackUsageIndex];
 
-    final now = DateTime.now().toUtc();
+    now ??= DateTime.now().toUtc();
     if (info.isStatic) {
       final rx = usage.downlinkHz;
       if (rx == null) return;
-      final position = info.staticPosition(now);
+      position ??= info.staticPosition(now);
       _broker.dispatch(
         deviceId: radioId,
         name: 'SatelliteTrackUpdate',
@@ -679,16 +775,30 @@ class SatelliteHandler {
       return;
     }
     if (observer == null) return;
-    final so.LookAngle look;
-    double altitudeKm;
-    try {
-      look = observer.lookAngleAt(now);
-      altitudeKm = observer.subPointAt(now).altitudeKm;
-    } catch (_) {
-      return;
+    if (position == null) {
+      if (reuseTick) return;
+      try {
+        final look = observer.lookAngleAt(now);
+        final sub = observer.subPointAt(now);
+        position = SatellitePosition(
+          noradId: norad,
+          name: info.name,
+          latitudeDeg: sub.latitudeDeg,
+          longitudeDeg: sub.longitudeDeg,
+          altitudeKm: sub.altitudeKm,
+          azimuthDeg: look.azimuthDeg,
+          elevationDeg: look.elevationDeg,
+          rangeKm: look.rangeKm,
+          rangeRateKmS: look.rangeRateKmS,
+          utc: now,
+        );
+      } catch (error) {
+        debugPrint('SatelliteHandler: tracking position failed: $error');
+        return;
+      }
     }
 
-    final rate = look.rangeRateKmS;
+    final rate = position.rangeRateKmS;
     final rx = usage.correctedDownlinkHz(rate) ?? usage.downlinkHz;
     // Receive-only usages have no uplink; send 0 as the TX frequency to test
     // whether the radio accepts it (rather than parking TX on the RX freq).
@@ -701,30 +811,39 @@ class SatelliteHandler {
     // instant is cached and only re-searched once it has elapsed.
     int secondsToNextPass;
     var secondsToLos = 0;
-    if (look.elevationDeg > 0) {
+    final aboveHorizon = position.elevationDeg > 0;
+    if (_trackAboveHorizon != aboveHorizon) {
+      _resetTrackPrediction();
+      _trackAboveHorizon = aboveHorizon;
+    }
+    if (aboveHorizon) {
       secondsToNextPass = 0;
       _trackNextAosUtc = null; // recompute after the pass ends
-      if (_trackLosUtc == null || !now.isBefore(_trackLosUtc!)) {
-        _trackLosUtc = _findLos(observer, now);
+      if (!_trackLosPending &&
+          (_trackLosUtc == null || !now.isBefore(_trackLosUtc!)) &&
+          (_trackLosCheckedAt == null ||
+              now.difference(_trackLosCheckedAt!) >=
+                  const Duration(minutes: 1))) {
+        _requestTrackPrediction(norad, now, los: true);
       }
       final los = _trackLosUtc;
-      secondsToLos =
-          los == null ? 0 : los.difference(now).inSeconds.clamp(0, 0xFFFF);
+      secondsToLos = los == null
+          ? 0
+          : los.difference(now).inSeconds.clamp(0, 0xFFFF);
     } else {
       _trackLosUtc = null;
-      if (_trackNextAosUtc == null || !now.isBefore(_trackNextAosUtc!)) {
-        try {
-          _trackNextAosUtc = observer
-              .nextPass(after: now, minElevationDeg: _minElevationDeg)
-              ?.rise
-              .utc;
-        } catch (_) {
-          _trackNextAosUtc = null;
-        }
+      _trackLosCheckedAt = null;
+      if (!_trackPredictionPending &&
+          (_trackNextAosUtc == null || !now.isBefore(_trackNextAosUtc!)) &&
+          (_trackPredictionCheckedAt == null ||
+              now.difference(_trackPredictionCheckedAt!) >=
+                  const Duration(minutes: 1))) {
+        _requestTrackPrediction(norad, now);
       }
       final aos = _trackNextAosUtc;
-        secondsToNextPass =
-          aos == null ? 0 : aos.difference(now).inSeconds.clamp(0, 0xFFFF);
+      secondsToNextPass = aos == null
+          ? 0
+          : aos.difference(now).inSeconds.clamp(0, 0xFFFF);
     }
 
     _broker.dispatch(
@@ -737,10 +856,10 @@ class SatelliteHandler {
         rxFreqHz: rx,
         txFreqHz: tx,
         txCtcssHz: usage.ctcssHz,
-        azimuthDeg: look.azimuthDeg,
-        elevationDeg: look.elevationDeg,
-        rangeKm: look.rangeKm,
-        altitudeKm: altitudeKm,
+        azimuthDeg: position.azimuthDeg,
+        elevationDeg: position.elevationDeg,
+        rangeKm: position.rangeKm,
+        altitudeKm: position.altitudeKm,
         secondsToNextPass: secondsToNextPass,
         secondsToLos: secondsToLos,
       ),
@@ -748,75 +867,84 @@ class SatelliteHandler {
     );
   }
 
-  /// Finds when a bird currently above the horizon sets (elevation reaches 0),
-  /// to about a second. Coarse 15 s steps (up to 12 h for high orbits), then
-  /// bisection. Runs once per pass; the result is cached by the caller.
-  static DateTime? _findLos(so.SatelliteObserver observer, DateTime now) {
-    const step = Duration(seconds: 15);
-    var lo = now;
+  Future<void> _requestTrackPrediction(
+    int norad,
+    DateTime now, {
+    bool los = false,
+  }) async {
+    final predictor = _predictor;
+    if (predictor == null) return;
+    final generation = _trackGeneration;
+    if (los) {
+      _trackLosPending = true;
+      _trackLosCheckedAt = now;
+    } else {
+      _trackPredictionPending = true;
+      _trackPredictionCheckedAt = now;
+    }
     try {
-      for (var i = 0; i < 2880; i++) {
-        final hi = lo.add(step);
-        if (observer.lookAngleAt(hi).elevationDeg <= 0) {
-          var a = lo;
-          var b = hi;
-          while (b.difference(a).inMilliseconds > 1000) {
-            final mid = a.add(
-              Duration(milliseconds: b.difference(a).inMilliseconds ~/ 2),
-            );
-            if (observer.lookAngleAt(mid).elevationDeg > 0) {
-              a = mid;
-            } else {
-              b = mid;
-            }
-          }
-          return b;
+      if (los) {
+        final result = await predictor.los(norad, now);
+        if (generation == _trackGeneration) _trackLosUtc = result;
+      } else {
+        final passes = await predictor.passes(norad, now, _minElevationDeg);
+        if (generation == _trackGeneration) {
+          final current = DateTime.now().toUtc();
+          _trackNextAosUtc = passes
+              .where((p) => p.aos.isAfter(current))
+              .firstOrNull
+              ?.aos;
         }
-        lo = hi;
       }
-    } catch (_) {}
-    return null;
+    } catch (error) {
+      if (generation == _trackGeneration) {
+        debugPrint('SatelliteHandler: tracking prediction failed: $error');
+      }
+    } finally {
+      if (generation == _trackGeneration) {
+        if (los) {
+          _trackLosPending = false;
+        } else {
+          _trackPredictionPending = false;
+        }
+      }
+    }
   }
 
-  void _recomputePasses() {
+  Future<void> _recomputePasses() async {
+    final generation = ++_selectionGeneration;
     final id = _selectedNoradId;
-    final observer = _observers[id];
+    final predictor = _predictor;
     final info = id == null ? null : _catalog[id];
-    if (id == null || observer == null || info == null) {
-      _broker.dispatch(
-        deviceId: _settingsDeviceId,
-        name: 'SatellitePasses',
-        data: const <SatellitePass>[],
-        store: false,
-      );
+    _lastSelectedPasses = const [];
+    _selectedPassesComputedAt = null;
+    _recomputeGroundTrack();
+    _broker.dispatch(
+      deviceId: _settingsDeviceId,
+      name: 'SatellitePasses',
+      data: const <SatellitePass>[],
+      store: false,
+    );
+    if (id == null || predictor == null || info == null || info.isStatic) {
       return;
     }
 
     final now = DateTime.now().toUtc();
-    final passes = <SatellitePass>[];
+    List<SatellitePass> passes;
     try {
-      final found = observer.passes(
-        from: now,
-        to: now.add(const Duration(hours: 48)),
-        minElevationDeg: _minElevationDeg,
-      );
-      for (final p in found) {
-        passes.add(
-          SatellitePass(
-            noradId: info.noradId,
-            name: info.name,
-            aos: p.rise.utc,
-            los: p.set.utc,
-            maxElevationDeg: p.peakElevationDeg,
-            aosAzimuthDeg: p.rise.lookAngle.azimuthDeg,
-            losAzimuthDeg: p.set.lookAngle.azimuthDeg,
-          ),
-        );
-      }
+      final found = await predictor.passes(id, now, _minElevationDeg);
+      final current = DateTime.now().toUtc();
+      passes = found.where((p) => !p.aos.isBefore(current)).toList();
     } catch (e) {
-      debugPrint('SatelliteHandler: pass prediction failed for ${info.name}: $e');
+      if (_disposed || generation != _selectionGeneration) return;
+      debugPrint(
+        'SatelliteHandler: pass prediction failed for ${info.name}: $e',
+      );
+      _selectedPassesComputedAt = now;
+      return;
     }
-
+    if (_disposed || generation != _selectionGeneration) return;
+    _selectedPassesComputedAt = now;
     _lastSelectedPasses = passes;
     _broker.dispatch(
       deviceId: _settingsDeviceId,
@@ -824,7 +952,6 @@ class SatelliteHandler {
       data: passes,
       store: false,
     );
-    _recomputeGroundTrack();
   }
 
   /// Samples the selected satellite's sub-point over roughly one orbit centred
@@ -867,34 +994,46 @@ class SatelliteHandler {
 
   /// Computes the single next pass for every catalog satellite and publishes
   /// them AOS-sorted for the satellite list. Runs only on observer / catalog /
-  /// min-elevation changes, never per tick.
-  void _recomputeAllNextPasses() {
+  /// min-elevation changes, on cache expiry, or when the next AOS elapses.
+  Future<void> _recomputeAllNextPasses() async {
+    if (_nextPassesPending) return;
+    final generation = _predictionGeneration;
+    final predictor = _predictor;
+    _nextPassesPending = true;
     final now = DateTime.now().toUtc();
     final result = <SatellitePass>[];
-    for (final entry in _observers.entries) {
-      final info = _catalog[entry.key];
-      if (info == null) continue;
-      try {
-        final p = entry.value.nextPass(
-          after: now,
-          minElevationDeg: _minElevationDeg,
-        );
-        if (p == null) continue;
-        result.add(
-          SatellitePass(
-            noradId: info.noradId,
-            name: info.name,
-            aos: p.rise.utc,
-            los: p.set.utc,
-            maxElevationDeg: p.peakElevationDeg,
-            aosAzimuthDeg: p.rise.lookAngle.azimuthDeg,
-            losAzimuthDeg: p.set.lookAngle.azimuthDeg,
-          ),
-        );
-      } catch (e) {
-        // Skip a satellite whose pass search fails.
-      }
-    }
+    // Request all birds before awaiting so a selected/tracked bird shares the
+    // same in-flight search rather than scheduling another 48-hour scan.
+    final requests = predictor == null
+        ? <Future<void>>[]
+        : [
+            for (final id in _observers.keys)
+              () async {
+                try {
+                  final passes = await predictor.passes(
+                    id,
+                    now,
+                    _minElevationDeg,
+                  );
+                  final current = DateTime.now().toUtc();
+                  final p = passes
+                      .where((p) => !p.aos.isBefore(current))
+                      .firstOrNull;
+                  if (p == null) return;
+                  result.add(p);
+                } catch (e) {
+                  if (!_disposed && generation == _predictionGeneration) {
+                    debugPrint(
+                      'SatelliteHandler: pass prediction failed for $id: $e',
+                    );
+                  }
+                }
+              }(),
+          ];
+    await Future.wait(requests);
+    if (_disposed || generation != _predictionGeneration) return;
+    _nextPassesPending = false;
+    _nextPassesComputedAt = now;
     result.sort((a, b) => a.aos.compareTo(b.aos));
     _lastNextPasses = result;
     _broker.dispatch(
@@ -944,6 +1083,7 @@ class SatelliteHandler {
     if (!_enabled) return;
     final tleChanged = await _tleRepo.refresh();
     final transpondersChanged = await _transponderRepo.refresh();
+    if (_disposed || !_enabled) return;
     if (!tleChanged && !transpondersChanged) return;
     _rebuildCatalog();
     _rebuildObservers();
@@ -955,6 +1095,7 @@ class SatelliteHandler {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _invalidatePredictions();
     _tick?.cancel();
     _tick = null;
     _broker.dispose();

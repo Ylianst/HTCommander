@@ -72,7 +72,10 @@ class XaraDriver {
     final int target = wall - delay;
     while (station.now + block <= target) {
       final int avail = _queued;
-      if (avail < block && wall - _lastRx < runGap && target - station.now < maxWait) break;
+      if (avail < block &&
+          wall - _lastRx < runGap &&
+          target - station.now < maxWait)
+        break;
       final List<double> input = List<double>.filled(block, 0.0);
       final int n = math.min(avail, block);
       for (int i = 0; i < n; i++) {
@@ -92,27 +95,49 @@ class XaraDriver {
 
   /// Runs the station ahead until the burst that started in [first] is done.
   Int16List _render(List<double> first) {
-    final List<double> burst = List<double>.filled(keyUp, 0.0, growable: true);
+    RangeError.checkNotNegative(keyUp, 'keyUp');
+    final Resampler r = Resampler(stationRate.toDouble(), hostRate.toDouble());
+    final BytesBuilder chunks = BytesBuilder(copy: false);
+    final Float64List silence = Float64List(block);
+    final Float64List output = Float64List(block);
+    void addPcm(List<double> samples) {
+      if (samples.isEmpty) return;
+      final Int16List pcm = Int16List(samples.length);
+      for (int i = 0; i < samples.length; i++) {
+        pcm[i] = (samples[i] * 32767.0).round().clamp(-32768, 32767);
+      }
+      chunks.add(pcm.buffer.asUint8List());
+    }
+
+    for (int left = keyUp; left > 0;) {
+      final int n = math.min(left, block);
+      addPcm(
+        r.process(
+          n == block ? silence : Float64List.sublistView(silence, 0, n),
+        ),
+      );
+      left -= n;
+    }
     List<double> out = first;
     int from = station.keyedFirst;
     while (true) {
       final int to = station.keyedLast + 1;
       if (!station.transmitting) {
-        if (station.keyedFirst >= 0) burst.addAll(out.sublist(from, to));
+        if (station.keyedFirst >= 0) addPcm(r.process(out.sublist(from, to)));
         break;
       }
-      burst.addAll(out.sublist(from));
-      out = List<double>.filled(block, 0.0);
-      station.process(List<double>.filled(block, 0.0), out);
+      addPcm(r.process(from == 0 ? out : out.sublist(from)));
+      out = output;
+      station.process(silence, out);
       from = 0;
     }
-    final Resampler r = Resampler(stationRate.toDouble(), hostRate.toDouble());
-    final List<double> y = <double>[...r.process(burst), ...r.flush()];
-    final Int16List pcm = Int16List(y.length);
-    for (int i = 0; i < y.length; i++) {
-      pcm[i] = (y[i] * 32767.0).round().clamp(-32768, 32767);
-    }
-    return pcm;
+    addPcm(r.flush());
+    final Uint8List bytes = chunks.takeBytes();
+    return Int16List.view(
+      bytes.buffer,
+      bytes.offsetInBytes,
+      bytes.lengthInBytes ~/ Int16List.bytesPerElement,
+    );
   }
 
   Report? pop() => station.pop();

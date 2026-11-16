@@ -14,23 +14,37 @@ library;
 
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'native_telemetry.dart';
 
 /// Recovers the iMet byte stream from FM-demodulated Bell-202 AFSK audio.
 class ImetDemodulator {
-  ImetDemodulator(this.sampleRate);
+  ImetDemodulator(this.sampleRate, {this.useNative = true});
 
   final int sampleRate;
+  final bool useNative;
 
   static const int _baud = 1200;
   static const double _fSpace = 2200.0; // bit 0
   static const double _fMark = 1200.0; // bit 1
 
   /// Demodulates [pcm] and returns the recovered async byte stream.
-  List<int> demodulate(Int16List pcm) {
+  List<int> demodulate(Int16List pcm, {NativeTelemetryRecording? recording}) {
     final n = pcm.length;
     final bitlen = sampleRate / _baud;
     final win = (2 * bitlen + 0.5).floor();
     if (n < win * 4) return const [];
+    if (useNative && nativeTelemetrySupported) {
+      final frames = nativeSondeDemodulate(
+        pcm,
+        sampleRate,
+        recording: recording,
+        mode: NativeSondeMode.imetBytes,
+        chipRate: _baud,
+        frameSymbols: 1,
+        header: const [],
+      );
+      return frames.isEmpty ? const [] : frames.single;
+    }
 
     // Sample buffer normalized to [-1, 1].
     final x = Float64List(n);

@@ -15,6 +15,8 @@ http://www.apache.org/licenses/LICENSE-2.0
 /// layout and BCH polynomials match bit-for-bit.
 library;
 
+import 'dart:typed_data';
+
 import '../utils/num_parsing.dart';
 
 /// First-generation beacon protocol classification.
@@ -134,11 +136,11 @@ class Sarsat1gFrame {
 class Sarsat1gDecoder {
   // BCH-1 generator (bits 25..106, 21 parity bits). Same coefficients as the
   // reference test_crc1(): x^21 + ... + 1.
-  static const List<int> _g1 = [
-    1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1 //
-  ];
+  static const int _g1 = 0x26D9E3;
   // BCH-2 generator (bits 107..144, 12 parity bits).
-  static const List<int> _g2 = [1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1];
+  static const int _g2 = 0x1539;
+  static final Uint32List _errors1 = _errorSyndromes(_g1, 21, 82, 82);
+  static final Uint32List _errors2 = _errorSyndromes(_g2, 12, 38, 26);
 
   static const String _fsyncNormal = '000101111';
   static const String _fsyncSelfTest = '011010000';
@@ -152,70 +154,69 @@ class Sarsat1gDecoder {
     return v;
   }
 
-  /// BCH-1 remainder (0 = valid). Direct port of reference test_crc1().
-  static int _crc1(List<int> s) => _crcRemainder(s, _g1, 24, 85, 22);
+  /// BCH-1 polynomial remainder (0 = valid).
+  static int _crc1(List<int> s) => _crcRemainder(s, _g1, 21, 24, 106);
 
-  /// BCH-2 remainder (0 = valid). Direct port of reference test_crc2().
-  static int _crc2(List<int> s) => _crcRemainder(s, _g2, 106, 132, 13);
+  /// BCH-2 polynomial remainder (0 = valid).
+  static int _crc2(List<int> s) => _crcRemainder(s, _g2, 12, 106, 144);
 
-  // Shared long-division used by both CRC fields; mirrors the reference loop.
   static int _crcRemainder(
-      List<int> s, List<int> g, int startBit, int endBit, int glen) {
-    final div = List<int>.filled(glen, 0);
-    int i = startBit;
-    for (int j = 0; j < glen; j++) {
-      div[j] = s[i + j] & 1;
+      List<int> s, int generator, int degree, int start, int end) {
+    int remainder = 0;
+    final top = 1 << degree;
+    for (int i = start; i < end; i++) {
+      remainder = (remainder << 1) | (s[i] & 1);
+      if ((remainder & top) != 0) remainder ^= generator;
     }
-    while (i < endBit) {
-      for (int j = 0; j < glen; j++) {
-        div[j] ^= g[j];
-      }
-      while (div[0] == 0 && i < endBit) {
-        for (int j = 0; j < glen - 1; j++) {
-          div[j] = div[j + 1];
-        }
-        div[glen - 1] = (i < endBit - 1) ? (s[i + glen] & 1) : 0;
-        i++;
-      }
-    }
-    int sum = 0;
-    for (final d in div) {
-      sum += d;
-    }
-    return sum;
+    return remainder;
   }
 
-  /// Corrects up to 3 bit errors in [s] over the BCH-1 protected span
-  /// (indices 24..105) using [crc]. Returns the number of corrections, or -1
-  /// if uncorrectable. Modifies [s] in place on success.
-  static int _correct(List<int> s, int Function(List<int>) crc, int lo, int hi) {
-    if (crc(s) == 0) return 0;
-    for (int i = lo; i <= hi; i++) {
-      s[i] ^= 1;
-      if (crc(s) == 0) return 1;
-      s[i] ^= 1;
+  static Uint32List _errorSyndromes(
+      int generator, int degree, int codewordBits, int correctionBits) {
+    final errors = Uint32List(correctionBits);
+    final top = 1 << degree;
+    int remainder = 1;
+    for (int i = codewordBits - 1; i >= 0; i--) {
+      if (i < correctionBits) errors[i] = remainder;
+      remainder <<= 1;
+      if ((remainder & top) != 0) remainder ^= generator;
     }
-    for (int i = lo; i <= hi; i++) {
-      s[i] ^= 1;
-      for (int j = i + 1; j <= hi; j++) {
-        s[j] ^= 1;
-        if (crc(s) == 0) return 2;
-        s[j] ^= 1;
+    return errors;
+  }
+
+  /// Corrects up to 3 errors in the allowed span, preserving the reference
+  /// search order. A failure leaves [s] unchanged.
+  static int _correct(List<int> s, int syndrome, Uint32List errors, int lo) {
+    if (syndrome == 0) return 0;
+    final count = errors.length;
+    for (int i = 0; i < count; i++) {
+      if (errors[i] != syndrome) continue;
+      s[lo + i] ^= 1;
+      return 1;
+    }
+    // Polynomial remainders are linear: candidate flips cancel the received
+    // syndrome iff their precomputed single-bit syndromes XOR to it.
+    for (int i = 0; i < count; i++) {
+      final remaining = syndrome ^ errors[i];
+      for (int j = i + 1; j < count; j++) {
+        if (errors[j] != remaining) continue;
+        s[lo + i] ^= 1;
+        s[lo + j] ^= 1;
+        return 2;
       }
-      s[i] ^= 1;
     }
-    for (int i = lo; i <= hi; i++) {
-      s[i] ^= 1;
-      for (int j = i + 1; j <= hi; j++) {
-        s[j] ^= 1;
-        for (int k = j + 1; k <= hi; k++) {
-          s[k] ^= 1;
-          if (crc(s) == 0) return 3;
-          s[k] ^= 1;
+    for (int i = 0; i < count; i++) {
+      final remaining = syndrome ^ errors[i];
+      for (int j = i + 1; j < count; j++) {
+        final last = remaining ^ errors[j];
+        for (int k = j + 1; k < count; k++) {
+          if (errors[k] != last) continue;
+          s[lo + i] ^= 1;
+          s[lo + j] ^= 1;
+          s[lo + k] ^= 1;
+          return 3;
         }
-        s[j] ^= 1;
       }
-      s[i] ^= 1;
     }
     return -1;
   }
@@ -239,7 +240,7 @@ class Sarsat1gDecoder {
     final work = s.length == 144 ? s : (List<int>.from(s)..addAll(List<int>.filled(32, 0)));
     final len = s.length;
 
-    final c1 = _correct(work, _crc1, 24, 105);
+    final c1 = _correct(work, _crc1(work), _errors1, 24);
     final crc1Ok = c1 >= 0;
     int c2 = 0;
     bool crc2Ok = true;
@@ -248,7 +249,7 @@ class Sarsat1gDecoder {
       final userCode = _getBits(work, 36, 3);
       final isOrbitography = work[25] == 1 && userCode == 0;
       if (!isOrbitography) {
-        c2 = _correct(work, _crc2, 106, 131);
+        c2 = _correct(work, _crc2(work), _errors2, 106);
         crc2Ok = c2 >= 0;
       }
     }

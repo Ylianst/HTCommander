@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/radiosonde/reed_solomon.dart';
 import 'package:htcommander/radiosonde/rs41_decoder.dart';
 import 'package:htcommander/radiosonde/rs41_demodulator.dart';
+import 'package:htcommander/radiosonde/radiosonde_monitor.dart';
+import 'package:htcommander/radiosonde/radiosonde_worker.dart';
 
 int _crc16(Uint8List d, int start, int len) {
   int rem = 0xFFFF;
@@ -146,6 +148,58 @@ void main() {
     numSats: 9,
   );
 
+  test('radiosonde worker orders buffered flushes and preserves source attribution', () async {
+    const rate = 48000;
+    final samples = _modulate([frame, frame, frame], rate);
+    final pcm = Uint8List(samples.length * 2);
+    final bytes = ByteData.sublistView(pcm);
+    for (int i = 0; i < samples.length; i++) {
+      bytes.setInt16(i * 2, samples[i], Endian.little);
+    }
+    final errors = <Object>[];
+    final worker = RadiosondeWorker(
+      sampleRate: rate,
+      onError: (error, _) => errors.add(error),
+    );
+    final reference = RadiosondeMonitor(sampleRate: rate);
+    addTearDown(worker.dispose);
+    addTearDown(reference.dispose);
+    final actual = <RadiosondeReception>[];
+    final expected = <Object>[];
+    worker.onDecoded.listen(actual.add);
+    reference.onDecoded.listen(expected.add);
+    // Two radio runs are queued without waiting for either buffered decode.
+    for (final deviceId in [101, 202]) {
+      worker.processPcm16(
+        pcm,
+        0,
+        pcm.length,
+        deviceId: deviceId,
+        channelName: 'sonde$deviceId',
+      );
+      worker.flush(deviceId);
+      reference.processPcm16(pcm, 0, pcm.length);
+      reference.flush();
+    }
+    await worker.idle.timeout(const Duration(seconds: 30));
+    expect(errors, isEmpty);
+    expect(actual, isNotEmpty);
+    expect(actual.length, expected.length);
+    final first = actual.where((event) => event.deviceId == 101).toList();
+    final second = actual.where((event) => event.deviceId == 202).toList();
+    expect(first, isNotEmpty);
+    expect(second.length, first.length);
+    expect(first.every((event) => event.channelName == 'sonde101'), isTrue);
+    expect(second.every((event) => event.channelName == 'sonde202'), isTrue);
+    expect(actual.take(first.length).every((event) => event.deviceId == 101), isTrue);
+    for (final event in actual.where((event) => event.fix.sondeType == 'RS41')) {
+      expect(event.fix.id, 'P1234567');
+      expect(event.fix.frameNumber, 1234);
+      expect(event.fix.latitude, closeTo(52.0, 1e-4));
+      expect(event.fix.longitude, closeTo(13.0, 1e-4));
+    }
+  });
+
   test('decodes a synthesized RS41 frame end-to-end', () {
     // Frame parse directly (RS + CRC + geodetic).
     final f = Rs41Decoder().decodeFrame(frame);
@@ -169,6 +223,32 @@ void main() {
     final f = Rs41Decoder().decodeFrame(corrupted);
     expect(f, isNotNull, reason: 'RS should correct the injected errors');
     expect(f!.latitude, closeTo(52.0, 1e-4));
+  });
+
+  test('native RS41 matches Dart at both radio rates with noise and inversion', () {
+    for (final rate in [32000, 48000]) {
+      final pcm = _modulate([frame, frame, frame], rate, snr: 6);
+      for (int i = 0; i < pcm.length; i++) {
+        pcm[i] = 1000 - pcm[i];
+      }
+      final reference = Rs41Demodulator(rate, useNative: false).demodulate(pcm);
+      expect(reference, isNotEmpty);
+      expect(Rs41Demodulator(rate).demodulate(pcm), reference);
+    }
+  });
+
+  test('native score blocks preserve peaks crossing block boundaries', () {
+    const rate = 32000;
+    final pcm = _modulate([frame, frame], rate);
+    for (final headerOffset in [4094, 4095, 4096, 4097]) {
+      final padding = headerOffset - rate ~/ 20;
+      final shifted = Int16List(pcm.length + padding)
+        ..setRange(padding, padding + pcm.length, pcm);
+      final reference =
+          Rs41Demodulator(rate, useNative: false).demodulate(shifted);
+      expect(reference, isNotEmpty);
+      expect(Rs41Demodulator(rate).demodulate(shifted), reference);
+    }
   });
 
   test('demodulates RS41 from clean audio (48kHz)', () {

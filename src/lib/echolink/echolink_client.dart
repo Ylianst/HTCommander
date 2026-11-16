@@ -423,6 +423,7 @@ class EchoLinkClient {
     _keepAlive = null;
     _audioPrime = null;
     _timeout = null;
+    _qso?.dispose();
     _qso = null;
     _remoteHost = null;
     _remoteStation = null;

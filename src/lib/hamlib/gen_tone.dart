@@ -28,8 +28,13 @@ import 'dart:typed_data';
 import 'audio_buffer.dart';
 import 'audio_config.dart';
 
+/// Receives raw NRZI levels from the packet framing/FEC writers.
+abstract interface class ToneBitSink {
+  void putBit(int chan, int dat);
+}
+
 /// Generates AFSK tones for audio encoding.
-class GenTone {
+class GenTone implements ToneBitSink {
   static const double _ticksPerCycle = 256.0 * 256.0 * 256.0 * 256.0;
   // ignore: unused_field
   static const int _phaseShift180 = 128 << 24;
@@ -199,6 +204,7 @@ class GenTone {
   }
 
   /// Generate tone for one data bit.
+  @override
   void putBit(int chan, int dat) {
     final int a = AudioConfig.channelToDevice(chan);
 

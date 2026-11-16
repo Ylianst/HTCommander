@@ -9,6 +9,7 @@ Ported to Dart from C# (HTCommander SSTV Encoder).
 
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'native_encoder.dart';
 import 'sstv_round.dart';
 
 /// Encodes pixel data into SSTV audio samples using frequency modulation.
@@ -16,6 +17,8 @@ import 'sstv_round.dart';
 /// Wraase SC2-180, PD 50/90/120/160/180/240/290, and HF Fax modes.
 class Encoder {
   final int _sampleRate;
+  final bool _useNative;
+  final bool _useSimd;
   double _phase = 0;
 
   // SSTV standard frequencies
@@ -27,7 +30,110 @@ class Encoder {
   static const double visBitOneFrequency = 1100.0;
   static const double visBitZeroFrequency = 1300.0;
 
-  Encoder(int sampleRate) : _sampleRate = sampleRate;
+  Encoder(
+    int sampleRate, {
+    this._useNative = !const bool.fromEnvironment('HT_SSTV_ENCODER_DART'),
+    this._useSimd = !const bool.fromEnvironment('HT_SSTV_SCALAR'),
+  }) : _sampleRate = sampleRate {
+    RangeError.checkValueInInterval(sampleRate, 1, 0x7fffffff, 'sampleRate');
+  }
+
+  Uint8List? _nativeBytes(
+    Int32List pixels,
+    int width,
+    int height,
+    int code, {
+    bool pcm16 = false,
+    int silenceSamples = 0,
+  }) {
+    RangeError.checkValueInInterval(width, 1, 0x7fffffff, 'width');
+    RangeError.checkValueInInterval(height, 1, 0x7fffffff, 'height');
+    if (pixels.length < width * height) {
+      throw ArgumentError('Pixel buffer is smaller than width * height');
+    }
+    if (!_useNative) return null;
+    final result = encodeNativeSstv(
+      pixels,
+      width,
+      height,
+      _sampleRate,
+      code,
+      _phase,
+      pcm16: pcm16,
+      silenceSamples: silenceSamples,
+      useSimd: _useSimd,
+    );
+    if (result == null) return null;
+    _phase = result.$2;
+    return result.$1;
+  }
+
+  Float64List? _nativeSamples(
+    Int32List pixels,
+    int width,
+    int height,
+    int code,
+  ) {
+    final bytes = _nativeBytes(pixels, width, height, code);
+    return bytes == null ? null : Float64List.view(bytes.buffer);
+  }
+
+  /// Encodes directly to signed little-endian PCM16, optionally prepending
+  /// silence without advancing the SSTV oscillator phase.
+  Uint8List encodePcm16(
+    Int32List pixels,
+    int width,
+    int height,
+    String modeName, {
+    int silenceSamples = 0,
+  }) {
+    RangeError.checkValueInInterval(
+      silenceSamples,
+      0,
+      0x7fffffff,
+      'silenceSamples',
+    );
+    const codes = <String, int>{
+      'Robot 36 Color': 8,
+      'Robot 72 Color': 12,
+      'Martin 1': 44,
+      'Martin 2': 40,
+      'Scottie 1': 60,
+      'Scottie 2': 56,
+      'Scottie DX': 76,
+      'Wraase SC2\u2013180': 55,
+      'PD 50': 93,
+      'PD 90': 99,
+      'PD 120': 95,
+      'PD 160': 98,
+      'PD 180': 96,
+      'PD 240': 97,
+      'PD 290': 94,
+      'HF Fax': -1,
+    };
+    final code = codes[modeName];
+    if (code == null) throw ArgumentError('Unknown mode: $modeName');
+    final native = _nativeBytes(
+      pixels,
+      width,
+      height,
+      code,
+      pcm16: true,
+      silenceSamples: silenceSamples,
+    );
+    if (native != null) return native;
+    final samples = encode(pixels, width, height, modeName);
+    final pcm = Uint8List((silenceSamples + samples.length) * 2);
+    final view = ByteData.sublistView(pcm);
+    for (int i = 0; i < samples.length; i++) {
+      view.setInt16(
+        (silenceSamples + i) * 2,
+        (samples[i].clamp(-1.0, 1.0) * 32767).round(),
+        Endian.little,
+      );
+    }
+    return pcm;
+  }
 
   /// Reset the oscillator phase.
   void reset() {
@@ -127,6 +233,8 @@ class Encoder {
   /// Encode a full image using Robot 36 Color mode.
   /// Image is expected as a flat ARGB int array, width x height.
   Float64List encodeRobot36(Int32List pixels, int width, int height) {
+    final native = _nativeSamples(pixels, width, height, 8);
+    if (native != null) return native;
     const visCode = 8;
     const double syncPulseSeconds = 0.009;
     const double syncPorchSeconds = 0.003;
@@ -186,6 +294,8 @@ class Encoder {
 
   /// Encode a full image using Robot 72 Color mode.
   Float64List encodeRobot72(Int32List pixels, int width, int height) {
+    final native = _nativeSamples(pixels, width, height, 12);
+    if (native != null) return native;
     const visCode = 12;
     const double syncPulseSeconds = 0.009;
     const double syncPorchSeconds = 0.003;
@@ -235,6 +345,13 @@ class Encoder {
     int height,
     String variant,
   ) {
+    final native = _nativeSamples(
+      pixels,
+      width,
+      height,
+      variant == '1' ? 44 : 40,
+    );
+    if (native != null) return native;
     int visCode;
     double channelSeconds;
     if (variant == '1') {
@@ -286,6 +403,13 @@ class Encoder {
     int height,
     String variant,
   ) {
+    final native = _nativeSamples(
+      pixels,
+      width,
+      height,
+      variant == '1' ? 60 : (variant == '2' ? 56 : 76),
+    );
+    if (native != null) return native;
     int visCode;
     double channelSeconds;
     if (variant == '1') {
@@ -336,6 +460,8 @@ class Encoder {
 
   /// Encode a full image using Wraase SC2-180 mode.
   Float64List encodeWraaseSc2180(Int32List pixels, int width, int height) {
+    final native = _nativeSamples(pixels, width, height, 55);
+    if (native != null) return native;
     const visCode = 55;
     const double syncPulseSeconds = 0.0055225;
     const double syncPorchSeconds = 0.0005;
@@ -430,6 +556,9 @@ class Encoder {
         throw ArgumentError('Unknown PD variant: $variant');
     }
 
+    final native = _nativeSamples(pixels, width, height, visCode);
+    if (native != null) return native;
+
     const double syncPulseSeconds = 0.02;
     const double syncPorchSeconds = 0.00208;
 
@@ -474,6 +603,8 @@ class Encoder {
   /// Encode a grayscale image using HF Fax mode (IOC 576, 120 LPM).
   /// Pixels should be ARGB packed ints.
   Float64List encodeHFFax(Int32List pixels, int width, int height) {
+    final native = _nativeSamples(pixels, width, height, -1);
+    if (native != null) return native;
     const horizontalPixels = 640;
     const totalLines = 1200;
     const double scanLineSeconds = 0.5; // 120 LPM = 0.5s per line

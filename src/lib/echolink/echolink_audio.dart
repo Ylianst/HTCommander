@@ -17,7 +17,7 @@ limitations under the License.
 //
 // echolink_audio.dart - EchoLink audio path: PCM <-> GSM voice packets.
 //
-// Combines the pure-Dart GSM 06.10 codec with the EchoLink voice-packet
+// Combines the native (or fallback Dart) GSM 06.10 codec with the voice-packet
 // framing. One packet carries 640 samples (80 ms) of 8 kHz, 16-bit mono audio
 // as four GSM frames.
 //
@@ -25,12 +25,15 @@ limitations under the License.
 import 'dart:typed_data';
 
 import '../gsm/gsm_codec.dart';
+import '../gsm/native_gsm.dart';
 import 'rtp_voice_packet.dart';
 
 /// Encodes 8 kHz mono PCM into EchoLink GSM voice packets. One instance holds a
 /// single continuous stream (GSM filter memory + RTP sequence number).
 class EchoLinkAudioEncoder {
-  final GsmEncoder _gsm = GsmEncoder();
+  NativeGsmEncoder? _native;
+  GsmEncoder? _gsm;
+  bool _disposed = false;
   int _seq;
   int ssrc;
 
@@ -45,34 +48,62 @@ class EchoLinkAudioEncoder {
 
   /// Clears the codec state and resets the sequence counter.
   void reset({int initialSeq = 0}) {
-    _gsm.reset();
+    _checkAlive();
+    _native?.reset();
+    _gsm?.reset();
     _seq = initialSeq & 0xFFFF;
+  }
+
+  void _checkAlive() {
+    if (_disposed) throw StateError('EchoLink audio encoder is disposed');
+  }
+
+  /// Releases native storage. Unreachable instances also have a native finalizer.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _native?.dispose();
   }
 
   /// Encodes exactly [samplesPerPacket] (640) samples into a ready-to-send
   /// datagram (12-byte header + 132 GSM bytes = 144 bytes).
   Uint8List encodePacket(Int16List pcm, {int pcmOff = 0}) {
+    _checkAlive();
     if (pcm.length - pcmOff < samplesPerPacket) {
       throw ArgumentError('encodePacket needs $samplesPerPacket samples');
     }
-    final Int16List frame = (pcmOff == 0 && pcm.length == samplesPerPacket)
-        ? pcm
-        : Int16List.sublistView(pcm, pcmOff, pcmOff + samplesPerPacket);
-
-    final Uint8List payload = _gsm.encode(frame);
-    final RtpVoicePacket pkt = RtpVoicePacket(
-      pt: RtpVoicePacket.ptGsm,
-      seqNum: _seq,
-      ssrc: ssrc,
-      payload: payload,
+    RangeError.checkNotNegative(pcmOff, 'pcmOff');
+    if (_native == null && _gsm == null) {
+      _native = createNativeGsmEncoder();
+      if (_native == null) {
+        _gsm = GsmEncoder();
+      }
+    }
+    final out = Uint8List(
+      RtpVoicePacket.headerSize + RtpVoicePacket.gsmPayloadBytes,
     );
+    if (_native case final native?) {
+      native.encode(pcm, pcmOff, out, RtpVoicePacket.headerSize);
+    } else {
+      final gsm = _gsm!;
+      for (int f = 0; f < RtpVoicePacket.gsmFrameCount; f++) {
+        gsm.encodeFrame(
+          pcm,
+          pcmOff: pcmOff + f * gsm.frameSamples,
+          out: out,
+          outOff: RtpVoicePacket.headerSize + f * gsm.frameSize,
+        );
+      }
+    }
+    RtpVoicePacket.writeHeader(out, seqNum: _seq, ssrc: ssrc);
     _seq = (_seq + 1) & 0xFFFF;
-    return pkt.toBytes();
+    return out;
   }
 
   /// Encodes an integer number of 640-sample blocks, returning one datagram per
   /// block. `pcm.length` must be a multiple of [samplesPerPacket].
   List<Uint8List> encode(Int16List pcm) {
+    _checkAlive();
     if (pcm.length % samplesPerPacket != 0) {
       throw ArgumentError('pcm length must be a multiple of $samplesPerPacket');
     }
@@ -87,17 +118,35 @@ class EchoLinkAudioEncoder {
 
 /// Decodes received EchoLink GSM voice packets back into 8 kHz mono PCM.
 class EchoLinkAudioDecoder {
-  final GsmDecoder _gsm = GsmDecoder();
+  NativeGsmDecoder? _native;
+  GsmDecoder? _gsm;
+  bool _disposed = false;
 
   /// Samples produced per packet (640).
   static const int samplesPerPacket = RtpVoicePacket.gsmSamplesPerPacket;
 
   /// Clears the codec state to start a new stream.
-  void reset() => _gsm.reset();
+  void reset() {
+    _checkAlive();
+    _native?.reset();
+    _gsm?.reset();
+  }
+
+  void _checkAlive() {
+    if (_disposed) throw StateError('EchoLink audio decoder is disposed');
+  }
+
+  /// Releases native storage. Unreachable instances also have a native finalizer.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _native?.dispose();
+  }
 
   /// Decodes a received datagram into 640 samples. Returns null if the packet
   /// is not a GSM audio packet or is too short to contain four GSM frames.
   Int16List? decodePacket(Uint8List datagram, [int offset = 0]) {
+    _checkAlive();
     final RtpVoicePacket? pkt = RtpVoicePacket.parse(datagram, offset);
     if (pkt == null || !pkt.isAudio || !pkt.isGsm) return null;
     if (pkt.payload.length < RtpVoicePacket.gsmPayloadBytes) return null;
@@ -105,6 +154,12 @@ class EchoLinkAudioDecoder {
     final Uint8List gsmBytes = pkt.payload.length == RtpVoicePacket.gsmPayloadBytes
         ? pkt.payload
         : Uint8List.sublistView(pkt.payload, 0, RtpVoicePacket.gsmPayloadBytes);
-    return _gsm.decode(gsmBytes);
+    if (_native == null && _gsm == null) {
+      _native = createNativeGsmDecoder();
+      if (_native == null) {
+        _gsm = GsmDecoder();
+      }
+    }
+    return _native?.decode(gsmBytes) ?? _gsm!.decode(gsmBytes);
   }
 }

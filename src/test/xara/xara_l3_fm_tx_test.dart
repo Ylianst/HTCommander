@@ -395,6 +395,25 @@ void main() {
       }
     });
 
+    test('phasor values are shared across keys without changing their phases', () {
+      final Map<int, Cx> values = <int, Cx>{};
+      for (final int? key in <int?>[null, 123, -57]) {
+        final Phasors p = phasors(key);
+        final List<Uint8List> indices = phaseIndices(key);
+        for (int b = 0; b < fmBins; b++) {
+          for (int row = 0; row < phasorRows; row++) {
+            final int d = indices[b][row];
+            final Cx value = p[b][row];
+            final Cx shared = values.putIfAbsent(d, () => value);
+            if (!identical(value, shared) || value != Cx.polar(1.0, math.pi * d / 15.0)) {
+              fail('Incorrect or unshared phasor at key $key, bin $b, row $row');
+            }
+          }
+        }
+      }
+      expect(values.length, 33);
+    });
+
     test('pre-signal, phasor cache and toI16 saturation', () {
       final Modulator m = Modulator(FmBandwidth.narrow);
       final Float64List a = m.transmission(FmRecord.connect, 0, [List<int>.filled(39, 0)], 0,

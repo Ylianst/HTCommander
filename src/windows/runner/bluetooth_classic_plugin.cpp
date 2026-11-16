@@ -39,6 +39,7 @@
 #include <thread>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 // Flutter Desktop C++ wrapper.
 #include <flutter/binary_messenger.h>
@@ -51,6 +52,8 @@
 #include <flutter/standard_method_codec.h>
 
 #include "bluetooth_classic_plugin.h"
+#include "native_pcm_output.h"
+#include "radio_audio_playback.h"
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -151,6 +154,7 @@ struct RfcommConn {
   std::condition_variable audio_wake;
   std::shared_ptr<PreparedAudioJob> audio_job;
   std::thread         audio_thread;
+  std::shared_ptr<RadioAudioPlayback> playback;
 
   RfcommConn() = default;
   ~RfcommConn() {
@@ -199,6 +203,8 @@ void StartAudioWriter(const std::shared_ptr<RfcommConn>& conn) {
         if (!conn->running.load()) {
           throw std::runtime_error("Bluetooth audio connection closed");
         }
+        if (conn->playback && bytes.size() > 1 && bytes[0] == 0x7e &&
+            bytes[1] == 0) conn->playback->SetTransmitting(true);
         conn->writer.WriteBytes(bytes);
         auto operation = conn->writer.StoreAsync();
         if (operation.wait_for(std::chrono::seconds(5)) ==
@@ -211,6 +217,8 @@ void StartAudioWriter(const std::shared_ptr<RfcommConn>& conn) {
           conn->socket.Close();
           throw std::runtime_error("Incomplete Bluetooth audio write");
         }
+        if (conn->playback && bytes.size() > 1 && bytes[0] == 0x7e &&
+            bytes[1] == 1) conn->playback->SetTransmitting(false);
       };
       try {
         size_t offset = 0;
@@ -265,6 +273,7 @@ void StartAudioWriter(const std::shared_ptr<RfcommConn>& conn) {
         error = "Bluetooth audio connection closed";
       }
       if (!error.empty()) {
+        if (conn->playback) conn->playback->SetTransmitting(false);
         try { conn->socket.Close(); } catch (...) {}
       }
       write_lock.unlock();
@@ -318,15 +327,7 @@ class BtStreamHandler
       hwnd = message_hwnd_;
     }
 
-    if (hwnd) {
-      // Marshal the drain onto the platform thread via its message loop.
-      ::PostMessageW(hwnd, kDrainMessage, 0, 0);
-    } else {
-      // No marshaling window yet; deliver inline (we are on the platform
-      // thread during OnListen, which is the only time this happens).
-      std::lock_guard<std::mutex> lock(mutex_);
-      DrainQueue();
-    }
+    if (hwnd) ::PostMessageW(hwnd, kDrainMessage, 0, 0);
   }
 
  protected:
@@ -335,13 +336,17 @@ class BtStreamHandler
       const flutter::EncodableValue*,
       std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&&
           events) override {
-    std::lock_guard<std::mutex> lock(mutex_);
-    sink_ = std::move(events);
-
     // OnListen runs on the platform thread, so create the marshaling window
     // here to give it platform-thread affinity.
     EnsureMessageWindow();
-
+    if (!message_hwnd_) {
+      return std::make_unique<flutter::StreamHandlerError<flutter::EncodableValue>>(
+          "EVENT_WINDOW_FAILED", "Could not create Bluetooth event window", nullptr);
+    }
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      sink_ = std::move(events);
+    }
     // Drain any events that accumulated before the listener was attached.
     DrainQueue();
     return nullptr;
@@ -364,10 +369,16 @@ class BtStreamHandler
   HWND message_hwnd_ = nullptr;
 
   void DrainQueue() {
-    // Must be called under mutex_ lock and on the platform thread.
-    if (!sink_ || pending_events_.empty()) return;
-    auto events = std::move(pending_events_);
+    // Platform-thread-only sink access; never block the Bluetooth reader while
+    // delivering a backlog to Flutter.
+    std::vector<flutter::EncodableValue> events;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (!sink_) return;
+      events.swap(pending_events_);
+    }
     for (const auto& ev : events) {
+      if (!sink_) break;
       try {
         sink_->Success(ev);
       } catch (...) {
@@ -414,7 +425,6 @@ class BtStreamHandler
       auto* self = reinterpret_cast<BtStreamHandler*>(
           ::GetWindowLongPtrW(hwnd, GWLP_USERDATA));
       if (self) {
-        std::lock_guard<std::mutex> lock(self->mutex_);
         self->DrainQueue();
       }
       return 0;
@@ -446,12 +456,15 @@ struct BluetoothClassicPlugin::Impl {
   std::mutex conn_mutex;
   std::map<std::string, std::shared_ptr<RfcommConn>> connections;
   std::map<std::string, std::shared_ptr<RfcommConn>> audio_connections;
+  std::map<std::string, std::shared_ptr<RadioAudioPlayback>> playback_states;
+  std::shared_ptr<NativePcmOutput> output;
 
   // Set to true during destruction to suppress further event dispatches.
   std::atomic<bool> shutdown{false};
 
   // -------------------------------------------------------------------------
-  explicit Impl(flutter::BinaryMessenger* messenger);
+  Impl(flutter::BinaryMessenger* messenger,
+       std::shared_ptr<NativePcmOutput> pcm_output);
   ~Impl();
 
   void HandleMethodCall(
@@ -522,7 +535,8 @@ struct BluetoothClassicPlugin::Impl {
 // ---------------------------------------------------------------------------
 // Impl constructor / destructor
 // ---------------------------------------------------------------------------
-BluetoothClassicPlugin::Impl::Impl(flutter::BinaryMessenger* messenger) {
+BluetoothClassicPlugin::Impl::Impl(flutter::BinaryMessenger* messenger,
+    std::shared_ptr<NativePcmOutput> pcm_output) : output(std::move(pcm_output)) {
   using EV = flutter::EncodableValue;
 
   // Method channel.
@@ -560,18 +574,21 @@ BluetoothClassicPlugin::Impl::Impl(flutter::BinaryMessenger* messenger) {
 BluetoothClassicPlugin::Impl::~Impl() {
   shutdown.store(true);
   std::vector<std::shared_ptr<RfcommConn>> closing_audio;
+  std::vector<std::shared_ptr<RfcommConn>> closing_readers;
   // Close all sockets — this unblocks any pending LoadAsync in the read loops.
   {
     std::lock_guard<std::mutex> lock(conn_mutex);
     for (auto& [addr, conn] : connections) {
       conn->running.store(false);
       try { conn->socket.Close(); } catch (...) {}
+      closing_readers.push_back(conn);
     }
     for (auto& [addr, conn] : audio_connections) {
       conn->running.store(false);
       conn->audio_wake.notify_all();
       try { conn->socket.Close(); } catch (...) {}
       closing_audio.push_back(conn);
+      closing_readers.push_back(conn);
     }
     connections.clear();
     audio_connections.clear();
@@ -580,9 +597,9 @@ BluetoothClassicPlugin::Impl::~Impl() {
   for (const auto& conn : closing_audio) {
     if (conn->audio_thread.joinable()) conn->audio_thread.join();
   }
-  // Brief pause so read-loop threads can finish and stop referencing our
-  // members before the event-channel destructors run.
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  for (const auto& conn : closing_readers) {
+    if (conn->read_thread.joinable()) conn->read_thread.join();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -644,6 +661,75 @@ void BluetoothClassicPlugin::Impl::HandleMethodCall(
     DoSendAudio(std::get<std::string>(*addr),
                 std::get<std::vector<uint8_t>>(*data),
                 std::move(result));
+  } else if (method == "configureNativeAudioPlayback" ||
+             method == "getNativeAudioPlaybackStats") {
+    auto* addr = GetArg("address");
+    if (!addr || !std::holds_alternative<std::string>(*addr)) {
+      result->Error("INVALID_ARGS", "Missing audio address");
+      return;
+    }
+    const auto& address = std::get<std::string>(*addr);
+    std::lock_guard<std::mutex> lock(conn_mutex);
+    auto it = playback_states.find(address);
+    if (method == "getNativeAudioPlaybackStats") {
+      if (it == playback_states.end()) {
+        result->Error("NOT_CONFIGURED", "Native playback is not configured");
+        return;
+      }
+      const auto stats = it->second->stats();
+      flutter::EncodableMap values;
+      values[flutter::EncodableValue("packets")] = flutter::EncodableValue(stats.packets);
+      values[flutter::EncodableValue("decodedSamples")] = flutter::EncodableValue(stats.decoded_samples);
+      values[flutter::EncodableValue("queuedSamples")] = flutter::EncodableValue(stats.queued_samples);
+      values[flutter::EncodableValue("droppedSamples")] = flutter::EncodableValue(stats.dropped_samples);
+      values[flutter::EncodableValue("decodeErrors")] = flutter::EncodableValue(stats.decode_errors);
+      values[flutter::EncodableValue("lastError")] = flutter::EncodableValue(stats.last_error);
+      values[flutter::EncodableValue("bufferedFrames")] = flutter::EncodableValue(output->buffered_frames());
+      values[flutter::EncodableValue("outputUnderruns")] = flutter::EncodableValue(
+          static_cast<int64_t>(output->underrun_count()));
+      values[flutter::EncodableValue("outputOverflows")] = flutter::EncodableValue(
+          static_cast<int64_t>(output->overflow_count()));
+      values[flutter::EncodableValue("outputErrors")] = flutter::EncodableValue(
+          static_cast<int64_t>(output->error_count()));
+      result->Success(flutter::EncodableValue(values));
+      return;
+    }
+    RadioAudioPlayback::Controls controls;
+    auto boolean = [&](const char* key, bool& value) {
+      const auto* arg = GetArg(key);
+      if (!arg || !std::holds_alternative<bool>(*arg)) return false;
+      value = std::get<bool>(*arg);
+      return true;
+    };
+    const auto* volume = GetArg("volume");
+    if (!boolean("enabled", controls.enabled) ||
+        !boolean("audible", controls.audible) ||
+        !boolean("muted", controls.muted) ||
+        !volume || !std::holds_alternative<double>(*volume) ||
+        !std::isfinite(std::get<double>(*volume)) ||
+        std::get<double>(*volume) < 0) {
+      result->Error("INVALID_ARGS", "Invalid native playback controls");
+      return;
+    }
+    controls.volume = std::get<double>(*volume);
+    try {
+      if (it == playback_states.end()) {
+        auto sink = output;
+        auto state = std::make_shared<RadioAudioPlayback>(
+            [sink](const int16_t* pcm, size_t count) {
+              return sink->FeedRadio(pcm, count);
+            },
+            [](const std::string& error) {
+              OutputDebugStringA(("[NativeRadioPlayback] " + error + "\n").c_str());
+            });
+        it = playback_states.emplace(address, std::move(state)).first;
+      }
+      it->second->Configure(controls);
+    } catch (const std::exception& error) {
+      result->Error("NATIVE_PLAYBACK_FAILED", error.what());
+      return;
+    }
+    result->Success(flutter::EncodableValue(true));
   } else if (method == "sendPreparedAudio" ||
              method == "cancelPreparedAudio") {
     auto* addr = GetArg("address");
@@ -913,6 +999,9 @@ void BluetoothClassicPlugin::Impl::ReadLoop(
       std::vector<uint8_t> buf(available);
       conn->reader.ReadBytes(buf);
 
+      if (is_audio && conn->playback) {
+        conn->playback->Receive(buf.data(), buf.size());
+      }
       SendEvent(is_audio, "data", conn->address, &buf);
     } catch (...) {
       break;  // Socket closed or error.
@@ -1146,6 +1235,10 @@ void BluetoothClassicPlugin::Impl::DoConnectAudio(
       StartAudioWriter(conn);
       {
         std::lock_guard<std::mutex> lock(self->conn_mutex);
+        const auto playback = self->playback_states.find(address);
+        if (playback != self->playback_states.end()) {
+          conn->playback = playback->second;
+        }
         self->audio_connections[address] = conn;
       }
 
@@ -1178,7 +1271,7 @@ void BluetoothClassicPlugin::Impl::DoDisconnectAudio(
     conn->running.store(false);
     conn->audio_wake.notify_all();
     try { conn->socket.Close(); } catch (...) {}
-    if (conn->read_thread.joinable()) conn->read_thread.detach();
+    if (conn->read_thread.joinable()) conn->read_thread.join();
     SendEvent(true, "disconnected", address);
   }
   result->Success(flutter::EncodableValue(true));
@@ -1221,10 +1314,15 @@ void BluetoothClassicPlugin::Impl::DoSendAudio(
           return;
         }
       }
+      if (conn->playback && data.size() > 1 && data[0] == 0x7e &&
+          data[1] == 0) conn->playback->SetTransmitting(true);
       conn->writer.WriteBytes(data);
       conn->writer.StoreAsync().get();
+      if (conn->playback && data.size() > 1 && data[0] == 0x7e &&
+          data[1] == 1) conn->playback->SetTransmitting(false);
       res->Success(flutter::EncodableValue(true));
     } catch (...) {
+      if (conn->playback) conn->playback->SetTransmitting(false);
       res->Success(flutter::EncodableValue(false));
     }
     winrt::uninit_apartment();
@@ -1334,7 +1432,7 @@ void BluetoothClassicPlugin::Impl::DoBleUnpair(
 // BluetoothClassicPlugin outer class — just delegates to Impl
 // ---------------------------------------------------------------------------
 BluetoothClassicPlugin::BluetoothClassicPlugin(
-    flutter::BinaryMessenger* messenger)
-    : impl_(std::make_unique<Impl>(messenger)) {}
+    flutter::BinaryMessenger* messenger, std::shared_ptr<NativePcmOutput> output)
+    : impl_(std::make_unique<Impl>(messenger, std::move(output))) {}
 
 BluetoothClassicPlugin::~BluetoothClassicPlugin() = default;

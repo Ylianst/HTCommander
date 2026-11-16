@@ -4,11 +4,14 @@ Efficient in-place iterative radix-2 Cooley-Tukey FFT.
 Ported to Dart for the spectrogram widget (equivalent of FftSharp.FFT.Forward
 used by the C# Spectrogram component). Operates on flat Float64List real/imag
 buffers with precomputed twiddle factors and a bit-reversal table so no objects
-are allocated per transform.
+are allocated per transform. Uses the shared native SIMD kernel on supported
+platforms, retaining the Dart implementation for web/iOS and reference tests.
 */
 
 import 'dart:math' as math;
 import 'dart:typed_data';
+
+import '../../hamlib/xara/native_dsp.dart';
 
 /// A reusable forward FFT for a fixed power-of-two [size].
 ///
@@ -21,8 +24,9 @@ class SpectrogramFft {
   final Int32List _bitReverse;
   final Float64List _cosTable;
   final Float64List _sinTable;
+  NativeXaraFft? _native;
 
-  SpectrogramFft(this.size)
+  SpectrogramFft(this.size, {bool useNative = true})
     : _bitReverse = Int32List(size),
       _cosTable = Float64List(size ~/ 2),
       _sinTable = Float64List(size ~/ 2) {
@@ -42,11 +46,24 @@ class SpectrogramFft {
       _cosTable[i] = math.cos(angle);
       _sinTable[i] = math.sin(angle);
     }
+    if (useNative) {
+      // The shared native kernel takes positive sine coefficients.
+      final sine = Float64List(half);
+      for (int i = 0; i < half; i++) {
+        sine[i] = -_sinTable[i];
+      }
+      _native = createNativeFft(_cosTable, sine, _bitReverse);
+    }
   }
 
   /// Perform an in-place forward FFT. [re] and [im] must both have length
   /// [size]; on return they hold the transform's real and imaginary parts.
   void forward(Float64List re, Float64List im) {
+    final native = _native;
+    if (native != null) {
+      native.transform(re, im, false);
+      return;
+    }
     final n = size;
 
     // Bit-reversal permutation.

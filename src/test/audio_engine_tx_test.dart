@@ -171,6 +171,7 @@ void main() {
           final engine = AudioEngine(
             (event) {
               if (event['evt'] == 'play') {
+                expect(event['received'], isFalse);
                 played.add(
                   (event['pcm']! as TransferableTypedData)
                       .materialize()
@@ -594,6 +595,31 @@ void main() {
         return rx;
       }).toList();
     }
+
+    test(
+      'RX speaker events are tagged without suppressing data consumers',
+      () async {
+        final events = <Map<String, Object?>>[];
+        final engine = AudioEngine(events.add);
+        addTearDown(
+          () => engine.handleCommand(<String, Object?>{'cmd': 'shutdown'}),
+        );
+        final packets = await rxPackets(3);
+        for (final packet in packets) {
+          await engine.handleCommand(<String, Object?>{
+            'cmd': 'rx',
+            'bytes': packet,
+          });
+        }
+        final playback = events.where((event) => event['evt'] == 'play');
+        expect(playback, hasLength(3));
+        expect(playback.every((event) => event['received'] == true), isTrue);
+        expect(
+          events.where((event) => event['evt'] == 'audioData'),
+          hasLength(3),
+        );
+      },
+    );
 
     Future<List<String>> run(
       List<Uint8List> packets,

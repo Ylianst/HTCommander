@@ -3,7 +3,8 @@ Copyright 2026 Ylian Saint-Hilaire
 Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 
-Runs the pure-Dart XARA FM modem (VARA FM compatible) in a background isolate.
+Runs the XARA FM modem (VARA FM compatible) in a background isolate, with native
+DSP kernels on supported platforms and Dart session/radio control.
 The isolate owns an FmStation behind an XaraDriver, advances it on a 10 ms wall
 clock, and exchanges 32 kHz PCM16 audio, commands and events with the host.
 */

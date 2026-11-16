@@ -12,6 +12,11 @@ import 'package:htcommander/radiosonde/dfm_decoder.dart';
 import 'package:htcommander/radiosonde/dfm_demodulator.dart';
 import 'package:htcommander/radiosonde/radiosonde_fix.dart';
 import 'package:htcommander/radiosonde/radiosonde_monitor.dart';
+import 'package:htcommander/radiosonde/native_telemetry.dart';
+import 'package:htcommander/radiosonde/rs41_demodulator.dart';
+import 'package:htcommander/radiosonde/m10_demodulator.dart';
+import 'package:htcommander/radiosonde/imet_demodulator.dart';
+import 'package:htcommander/radiosonde/lms6_demodulator.dart';
 
 /// Reads a mono 16-bit PCM WAV, returning its samples and sample rate.
 (Int16List, int) _readWav(String path) {
@@ -44,13 +49,120 @@ const String _fixture = 'test/radiosonde_samples/DFM09.wav';
 const String _fixture32k = 'test/radiosonde_samples/DFM09_32k.wav';
 
 void main() {
+  test('shared upload matches all formats across recording reuse', () {
+    final recording = createNativeTelemetryRecording();
+    if (recording == null) return;
+    final (pcm, rate) = _readWav(_fixture32k);
+    try {
+      expect(() => recording.sarsat(1400), throwsStateError);
+      for (final count in [rate * 2, rate * 4 + 1, rate * 2, rate * 2]) {
+        final input = Int16List.fromList(pcm.sublist(123, 123 + count));
+        final dfm = DfmDemodulator(rate);
+        final expected = dfm.demodulate(input);
+        expect(expected, isNotEmpty);
+        recording.upload(input, rate);
+        expect(dfm.demodulate(input, recording: recording), expected);
+        expect(
+          Rs41Demodulator(rate).demodulate(input, recording: recording),
+          Rs41Demodulator(rate).demodulate(input),
+        );
+        for (final demod in [
+          M10Demodulator(rate),
+          M10Demodulator(
+            rate,
+            chipRate: 9600,
+            frameBytes: 70,
+            sync0: 0x45,
+            sync1: 0x20,
+          ),
+        ]) {
+          expect(
+            demod.demodulate(input, recording: recording),
+            demod.demodulate(input),
+          );
+        }
+        expect(
+          ImetDemodulator(rate).demodulate(input, recording: recording),
+          ImetDemodulator(rate).demodulate(input),
+        );
+        expect(
+          Lms6Demodulator(rate).demodulate(input, recording: recording),
+          Lms6Demodulator(rate).demodulate(input),
+        );
+        input.fillRange(0, input.length, 0);
+        expect(
+          dfm.demodulate(input, recording: recording),
+          expected,
+          reason: 'uploaded recording owns its input',
+        );
+        recording.upload(input, rate);
+        expect(
+          dfm.demodulate(input, recording: recording),
+          isEmpty,
+          reason: 'same-size upload invalidates cached prefix sums',
+        );
+        expect(
+          expected,
+          isNotEmpty,
+          reason: 'results survive subsequent calls',
+        );
+      }
+      recording.upload(Int16List(0), rate);
+      expect(recording.sarsat(1400), isEmpty);
+      expect(() => recording.upload(Int16List(1), 0), throwsRangeError);
+    } finally {
+      recording.dispose();
+      recording.dispose();
+    }
+    expect(() => recording.upload(pcm, rate), throwsStateError);
+    expect(() => recording.sarsat(1400), throwsStateError);
+  });
+
+  test('native DFM matches every Dart frame in both real recordings', () {
+    for (final fixture in [_fixture, _fixture32k]) {
+      final (pcm, rate) = _readWav(fixture);
+      final reference = DfmDemodulator(rate, useNative: false).demodulate(pcm);
+      expect(reference, isNotEmpty);
+      expect(DfmDemodulator(rate).demodulate(pcm), reference);
+    }
+  });
+
+  test(
+    'vectorized peak search matches Dart at cropped edges and all tails',
+    () {
+      final (pcm, rate) = _readWav(_fixture32k);
+      for (final start in [0, 123, rate + 37]) {
+        for (int tail = 0; tail < 4; tail++) {
+          final window = Int16List.sublistView(
+            pcm,
+            start,
+            start + rate * 2 + tail,
+          );
+          final reference = DfmDemodulator(
+            rate,
+            useNative: false,
+          ).demodulate(window);
+          expect(reference, isNotEmpty);
+          expect(
+            DfmDemodulator(rate).demodulate(window),
+            reference,
+            reason: 'start $start, tail $tail',
+          );
+        }
+      }
+    },
+  );
+
   test('decodes the Graw DFM-09 recording (demod + frame parse)', () {
     final (pcm, fs) = _readWav(_fixture);
     expect(fs, 48000);
 
     final frames = DfmDemodulator(fs).demodulate(pcm);
-    expect(frames.length, greaterThan(50),
-        reason: 'expected many header-valid frames');
+    expect(
+      frames.length,
+      greaterThan(50),
+      reason: 'expected many header-valid frames',
+    );
 
     final decoder = DfmDecoder();
     final fixes = <DfmFrame>[];
@@ -69,10 +181,14 @@ void main() {
     expect(f.dateTimeUtc.year, 2017);
 
     // The sonde serial and type resolve from the config packets.
-    final identified =
-        fixes.where((x) => x.dfmType == 'DFM09' && x.sondeId.contains('523135'));
-    expect(identified, isNotEmpty,
-        reason: 'expected the DFM-09 serial 523135 to resolve');
+    final identified = fixes.where(
+      (x) => x.dfmType == 'DFM09' && x.sondeId.contains('523135'),
+    );
+    expect(
+      identified,
+      isNotEmpty,
+      reason: 'expected the DFM-09 serial 523135 to resolve',
+    );
   });
 
   test('streaming monitor decodes chunked PCM and emits a fix', () async {
@@ -85,15 +201,17 @@ void main() {
     final bytes = pcm.buffer.asUint8List(pcm.offsetInBytes, pcm.lengthInBytes);
     const chunk = 4096;
     for (int off = 0; off < bytes.length; off += chunk) {
-      final len =
-          (off + chunk <= bytes.length) ? chunk : bytes.length - off;
+      final len = (off + chunk <= bytes.length) ? chunk : bytes.length - off;
       monitor.processPcm16(bytes, off, len);
     }
     monitor.flush();
     await Future<void>.delayed(const Duration(milliseconds: 50));
 
     expect(got, isNotEmpty, reason: 'monitor should emit at least one fix');
-    expect(got.any((x) => x.latitude.abs() > 1 && x.longitude.abs() > 1), isTrue);
+    expect(
+      got.any((x) => x.latitude.abs() > 1 && x.longitude.abs() > 1),
+      isTrue,
+    );
 
     await sub.cancel();
     monitor.dispose();
@@ -109,8 +227,11 @@ void main() {
       final r = decoder.decodeFrame(bits);
       if (r != null) fixes.add(r);
     }
-    expect(fixes, isNotEmpty,
-        reason: 'must decode at the 32 kHz live pipeline rate');
+    expect(
+      fixes,
+      isNotEmpty,
+      reason: 'must decode at the 32 kHz live pipeline rate',
+    );
     expect(
       fixes.any((x) => x.dfmType == 'DFM09' && x.sondeId.contains('523135')),
       isTrue,
@@ -118,7 +239,10 @@ void main() {
   });
 
   test('rejects noise (no false fixes)', () {
-    final rnd = List<int>.generate(48000 * 3, (i) => ((i * 1103515245 + 12345) % 65536) - 32768);
+    final rnd = List<int>.generate(
+      48000 * 3,
+      (i) => ((i * 1103515245 + 12345) % 65536) - 32768,
+    );
     final noise = Int16List.fromList(rnd);
     final frames = DfmDemodulator(48000).demodulate(noise);
     final decoder = DfmDecoder();

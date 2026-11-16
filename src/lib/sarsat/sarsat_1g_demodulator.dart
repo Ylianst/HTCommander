@@ -20,6 +20,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'sarsat_1g_decoder.dart';
+import '../radiosonde/native_telemetry.dart';
 
 class Sarsat1gDemodulator {
   final int sampleRate;
@@ -28,7 +29,13 @@ class Sarsat1gDemodulator {
   /// around this for the true residual carrier.
   final double nominalCarrierHz;
 
-  Sarsat1gDemodulator(this.sampleRate, {this.nominalCarrierHz = 1400});
+  Sarsat1gDemodulator(
+    this.sampleRate, {
+    this.nominalCarrierHz = 1400,
+    this.useNative = true,
+  });
+
+  final bool useNative;
 
   static const int _symbolRate = 400;
   static const String _bitSync = '111111111111111';
@@ -37,9 +44,28 @@ class Sarsat1gDemodulator {
   /// Demodulates [pcm] and returns every distinct BCH-valid frame found. Tries
   /// both a coherent (phase-tone) path and an FM-demod (autocorrelation) path,
   /// so SSB/discriminator recordings and FM-receiver audio both decode.
-  List<Sarsat1gFrame> decode(Int16List pcm) {
+  List<Sarsat1gFrame> decode(
+    Int16List pcm, {
+    NativeTelemetryRecording? recording,
+  }) {
     if (pcm.length < sampleRate ~/ 4) return const [];
     final results = <String, Sarsat1gFrame>{};
+    if (useNative && nativeTelemetrySupported) {
+      for (final bits in nativeSarsatDemodulate(
+        pcm,
+        sampleRate,
+        nominalCarrierHz,
+        recording: recording,
+      )) {
+        final frame = Sarsat1gDecoder.decode(bits);
+        if (frame != null &&
+            frame.crc1Ok &&
+            (frame.length == 112 || frame.crc2Ok)) {
+          results[frame.bits.join()] = frame;
+        }
+      }
+      return results.values.toList();
+    }
     for (final f in _decodeCoherent(pcm)) {
       results[f.bits.join()] = f;
     }
@@ -176,7 +202,11 @@ class Sarsat1gDemodulator {
   // 1-bit-delay autocorrelation (Y1), then reconstructs the frame from
   // transition timing. Returns the frame bits (as '0'/'1') and where scanning
   // stopped so the caller can resume.
-  ({String? bits, int nextPos}) _captureTrame(Int16List pcm, int start, int nb) {
+  ({String? bits, int nextPos}) _captureTrame(
+    Int16List pcm,
+    int start,
+    int nb,
+  ) {
     final twoNb = 2 * nb;
     final y = Float64List(twoNb);
     const coeff = 100.0;
@@ -275,7 +305,11 @@ class Sarsat1gDemodulator {
     final n = x.length;
     double bestF = nominalCarrierHz;
     double bestMag = -1;
-    for (double f = nominalCarrierHz - 250; f <= nominalCarrierHz + 250; f += 1.0) {
+    for (
+      double f = nominalCarrierHz - 250;
+      f <= nominalCarrierHz + 250;
+      f += 1.0
+    ) {
       final w = 2 * math.pi * f / sampleRate;
       double si = 0, sq = 0;
       for (int i = 0; i < n; i++) {
