@@ -16,12 +16,19 @@ limitations under the License.
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:htcommander/aprs/aprs_events.dart';
 import 'package:htcommander/aprs/aprs_packet.dart';
 import 'package:htcommander/aprsis/aprsfi_client.dart';
 import 'package:htcommander/aprsis/aprsis_client.dart';
+import 'package:htcommander/aprsis/aprsis_manager.dart';
 import 'package:htcommander/aprsis/tnc2_codec.dart';
+import 'package:htcommander/handlers/aprs_handler.dart';
+import 'package:htcommander/radio/radio.dart' show TransmitDataFrameData;
+import 'package:htcommander/services/data_broker.dart';
+import 'package:htcommander/services/data_broker_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
@@ -277,6 +284,173 @@ void main() {
       net.sent.clear();
       client.sendPacketLine('K7VZT>APRS:test');
       expect(net.sent, isEmpty);
+    });
+  });
+
+  group('outgoing APRS messages', () {
+    const radioId = 91;
+    late ServerSocket server;
+    Socket? socket;
+    StreamIterator<String>? lines;
+    late AprsIsManager manager;
+    late AprsHandler handler;
+    late DataBrokerClient bus;
+    final rf = <TransmitDataFrameData>[];
+
+    setUp(() async {
+      DataBroker.clearDevice(0);
+      DataBroker.clearDevice(1);
+      DataBroker.clearDevice(radioId);
+      rf.clear();
+      socket = null;
+      lines = null;
+      server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      bus = DataBrokerClient();
+      for (final entry in <String, Object>{
+        'CallSign': 'N0CALL',
+        'StationId': 7,
+        'NextAprsMessageId': 1,
+        'AprsIsEnabled': 1,
+        'AprsIsServer': '127.0.0.1',
+        'AprsIsPort': server.port,
+      }.entries) {
+        bus.dispatch(deviceId: 0, name: entry.key, data: entry.value);
+      }
+      bus.dispatch(deviceId: radioId, name: 'Channels', data: [
+        {'channelId': 7, 'name': 'APRS'},
+      ]);
+      bus.subscribe(
+        deviceId: radioId,
+        name: 'TransmitDataFrame',
+        callback: (_, _, data) {
+          if (data is TransmitDataFrameData) rf.add(data);
+        },
+      );
+      handler = AprsHandler()..init();
+      manager = AprsIsManager();
+    });
+
+    tearDown(() async {
+      handler.dispose();
+      await manager.dispose();
+      await lines?.cancel();
+      socket?.destroy();
+      await server.close();
+      bus.dispose();
+      DataBroker.clearDevice(0);
+      DataBroker.clearDevice(1);
+      DataBroker.clearDevice(radioId);
+    });
+
+    Future<void> connect({bool verified = true}) async {
+      final loggedIn = Completer<void>();
+      bus.subscribe(
+        deviceId: DataBroker.allDevices,
+        name: 'AprsIsVerified',
+        callback: (_, _, data) {
+          expect(data, verified);
+          if (!loggedIn.isCompleted) loggedIn.complete();
+        },
+      );
+      final accepted = server.first;
+      manager.init();
+      socket = await accepted.timeout(const Duration(seconds: 5));
+      lines = StreamIterator(
+        socket!.cast<List<int>>().transform(utf8.decoder)
+            .transform(const LineSplitter()),
+      );
+      expect(await lines!.moveNext().timeout(const Duration(seconds: 5)), isTrue);
+      expect(lines!.current, startsWith('user N0CALL-7 pass '));
+      socket!.write(
+        '# logresp N0CALL-7 ${verified ? 'verified' : 'unverified'}, test\r\n',
+      );
+      await loggedIn.future.timeout(const Duration(seconds: 5));
+    }
+
+    Future<List<String>> sentLines() async {
+      // The filter command is an ordered socket barrier, avoiding timing-based
+      // assertions that an unexpected second packet was not sent.
+      bus.dispatch(deviceId: 0, name: 'AprsIsRangeKm', data: 0);
+      final packets = <String>[];
+      while (await lines!.moveNext().timeout(const Duration(seconds: 5))) {
+        if (lines!.current == '#filter default') return packets;
+        packets.add(lines!.current);
+      }
+      fail('APRS-IS socket closed before the filter command');
+    }
+
+    void send(int deviceId) {
+      bus.dispatch(
+        deviceId: 1,
+        name: 'SendAprsMessage',
+        data: AprsSendMessageData(
+          destination: 'W1AW',
+          message: 'Hello',
+          radioDeviceId: deviceId,
+          route: const ['Local', 'APRS', 'WIDE1-1', 'WIDE2-1'],
+        ),
+        store: false,
+      );
+    }
+
+    for (final deviceId in [radioId, -1]) {
+      test('sends directly to APRS-IS ${deviceId < 0 ? 'without' : 'with'} RF',
+          () async {
+        await connect();
+        send(deviceId);
+        expect(await sentLines(),
+            ['N0CALL-7>APRS,TCPIP*::W1AW     :Hello{1']);
+        expect(rf, hasLength(deviceId < 0 ? 0 : 1));
+        if (deviceId >= 0) {
+          expect(rf.single.channelId, 7);
+          expect(
+            Tnc2Codec.encode(rf.single.packet!),
+            'N0CALL-7>APRS,WIDE1-1,WIDE2-1::W1AW     :Hello{1',
+          );
+        }
+      });
+    }
+
+    test('an unverified connection does not prevent RF transmission', () async {
+      await connect(verified: false);
+      send(radioId);
+      expect(await sentLines(), isEmpty);
+      expect(rf, hasLength(1));
+    });
+
+    test('received RF messages retain IGate routing', () async {
+      await connect();
+      final aprs = _parseTnc2('W1AW>APRS,WIDE1-1::N0CALL-7 :Hello{2');
+      bus.dispatch(
+        deviceId: 1,
+        name: 'AprsFrame',
+        data: AprsFrameEventArgs(aprs, aprs.packet!, null),
+        store: false,
+      );
+      expect(await sentLines(),
+          ['W1AW>APRS,WIDE1-1,qAR,N0CALL-7::N0CALL-7 :Hello{2']);
+      expect(rf, isEmpty);
+    });
+
+    test('relayed messages and internet echoes are not sent back', () async {
+      await connect();
+      for (final line in [
+        'N0CALL-7>APRS,WIDE1-1:}WXBOT>APRS,TCPIP,N0CALL-7*::W1AW     :Sunny{3',
+        'WXBOT>APRS,WIDE1-1::W1AW     :Sunny{3',
+        'N0CALL-7>APRS,TCPIP*::W1AW     :Hello{1',
+      ]) {
+        final aprs = _parseTnc2(line);
+        aprs.packet!.incoming = false;
+        if (line.contains('TCPIP*')) aprs.fromAprsIs = true;
+        bus.dispatch(
+          deviceId: 1,
+          name: 'AprsFrame',
+          data: AprsFrameEventArgs(aprs, aprs.packet!, null),
+          store: false,
+        );
+      }
+      expect(await sentLines(), isEmpty);
+      expect(rf, isEmpty);
     });
   });
 

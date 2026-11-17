@@ -16,23 +16,32 @@ settings. The standalone Beacon Settings dialog saves the same setting.
 This setting controls the radio's built-in beaconing. App-generated APRS
 messages and software beacons still use the channel named **APRS**.
 
+When APRS-IS is connected with a verified login, outgoing APRS messages are
+also sent directly to APRS-IS, even when a radio is used. The internet copy
+uses `TCPIP*`; the radio copy keeps the selected RF route. Without a radio,
+messages can still be sent through APRS-IS alone.
+
 In the "File" -> "Settings" -> "APRS" dialog box, you can add more APRS routes. Once you have more than one route configured, a drop-down box will show up on the upper right of the APRS tab and you can select what route you want to use when sending messages. This allows you messages to hit the digipeaters you want to get your message to the right destination.
 
 APRS telemetry messages will show up on the [map tab](https://github.com/Ylianst/HTCommander/blob/main/docs/Map.md), and you can right click on any APRS message to get extra details or to show a mini-map of the location of the station.
 
-## Live Window and Stored History
+## Message History
 
 The live tab keeps up to 1,000 RF entries and 1,000 APRS-IS entries independently.
 Evicting old entries removes only their bubbles; surviving messages keep stable
 IDs and cached content instead of being rebuilt on every new internet packet.
 This does not delete the persisted history.
 
-Use the **Stored History** clock button inside a conversation or the combined
-feed to browse the retained RF/APRS-IS archives. Choose the source in the dialog,
-then use the left arrow for older 200-entry pages or the first-page button for
-the newest stored page. The archive is separate from the selected conversation
-and shows retained traffic, including individual stored retransmissions.
-Cleared RF messages remain hidden in this browser.
+Opening a conversation or the combined feed automatically shows its latest
+500 messages, merging retained RF/APRS-IS history in chronological order.
+**Read more** appears at the top only when older messages exist for that
+specific thread (and the combined feed's current filters). Select it to load
+up to 500 more messages inline. Each thread checks its own history; traffic in
+other threads does not cause an empty **Read more** button.
+Loaded messages stay in chronological order and follow the current conversation,
+telemetry and internet-traffic filters. Retransmissions are collapsed as in the
+live feed, and cleared messages remain hidden. While browsing stored history,
+loaded messages stay available rather than being evicted by new traffic.
 
 The archive also works in detached windows and hosted web clients through the
 host. Without a database (including stand-alone web), only the bounded live

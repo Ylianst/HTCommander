@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'tab_visibility.dart';
@@ -49,7 +51,6 @@ import '../utils/channel_share.dart';
 import '../utils/callsign_input_formatter.dart';
 import '../utils/comms_export.dart';
 import '../dialogs/message_details_dialog.dart' show CommsMessageDetails;
-import '../dialogs/stored_history_dialog.dart';
 
 /// A configured APRS route (a display name plus a comma-separated path).
 class _AprsRouteDef {
@@ -69,6 +70,7 @@ class _AprsRouteDef {
 /// delivery icons when ACK/REJ packets arrive.
 class _AprsEntry {
   final int id;
+  int? storedId;
   ChatMessage? message;
   final AprsPacket aprsPacket;
   final AX25Packet packet;
@@ -197,6 +199,19 @@ class _AprsTabState extends State<AprsTab>
   bool _aprsIsEnabled = false;
   bool _historicalLoaded = false;
   bool _aprsIsHistoricalLoaded = false;
+  final String _historyClientId =
+      '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
+  int _historySerial = 0;
+  String? _historyRequestId;
+  final Map<String, List<int>?> _historyBefore = {};
+  final Set<String> _historyHasMore = {'rf', 'internet'};
+  final List<String> _historyPending = [];
+  bool _historyStarted = false;
+  static const int _historyPageSize = 500;
+  int _historyLimit = _historyPageSize;
+  bool _historyLoading = false;
+  String? _historyError;
+  Timer? _historyTimeout;
 
   // The APRS tab shows a Signal-style conversation list by default. Selecting
   // "All Messages" opens the combined APRS feed ([_viewAllMessages]); selecting
@@ -274,8 +289,15 @@ class _AprsTabState extends State<AprsTab>
       deviceId: 1,
       name: 'StoredChatHistoryAvailable',
       callback: (_, _, _) {
-        if (mounted) setState(() {});
+        if (!mounted) return;
+        setState(() {});
+        _startHistory();
       },
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'StoredChatHistoryPage',
+      callback: _onStoredHistoryPage,
     );
 
     // Load persisted settings from device 0.
@@ -359,7 +381,7 @@ class _AprsTabState extends State<AprsTab>
             );
           }
         });
-        _rebuildMessages();
+        _restartHistory();
       },
     );
 
@@ -498,6 +520,7 @@ class _AprsTabState extends State<AprsTab>
 
   @override
   void dispose() {
+    _historyTimeout?.cancel();
     _broker.dispose();
     _messageController.dispose();
     _destinationController.dispose();
@@ -1727,7 +1750,21 @@ class _AprsTabState extends State<AprsTab>
   /// and internet history (which arrive as separate async batches) interleave
   /// by time instead of appearing as two blocks.
   void _sortEntriesByTime() {
-    _entries.sort((a, b) => a.time.compareTo(b.time));
+    _entries.sort(_compareEntries);
+  }
+
+  int _compareEntries(_AprsEntry a, _AprsEntry b) {
+    final time = a.time.compareTo(b.time);
+    if (time != 0) return time;
+    if (a.aprsPacket.fromAprsIs != b.aprsPacket.fromAprsIs) {
+      return a.aprsPacket.fromAprsIs ? 1 : -1;
+    }
+    final aStored = a.storedId;
+    final bStored = b.storedId;
+    if (aStored != null && bStored != null) return aStored.compareTo(bStored);
+    if (aStored != null) return -1;
+    if (bStored != null) return 1;
+    return a.id.compareTo(b.id);
   }
 
   void _onAprsFrame(int deviceId, String name, Object? data) {
@@ -1828,15 +1865,17 @@ class _AprsTabState extends State<AprsTab>
 
   void _rebuildMessages() {
     final list = <ChatMessage>[];
-    for (var i = 0; i < _entries.length; i++) {
+    for (var i = _entries.length - 1; i >= 0; i--) {
       final e = _entries[i];
       if (!_entryInCurrentView(e)) continue;
       list.add(_entryToMessage(e));
+      if (list.length == _historyLimit) break;
     }
+    final messages = list.reversed.toList();
     if (mounted) {
-      setState(() => _messages = list);
+      setState(() => _messages = messages);
     } else {
-      _messages = list;
+      _messages = messages;
     }
   }
 
@@ -1861,6 +1900,7 @@ class _AprsTabState extends State<AprsTab>
   /// grew with history size. Appending keeps the per-packet cost constant.
   void _appendMessage(_AprsEntry e) {
     if (!_entryInCurrentView(e)) return;
+    if (_messages.length >= _historyLimit) _historyLimit++;
     final msg = _entryToMessage(e);
     if (mounted) {
       setState(() => _messages.add(msg));
@@ -2031,10 +2071,31 @@ class _AprsTabState extends State<AprsTab>
     AprsPacket aprsPacket,
     bool sender, {
     bool rebuild = true,
+    bool updateDelivery = true,
+    int? storedId,
   }) {
-    final entry = _parseAprsPacket(aprsPacket, sender, rebuild: rebuild);
+    final entry = _parseAprsPacket(
+      aprsPacket,
+      sender,
+      rebuild: rebuild,
+      updateDelivery: updateDelivery,
+    );
     if (entry == null) return;
+    entry.storedId = storedId;
     final packet = entry.packet;
+    for (final n in _entries) {
+      if (n.aprsPacket.fromAprsIs == aprsPacket.fromAprsIs &&
+          n.time.millisecondsSinceEpoch == entry.time.millisecondsSinceEpoch &&
+          n.sender == entry.sender &&
+          n.packet.toString() == packet.toString()) {
+        if (storedId != null) {
+          n.storedId = n.storedId == null
+              ? storedId
+              : min(n.storedId!, storedId);
+        }
+        return;
+      }
+    }
 
     var removedLaterDuplicate = false;
     if (aprsPacket.dataType == PacketDataType.message) {
@@ -2077,7 +2138,7 @@ class _AprsTabState extends State<AprsTab>
         if (entry.messageId == n.messageId &&
             entry.messageText == n.messageText &&
             entry.senderCallsign == n.senderCallsign &&
-            n.time.add(const Duration(minutes: 5)).compareTo(packet.time) > 0 &&
+            n.time.difference(packet.time).abs() < const Duration(minutes: 5) &&
             entry.time != n.time) {
           return;
         }
@@ -2098,7 +2159,7 @@ class _AprsTabState extends State<AprsTab>
     // bubbles stay sorted by time.
     var insertIndex = _entries.length;
     while (insertIndex > 0 &&
-        _entries[insertIndex - 1].time.isAfter(entry.time)) {
+        _compareEntries(_entries[insertIndex - 1], entry) > 0) {
       insertIndex--;
     }
     _entries.insert(insertIndex, entry);
@@ -2136,6 +2197,7 @@ class _AprsTabState extends State<AprsTab>
   }
 
   void _pruneHistory() {
+    if (_historyStarted) return;
     var internet = _internetEntryCount - _maxEntriesPerSource;
     var rf = _rfEntryCount - _maxEntriesPerSource;
     if (internet <= 0 && rf <= 0) return;
@@ -2673,14 +2735,8 @@ class _AprsTabState extends State<AprsTab>
     } else {
       // No contact for this station: open the combined feed and pre-fill the
       // destination so the user can message them.
-      setState(() {
-        _viewAllMessages = true;
-        _selectedContact = null;
-        _viewAllMesh = false;
-        _selectedMesh = null;
-      });
+      _openAllMessages();
       _setReceiver(callsign);
-      _rebuildMessages();
     }
   }
 
@@ -2763,7 +2819,7 @@ class _AprsTabState extends State<AprsTab>
       name: 'AprsShowTelemetry',
       data: _showAllMessages ? 1 : 0,
     );
-    _rebuildMessages();
+    _restartHistory();
   }
 
   /// Computes whether an entry should be shown given the current filters. APRS-IS
@@ -2792,10 +2848,11 @@ class _AprsTabState extends State<AprsTab>
       name: 'AprsShowAprsIs',
       data: _showAprsIs ? 1 : 0,
     );
-    _rebuildMessages();
+    _restartHistory();
   }
 
   void _openAllMessages() {
+    _resetHistory();
     setState(() {
       _viewAllMessages = true;
       _selectedContact = null;
@@ -2803,11 +2860,13 @@ class _AprsTabState extends State<AprsTab>
       _selectedMesh = null;
     });
     _rebuildMessages();
+    _startHistory();
   }
 
   /// Opens a conversation for [callsign] in Messenger mode, filtering the chat
   /// to that peer.
   void _openConversation(String callsign) {
+    _resetHistory();
     setState(() {
       _viewAllMessages = false;
       _selectedContact = _peerKey(callsign);
@@ -2815,10 +2874,12 @@ class _AprsTabState extends State<AprsTab>
       _selectedMesh = null;
     });
     _rebuildMessages();
+    _startHistory();
   }
 
   /// Returns to the Messenger conversation list.
   void _closeConversation() {
+    _resetHistory();
     setState(() {
       _selectedContact = null;
       _viewAllMessages = false;
@@ -2886,6 +2947,7 @@ class _AprsTabState extends State<AprsTab>
   /// here or in another window).
   void _onClearAprsPackets(int deviceId, String name, Object? data) {
     if (!mounted) return;
+    _resetHistory();
     setState(() {
       _entries.clear();
       _internetEntryCount = 0;
@@ -2899,6 +2961,7 @@ class _AprsTabState extends State<AprsTab>
     if (!mounted) return;
     final peer = data is Map ? data['peer']?.toString() : null;
     if (peer == null || peer.isEmpty) return;
+    _resetHistory();
     setState(() {
       _removeEntries(
         _entries
@@ -2913,36 +2976,214 @@ class _AprsTabState extends State<AprsTab>
     _rebuildMessages();
   }
 
-  void _showStoredHistory() {
-    showDialog<void>(
-      context: context,
-      builder: (_) => StoredHistoryDialog(
-        sources: const {'rf': 'APRS', 'internet': 'APRS-IS'},
-        messageBuilder: (data, id) {
-          if (data['invalid'] == true) return null;
-          final aprs = AprsPacket.fromJson(data);
-          final packet = aprs.packet;
-          if (packet == null) return null;
-          if (aprs.fromAprsIs && packet.addresses.length > 1) {
-            final self = _stationId.isEmpty
-                ? _callsign
-                : '$_callsign-$_stationId';
-            if (self.isNotEmpty &&
-                packet.addresses[1].callSignWithId.toUpperCase() ==
-                    self.toUpperCase()) {
-              packet.incoming = false;
-            }
+  void _resetHistory() {
+    _historyTimeout?.cancel();
+    _historyRequestId = null;
+    _historyPending.clear();
+    _historyBefore.clear();
+    _historyHasMore
+      ..clear()
+      ..addAll(['rf', 'internet']);
+    _historyStarted = false;
+    _historyLimit = _historyPageSize;
+    _historyLoading = false;
+    _historyError = null;
+  }
+
+  bool get _historyAvailable =>
+      _broker.getValue<bool>(1, 'StoredChatHistoryAvailable', false) == true;
+
+  void _restartHistory() {
+    _resetHistory();
+    _rebuildMessages();
+    _startHistory();
+  }
+
+  void _startHistory() {
+    if (!_historyStarted && _hasContent && !_inMeshView && _historyAvailable) {
+      _historyStarted = true;
+      _continueHistory();
+    }
+  }
+
+  void _loadOlderHistory() {
+    if (_historyLoading) return;
+    if (_historyError == null) {
+      _historyLimit += _historyPageSize;
+    }
+    _historyStarted = true;
+    _historyError = null;
+    _continueHistory();
+  }
+
+  bool get _hasOlderMessages =>
+      _entries.where(_entryInCurrentView).length > _historyLimit;
+
+  void _continueHistory() {
+    final matching = _entries.where(_entryInCurrentView).toList();
+    // Scan both sources past one extra displayed message. Raw pages may
+    // contain only telemetry, retransmissions, or echoes from the other source.
+    final cutoff = matching.length > _historyLimit
+        ? matching[matching.length - _historyLimit - 1]
+                  .time
+                  .millisecondsSinceEpoch *
+              1000
+        : null;
+    final sources = _historyHasMore.where((source) {
+      if (source == 'internet' && _selectedContact == null && !_showAprsIs) {
+        return false;
+      }
+      final before = _historyBefore[source];
+      return cutoff == null || before == null || before[0] >= cutoff;
+    });
+    if (_historyAvailable && sources.isNotEmpty) {
+      _historyPending
+        ..clear()
+        ..add(sources.first);
+      // Defer the next page so synchronous broker responders cannot recurse
+      // through an entire sparse archive on the same stack.
+      _historyLoading = true;
+      scheduleMicrotask(() {
+        if (mounted && _historyLoading && _historyRequestId == null) {
+          _requestHistoryPage();
+        }
+      });
+    } else {
+      _historyLoading = false;
+    }
+    _rebuildMessages();
+  }
+
+  void _requestHistoryPage() {
+    setState(() {
+      _historyLoading = true;
+      _historyError = null;
+      _historyRequestId = '$_historyClientId-${_historySerial++}';
+    });
+    _historyTimeout?.cancel();
+    _historyTimeout = Timer(const Duration(seconds: 15), () {
+      _failHistory(TimeoutException('Stored history request timed out'));
+    });
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'RequestStoredChatHistory',
+      store: false,
+      data: {
+        'requestId': _historyRequestId,
+        'source': _historyPending.first,
+        'before': _historyBefore[_historyPending.first],
+        if (_selectedContact != null) 'peer': _selectedContact,
+      },
+    );
+  }
+
+  void _onStoredHistoryPage(int deviceId, String name, Object? data) {
+    if (!mounted ||
+        _historyRequestId == null ||
+        data is! Map ||
+        data['requestId'] != _historyRequestId) {
+      return;
+    }
+    _historyTimeout?.cancel();
+    if (data['error'] != null) {
+      _failHistory(StateError(data['error'].toString()));
+      return;
+    }
+    try {
+      final source = _historyPending.first;
+      final previous = _historyBefore[source];
+      final before = (data['before'] as List?)?.cast<int>();
+      final hasMore = data['hasMore'] == true;
+      if ((before != null && before.length != 2) ||
+          (hasMore &&
+              (before == null ||
+                  (previous != null &&
+                      (before[0] > previous[0] ||
+                          (before[0] == previous[0] &&
+                              before[1] >= previous[1])))))) {
+        throw StateError('Stored history cursor did not advance');
+      }
+      final packets = <(AprsPacket, int)>[];
+      for (final raw in data['entries'] as List) {
+        final row = raw as Map;
+        final json = Map<String, dynamic>.from(row['data'] as Map);
+        if (json['invalid'] == true) continue;
+        final aprs = AprsPacket.fromJson(json);
+        final packet = aprs.packet;
+        if (packet == null) continue;
+        if (aprs.fromAprsIs && packet.addresses.length > 1) {
+          final self = _stationId.isEmpty
+              ? _callsign
+              : '$_callsign-$_stationId';
+          if (self.isNotEmpty &&
+              packet.addresses[1].callSignWithId.toUpperCase() ==
+                  self.toUpperCase()) {
+            packet.incoming = false;
           }
-          final entry = _parseAprsPacket(
-            aprs,
-            !packet.incoming,
-            updateDelivery: false,
-          );
-          return entry == null ? null : _entryToMessage(entry);
-        },
-        onMessageDoubleTap: _onMessageDoubleTap,
-        onMessageContextMenu: _onMessageContextMenu,
-      ),
+        }
+        packets.add((aprs, row['id'] as int));
+      }
+      for (final (aprs, id) in packets) {
+        _addAprsPacket(
+          aprs,
+          !aprs.packet!.incoming,
+          rebuild: false,
+          updateDelivery: false,
+          storedId: id,
+        );
+      }
+      _historyBefore[source] = before;
+      if (!hasMore) _historyHasMore.remove(source);
+      _historyPending.removeAt(0);
+      _historyRequestId = null;
+      _historyLoading = false;
+      _sortEntriesByTime();
+      _continueHistory();
+    } catch (error) {
+      _failHistory(error);
+    }
+  }
+
+  void _failHistory(Object error) {
+    _broker.logError('APRS stored history: $error');
+    if (!mounted) return;
+    setState(() {
+      _historyLoading = false;
+      _historyRequestId = null;
+      _historyPending.clear();
+      _historyError = '$error';
+    });
+  }
+
+  Widget? _buildHistoryHeader() {
+    if (!_historyLoading && _historyError == null && !_hasOlderMessages) {
+      return null;
+    }
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      children: [
+        if (_historyError != null)
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Text('${l10n.commonError}: $_historyError'),
+          ),
+        if (_historyLoading)
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          )
+        else
+          TextButton(
+            onPressed: _loadOlderHistory,
+            child: Text(
+              _historyError == null ? l10n.chatReadMore : l10n.settingsRetry,
+            ),
+          ),
+      ],
     );
   }
 
@@ -3357,7 +3598,9 @@ class _AprsTabState extends State<AprsTab>
                 children: [
                   Positioned.fill(
                     child: ChatWidget(
+                      key: ValueKey(_selectedContact),
                       messages: _messages,
+                      historyHeader: _buildHistoryHeader(),
                       onMessageDoubleTap: _onMessageDoubleTap,
                       onMessageContextMenu: _onMessageContextMenu,
                       onMessageIconTap: _onMessageIconTap,
@@ -3365,21 +3608,6 @@ class _AprsTabState extends State<AprsTab>
                   ),
                   if (_selectedContact != null)
                     _buildConversationAvatarOverlay(),
-                  if (_broker.getValue<bool>(
-                        1,
-                        'StoredChatHistoryAvailable',
-                        false,
-                      ) ==
-                      true)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: IconButton.filledTonal(
-                        tooltip: AppLocalizations.of(context).chatHistory,
-                        icon: const Icon(Icons.history),
-                        onPressed: _showStoredHistory,
-                      ),
-                    ),
                   if (channelHover)
                     Positioned.fill(
                       child: IgnorePointer(child: _buildChannelDropOverlay()),

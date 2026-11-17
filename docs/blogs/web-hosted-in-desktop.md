@@ -296,10 +296,15 @@ EchoLink and AllStarLink audio, which it previously left alone.)
 The initial `history:` snapshot advertises `storedHistoryAvailable`. When the
 host database is available, the browser requests a
 `storedhistory:` page with a request ID, a source (`comms`, `rf`, or `internet`),
-and an optional timestamp/row-ID cursor. The host returns at most 200 entries
+and an optional timestamp/row-ID cursor. APRS conversation requests also include
+the peer callsign (or SMS phone digits), so the host pages only that thread.
+The host returns at most 200 entries
 only to the requesting socket, not to all browsers or broker mirrors. Archive
-pages replace one another in the APRS Stored History dialog. In Comms, **Show
-more** at the top of the conversation prepends older pages inline instead;
+pages are prepended inline in APRS using **Read more** at the top of the
+conversation. APRS loads the latest 500 messages for the selected thread
+automatically, fetching additional pages as needed to check whether that thread
+has more messages before offering **Read more**. In Comms, **Show
+more** at the top likewise prepends older pages inline;
 messages remain loaded while browsing. Without archive browsing, the live Comms
 and APRS windows are bounded independently. Detached desktop windows use the
 same page protocol over the Data Broker.

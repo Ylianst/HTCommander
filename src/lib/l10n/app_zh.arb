@@ -426,6 +426,7 @@
   "settingsHistoryLimits": "历史记录限制",
   "chatHistory": "已保存的历史记录",
   "chatShowMore": "显示更多",
+  "chatReadMore": "阅读更多",
   "settingsUnlimited": "无限制",
   "settingsLimitAprsMessages": "APRS 消息",
   "settingsLimitPackets": "数据包",

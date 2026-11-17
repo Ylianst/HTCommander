@@ -988,6 +988,23 @@ class AprsIsManager {
     if (client == null) return;
     if (client.state != AprsIsConnectionState.connected) return;
     if (!client.canTransmit || !client.isVerified) return;
+
+    // Our messages are direct internet submissions, not packets heard on RF.
+    // Keep the RF route on the radio copy only.
+    final packet = data.ax25Packet;
+    if (!packet.incoming &&
+        aprs.dataType == PacketDataType.message &&
+        aprs.thirdPartySourceCallsign == null) {
+      final payload = packet.dataStr;
+      if (packet.addresses.length < 2 || payload == null || payload.isEmpty) {
+        _broker.logError('[APRS-IS] Cannot send outgoing message: invalid packet');
+        return;
+      }
+      client.sendPacketLine(
+        '${packet.addresses[1]}>${packet.addresses[0]},TCPIP*:$payload',
+      );
+      return;
+    }
     if (!AprsIsClient.shouldGateToInternet(aprs)) return;
 
     if (igateCall.isEmpty) return;

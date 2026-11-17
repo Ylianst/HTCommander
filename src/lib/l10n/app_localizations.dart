@@ -2320,6 +2320,12 @@ abstract class AppLocalizations {
   /// **'Show more'**
   String get chatShowMore;
 
+  /// No description provided for @chatReadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Read more'**
+  String get chatReadMore;
+
   /// No description provided for @settingsUnlimited.
   ///
   /// In en, this message translates to:

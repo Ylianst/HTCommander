@@ -29,11 +29,15 @@ class AprsisDao {
 
   static const String _table = 'aprsis_history';
 
-  Future<Map<String, Object?>> page({List<int>? before}) => readHistoryPage(
+  Future<Map<String, Object?>> page({
+    List<int>? before,
+    bool Function(Map<String, Object?> data)? matches,
+  }) => readHistoryPage(
     _db,
     table: _table,
     timeColumn: 'time_us',
     before: before,
+    matches: matches,
     decode: (row) {
       final packet = Tnc2Codec.decode(row['tnc2'] as String);
       if (packet == null) return {'invalid': true};

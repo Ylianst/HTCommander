@@ -1245,6 +1245,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatShowMore => 'Show more';
 
   @override
+  String get chatReadMore => 'Read more';
+
+  @override
   String get settingsUnlimited => 'Unlimited';
 
   @override

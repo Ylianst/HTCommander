@@ -102,6 +102,542 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('APRS restores and prepends merged history inline', (
+    tester,
+  ) async {
+    final host = DataBrokerClient();
+    addTearDown(host.dispose);
+    host.dispatch(deviceId: 0, name: 'AprsShowTelemetry', data: 1);
+    host.dispatch(deviceId: 1, name: 'StoredChatHistoryAvailable', data: true);
+    final time = DateTime(2026);
+    Map<String, dynamic> stored(int n, {bool internet = false}) {
+      final ax = Tnc2Codec.decode('N0CALL>APRS:>status $n')!
+        ..time = time.add(Duration(seconds: n));
+      return (AprsPacket.parse(ax)!..fromAprsIs = internet).toJson()!;
+    }
+
+    final requests = <Map>[];
+    host.subscribe(
+      deviceId: 1,
+      name: 'RequestStoredChatHistory',
+      callback: (_, _, data) {
+        final request = data as Map;
+        requests.add(request);
+        final internet = request['source'] == 'internet';
+        final firstRf = requests.where((r) => r['source'] == 'rf').length == 1;
+        host.dispatch(
+          deviceId: 1,
+          name: 'StoredChatHistoryPage',
+          store: false,
+          data: {
+            'requestId': request['requestId'],
+            'hasMore': !internet && firstRf,
+            'before': [
+              time
+                  .add(
+                    Duration(
+                      seconds: internet
+                          ? 3
+                          : firstRf
+                          ? 2
+                          : 0,
+                    ),
+                  )
+                  .microsecondsSinceEpoch,
+              1,
+            ],
+            'entries': [
+              if (internet)
+                {'id': 1, 'data': stored(3, internet: true)}
+              else if (firstRf) ...[
+                {'id': 2, 'data': stored(2)},
+                {'id': 4, 'data': stored(4)},
+              ] else ...[
+                {'id': 0, 'data': stored(0)},
+                {'id': 1, 'data': stored(1)},
+              ],
+            ],
+          },
+        );
+      },
+    );
+    await tester.pumpWidget(app(const AprsTab()));
+    packet(4, internet: false, time: time.add(const Duration(seconds: 4)));
+    await tester.tap(find.text('All APRS Messages').first);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Stored History'), findsNothing);
+    expect(find.byType(StoredHistoryDialog), findsNothing);
+    expect(requests.map((r) => r['source']), ['rf', 'rf', 'internet']);
+    expect(requests.first['before'], isNull);
+    expect(messages(tester).map((m) => m.message), [
+      'status 0',
+      'status 1',
+      'status 2',
+      'status 3',
+      'status 4',
+    ]);
+    expect(messages(tester).map((m) => m.id).toSet(), hasLength(5));
+    expect(find.text('Read more'), findsNothing);
+    packet(5, internet: false, time: time.add(const Duration(seconds: 5)));
+    await tester.pump();
+    expect(messages(tester).last.message, 'status 5');
+    expect(messages(tester).first.message, 'status 0');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('APRS inline history obeys conversation filters', (tester) async {
+    final host = DataBrokerClient();
+    addTearDown(host.dispose);
+    host.dispatch(deviceId: 0, name: 'CallSign', data: 'K7VZT');
+    host.dispatch(deviceId: 1, name: 'StoredChatHistoryAvailable', data: true);
+    host.subscribe(
+      deviceId: 1,
+      name: 'RequestStoredChatHistory',
+      callback: (_, _, data) {
+        final request = data as Map;
+        host.dispatch(
+          deviceId: 1,
+          name: 'StoredChatHistoryPage',
+          store: false,
+          data: {
+            'requestId': request['requestId'],
+            'hasMore': false,
+            'entries': [
+              if (request['source'] == 'rf')
+                for (final (id, line) in [
+                  (1, 'W1AW>APRS::K7VZT    :hello from W1AW'),
+                  (2, 'N0CALL>APRS::K7VZT    :another conversation'),
+                  (3, 'W1AW>APRS:>hidden telemetry'),
+                ])
+                  {
+                    'id': id,
+                    'data': AprsPacket.parse(Tnc2Codec.decode(line)!)!.toJson(),
+                  },
+            ],
+          },
+        );
+      },
+    );
+    await tester.pumpWidget(app(const AprsTab()));
+    host.dispatch(
+      deviceId: 1,
+      name: 'AprsOpenConversation',
+      data: 'W1AW',
+      store: false,
+    );
+    await tester.pumpAndSettle();
+    expect(messages(tester).map((m) => m.message), ['hello from W1AW']);
+    expect(find.text('Read more'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  for (final count in [0, 499, 500, 501]) {
+    testWidgets('APRS thread loads 500 with accurate lookahead ($count)', (
+      tester,
+    ) async {
+      final host = DataBrokerClient();
+      addTearDown(host.dispose);
+      host.dispatch(deviceId: 0, name: 'CallSign', data: 'K7VZT');
+      host.dispatch(
+        deviceId: 1,
+        name: 'StoredChatHistoryAvailable',
+        data: true,
+      );
+      final time = DateTime(2026);
+      final requests = <Map>[];
+      host.subscribe(
+        deviceId: 1,
+        name: 'RequestStoredChatHistory',
+        callback: (_, _, data) {
+          final request = data as Map;
+          requests.add(request);
+          final before = request['before'] as List?;
+          final end = request['source'] == 'rf'
+              ? before == null
+                    ? count
+                    : before[1] as int
+              : 0;
+          final start = (end - 200).clamp(0, end);
+          host.dispatch(
+            deviceId: 1,
+            name: 'StoredChatHistoryPage',
+            store: false,
+            data: {
+              'requestId': request['requestId'],
+              'hasMore': start > 0,
+              'before': [
+                time
+                    .add(Duration(seconds: count == 501 ? 0 : start))
+                    .microsecondsSinceEpoch,
+                start,
+              ],
+              'entries': [
+                for (var i = start; i < end; i++)
+                  {
+                    'id': i,
+                    'data': AprsPacket.parse(
+                      Tnc2Codec.decode(
+                          'W1AW>APRS::K7VZT    :thread message $i',
+                        )!
+                        ..time = time.add(
+                          Duration(seconds: count == 501 ? 0 : i),
+                        ),
+                    )!.toJson(),
+                  },
+              ],
+            },
+          );
+        },
+      );
+      await tester.pumpWidget(app(const AprsTab()));
+      host.dispatch(
+        deviceId: 1,
+        name: 'AprsOpenConversation',
+        data: 'W1AW',
+        store: false,
+      );
+      await tester.pumpAndSettle();
+      expect(messages(tester), hasLength(count.clamp(0, 500)));
+      if (count > 0) {
+        expect(messages(tester).last.message, 'thread message ${count - 1}');
+        expect(
+          messages(tester).first.message,
+          'thread message ${(count - 500).clamp(0, count)}',
+        );
+      }
+      final chat = tester.widget<ChatWidget>(find.byType(ChatWidget));
+      expect(chat.historyHeader == null, count <= 500);
+      if (count > 500) {
+        final retained = messages(tester).last;
+        await tester.scrollUntilVisible(
+          find.text('Read more'),
+          1500,
+          scrollable: find.descendant(
+            of: find.byType(ChatWidget),
+            matching: find.byType(Scrollable),
+          ),
+          maxScrolls: 100,
+        );
+        await tester.tap(find.text('Read more'));
+        await tester.pumpAndSettle();
+        expect(messages(tester), hasLength(count));
+        expect(messages(tester).first.message, 'thread message 0');
+        expect(identical(messages(tester).last, retained), isTrue);
+        expect(
+          tester.widget<ChatWidget>(find.byType(ChatWidget)).historyHeader,
+          isNull,
+        );
+      }
+      expect(requests, isNotEmpty);
+      expect(requests.every((request) => request['peer'] == 'W1AW'), isTrue);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  testWidgets('APRS switches threads without sharing history availability', (
+    tester,
+  ) async {
+    final host = DataBrokerClient();
+    addTearDown(host.dispose);
+    host.dispatch(deviceId: 0, name: 'CallSign', data: 'K7VZT');
+    host.dispatch(deviceId: 1, name: 'StoredChatHistoryAvailable', data: true);
+    final requests = <Map>[];
+    host.subscribe(
+      deviceId: 1,
+      name: 'RequestStoredChatHistory',
+      callback: (_, _, data) => requests.add(data as Map),
+    );
+    await tester.pumpWidget(app(const AprsTab()));
+    void open(String peer) => host.dispatch(
+      deviceId: 1,
+      name: 'AprsOpenConversation',
+      data: peer,
+      store: false,
+    );
+    void respond(Map request, String sender) => host.dispatch(
+      deviceId: 1,
+      name: 'StoredChatHistoryPage',
+      store: false,
+      data: {
+        'requestId': request['requestId'],
+        'hasMore': false,
+        'entries': [
+          if (request['source'] == 'rf')
+            {
+              'id': 1,
+              'data': AprsPacket.parse(
+                Tnc2Codec.decode('$sender>APRS::K7VZT    :hello from $sender')!,
+              )!.toJson(),
+            },
+        ],
+      },
+    );
+    open('W1AW');
+    await tester.pump();
+    final stale = requests.last;
+    open('N0CALL');
+    await tester.pump();
+    expect(requests.last['peer'], 'N0CALL');
+    respond(stale, 'W1AW');
+    await tester.pump();
+    expect(messages(tester), isEmpty);
+    respond(requests.last, 'N0CALL');
+    await tester.pump();
+    respond(requests.last, 'N0CALL');
+    await tester.pumpAndSettle();
+    expect(messages(tester).single.message, 'hello from N0CALL');
+    expect(
+      tester.widget<ChatWidget>(find.byType(ChatWidget)).historyHeader,
+      isNull,
+    );
+    open('W1AW');
+    await tester.pump();
+    expect(requests.last['peer'], 'W1AW');
+    expect(requests.last['before'], isNull);
+    respond(requests.last, 'W1AW');
+    await tester.pump();
+    respond(requests.last, 'W1AW');
+    await tester.pumpAndSettle();
+    expect(messages(tester).single.message, 'hello from W1AW');
+    expect(
+      tester.widget<ChatWidget>(find.byType(ChatWidget)).historyHeader,
+      isNull,
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
+    'APRS All Messages merges sources before selecting its last 500',
+    (tester) async {
+      final host = DataBrokerClient();
+      addTearDown(host.dispose);
+      host.dispatch(deviceId: 0, name: 'AprsShowTelemetry', data: 1);
+      host.dispatch(
+        deviceId: 1,
+        name: 'StoredChatHistoryAvailable',
+        data: true,
+      );
+      final time = DateTime(2026);
+      final requests = <Map>[];
+      host.subscribe(
+        deviceId: 1,
+        name: 'RequestStoredChatHistory',
+        callback: (_, _, data) {
+          final request = data as Map;
+          requests.add(request);
+          final internet = request['source'] == 'internet';
+          final before = request['before'] as List?;
+          final indices = [
+            for (var i = 0; i < 602; i++)
+              if (i.isOdd == internet &&
+                  (before == null ||
+                      time.add(Duration(seconds: i)).microsecondsSinceEpoch <
+                          (before[0] as int)))
+                i,
+          ];
+          final page = indices.reversed.take(200).toList().reversed.toList();
+          host.dispatch(
+            deviceId: 1,
+            name: 'StoredChatHistoryPage',
+            store: false,
+            data: {
+              'requestId': request['requestId'],
+              'hasMore': indices.length > 200,
+              'before': page.isEmpty
+                  ? null
+                  : [
+                      time
+                          .add(Duration(seconds: page.first))
+                          .microsecondsSinceEpoch,
+                      page.first,
+                    ],
+              'entries': [
+                for (final i in page)
+                  {
+                    'id': i,
+                    'data': (AprsPacket.parse(
+                      Tnc2Codec.decode('N0CALL>APRS:>status $i')!
+                        ..time = time.add(Duration(seconds: i)),
+                    )!..fromAprsIs = internet).toJson(),
+                  },
+              ],
+            },
+          );
+        },
+      );
+      await tester.pumpWidget(app(const AprsTab()));
+      await tester.tap(find.text('All APRS Messages').first);
+      await tester.pumpAndSettle();
+      expect(messages(tester), hasLength(500));
+      expect(messages(tester).first.message, 'status 102');
+      expect(messages(tester).last.message, 'status 601');
+      expect(messages(tester).map((m) => m.message), [
+        for (var i = 102; i < 602; i++) 'status $i',
+      ]);
+      final chatScroll = find.descendant(
+        of: find.byType(ChatWidget),
+        matching: find.byType(Scrollable),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Read more'),
+        1500,
+        scrollable: chatScroll,
+        maxScrolls: 100,
+      );
+      await tester.tap(find.text('Read more'));
+      await tester.pumpAndSettle();
+      expect(messages(tester), hasLength(602));
+      expect(messages(tester).first.message, 'status 0');
+      expect(
+        tester.widget<ChatWidget>(find.byType(ChatWidget)).historyHeader,
+        isNull,
+      );
+      host.dispatch(
+        deviceId: 1,
+        name: 'AprsShowContactList',
+        data: null,
+        store: false,
+      );
+      await tester.pump();
+      await tester.tap(find.text('All APRS Messages').first);
+      await tester.pumpAndSettle();
+      expect(messages(tester), hasLength(500));
+      expect(messages(tester).first.message, 'status 102');
+      expect(requests.any((r) => r['source'] == 'internet'), isTrue);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets('APRS ignores retransmission-only pages when checking for more', (
+    tester,
+  ) async {
+    final host = DataBrokerClient();
+    addTearDown(host.dispose);
+    host.dispatch(deviceId: 0, name: 'CallSign', data: 'K7VZT');
+    host.dispatch(deviceId: 1, name: 'StoredChatHistoryAvailable', data: true);
+    final time = DateTime(2026);
+    var rfPages = 0;
+    host.subscribe(
+      deviceId: 1,
+      name: 'RequestStoredChatHistory',
+      callback: (_, _, data) {
+        final request = data as Map;
+        final internet = request['source'] == 'internet';
+        if (!internet) rfPages++;
+        final end = (500 - (rfPages - 1) * 200).clamp(0, 500);
+        final start = (end - 200).clamp(0, end);
+        final indices = internet
+            ? <int>[]
+            : rfPages <= 3
+            ? [for (var i = start; i < end; i++) i]
+            : [0];
+        host.dispatch(
+          deviceId: 1,
+          name: 'StoredChatHistoryPage',
+          store: false,
+          data: {
+            'requestId': request['requestId'],
+            'hasMore': !internet && rfPages < 4,
+            'before': [
+              time
+                  .add(Duration(seconds: rfPages <= 3 ? start + 1 : 0))
+                  .microsecondsSinceEpoch,
+              1,
+            ],
+            'entries': [
+              for (final i in indices)
+                {
+                  'id': i,
+                  'data': AprsPacket.parse(
+                    Tnc2Codec.decode('W1AW>APRS::K7VZT    :message $i')!
+                      ..time = time.add(
+                        Duration(seconds: rfPages <= 3 ? i + 1 : i),
+                      ),
+                  )!.toJson(),
+                },
+            ],
+          },
+        );
+      },
+    );
+    await tester.pumpWidget(app(const AprsTab()));
+    host.dispatch(
+      deviceId: 1,
+      name: 'AprsOpenConversation',
+      data: 'W1AW',
+      store: false,
+    );
+    await tester.pumpAndSettle();
+    expect(rfPages, 4);
+    expect(messages(tester), hasLength(500));
+    expect(
+      tester.widget<ChatWidget>(find.byType(ChatWidget)).historyHeader,
+      isNull,
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('APRS history retries errors and ignores stale cleared pages', (
+    tester,
+  ) async {
+    final host = DataBrokerClient();
+    addTearDown(host.dispose);
+    final requests = <Map>[];
+    host.dispatch(deviceId: 1, name: 'StoredChatHistoryAvailable', data: true);
+    host.subscribe(
+      deviceId: 1,
+      name: 'RequestStoredChatHistory',
+      callback: (_, _, data) => requests.add(data as Map),
+    );
+    await tester.pumpWidget(app(const AprsTab()));
+    await tester.tap(find.text('All APRS Messages').first);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 15));
+    expect(
+      find.textContaining('Stored history request timed out'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    void respond(Map request, {String? error}) => host.dispatch(
+      deviceId: 1,
+      name: 'StoredChatHistoryPage',
+      store: false,
+      data: {
+        'requestId': request['requestId'],
+        'error': error,
+        'hasMore': false,
+        'entries': [
+          {
+            'id': 1,
+            'data': AprsPacket.parse(
+              Tnc2Codec.decode('W1AW>APRS::K7VZT    :older')!,
+            )!.toJson(),
+          },
+        ],
+      },
+    );
+    respond(requests.first);
+    await tester.pump();
+    expect(messages(tester), isEmpty);
+    respond(requests.last, error: 'Archive unavailable');
+    await tester.pump();
+    expect(find.textContaining('Archive unavailable'), findsOneWidget);
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    host.dispatch(
+      deviceId: 1,
+      name: 'ClearAprsPackets',
+      data: null,
+      store: false,
+    );
+    respond(requests.last);
+    await tester.pump();
+    expect(messages(tester), isEmpty);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets(
     'Comms prepends archive pages inline without boundary duplicates',
     (tester) async {

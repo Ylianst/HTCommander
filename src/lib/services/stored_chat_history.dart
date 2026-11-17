@@ -1,6 +1,8 @@
 // Copyright 2026 Ylian Saint-Hilaire - Apache 2.0
 import 'dart:async';
 
+import '../aprs/aprs_conversation.dart';
+import '../aprs/aprs_packet.dart';
 import 'data_broker_client.dart';
 import 'db/app_database.dart';
 
@@ -48,14 +50,48 @@ class StoredChatHistory {
         }
         before = raw.cast<int>();
       }
+      final peer = data['peer'];
+      if (peer != null && (peer is! String || peer.trim().isEmpty)) {
+        throw ArgumentError('Invalid APRS conversation');
+      }
+      final peerKey = peer is String ? aprsPeerKey(peer) : null;
+      final local = AprsLocalStation.fromSettings(
+        _broker.getValue<String>(0, 'CallSign', '') ?? '',
+        _broker.getValue<int>(0, 'StationId', 0) ?? 0,
+      );
+      bool matchesPeer(Map<String, Object?> json) {
+        if (json['invalid'] == true) return false;
+        final aprs = AprsPacket.fromJson(Map<String, dynamic>.from(json));
+        final packet = aprs.packet;
+        if (packet == null) return false;
+        final outgoing =
+            !packet.incoming ||
+            (aprs.fromAprsIs &&
+                local.callsign.isNotEmpty &&
+                aprsPeerKey(aprs.sourceCallsignWithId) ==
+                    aprsPeerKey(local.callsignWithId));
+        return aprsPacketConversationPeer(
+              aprs,
+              outgoing: outgoing,
+              local: local,
+            ) ==
+            peerKey;
+      }
+
       final Map<String, Object?> page;
       switch (data['source']) {
         case 'comms':
           page = await db.comms.page(before: before);
         case 'rf':
-          page = await db.packets.page(before: before);
+          page = await db.packets.page(
+            before: before,
+            matches: peer == null ? null : matchesPeer,
+          );
         case 'internet':
-          page = await db.aprsis.page(before: before);
+          page = await db.aprsis.page(
+            before: before,
+            matches: peer == null ? null : matchesPeer,
+          );
         default:
           throw ArgumentError('Invalid history source');
       }

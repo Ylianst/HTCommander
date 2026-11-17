@@ -426,6 +426,7 @@
   "settingsHistoryLimits": "Limity historii",
   "chatHistory": "Zapisana historia",
   "chatShowMore": "Pokaż więcej",
+  "chatReadMore": "Czytaj więcej",
   "settingsUnlimited": "Bez ograniczeń",
   "settingsLimitAprsMessages": "Wiadomości APRS",
   "settingsLimitPackets": "Pakiety",

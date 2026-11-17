@@ -1206,6 +1206,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatShowMore => '显示更多';
 
   @override
+  String get chatReadMore => '阅读更多';
+
+  @override
   String get settingsUnlimited => '无限制';
 
   @override

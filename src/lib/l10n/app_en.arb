@@ -900,6 +900,7 @@
   "settingsHistoryLimits": "History Limits",
   "chatHistory": "Stored History",
   "chatShowMore": "Show more",
+  "chatReadMore": "Read more",
   "settingsUnlimited": "Unlimited",
   "settingsLimitAprsMessages": "APRS Messages",
   "settingsLimitPackets": "Packets",

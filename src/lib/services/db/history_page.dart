@@ -9,25 +9,38 @@ Future<Map<String, Object?>> readHistoryPage(
   required Map<String, Object?> Function(Map<String, Object?>) decode,
   List<int>? before,
   String? filter,
+  bool Function(Map<String, Object?> data)? matches,
 }) async {
   const pageSize = 200;
-  final predicates = [
-    if (filter != null) '($filter)',
-    if (before != null) '($timeColumn < ? OR ($timeColumn = ? AND id < ?))',
-  ];
-  final rows = await db.query(
-    table,
-    where: predicates.isEmpty ? null : predicates.join(' AND '),
-    whereArgs: before == null ? null : [before[0], before[0], before[1]],
-    orderBy: '$timeColumn DESC, id DESC',
-    limit: pageSize + 1,
-  );
-  final page = rows.take(pageSize).toList(growable: false);
+  final entries = <Map<String, Object?>>[];
+  final cursors = <List<int>>[];
+  var cursor = before;
+  while (entries.length <= pageSize) {
+    final predicates = [
+      if (filter != null) '($filter)',
+      if (cursor != null) '($timeColumn < ? OR ($timeColumn = ? AND id < ?))',
+    ];
+    final rows = await db.query(
+      table,
+      where: predicates.isEmpty ? null : predicates.join(' AND '),
+      whereArgs: cursor == null ? null : [cursor[0], cursor[0], cursor[1]],
+      orderBy: '$timeColumn DESC, id DESC',
+      limit: pageSize + 1,
+    );
+    for (final row in rows) {
+      cursor = [row[timeColumn] as int, row['id'] as int];
+      final data = decode(row);
+      if (matches != null && !matches(data)) continue;
+      entries.add({'id': row['id'], 'data': data});
+      cursors.add(cursor);
+      if (entries.length > pageSize) break;
+    }
+    if (rows.length <= pageSize) break;
+  }
+  final page = entries.take(pageSize).toList(growable: false);
   return {
-    'entries': [
-      for (final row in page.reversed) {'id': row['id'], 'data': decode(row)},
-    ],
-    'before': page.isEmpty ? null : [page.last[timeColumn], page.last['id']],
-    'hasMore': rows.length > pageSize,
+    'entries': page.reversed.toList(growable: false),
+    'before': page.isEmpty ? null : cursors[page.length - 1],
+    'hasMore': entries.length > pageSize,
   };
 }

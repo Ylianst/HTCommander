@@ -31,11 +31,15 @@ class PacketsDao {
 
   static const String _table = 'packets';
 
-  Future<Map<String, Object?>> page({List<int>? before}) => readHistoryPage(
+  Future<Map<String, Object?>> page({
+    List<int>? before,
+    bool Function(Map<String, Object?> data)? matches,
+  }) => readHistoryPage(
     _db,
     table: _table,
     timeColumn: 'time_us',
     before: before,
+    matches: matches,
     filter: "channel_name = 'APRS' AND aprs_hidden = 0",
     decode: (row) {
       final frame = _fromRow(row);
