@@ -63,12 +63,54 @@ including FFI buffer copies, with a warm-up and five measured runs for seven
 representative receive modes. It compares every final pixel and scratch sample
 exactly outside the timed region and isolates the
 scan-line work from demodulation. No scan-line speedup numbers have yet been
-collected on hardware; the older full-receive timings below predate this change.
+collected for Intel macOS; Apple Silicon measurements are below. The older
+Windows full-receive timings below predate the native scan-line path.
 
 An initial Windows x64 AOT run measured 0.227 seconds for
 Dart, 0.218 seconds for native scalar, and 0.103 seconds for native SSE2: about
-2.2x faster than Dart for the complete receive pipeline. ARM64 NEON performance
-has not yet been measured.
+2.2x faster than Dart for the complete receive pipeline.
+
+### Apple Silicon scan-line tuning
+
+The ARM64 scan-line path validates four samples per loop with NEON, retaining
+the scalar tail and checked-filter fallback for inputs outside the safe bound.
+NaNs and infinities still fail validation. Color conversion uses ARM64's
+fixed ties-to-even conversion instruction after clipping, rather than a
+floor/fraction/parity sequence. It does not depend on the host rounding mode.
+The EMA recurrence, floating-point operation order, FFI ownership, and exact
+pixel/scratch output are unchanged. No fast-math, FMA, Apple framework, or
+CPU-specific compiler flags are added; the same baseline NEON path also applies
+to supported Linux/Android ARM64 builds. Intel/SSE2 and scalar code are unchanged.
+
+On an Apple M1 running macOS 26.6.2 with Flutter 3.50.0 / Dart 3.14.0, five
+alternating before/after AOT benchmark invocations measured:
+
+| Scan-line processing | Before | After | Less processing time |
+| --- | ---: | ---: | ---: |
+| Martin 1 | 74.78 us | 71.83 us | 3.9% |
+| Scottie DX | 173.40 us | 169.32 us | 2.4% |
+| Robot 36 | 25.22 us | 24.28 us | 3.7% |
+| Robot 72 | 50.62 us | 48.68 us | 3.8% |
+| PD 290 | 160.44 us | 153.65 us | 4.2% |
+| HF Fax | 86.92 us | 83.49 us | 3.9% |
+| Raw | 43.46 us | 41.99 us | 3.4% |
+
+Each invocation discards a warm-up and takes the median of five runs; the table
+reports medians across the invocations. Timings include FFI copies, and every
+final scratch sample and pixel is compared exactly to Dart outside the timed
+region. These modest scan-line gains are not a claim of equivalent full-decoder
+speedup; shared-machine load affects elapsed times.
+
+```sh
+cd src
+dart build cli --target=benchmark/sstv_scanline_benchmark.dart --output=build/sstv_scanline_benchmark
+build/sstv_scanline_benchmark/bundle/bin/sstv_scanline_benchmark
+flutter test test/sstv_scanline_test.dart test/sstv_native_test.dart test/sstv_monitor_test.dart
+```
+
+Regression tests cover every SIMD lane and scalar tail, odd counts and offset
+views, non-finite input, the checked fallback on either side of the magnitude
+bound, clipping, and both even/odd halfway color values.
 
 ### Receive hot-path tuning
 
@@ -227,15 +269,19 @@ compile-time-specialized version. Both were slower on the tested x64 machine
 (about 111 ms versus 103 ms for the existing SIMD receive pipeline), so the
 original faster implementation was retained.
 
+On the M1, duplicated NEON FIR coefficients and a lane-multiply variant were
+also tested. Neither established a reliable complete-receiver gain, so the
+existing FIR was retained. Vectorizing the FFT's first stage was slower, and
+explicit FFT loop unrolling did not improve timings; neither change is enabled.
+
 Periodic receive oscillator normalization was also tested. Long, low-amplitude
 streams slightly exceeded the existing `1e-10` normalized-frequency error
 tolerance, so per-sample normalization was retained rather than weakening the
 accuracy requirement.
 
-Remaining receive candidates include anti-aliased input decimation and native
-scan-line filtering/color conversion. These are not enabled: decimation needs
-noisy-signal and sync-timing validation, while native scan-line work needs
-profiling to establish its benefit.
+Anti-aliased input decimation remains a receive candidate, but needs noisy-signal
+and sync-timing validation. Native scan-line filtering/color conversion is
+already enabled on supported native platforms as described above.
 
 ## Transmitting
 

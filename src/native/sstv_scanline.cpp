@@ -27,6 +27,22 @@ bool bounded_line(const double* input, int count, double alpha, double offset) {
     // Unordered (NaN) comparisons fail too.
     if (_mm_movemask_pd(_mm_cmple_pd(magnitude, limit)) != 3) return false;
   }
+#elif defined(HT_SSTV_SCANLINE_NEON)
+  const float64x2_t limit = vdupq_n_f64(bound);
+  uint64x2_t valid = vdupq_n_u64(UINT64_MAX);
+  for (; i + 3 < count; i += 4) {
+    const uint64x2_t a = vcleq_f64(vabsq_f64(vld1q_f64(input + i)), limit);
+    const uint64x2_t b = vcleq_f64(vabsq_f64(vld1q_f64(input + i + 2)), limit);
+    valid = vandq_u64(valid, vandq_u64(a, b));
+  }
+  if (i + 1 < count) {
+    valid = vandq_u64(valid,
+        vcleq_f64(vabsq_f64(vld1q_f64(input + i)), limit));
+    i += 2;
+  }
+  if ((vgetq_lane_u64(valid, 0) & vgetq_lane_u64(valid, 1)) != UINT64_MAX) {
+    return false;
+  }
 #endif
   for (; i < count; ++i) {
     if (!(std::abs(input[i]) <= bound)) return false;
@@ -104,10 +120,14 @@ int byte(double value) {
   value *= 255;
   if (value <= 0) return 0;
   if (value >= 255) return 255;
+#if defined(HT_SSTV_SCANLINE_NEON)
+  return static_cast<int>(vget_lane_s64(vcvtn_s64_f64(vdup_n_f64(value)), 0));
+#else
   const double floor = std::floor(value);
   const double fraction = value - floor;
   const int base = static_cast<int>(floor);
   return base + (fraction > 0.5 || (fraction == 0.5 && (base & 1)));
+#endif
 }
 int clamp(int x) { return std::min(255, std::max(0, x)); }
 // Dart's signed >> rounds toward negative infinity, unlike integer division.

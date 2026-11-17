@@ -35,6 +35,11 @@ it can actually help you work: FM cross-band "repeater" birds like **SO-50**, th
   recenter. Coastlines come
   from Natural Earth (public domain).
 
+The globe keeps the last completed orbit geometry visible while each live
+update is calculated, then swaps in the new snapshot without blanking the
+orbit lines. Removed satellites and changed orbital elements are cleared
+immediately.
+
 While a radio is tracking a satellite, the **Radio** tab swaps its channel grid
 for a tracking panel in the same channel colors: a countdown to the next pass
 (or, during a pass, until the bird sets), the live azimuth and elevation, plus

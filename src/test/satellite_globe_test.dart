@@ -146,6 +146,81 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('time updates keep orbits visible until the latest reply', (
+    tester,
+  ) async {
+    final sat = globeSatellite();
+    final requests = <Completer<GlobeSnapshot>>[];
+    Future<GlobeSnapshot> load(List<SatelliteTle> _, DateTime utc) {
+      final completer = Completer<GlobeSnapshot>();
+      requests.add(completer);
+      return completer.future;
+    }
+
+    Widget globe(SatelliteInfo? satellite, DateTime utc) => MaterialApp(
+      home: SizedBox(
+        width: 400,
+        height: 400,
+        child: SatelliteGlobe(
+          satellites: [?satellite],
+          positions: const {},
+          observerLatDeg: 30,
+          observerLonDeg: 30,
+          minElevationDeg: 10,
+          utc: utc,
+          snapshotLoader: load,
+        ),
+      ),
+    );
+    await tester.pumpWidget(globe(sat, globeTime));
+    requests.single.complete(snapshotFor(sat.noradId, globeTime));
+    await tester.pump();
+    final original = globeScene(tester);
+    final orbit = original.satellites.single.orbit;
+    final later = globeTime.add(const Duration(seconds: 1));
+    await tester.pumpWidget(globe(sat, later));
+    expect(
+      identical(globeScene(tester).satellites.single.orbit, orbit),
+      isTrue,
+    );
+    expect(globeScene(tester).coneTopKm, original.coneTopKm);
+    final latest = later.add(const Duration(seconds: 1));
+    await tester.pumpWidget(globe(sat, latest));
+    expect(requests, hasLength(2));
+    requests.last.complete(snapshotFor(sat.noradId, later, 7100));
+    await tester.pump();
+    expect(requests, hasLength(3));
+    expect(
+      identical(globeScene(tester).satellites.single.orbit, orbit),
+      isTrue,
+    );
+    requests.last.complete(snapshotFor(sat.noradId, latest, 7200));
+    await tester.pump();
+    await tester.pump();
+    expect(globeScene(tester).satellites.single.position.x, 7200);
+
+    final replacement = SatelliteInfo(
+      tle: SatelliteTle(
+        name: sat.name,
+        noradId: sat.noradId,
+        line1: sat.tle.line1,
+        line2: sat.tle.line2.replaceRange(43, 51, ' 80.0000'),
+      ),
+    );
+    await tester.pumpWidget(globe(replacement, latest));
+    expect(globeScene(tester).satellites, isEmpty);
+    requests.last.complete(snapshotFor(sat.noradId, latest, 7300));
+    await tester.pump();
+    await tester.pump();
+    expect(globeScene(tester).satellites.single.position.x, 7300);
+    await tester.pumpWidget(globe(null, latest));
+    expect(globeScene(tester).satellites, isEmpty);
+    requests.last.complete({});
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'pending time and TLE updates coalesce and teardown ignores replies',
     (tester) async {

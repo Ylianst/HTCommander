@@ -234,6 +234,17 @@ void main() {
         attributeDeviceId: 410,
       );
       final decoded = <TncDataFragment>[];
+      final receiveErrors = <String>[];
+      final transmittedPcm = <Uint8List>[];
+      broker.subscribe(
+        deviceId: 1,
+        name: 'LogError',
+        callback: (_, _, data) {
+          if (data is String && data.startsWith('[SoftwareModem]')) {
+            receiveErrors.add(data);
+          }
+        },
+      );
       broker.subscribe(
         deviceId: 410,
         name: 'DataFrame',
@@ -244,10 +255,24 @@ void main() {
         name: 'TransmitVoicePCM',
         callback: (_, _, data) {
           final pcm = (data! as Map)['Data'] as Uint8List;
-          modem.feedExternalSamples(410, pcm);
+          transmittedPcm.add(pcm);
         },
       );
       receive(FrameType.uFrameSabm, FragmentEncodingType.softwareAfsk1200);
+      await waitFor(() => transmittedPcm.isNotEmpty);
+      final pcm = transmittedPcm.first;
+      // A complete TX burst can exceed the bounded RX queue. Stream it in
+      // blocks with backpressure instead of submitting all audio at once.
+      for (var offset = 0; offset < pcm.length; offset += 1024) {
+        modem.feedExternalSamples(
+          410,
+          pcm,
+          offset,
+          (pcm.length - offset).clamp(0, 1024),
+        );
+        await modem.receiveIdle;
+      }
+      expect(receiveErrors, isEmpty);
       await waitFor(
         () => decoded.any(
           (f) => AX25Packet.decode(f)?.type == FrameType.uFrameUa,

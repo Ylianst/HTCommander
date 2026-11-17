@@ -149,11 +149,19 @@ class _SatelliteGlobeState extends State<SatelliteGlobe> {
         '${utc.microsecondsSinceEpoch}\n${tles.map((s) => '${s.noradId}\n${s.line1}\n${s.line2}').join('\n')}';
     if (_snapshotKey == key) return;
     _snapshotKey = key;
+    final previousTles = {for (final tle in _requestedTles) tle.noradId: tle};
+    final unchangedIds = {
+      for (final tle in tles)
+        if (previousTles[tle.noradId]?.line1 == tle.line1 &&
+            previousTles[tle.noradId]?.line2 == tle.line2)
+          tle.noradId,
+    };
+    // Keep completed geometry visible during time updates, but not after a
+    // satellite is removed or its orbital elements change.
+    _snapshot.removeWhere((id, _) => !unchangedIds.contains(id));
     _requestedTles = tles;
     _requestedUtc = utc;
     _revision++;
-    // Never draw an old TLE/time snapshot while its replacement is pending.
-    _snapshot = {};
     if (!_busy) unawaited(_refreshSnapshot());
   }
 

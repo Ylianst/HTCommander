@@ -615,7 +615,7 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
 
         // Never steal the control channel's delegate or move an existing
         // channel's run-loop sources to a different thread.
-        if let shared = connections[normalizedAddress], shared.channel.getChannelID() == audioChannelID {
+        if let shared = connections[normalizedAddress], shared.channel.getID() == audioChannelID {
             guard shared.isConnected else {
                 result(FlutterError(code: "BUSY", message: "Control endpoint is still connecting", details: nil))
                 return
@@ -1046,7 +1046,7 @@ private final class AudioRFCOMMWorker: NSObject, IOBluetoothRFCOMMChannelDelegat
     // Call while holding lock; CFRunLoopPerformBlock never executes inline.
     private func enqueue(_ action: @escaping () -> Void) {
         if let loop = loop {
-            CFRunLoopPerformBlock(loop, kCFRunLoopDefaultMode, action)
+            CFRunLoopPerformBlock(loop, RunLoop.Mode.default.rawValue as CFString, action)
             CFRunLoopWakeUp(loop)
         }
     }

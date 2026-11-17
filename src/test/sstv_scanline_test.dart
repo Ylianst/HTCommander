@@ -268,6 +268,103 @@ void main() {
     },
   );
 
+  test('Native pixel conversion preserves ties to even and clipping', () {
+    if (!nativeSstvScanLineSupported) return;
+    final native = createNativeSstvScanLine()!;
+    final input = Float64List.fromList([
+      -3,
+      3,
+      for (int value = 0; value < 255; ++value)
+        for (final delta in [-1e-14, 0.0, 1e-14])
+          2 * ((value + 0.5) / 255) - 1 + delta,
+    ]);
+    final count = input.length;
+    final scratch = Float64List(count);
+    final pixels = Int32List(count);
+    final config = [0, count, count, 0, 0, 0, 0, count, count, count, 0];
+    try {
+      native.process(input, 0, scratch, 0, pixels, config, 1, 0);
+      final ties = <int>{};
+      for (int i = 0; i < count; ++i) {
+        final level = 0.5 * (input[i] + 1);
+        expect(scratch[i], level);
+        final scaled = level * 255;
+        if (scaled - scaled.floorToDouble() == 0.5) {
+          ties.add(scaled.floor() % 2);
+        }
+        final gray = sstvRound(scaled).clamp(0, 255);
+        expect(
+          pixels[i],
+          (0xff000000 | gray * 0x010101).toSigned(32),
+          reason: 'scaled=$scaled at $i',
+        );
+      }
+      expect(ties, containsAll([0, 1]));
+    } finally {
+      native.dispose();
+    }
+  });
+
+  test('Native bound checks cover every SIMD lane and scalar tail', () {
+    if (!nativeSstvScanLineSupported) return;
+    final native = createNativeSstvScanLine()!;
+    try {
+      for (final count in [1, 2, 3, 4, 5, 6, 7, 8, 9, 33]) {
+        final config = [5, 1, count, 0, 0, 0, 0, 0, 0, 0, 0];
+        final scratch = Float64List(count + 2)..fillRange(0, count + 2, 42);
+        final pixels = Int32List.fromList([42, 42]);
+        final input = Float64List(count + 2);
+        for (int index = 0; index < count; ++index) {
+          for (final value in [
+            double.nan,
+            double.infinity,
+            double.negativeInfinity,
+          ]) {
+            input[index + 1] = value;
+            expect(
+              () =>
+                  native.process(input, 1, scratch, 1, pixels, config, 0.3, 0),
+              throwsStateError,
+              reason: 'count=$count index=$index value=$value',
+            );
+            expect(scratch, everyElement(42.0));
+            expect(pixels, orderedEquals([42, 42]));
+            input[index + 1] = 0;
+          }
+        }
+        for (final value in [-1e101, -1e100, -0.0, 0.0, 1e100, 1e101]) {
+          input.fillRange(1, count + 1, value);
+          for (final alpha in [-0.1, 0.0, 0.3, 1.0, 1.1]) {
+            final expected = Float64List(count);
+            var previous = 0.0;
+            for (int i = 0; i < count; ++i) {
+              previous = previous * (1 - alpha) + alpha * value;
+              expected[i] = previous;
+            }
+            previous = 0;
+            for (int i = count - 1; i >= 0; --i) {
+              previous = previous * (1 - alpha) + alpha * expected[i];
+              expected[i] = 0.5 * (previous + 1);
+            }
+            native.process(input, 1, scratch, 1, pixels, config, alpha, 0);
+            expect(
+              scratch.sublist(1, count + 1),
+              orderedEquals(expected),
+              reason: 'count=$count value=$value alpha=$alpha',
+            );
+            expect(scratch.first, 42);
+            expect(scratch.last, 42);
+            final gray = sstvRound(math.sqrt(expected.first.clamp(0, 1)) * 255);
+            expect(pixels[0], (0xff000000 | gray * 0x010101).toSigned(32));
+            expect(pixels[1], 42);
+          }
+        }
+      }
+    } finally {
+      native.dispose();
+    }
+  });
+
   test(
     'Native rejects finite inputs whose intermediate filter levels overflow',
     () {

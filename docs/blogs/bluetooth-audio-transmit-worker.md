@@ -10,6 +10,11 @@ and explicitly held streams retain their streaming path; web and iOS are
 unchanged. Platform builds and receiver-side stress testing remain essential;
 the architecture alone is not evidence that radio dropouts have been eliminated.
 
+On macOS, the worker uses Swift's `IOBluetoothRFCOMMChannel.getID()` name
+when checking for a shared control endpoint. Run-loop submissions pass the
+default mode as a `CFString` to `CFRunLoopPerformBlock`, preserving the owner
+thread's default-mode scheduling across SDK versions.
+
 **Native codec update:** preparation and reception now use one shared C++ SBC
 codec and Bluetooth framer on all four audio platforms. Encoding and framing
 share a batched FFI entry point; parsing, unescaping, and decoding share another.
