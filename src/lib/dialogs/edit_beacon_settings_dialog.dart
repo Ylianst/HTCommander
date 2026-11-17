@@ -79,7 +79,9 @@ class BeaconSettingsPanel extends StatefulWidget {
   /// dialog can refresh its Save button.
   final VoidCallback? onChanged;
 
-  const BeaconSettingsPanel({super.key, this.onChanged});
+  final int? initialDeviceId;
+
+  const BeaconSettingsPanel({super.key, this.onChanged, this.initialDeviceId});
 
   @override
   State<BeaconSettingsPanel> createState() => BeaconSettingsPanelState();
@@ -131,7 +133,7 @@ class BeaconSettingsPanelState extends State<BeaconSettingsPanel>
     _callsignController.addListener(_onCallsignChanged);
     _aprsPathController.addListener(_onAprsPathChanged);
 
-    final deviceId = _resolveCurrentRadioId();
+    final deviceId = widget.initialDeviceId ?? _resolveCurrentRadioId();
 
     // With no radio connected there is nothing to configure; leave the controls
     // disabled. (The stand-alone dialog is only reachable while a radio is
@@ -356,10 +358,14 @@ class BeaconSettingsPanelState extends State<BeaconSettingsPanel>
   // Blocks a shared Save only for genuinely invalid input; when no radio is
   // loaded there is nothing to validate and [save] simply no-ops.
   @override
-  bool get canSave => !_controlsEnabled || (_callsignAcceptable && _aprsPathValid);
+  bool get canSave =>
+      !_controlsEnabled || (_callsignAcceptable && _aprsPathValid);
+
+  /// Selected beacon channel for a host that combines the radio settings write.
+  int? get autoShareLocCh => isReady ? _channelValues[_channelIndex] : null;
 
   @override
-  void save() {
+  void save({bool writeChannelSettings = true}) {
     final radio = _bluetooth.radioInstance(_selectedDeviceId);
     final current = radio?.bssSettings;
     if (radio == null || current == null) return;
@@ -408,29 +414,15 @@ class BeaconSettingsPanelState extends State<BeaconSettingsPanel>
       );
     }
 
-    // Write auto_share_loc_ch into the radio settings. This is an 8-bit value
-    // split across two bytes: the low 5 bits go into byte 5 (bits 4-0, after
-    // autoPowerOff) and the upper 3 bits into byte 11 (bits 2-0, after
-    // chDataLock). In the write buffer the raw message header is stripped, so
-    // raw byte 10 -> index 5 and raw byte 16 -> index 11.
+    // The combined dialog merges this channel into its shared settings write.
     final settings = radio.settings;
-    if (settings != null) {
-      int channelValue = 0;
-      if (_channelIndex >= 0 && _channelIndex < _channelValues.length) {
-        channelValue = _channelValues[_channelIndex];
-      }
-      final settingsData = settings.toByteArrayWith();
-      if (settingsData.length > 11) {
-        settingsData[5] = (settingsData[5] & 0xE0) | (channelValue & 0x1F);
-        settingsData[11] =
-            (settingsData[11] & 0xF8) | ((channelValue >> 5) & 0x07);
-        _broker.dispatch(
-          deviceId: _selectedDeviceId,
-          name: 'WriteSettings',
-          data: settingsData,
-          store: false,
-        );
-      }
+    if (writeChannelSettings && settings != null) {
+      _broker.dispatch(
+        deviceId: _selectedDeviceId,
+        name: 'WriteSettings',
+        data: settings.toByteArrayWith(autoShareLocCh: autoShareLocCh),
+        store: false,
+      );
     }
   }
 

@@ -6,6 +6,16 @@ The main tab in Handi-Talky Commander is the APRS tab. You can use this tab to s
 
 On the upper right, you can click on the 3 bars to opt to not see telemetry messages. You can also send SMS message to normal phones which is great if you need to send a text message and don't have cell phone access.
 
+## Radio Beacon Channel
+
+In **Radio Settings > Beacon**, select a dedicated channel instead of **Current
+(Not Recommended)** to keep the radio's automatic beacons off your voice channel.
+The shared Save button saves this selection together with the other radio
+settings. The standalone Beacon Settings dialog saves the same setting.
+
+This setting controls the radio's built-in beaconing. App-generated APRS
+messages and software beacons still use the channel named **APRS**.
+
 In the "File" -> "Settings" -> "APRS" dialog box, you can add more APRS routes. Once you have more than one route configured, a drop-down box will show up on the upper right of the APRS tab and you can select what route you want to use when sending messages. This allows you messages to hit the digipeaters you want to get your message to the right destination.
 
 APRS telemetry messages will show up on the [map tab](https://github.com/Ylianst/HTCommander/blob/main/docs/Map.md), and you can right click on any APRS message to get extra details or to show a mini-map of the location of the station.

@@ -120,11 +120,16 @@ class _HardwareRadioSettingsDialogState
     }
 
     for (final panel in panels) {
-      panel?.save();
+      if (panel is BeaconSettingsPanelState) {
+        panel.save(writeChannelSettings: false);
+      } else {
+        panel?.save();
+      }
     }
-    // The Audio/Power/Transmit/Display/Advanced tabs all edit one shared
-    // settings buffer, so write it back to the radio exactly once.
-    _bitfieldController.write();
+    // Include the beacon channel so a second stale settings write cannot undo it.
+    _bitfieldController.write(
+      autoShareLocCh: _beaconKey.currentState?.autoShareLocCh,
+    );
     Navigator.of(context).pop();
   }
 
@@ -185,7 +190,10 @@ class _HardwareRadioSettingsDialogState
                       key: _pttKey,
                       initialDeviceId: widget.deviceId,
                     )),
-                    _padded(BeaconSettingsPanel(key: _beaconKey)),
+                    _padded(BeaconSettingsPanel(
+                      key: _beaconKey,
+                      initialDeviceId: widget.deviceId,
+                    )),
                     _padded(ButtonsSettingsPanel(
                       key: _buttonsKey,
                       initialDeviceId: widget.deviceId,

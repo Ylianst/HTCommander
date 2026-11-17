@@ -140,10 +140,10 @@ class RadioBitfieldSettingsController extends ChangeNotifier {
   /// (header stripped) and overlaying only the fields these tabs edit. Byte
   /// indices are the raw settings offsets minus 5, because [writeSettings]
   /// expects the message header to be stripped (raw byte N -> index N-5).
-  Uint8List? _buildSettingsBuffer() {
+  Uint8List? _buildSettingsBuffer({int? autoShareLocCh}) {
     final s = _radio?.settings;
     if (s == null) return null;
-    final data = s.toByteArrayWith();
+    final data = s.toByteArrayWith(autoShareLocCh: autoShareLocCh);
 
     void setBits(int index, int mask, int value) {
       if (index < 0 || index >= data.length) return;
@@ -203,10 +203,10 @@ class RadioBitfieldSettingsController extends ChangeNotifier {
     return data;
   }
 
-  /// Writes the overlaid bit-field edits back to the radio. No-op when the
-  /// radio's settings have not loaded.
-  void write() {
-    final buffer = _buildSettingsBuffer();
+  /// Writes the bit-field edits and optional beacon channel together. No-op
+  /// when the radio's settings have not loaded.
+  void write({int? autoShareLocCh}) {
+    final buffer = _buildSettingsBuffer(autoShareLocCh: autoShareLocCh);
     if (buffer == null) return;
     _broker.dispatch(
       deviceId: deviceId,

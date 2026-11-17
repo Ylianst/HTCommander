@@ -390,9 +390,18 @@ class RadioSettings {
     int? squelchLevel,
     int? wxMode,
     bool? autoRelayEn,
+    int? autoShareLocCh,
   }) {
     if (autoRelayEn != null && rawData.length < 8) {
       throw StateError('Settings block is too short to change Audio Relay');
+    }
+    if (autoShareLocCh != null) {
+      RangeError.checkValueInInterval(autoShareLocCh, 0, 255, 'autoShareLocCh');
+      if (rawData.length < 17) {
+        throw StateError(
+          'Settings block is too short to change beacon channel',
+        );
+      }
     }
     final data = toByteArray(
       channelA ?? this.channelA,
@@ -403,6 +412,10 @@ class RadioSettings {
     );
     if (autoRelayEn != null) {
       data[2] = (data[2] & 0xBF) | (autoRelayEn ? 0x40 : 0);
+    }
+    if (autoShareLocCh != null) {
+      data[5] = (data[5] & 0xE0) | (autoShareLocCh & 0x1F);
+      data[11] = (data[11] & 0xF8) | ((autoShareLocCh >> 5) & 0x07);
     }
     // Weather mode (0=off, 1=monitor, 2=alert) is the top 2 bits of raw byte
     // 15, i.e. index 10 of the header-stripped write buffer.
