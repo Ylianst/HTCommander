@@ -357,8 +357,9 @@ class OfdmEngine {
 
   double? earlyCoherence(SampleTrack buf, int t0, int rows0) {
     final int rows = math.min(rows0, l.nsym);
-    if (t0 + rows * symLen + _refine > buf.end || t0 - _refine < buf.base)
+    if (t0 + rows * symLen + _refine > buf.end || t0 - _refine < buf.base) {
       return null;
+    }
     final bool qam = l.isQam;
     final List<(int, int)> cells = <(int, int)>[
       for (int r = 1; r < rows; r++)
@@ -453,8 +454,9 @@ class OfdmEngine {
     Cx v = Cx.zero;
     for (int b = 0; b < nc; b++) {
       for (int r = 0; r < math.max(nsy - fmPilotPeriod, 0); r++) {
-        if (fmQamPilot(_bins[b], r + 2))
+        if (fmQamPilot(_bins[b], r + 2)) {
           v = v + c[r][b].conj() * c[r + fmPilotPeriod][b];
+        }
       }
     }
     final double thd = v.arg / fmPilotPeriod;
@@ -649,8 +651,9 @@ class FmReceiver with Assemble<FmCtrlEvent, FmRecord, FmFrameRx, void, void> {
       }
       if (!(cur.frames[0].ok &&
           cur.record != FmRecord.broadcast &&
-          _continues(end1)))
+          _continues(end1))) {
         return finish(cur);
+      }
       stats.unexpectedFrame2++;
       cur.two = true;
     }

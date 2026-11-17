@@ -74,8 +74,9 @@ class XaraDriver {
       final int avail = _queued;
       if (avail < block &&
           wall - _lastRx < runGap &&
-          target - station.now < maxWait)
+          target - station.now < maxWait) {
         break;
+      }
       final List<double> input = List<double>.filled(block, 0.0);
       final int n = math.min(avail, block);
       for (int i = 0; i < n; i++) {

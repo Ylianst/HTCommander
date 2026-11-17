@@ -361,8 +361,9 @@ Decoded _run(
         it >= early.$1 &&
         it < iters &&
         !changed &&
-        early.$2.ok(bits))
+        early.$2.ok(bits)) {
       break;
+    }
   }
   return Decoded(bits, ran);
 }
