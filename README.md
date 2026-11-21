@@ -29,6 +29,17 @@ EchoLink and the following radios should work with this application:
 
 ### Features
 
+The **Tips** dialog opens on startup and is also available from **Help > Tips**.
+It starts with license setup on a fresh install and advances through helpful
+feature tips on later launches. Use **Previous** and **Next** to browse, or
+disable **Show on start** to stop automatic display. Settings links open the
+relevant page directly. The header shows the tip number and a compact green
+**Done** indicator for configured features; hands-on tips offer a saved
+**Todo / Done** checkbox in the header that can be checked or unchecked.
+**Show on start** sits alongside the navigation buttons.
+The first Winlink email tip is automatically done when the **Sent** mailbox
+contains an email.
+
 Handi-Talky Commander has a lot of features. There are the features available on all platforms:
 
 - [Channel Programming](https://ylianst.github.io/HTCommanderSite/features/channels.html). Configure, import, export and drag & drop channels to create the perfect configuration for your usages.

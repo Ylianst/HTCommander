@@ -47,8 +47,9 @@ enum _LocationSource { gps, manual, phone }
 /// Settings dialog with tabbed interface
 class SettingsDialog extends StatefulWidget {
   final int initialTab;
+  final String? initialTabName;
 
-  const SettingsDialog({super.key, this.initialTab = 0});
+  const SettingsDialog({super.key, this.initialTab = 0, this.initialTabName});
 
   @override
   State<SettingsDialog> createState() => _SettingsDialogState();
@@ -273,7 +274,11 @@ class _SettingsDialogState extends State<SettingsDialog>
     _tabController = TabController(
       length: _visibleTabs.length,
       vsync: this,
-      initialIndex: widget.initialTab.clamp(0, _visibleTabs.length - 1),
+      initialIndex: widget.initialTabName != null
+          ? _visibleTabs
+                .indexOf(widget.initialTabName!)
+                .clamp(0, _visibleTabs.length - 1)
+          : widget.initialTab.clamp(0, _visibleTabs.length - 1),
     );
 
     // Load settings from DataBroker

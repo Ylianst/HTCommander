@@ -29,8 +29,12 @@ class CommsDao {
 
   static const String _table = 'comms_events';
 
-  static Future<void> addOriginalTextColumn(Database db) =>
-      db.execute('ALTER TABLE comms_events ADD COLUMN original_text TEXT');
+  /// Adds `original_text` if missing; older schema labels can already have it.
+  static Future<void> addOriginalTextColumn(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info($_table)');
+    if (columns.any((column) => column['name'] == 'original_text')) return;
+    await db.execute('ALTER TABLE $_table ADD COLUMN original_text TEXT');
+  }
 
   Future<Map<String, Object?>> page({List<int>? before}) => readHistoryPage(
     _db,

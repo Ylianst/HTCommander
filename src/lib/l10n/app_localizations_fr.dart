@@ -9,6 +9,140 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get tipsTitle => 'Conseils';
+
+  @override
+  String get tipsShowOnStart => 'Afficher au démarrage';
+
+  @override
+  String get tipsPrevious => 'Précédent';
+
+  @override
+  String get tipsNext => 'Suivant';
+
+  @override
+  String get tipsDone => 'Terminé';
+
+  @override
+  String get tipsTodo => 'À faire';
+
+  @override
+  String tipsOpenSettings(String tab) {
+    return 'Ouvrir Paramètres / $tab';
+  }
+
+  @override
+  String tipsOpenFeature(String feature) {
+    return 'Ouvrir $feature';
+  }
+
+  @override
+  String tipsPosition(int current) {
+    return 'Conseil n° $current';
+  }
+
+  @override
+  String get tipsLicenseTitle =>
+      'Débloquer les fonctions d\'émission de HTCommander';
+
+  @override
+  String get tipsLicenseBody =>
+      'Si vous possédez une licence radioamateur, saisissez votre indicatif et choisissez un identifiant de station de 0 à 15 dans Paramètres / Licence. Cochez « Autoriser cette application à émettre » et enregistrez. Cela débloque la messagerie, le courrier Winlink, le terminal, le BBS et d\'autres fonctions d\'émission. N\'activez l\'émission que si votre licence le permet.';
+
+  @override
+  String get tipsWinlinkTitle => 'Configurer le courrier Winlink';
+
+  @override
+  String get tipsWinlinkBody =>
+      'Créez un compte sur Winlink.org pour votre indicatif, puis saisissez le mot de passe de votre compte Winlink dans Paramètres / Winlink et enregistrez. Une fois votre indicatif et l\'autorisation d\'émettre configurés, l\'onglet Courrier devient disponible. Votre mot de passe Winlink est différent de votre code d\'accès APRS-IS.';
+
+  @override
+  String get tipsAprsIsTitle => 'Se connecter à APRS par Internet';
+
+  @override
+  String get tipsAprsIsBody =>
+      'Dans Paramètres / APRS, activez APRS-IS, choisissez une région de serveur et saisissez le code d\'accès APRS-IS correspondant à votre indicatif autorisé. Choisissez un rayon de réception et enregistrez. APRS-IS permet de suivre les stations proches et d\'échanger des messages APRS par Internet sans passerelle radio locale.';
+
+  @override
+  String get tipsPushTitle => 'Recevoir des notifications push APRS';
+
+  @override
+  String get tipsPushBody =>
+      'Sur Android ou iOS, activez d\'abord APRS-IS avec un code d\'accès valide. Activez ensuite les notifications APRS dans le cloud dans Paramètres / APRS et autorisez les notifications lorsque cela vous est demandé. Les messages adressés à votre station peuvent alors vous avertir même lorsque l\'application est en arrière-plan. Cette option n\'est pas disponible sur ordinateur ni sur le Web.';
+
+  @override
+  String get tipsSatelliteTitle => 'Découvrir le mode satellite';
+
+  @override
+  String get tipsSatelliteBody =>
+      'Activez la prise en charge des satellites dans Paramètres / Application pour afficher l\'onglet Satellite. Définissez votre position dans Paramètres / Licence ou utilisez le GPS afin que les prévisions de passages correspondent à votre station. Ouvrez Satellite pour découvrir les prochains passages et les fonctions de suivi radio prises en charge.';
+
+  @override
+  String get tipsFccTitle =>
+      'Rechercher des indicatifs radioamateurs américains hors ligne';
+
+  @override
+  String get tipsFccBody =>
+      'Ouvrez Recherche d\'indicatif dans le menu Aide et téléchargez la base d\'indicatifs de la FCC. Vous pourrez alors rechercher des opérateurs radioamateurs américains sans connexion Internet. Gardez la base à jour pour tenir compte des changements récents de licences. Les bases hors ligne peuvent être téléchargées dans les applications natives, mais pas dans les navigateurs Web.';
+
+  @override
+  String get tipsGatewaysTitle => 'Trouver des passerelles Winlink hors ligne';
+
+  @override
+  String get tipsGatewaysBody =>
+      'Dans Paramètres / Winlink, téléchargez l\'annuaire hors ligne des passerelles Winlink avant de partir sans accès à Internet. Dans Carte, activez « Afficher les passerelles Winlink » pour trouver les passerelles proches et leurs fréquences. Sélectionnez une passerelle compatible pour synchroniser le courrier. Les téléchargements nécessitent Internet et ne sont pas disponibles sur le Web.';
+
+  @override
+  String get tipsSpeechTitle => 'Convertir la parole reçue en texte';
+
+  @override
+  String get tipsSpeechBody =>
+      'Sur les plateformes avec prise en charge audio, ouvrez Paramètres / Communications pour configurer la reconnaissance vocale. Sur ordinateur, choisissez et téléchargez un modèle de reconnaissance, puis sélectionnez sa langue. Android utilise la reconnaissance locale de l\'appareil. Dans Communications, activez la reconnaissance vocale et recevez de l\'audio radio pour voir les transcriptions. La disponibilité dépend de votre appareil ; cette fonction n\'est pas prise en charge sur le Web ni sur iOS.';
+
+  @override
+  String get tipsFirstMailTitle => 'Envoyer votre premier courriel Winlink';
+
+  @override
+  String get tipsFirstMailBody =>
+      'Après avoir configuré votre compte Winlink, ouvrez Courrier et rédigez un court courriel de test. Placez-le dans la file d\'envoi, puis synchronisez avec une passerelle Winlink compatible. Vous pouvez aussi sélectionner une passerelle sur la Carte et lancer la synchronisation du courrier. Limitez la taille des messages et des pièces jointes pour accélérer les transferts radio.';
+
+  @override
+  String get tipsWeatherTitle => 'Obtenir un bulletin météo par APRS';
+
+  @override
+  String get tipsWeatherBody =>
+      'Une fois votre indicatif et l\'autorisation d\'émettre configurés, ouvrez le menu de l\'onglet APRS et choisissez « Demander un bulletin météo ». Sélectionnez une position, une heure et un type de bulletin, puis envoyez la demande à WxBot. Un chemin APRS vers le service est nécessaire, via APRS-IS ou une passerelle radio ; les réponses apparaissent sous forme de messages APRS.';
+
+  @override
+  String get tipsSmsTitle => 'Envoyer un SMS par APRS';
+
+  @override
+  String get tipsSmsBody =>
+      'Ouvrez le menu de l\'onglet APRS et choisissez APRS SMS. Saisissez un numéro de téléphone pris en charge et un court message. Le destinataire doit d\'abord accepter le service de la passerelle via le lien du dialogue SMS. Un chemin APRS vers le service est nécessaire. Les pays et formats de numéros pris en charge sont expliqués dans le dialogue.';
+
+  @override
+  String get tipsLocationTitle => 'Définir la position de votre station';
+
+  @override
+  String get tipsLocationBody =>
+      'Dans Paramètres / Licence, choisissez une position manuelle ou une source GPS disponible. Une position correcte améliore les cartes APRS, la recherche de passerelles proches et les prévisions de passages de satellites. Mettez à jour votre position manuelle lorsque vous vous déplacez.';
+
+  @override
+  String get tipsContactsTitle =>
+      'Enregistrer les stations utiles dans Contacts';
+
+  @override
+  String get tipsContactsBody =>
+      'Utilisez Contacts pour enregistrer les stations auxquelles vous envoyez souvent des messages ou vous connectez. Ajoutez des stations APRS utiles, des passerelles Winlink et des stations packet radio pour les retrouver rapidement sans ressaisir leurs indicatifs.';
+
+  @override
+  String get tipsPacketsTitle => 'Voir ce qui se passe sur les ondes';
+
+  @override
+  String get tipsPacketsBody =>
+      'Ouvrez Paquets pour examiner le trafic de paquets reçu et les données décodées. Cela aide à apprendre APRS ou à diagnostiquer une connexion radio. L\'écoute en réception seule ne nécessite pas d\'activer l\'émission.';
+
+  @override
   String get commsOriginalSpeech => 'Reconnaissance vocale originale';
 
   @override

@@ -26,6 +26,7 @@ import 'dialogs/rename_regions_dialog.dart';
 import 'dialogs/repeaterbook_dialog.dart';
 import 'dialogs/app_settings.dart';
 import 'dialogs/settings_dialog.dart';
+import 'dialogs/tips_dialog.dart';
 import 'dialogs/xara_settings_dialog.dart';
 import 'handlers/frame_deduplicator.dart';
 import 'handlers/packet_store.dart';
@@ -1629,7 +1630,7 @@ class _MainFormState extends State<MainForm>
     // Check for updates in the background shortly after startup (throttled to
     // once a day). Deferred to after the first frame so a dialog can be shown.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _checkForUpdatesInBackground();
+      if (mounted) unawaited(_showStartupTipsAndUpdates());
       if (mounted) {
         // On the HTCommander-hosted web build, connect to the host's shared
         // radio over the WebSocket bridge; otherwise auto-reconnect over
@@ -3956,6 +3957,7 @@ class _MainFormState extends State<MainForm>
       AppSubmenu(
         label: l10n.menuHelp,
         children: [
+          AppMenuAction(label: l10n.tipsTitle, onPressed: _onTips),
           AppMenuAction(
             label: l10n.menuRadioInformation,
             onPressed: _hasConnectedRadio
@@ -5016,16 +5018,41 @@ class _MainFormState extends State<MainForm>
   }
 
   bool _settingsDialogOpen = false;
+  bool _tipsDialogOpen = false;
 
-  void _onSettings() async {
+  Future<void> _showStartupTipsAndUpdates() async {
+    if (TipsDialog.showOnStart) await _onTips();
+    if (mounted) await _checkForUpdatesInBackground();
+  }
+
+  Future<void> _onTips() async {
+    if (_tipsDialogOpen || _settingsDialogOpen) return;
+    _tipsDialogOpen = true;
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => TipsDialog(
+          onOpenSettings: (tab) => _onSettings(initialTabName: tab),
+          onOpenTab: (tab) {
+            if (_hiddenTabs.contains(tab)) _toggleTabHidden(tab);
+            _onRequestSelectTab(0, 'RequestSelectTab', tab);
+          },
+        ),
+      );
+    } finally {
+      _tipsDialogOpen = false;
+    }
+  }
+
+  Future<void> _onSettings({String? initialTabName}) async {
     if (_settingsDialogOpen) return;
     _settingsDialogOpen = true;
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => const SettingsDialog(),
+      builder: (context) => SettingsDialog(initialTabName: initialTabName),
     );
     _settingsDialogOpen = false;
-    if (result == true) {
+    if (mounted && result == true) {
       // Settings were saved to DataBroker
       // Reload settings to update UI
       _loadSettingsFromBroker();

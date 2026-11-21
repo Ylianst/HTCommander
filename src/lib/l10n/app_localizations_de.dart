@@ -9,6 +9,139 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get tipsTitle => 'Tipps';
+
+  @override
+  String get tipsShowOnStart => 'Beim Start anzeigen';
+
+  @override
+  String get tipsPrevious => 'Zurück';
+
+  @override
+  String get tipsNext => 'Weiter';
+
+  @override
+  String get tipsDone => 'Erledigt';
+
+  @override
+  String get tipsTodo => 'Offen';
+
+  @override
+  String tipsOpenSettings(String tab) {
+    return 'Einstellungen / $tab öffnen';
+  }
+
+  @override
+  String tipsOpenFeature(String feature) {
+    return '$feature öffnen';
+  }
+
+  @override
+  String tipsPosition(int current) {
+    return 'Tipp #$current';
+  }
+
+  @override
+  String get tipsLicenseTitle =>
+      'Die Sendefunktionen von HTCommander freischalten';
+
+  @override
+  String get tipsLicenseBody =>
+      'Wenn Sie eine Amateurfunklizenz haben, geben Sie unter Einstellungen / Lizenz Ihr Rufzeichen ein und wählen Sie eine Stations-ID von 0 bis 15. Aktivieren Sie „Dieser Anwendung das Senden erlauben“ und speichern Sie. Dadurch werden Nachrichten, Winlink-E-Mail, Terminal, BBS und weitere Sendefunktionen freigeschaltet. Aktivieren Sie das Senden nur, wenn Ihre Lizenz es erlaubt.';
+
+  @override
+  String get tipsWinlinkTitle => 'Winlink-E-Mail einrichten';
+
+  @override
+  String get tipsWinlinkBody =>
+      'Erstellen Sie auf Winlink.org ein Konto für Ihr Rufzeichen. Geben Sie dann unter Einstellungen / Winlink das Passwort Ihres Winlink-Kontos ein und speichern Sie. Wenn Rufzeichen und Sendeerlaubnis eingerichtet sind, wird der Tab E-Mail verfügbar. Ihr Winlink-Passwort ist nicht dasselbe wie Ihr APRS-IS-Zugangscode.';
+
+  @override
+  String get tipsAprsIsTitle => 'APRS über das Internet nutzen';
+
+  @override
+  String get tipsAprsIsBody =>
+      'Aktivieren Sie unter Einstellungen / APRS die Option APRS-IS, wählen Sie eine Serverregion und geben Sie den APRS-IS-Zugangscode für Ihr lizenziertes Rufzeichen ein. Wählen Sie einen Empfangsradius und speichern Sie. Mit APRS-IS können Sie Stationen in der Nähe verfolgen und APRS-Nachrichten über das Internet austauschen, ohne ein lokales Funk-Gateway zu benötigen.';
+
+  @override
+  String get tipsPushTitle => 'APRS-Push-Benachrichtigungen empfangen';
+
+  @override
+  String get tipsPushBody =>
+      'Aktivieren Sie auf Android oder iOS zunächst APRS-IS mit einem gültigen Zugangscode. Aktivieren Sie danach unter Einstellungen / APRS die APRS-Cloud-Benachrichtigungen und erlauben Sie Benachrichtigungen, wenn Sie dazu aufgefordert werden. Nachrichten an Ihre Station können Sie dann auch benachrichtigen, wenn die App im Hintergrund läuft. Diese Option ist auf Desktop-Systemen und im Web nicht verfügbar.';
+
+  @override
+  String get tipsSatelliteTitle => 'Den Satellitenmodus entdecken';
+
+  @override
+  String get tipsSatelliteBody =>
+      'Aktivieren Sie unter Einstellungen / Anwendung die Satellitenunterstützung, um den Satelliten-Tab einzublenden. Legen Sie unter Einstellungen / Lizenz Ihren Standort fest oder verwenden Sie GPS, damit die Überflugvorhersagen für Ihre Station berechnet werden. Öffnen Sie den Satelliten-Tab, um kommende Überflüge und unterstützte Funkgerät-Nachführfunktionen zu erkunden.';
+
+  @override
+  String get tipsFccTitle => 'US-Amateurfunkrufzeichen offline nachschlagen';
+
+  @override
+  String get tipsFccBody =>
+      'Öffnen Sie im Menü Hilfe die Rufzeichensuche und laden Sie die FCC-Rufzeichendatenbank herunter. Damit können Sie US-Funkamateure auch ohne Internetverbindung nachschlagen. Halten Sie die Datenbank aktuell, damit jüngste Lizenzänderungen berücksichtigt werden. Offline-Datenbanken können in nativen Apps heruntergeladen werden, nicht im Webbrowser.';
+
+  @override
+  String get tipsGatewaysTitle => 'Winlink-Gateways offline finden';
+
+  @override
+  String get tipsGatewaysBody =>
+      'Laden Sie unter Einstellungen / Winlink das Offline-Verzeichnis der Winlink-Gateways herunter, bevor Sie ohne Internet unterwegs sind. Aktivieren Sie in der Karte „Winlink-Gateways anzeigen“, um Gateways in der Nähe und deren Frequenzen zu finden. Wählen Sie ein kompatibles Gateway, um E-Mails zu synchronisieren. Downloads benötigen Internetzugang und sind im Web nicht verfügbar.';
+
+  @override
+  String get tipsSpeechTitle => 'Empfangene Sprache in Text umwandeln';
+
+  @override
+  String get tipsSpeechBody =>
+      'Öffnen Sie auf Plattformen mit Audiounterstützung Einstellungen / Kommunikation, um die Spracherkennung einzurichten. Wählen und laden Sie auf Desktop-Systemen ein Erkennungsmodell herunter und wählen Sie dessen Sprache. Android verwendet die lokale Spracherkennung des Geräts. Aktivieren Sie im Tab Kommunikation die Spracherkennung und empfangen Sie Funk-Audio, um Transkriptionen zu sehen. Die Verfügbarkeit hängt von Ihrem Gerät ab; im Web und auf iOS wird sie nicht unterstützt.';
+
+  @override
+  String get tipsFirstMailTitle => 'Ihre erste Winlink-E-Mail senden';
+
+  @override
+  String get tipsFirstMailBody =>
+      'Öffnen Sie nach dem Einrichten Ihres Winlink-Kontos den Tab E-Mail und verfassen Sie eine kurze Test-E-Mail. Stellen Sie sie zum Senden in die Warteschlange und synchronisieren Sie dann mit einem kompatiblen Winlink-Gateway. Sie können auch ein Gateway auf der Karte auswählen und die E-Mail-Synchronisierung starten. Halten Sie Nachrichten und Anhänge klein, damit die Funkübertragung schneller geht.';
+
+  @override
+  String get tipsWeatherTitle => 'Einen Wetterbericht über APRS abrufen';
+
+  @override
+  String get tipsWeatherBody =>
+      'Wenn Rufzeichen und Sendeerlaubnis eingerichtet sind, öffnen Sie das Menü des APRS-Tabs und wählen Sie „Wetterbericht anfordern“. Wählen Sie Standort, Zeitpunkt und Berichtstyp und senden Sie die Anfrage an WxBot. Sie benötigen einen APRS-Pfad zum Dienst über APRS-IS oder ein Funk-Gateway. Antworten erscheinen als APRS-Nachrichten.';
+
+  @override
+  String get tipsSmsTitle => 'Eine SMS über APRS senden';
+
+  @override
+  String get tipsSmsBody =>
+      'Öffnen Sie das Menü des APRS-Tabs und wählen Sie APRS SMS. Geben Sie eine unterstützte Telefonnummer und eine kurze Nachricht ein. Der Empfänger muss sich zunächst über den Link im SMS-Dialog für den Gateway-Dienst anmelden. Ein APRS-Pfad zum Dienst ist erforderlich. Unterstützte Länder und Nummernformate werden im Dialog erklärt.';
+
+  @override
+  String get tipsLocationTitle => 'Den Standort Ihrer Station festlegen';
+
+  @override
+  String get tipsLocationBody =>
+      'Wählen Sie unter Einstellungen / Lizenz einen manuellen Standort oder eine verfügbare GPS-Quelle. Ein korrekter Standort verbessert APRS-Karten, die Suche nach nahen Gateways und Satelliten-Überflugvorhersagen. Aktualisieren Sie einen manuell eingestellten Standort, wenn Sie sich bewegen.';
+
+  @override
+  String get tipsContactsTitle =>
+      'Nützliche Stationen in den Kontakten speichern';
+
+  @override
+  String get tipsContactsBody =>
+      'Speichern Sie in den Kontakten Stationen, denen Sie häufig Nachrichten senden oder zu denen Sie sich verbinden. Fügen Sie nützliche APRS-Stationen, Winlink-Gateways und Packet-Radio-Stationen hinzu, um sie schnell wiederzufinden, statt Rufzeichen erneut einzugeben.';
+
+  @override
+  String get tipsPacketsTitle => 'Sehen, was auf den Funkfrequenzen passiert';
+
+  @override
+  String get tipsPacketsBody =>
+      'Öffnen Sie den Tab Pakete, um empfangenen Paketverkehr und dekodierte Daten zu untersuchen. Das hilft beim Erlernen von APRS oder bei der Fehlersuche an einer Funkverbindung. Für reines Empfangshören muss das Senden nicht aktiviert werden.';
+
+  @override
   String get commsOriginalSpeech => 'Ursprüngliche Spracherkennung';
 
   @override

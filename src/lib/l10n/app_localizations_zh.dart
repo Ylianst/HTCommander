@@ -9,6 +9,137 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get tipsTitle => '使用提示';
+
+  @override
+  String get tipsShowOnStart => '启动时显示';
+
+  @override
+  String get tipsPrevious => '上一条';
+
+  @override
+  String get tipsNext => '下一条';
+
+  @override
+  String get tipsDone => '已完成';
+
+  @override
+  String get tipsTodo => '待完成';
+
+  @override
+  String tipsOpenSettings(String tab) {
+    return '打开设置 / $tab';
+  }
+
+  @override
+  String tipsOpenFeature(String feature) {
+    return '打开$feature';
+  }
+
+  @override
+  String tipsPosition(int current) {
+    return '提示 #$current';
+  }
+
+  @override
+  String get tipsLicenseTitle => '启用 HTCommander 的发射功能';
+
+  @override
+  String get tipsLicenseBody =>
+      '如果您持有业余无线电执照，请在设置 / 许可中输入呼号，并选择 0 到 15 之间的电台 ID。勾选“允许此应用程序发射”并保存，即可启用消息、Winlink 邮件、终端、BBS 等发射功能。只有在执照允许的情况下才应启用发射。';
+
+  @override
+  String get tipsWinlinkTitle => '设置 Winlink 邮件';
+
+  @override
+  String get tipsWinlinkBody =>
+      '使用您的呼号在 Winlink.org 上创建账号，然后在设置 / Winlink 中输入 Winlink 账号密码并保存。配置好呼号和发射许可后，即可启用邮件标签页。Winlink 密码与 APRS-IS 验证码不同。';
+
+  @override
+  String get tipsAprsIsTitle => '通过互联网连接 APRS';
+
+  @override
+  String get tipsAprsIsBody =>
+      '在设置 / APRS 中启用 APRS-IS，选择服务器区域，并输入执照所对应呼号的 APRS-IS 验证码。选择接收范围并保存。借助 APRS-IS，您无需本地无线电网关，也能通过互联网查看附近电台并交换 APRS 消息。';
+
+  @override
+  String get tipsPushTitle => '接收 APRS 推送通知';
+
+  @override
+  String get tipsPushBody =>
+      '在 Android 或 iOS 上，先使用有效的验证码启用 APRS-IS。然后在设置 / APRS 中启用 APRS 云通知，并在系统提示时允许通知。这样，即使应用在后台运行，发给您电台的消息也能触发通知。桌面版和网页版不提供此选项。';
+
+  @override
+  String get tipsSatelliteTitle => '探索卫星模式';
+
+  @override
+  String get tipsSatelliteBody =>
+      '在设置 / 应用程序中启用卫星支持，即可显示卫星标签页。在设置 / 许可中设置位置或使用 GPS，让卫星过境预测与您的电台位置相符。打开卫星标签页，查看即将到来的过境以及支持的电台跟踪功能。';
+
+  @override
+  String get tipsFccTitle => '离线查询美国业余无线电呼号';
+
+  @override
+  String get tipsFccBody =>
+      '从帮助菜单打开呼号查询，并下载 FCC 呼号数据库。此后，即使没有互联网连接，您也能查询美国业余无线电操作员的信息。请保持数据库更新，以反映最新的执照变更。离线数据库可在原生应用中下载，网页浏览器不支持。';
+
+  @override
+  String get tipsGatewaysTitle => '离线查找 Winlink 网关';
+
+  @override
+  String get tipsGatewaysBody =>
+      '前往没有互联网的地区之前，请在设置 / Winlink 中下载离线 Winlink 网关目录。在地图中启用“显示 Winlink 网关”，即可查找附近网关及其频率。选择兼容的网关来同步邮件。下载需要互联网连接，网页版不支持。';
+
+  @override
+  String get tipsSpeechTitle => '将接收的语音转换为文字';
+
+  @override
+  String get tipsSpeechBody =>
+      '在支持音频的平台上，打开设置 / 通信来配置语音识别。在桌面版中，选择并下载识别模型，然后选择语言。Android 使用设备本地的语音识别。在通信标签页中启用语音识别并接收无线电音频，即可查看转写文字。是否可用取决于您的设备；网页版和 iOS 不支持此功能。';
+
+  @override
+  String get tipsFirstMailTitle => '发送您的第一封 Winlink 邮件';
+
+  @override
+  String get tipsFirstMailBody =>
+      '设置好 Winlink 账号后，打开邮件并编写一封简短的测试邮件。将其加入待发送队列，然后通过兼容的 Winlink 网关同步。您也可以在地图上选择网关并启动邮件同步。尽量减小消息和附件的大小，以加快无线电传输。';
+
+  @override
+  String get tipsWeatherTitle => '通过 APRS 获取天气报告';
+
+  @override
+  String get tipsWeatherBody =>
+      '配置好呼号和发射许可后，打开 APRS 标签页的菜单并选择“请求天气报告”。选择位置、时间和报告类型，然后向 WxBot 发送请求。您需要通过 APRS-IS 或无线电网关建立通往该服务的 APRS 路径；回复会显示为 APRS 消息。';
+
+  @override
+  String get tipsSmsTitle => '通过 APRS 发送短信';
+
+  @override
+  String get tipsSmsBody =>
+      '打开 APRS 标签页的菜单并选择 APRS SMS。输入受支持的电话号码和简短消息。收件人必须先通过短信对话框中的链接选择加入网关服务。需要有通往该服务的 APRS 路径。支持的国家及号码格式会在对话框中说明。';
+
+  @override
+  String get tipsLocationTitle => '设置您的电台位置';
+
+  @override
+  String get tipsLocationBody =>
+      '在设置 / 许可中手动选择位置，或选择可用的 GPS 来源。正确的位置有助于使用 APRS 地图、搜索附近网关以及预测卫星过境。移动后请更新手动设置的位置。';
+
+  @override
+  String get tipsContactsTitle => '将常用电台保存到联系人';
+
+  @override
+  String get tipsContactsBody =>
+      '使用联系人保存经常发送消息或连接的电台。添加常用的 APRS 电台、Winlink 网关和分组无线电电台，以便快速找到它们，无需重新输入呼号。';
+
+  @override
+  String get tipsPacketsTitle => '查看无线电通信活动';
+
+  @override
+  String get tipsPacketsBody =>
+      '打开数据包，查看接收到的分组通信流量和解码数据。这有助于学习 APRS 或排查无线电连接问题。仅接收和监听无需启用发射。';
+
+  @override
   String get commsOriginalSpeech => '原始语音识别结果';
 
   @override

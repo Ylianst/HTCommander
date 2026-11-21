@@ -14,11 +14,20 @@ void main() {
   late Directory directory;
   late AppDatabase db;
   MailStore? store;
+  const channel = MethodChannel('plugins.flutter.io/path_provider');
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
   setUp(() async {
     DataBroker.reset();
     directory = await Directory.systemTemp.createTemp('htc-mail-');
     db = await AppDatabase.openInMemory();
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'getApplicationSupportDirectory') {
+        return directory.path;
+      }
+      throw MissingPluginException();
+    });
   });
 
   tearDown(() async {
@@ -26,6 +35,7 @@ void main() {
     store?.dispose();
     store = null;
     await AppDatabase.close();
+    messenger.setMockMethodCallHandler(channel, null);
     await directory.delete(recursive: true);
     DataBroker.reset();
   });
@@ -179,27 +189,82 @@ void main() {
         ]) {
           await legacy.execute('DROP TABLE $table');
         }
+        await legacy.execute(
+          'ALTER TABLE comms_events DROP COLUMN original_text',
+        );
         await legacy.setVersion(version);
         await legacy.close();
 
-        const channel = MethodChannel('plugins.flutter.io/path_provider');
-        final messenger =
-            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-        messenger.setMockMethodCallHandler(channel, (call) async {
-          if (call.method == 'getApplicationSupportDirectory') {
-            return directory.path;
-          }
-          throw MissingPluginException();
-        });
-        addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
         await AppDatabase.open();
         final upgraded = AppDatabase.instance!;
-        expect(await upgraded.db.getVersion(), 5);
+        expect(await upgraded.db.getVersion(), 6);
         expect((await upgraded.comms.recent(10)).single.text, 'retained');
         await upgraded.mails.save([mail('upgraded')], <String>{});
         expect((await upgraded.mails.all()).single.mid, 'upgraded');
       },
     );
+  }
+
+  for (final (version, hasOriginalText) in [(4, false), (4, true), (5, true)]) {
+    test('upgrades version $version with existing mail and '
+        'original_text=$hasOriginalText without losing data', () async {
+      await db.comms.insert(
+        DecodedTextEntry(
+          text: 'retained',
+          originalText: hasOriginalText ? 'original' : null,
+        ),
+      );
+      await db.mails.save([mail('retained')], <String>{});
+      final tables = [
+        'comms_events',
+        'mail_messages',
+        'mail_attachments',
+        'mail_state',
+      ];
+      final before = {
+        for (final table in tables) table: await db.db.query(table),
+      };
+      final path = '${directory.path}${Platform.pathSeparator}htcommander.db';
+      await db.db.execute('VACUUM INTO ?', [path]);
+      await AppDatabase.close();
+      final legacy = await databaseFactoryFfi.openDatabase(path);
+      if (!hasOriginalText) {
+        await legacy.execute(
+          'ALTER TABLE comms_events DROP COLUMN original_text',
+        );
+      }
+      await legacy.setVersion(version);
+      await legacy.close();
+
+      await AppDatabase.open();
+      expect(AppDatabase.instance, isNotNull);
+      await AppDatabase.close();
+      await AppDatabase.open();
+      final upgraded = AppDatabase.instance!;
+      expect(await upgraded.db.getVersion(), 6);
+      for (final table in tables) {
+        expect(await upgraded.db.query(table), before[table]);
+      }
+      expect((await upgraded.mails.all()).single.body, 'body retained');
+      expect((await upgraded.mails.all()).single.attachments!.single.data, [
+        0,
+        1,
+        255,
+      ]);
+      expect(await upgraded.mails.initialized, isTrue);
+      await upgraded.mails.save([mail('new')], <String>{});
+      expect((await upgraded.mails.all()).map((message) => message.mid), [
+        'retained',
+        'new',
+      ]);
+      await upgraded.comms.insert(
+        DecodedTextEntry(text: 'new', originalText: 'new original'),
+      );
+      expect(
+        (await upgraded.comms.recent(10)).last.originalText,
+        'new original',
+      );
+    });
   }
 
   test(

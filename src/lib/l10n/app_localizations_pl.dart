@@ -9,6 +9,138 @@ class AppLocalizationsPl extends AppLocalizations {
   AppLocalizationsPl([String locale = 'pl']) : super(locale);
 
   @override
+  String get tipsTitle => 'Wskazówki';
+
+  @override
+  String get tipsShowOnStart => 'Pokaż przy starcie';
+
+  @override
+  String get tipsPrevious => 'Poprzednia';
+
+  @override
+  String get tipsNext => 'Następna';
+
+  @override
+  String get tipsDone => 'Gotowe';
+
+  @override
+  String get tipsTodo => 'Do zrobienia';
+
+  @override
+  String tipsOpenSettings(String tab) {
+    return 'Otwórz Ustawienia / $tab';
+  }
+
+  @override
+  String tipsOpenFeature(String feature) {
+    return 'Otwórz $feature';
+  }
+
+  @override
+  String tipsPosition(int current) {
+    return 'Wskazówka nr $current';
+  }
+
+  @override
+  String get tipsLicenseTitle => 'Odblokuj funkcje nadawania w HTCommander';
+
+  @override
+  String get tipsLicenseBody =>
+      'Jeśli masz licencję krótkofalarską, wpisz swój znak wywoławczy i wybierz identyfikator stacji od 0 do 15 w Ustawienia / Licencja. Zaznacz „Zezwól tej aplikacji na nadawanie” i zapisz. Odblokuje to wiadomości, pocztę Winlink, terminal, BBS i inne funkcje nadawania. Włączaj nadawanie tylko wtedy, gdy zezwala na to Twoja licencja.';
+
+  @override
+  String get tipsWinlinkTitle => 'Skonfiguruj pocztę Winlink';
+
+  @override
+  String get tipsWinlinkBody =>
+      'Utwórz konto na Winlink.org dla swojego znaku wywoławczego, a następnie wpisz hasło do konta Winlink w Ustawienia / Winlink i zapisz. Po skonfigurowaniu znaku i zezwolenia na nadawanie dostępna będzie karta Poczta. Hasło Winlink różni się od kodu dostępu APRS-IS.';
+
+  @override
+  String get tipsAprsIsTitle => 'Połącz się z APRS przez Internet';
+
+  @override
+  String get tipsAprsIsBody =>
+      'W Ustawienia / APRS włącz APRS-IS, wybierz region serwera i wpisz kod dostępu APRS-IS dla znaku wywoławczego przyznanego w Twojej licencji. Wybierz zasięg odbioru i zapisz. APRS-IS umożliwia śledzenie pobliskich stacji i wymianę wiadomości APRS przez Internet bez lokalnej bramki radiowej.';
+
+  @override
+  String get tipsPushTitle => 'Odbieraj powiadomienia push APRS';
+
+  @override
+  String get tipsPushBody =>
+      'Na Androidzie lub iOS najpierw włącz APRS-IS z prawidłowym kodem dostępu. Następnie w Ustawienia / APRS włącz powiadomienia APRS z chmury i zezwól na powiadomienia, gdy pojawi się prośba. Wiadomości adresowane do Twojej stacji mogą wtedy wywoływać powiadomienia, gdy aplikacja działa w tle. Ta opcja nie jest dostępna na komputerach ani w przeglądarce.';
+
+  @override
+  String get tipsSatelliteTitle => 'Poznaj tryb satelitarny';
+
+  @override
+  String get tipsSatelliteBody =>
+      'Włącz obsługę satelitów w Ustawienia / Aplikacja, aby wyświetlić kartę satelitów. Ustaw swoją lokalizację w Ustawienia / Licencja lub użyj GPS, aby prognozy przelotów dotyczyły Twojej stacji. Otwórz kartę satelitów, aby sprawdzić nadchodzące przeloty i obsługiwane funkcje śledzenia za pomocą radia.';
+
+  @override
+  String get tipsFccTitle =>
+      'Wyszukuj amerykańskie znaki krótkofalarskie offline';
+
+  @override
+  String get tipsFccBody =>
+      'Otwórz Wyszukiwanie znaku wywoławczego w menu Pomoc i pobierz bazę znaków FCC. Możesz wtedy wyszukiwać amerykańskich krótkofalowców bez połączenia z Internetem. Aktualizuj bazę, aby uwzględniała najnowsze zmiany licencji. Bazy offline można pobierać w aplikacjach natywnych, ale nie w przeglądarkach.';
+
+  @override
+  String get tipsGatewaysTitle => 'Znajdź bramki Winlink offline';
+
+  @override
+  String get tipsGatewaysBody =>
+      'W Ustawienia / Winlink pobierz katalog bramek Winlink offline, zanim wyruszysz poza zasięg Internetu. Na karcie Mapa włącz „Pokaż bramki Winlink”, aby znaleźć pobliskie bramki i ich częstotliwości. Wybierz zgodną bramkę, aby zsynchronizować pocztę. Pobieranie wymaga dostępu do Internetu i nie jest dostępne w przeglądarce.';
+
+  @override
+  String get tipsSpeechTitle => 'Zamień odbieraną mowę na tekst';
+
+  @override
+  String get tipsSpeechBody =>
+      'Na platformach z obsługą dźwięku otwórz Ustawienia / Komunikacja, aby skonfigurować rozpoznawanie mowy. Na komputerze wybierz i pobierz model rozpoznawania oraz wybierz jego język. Android korzysta z rozpoznawania lokalnego na urządzeniu. Na karcie Komunikacja włącz rozpoznawanie mowy i odbieraj dźwięk z radia, aby zobaczyć transkrypcje. Dostępność zależy od urządzenia; funkcja nie jest obsługiwana w przeglądarce ani na iOS.';
+
+  @override
+  String get tipsFirstMailTitle => 'Wyślij swój pierwszy email Winlink';
+
+  @override
+  String get tipsFirstMailBody =>
+      'Po skonfigurowaniu konta Winlink otwórz Pocztę i napisz krótki email testowy. Dodaj go do kolejki wysyłania, a następnie zsynchronizuj pocztę przez zgodną bramkę Winlink. Możesz też wybrać bramkę na Mapie i uruchomić synchronizację poczty. Małe wiadomości i załączniki przyspieszają przesyłanie przez radio.';
+
+  @override
+  String get tipsWeatherTitle => 'Uzyskaj raport pogodowy przez APRS';
+
+  @override
+  String get tipsWeatherBody =>
+      'Po skonfigurowaniu znaku i zezwolenia na nadawanie otwórz menu karty APRS i wybierz „Zażądaj raportu pogodowego”. Wybierz lokalizację, czas i typ raportu, a następnie wyślij żądanie do WxBot. Potrzebna jest ścieżka APRS do usługi przez APRS-IS lub bramkę radiową; odpowiedzi pojawiają się jako wiadomości APRS.';
+
+  @override
+  String get tipsSmsTitle => 'Wyślij SMS przez APRS';
+
+  @override
+  String get tipsSmsBody =>
+      'Otwórz menu karty APRS i wybierz APRS SMS. Wpisz obsługiwany numer telefonu i krótką wiadomość. Odbiorca musi najpierw wyrazić zgodę na korzystanie z usługi bramki za pomocą odnośnika w oknie SMS. Wymagana jest ścieżka APRS do usługi. Obsługiwane kraje i formaty numerów są wyjaśnione w tym oknie.';
+
+  @override
+  String get tipsLocationTitle => 'Ustaw lokalizację swojej stacji';
+
+  @override
+  String get tipsLocationBody =>
+      'W Ustawienia / Licencja wybierz lokalizację ręczną lub dostępne źródło GPS. Prawidłowa lokalizacja poprawia przydatność map APRS, wyszukiwania pobliskich bramek i prognoz przelotów satelitów. Aktualizuj lokalizację ręczną, gdy zmieniasz położenie.';
+
+  @override
+  String get tipsContactsTitle => 'Zapisuj przydatne stacje w Kontaktach';
+
+  @override
+  String get tipsContactsBody =>
+      'Używaj Kontaktów, aby zapisywać stacje, z którymi często wymieniasz wiadomości lub nawiązujesz połączenia. Dodaj przydatne stacje APRS, bramki Winlink i stacje packet radio, aby szybko je odnaleźć bez ponownego wpisywania znaków wywoławczych.';
+
+  @override
+  String get tipsPacketsTitle => 'Zobacz, co dzieje się na falach radiowych';
+
+  @override
+  String get tipsPacketsBody =>
+      'Otwórz Pakiety, aby przejrzeć odbierany ruch pakietowy i zdekodowane dane. To przydatne podczas nauki APRS lub diagnozowania połączenia radiowego. Sam nasłuch nie wymaga włączania nadawania.';
+
+  @override
   String get commsOriginalSpeech => 'Oryginalne rozpoznanie mowy';
 
   @override

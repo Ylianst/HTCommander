@@ -16,6 +16,11 @@ message no longer base64-encodes and rewrites every attachment in the mailbox.
 Unchanged attachment rows are not rewritten. Bursts of edits share a 150 ms
 save window; backgrounding and clean shutdown explicitly drain pending saves.
 
+Database upgrades reuse existing mail tables and the original-text history
+column when present, even if the recorded schema version is older. Existing
+mail, binary attachments, import state, and history are preserved; no database
+deletion or reset is required.
+
 Existing `HTCommander/mails.txt` mail is imported once. The legacy file remains
 as a backup and is not re-imported after messages have been deleted. JSON mail
 backup/restore remains compatible. If the application database is unavailable,

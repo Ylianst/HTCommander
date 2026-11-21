@@ -13,12 +13,14 @@ class MailDao {
 
   static Future<void> createSchema(DatabaseExecutor db) async {
     await db.execute(
-      'CREATE TABLE mail_messages (mid TEXT PRIMARY KEY, metadata TEXT NOT NULL)',
+      'CREATE TABLE IF NOT EXISTS mail_messages (mid TEXT PRIMARY KEY, metadata TEXT NOT NULL)',
     );
     await db.execute(
-      'CREATE TABLE mail_attachments (mid TEXT NOT NULL, ordinal INTEGER NOT NULL, name TEXT NOT NULL, data BLOB NOT NULL, PRIMARY KEY (mid, ordinal))',
+      'CREATE TABLE IF NOT EXISTS mail_attachments (mid TEXT NOT NULL, ordinal INTEGER NOT NULL, name TEXT NOT NULL, data BLOB NOT NULL, PRIMARY KEY (mid, ordinal))',
     );
-    await db.execute('CREATE TABLE mail_state (initialized INTEGER NOT NULL)');
+    await db.execute(
+      'CREATE TABLE IF NOT EXISTS mail_state (initialized INTEGER NOT NULL)',
+    );
   }
 
   Future<bool> get initialized async =>

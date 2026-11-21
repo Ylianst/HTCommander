@@ -9,6 +9,137 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get tipsTitle => 'सुझाव';
+
+  @override
+  String get tipsShowOnStart => 'शुरू होने पर दिखाएँ';
+
+  @override
+  String get tipsPrevious => 'पिछला';
+
+  @override
+  String get tipsNext => 'अगला';
+
+  @override
+  String get tipsDone => 'पूर्ण';
+
+  @override
+  String get tipsTodo => 'बाकी';
+
+  @override
+  String tipsOpenSettings(String tab) {
+    return 'सेटिंग्स / $tab खोलें';
+  }
+
+  @override
+  String tipsOpenFeature(String feature) {
+    return '$feature खोलें';
+  }
+
+  @override
+  String tipsPosition(int current) {
+    return 'सुझाव #$current';
+  }
+
+  @override
+  String get tipsLicenseTitle => 'HTCommander की ट्रांसमिट सुविधाएँ चालू करें';
+
+  @override
+  String get tipsLicenseBody =>
+      'यदि आपके पास एमेच्योर रेडियो लाइसेंस है, तो सेटिंग्स / लाइसेंस में अपना कॉलसाइन दर्ज करें और 0 से 15 के बीच स्टेशन ID चुनें। “इस एप्लिकेशन को ट्रांसमिट करने की अनुमति दें” चुनें और सहेजें। इससे संदेश, Winlink मेल, टर्मिनल, BBS और अन्य ट्रांसमिट सुविधाएँ उपलब्ध हो जाती हैं। ट्रांसमिट तभी चालू करें जब आपका लाइसेंस इसकी अनुमति देता हो।';
+
+  @override
+  String get tipsWinlinkTitle => 'Winlink ईमेल सेट करें';
+
+  @override
+  String get tipsWinlinkBody =>
+      'अपने कॉलसाइन के लिए Winlink.org पर खाता बनाएँ, फिर सेटिंग्स / Winlink में अपने Winlink खाते का पासवर्ड दर्ज करें और सहेजें। कॉलसाइन और ट्रांसमिट की अनुमति सेट होने पर मेल टैब उपलब्ध हो जाता है। आपका Winlink पासवर्ड, APRS-IS पासकोड से अलग होता है।';
+
+  @override
+  String get tipsAprsIsTitle => 'इंटरनेट के माध्यम से APRS से जुड़ें';
+
+  @override
+  String get tipsAprsIsBody =>
+      'सेटिंग्स / APRS में APRS-IS चालू करें, सर्वर क्षेत्र चुनें और अपने लाइसेंस वाले कॉलसाइन का APRS-IS पासकोड दर्ज करें। प्राप्ति का दायरा चुनें और सहेजें। APRS-IS से आप स्थानीय रेडियो गेटवे के बिना इंटरनेट पर आसपास के स्टेशन देख सकते हैं और APRS संदेशों का आदान-प्रदान कर सकते हैं।';
+
+  @override
+  String get tipsPushTitle => 'APRS पुश सूचनाएँ प्राप्त करें';
+
+  @override
+  String get tipsPushBody =>
+      'Android या iOS पर पहले मान्य पासकोड के साथ APRS-IS चालू करें। फिर सेटिंग्स / APRS में APRS क्लाउड सूचनाएँ चालू करें और पूछे जाने पर सूचनाओं की अनुमति दें। इससे ऐप बैकग्राउंड में होने पर भी आपके स्टेशन को भेजे गए संदेशों की सूचना मिल सकती है। यह विकल्प डेस्कटॉप या वेब पर उपलब्ध नहीं है।';
+
+  @override
+  String get tipsSatelliteTitle => 'सैटेलाइट मोड का उपयोग करें';
+
+  @override
+  String get tipsSatelliteBody =>
+      'सैटेलाइट टैब दिखाने के लिए सेटिंग्स / एप्लिकेशन में सैटेलाइट समर्थन चालू करें। सेटिंग्स / लाइसेंस में अपना स्थान सेट करें या GPS का उपयोग करें, ताकि उपग्रह के गुजरने के पूर्वानुमान आपके स्टेशन के लिए हों। आगामी उपग्रह पास और समर्थित रेडियो ट्रैकिंग सुविधाएँ देखने के लिए सैटेलाइट टैब खोलें।';
+
+  @override
+  String get tipsFccTitle => 'अमेरिकी एमेच्योर रेडियो कॉलसाइन ऑफ़लाइन खोजें';
+
+  @override
+  String get tipsFccBody =>
+      'सहायता मेन्यू से कॉलसाइन खोज खोलें और FCC कॉलसाइन डेटाबेस डाउनलोड करें। इसके बाद आप इंटरनेट के बिना भी अमेरिकी एमेच्योर रेडियो ऑपरेटरों को खोज सकते हैं। लाइसेंस के हाल के बदलाव शामिल रखने के लिए डेटाबेस अपडेट करते रहें। ऑफ़लाइन डेटाबेस नेटिव ऐप में डाउनलोड किए जा सकते हैं, वेब ब्राउज़र में नहीं।';
+
+  @override
+  String get tipsGatewaysTitle => 'Winlink गेटवे ऑफ़लाइन खोजें';
+
+  @override
+  String get tipsGatewaysBody =>
+      'इंटरनेट से दूर जाने से पहले सेटिंग्स / Winlink में ऑफ़लाइन Winlink गेटवे सूची डाउनलोड करें। मानचित्र में “Winlink गेटवे दिखाएँ” चालू करके आसपास के गेटवे और उनकी फ़्रीक्वेंसी खोजें। मेल सिंक करने के लिए संगत गेटवे चुनें। डाउनलोड के लिए इंटरनेट चाहिए और यह वेब पर उपलब्ध नहीं है।';
+
+  @override
+  String get tipsSpeechTitle => 'प्राप्त आवाज़ को पाठ में बदलें';
+
+  @override
+  String get tipsSpeechBody =>
+      'ऑडियो समर्थित प्लेटफ़ॉर्म पर वाक् पहचान सेट करने के लिए सेटिंग्स / संचार खोलें। डेस्कटॉप पर पहचान मॉडल चुनकर डाउनलोड करें और उसकी भाषा चुनें। Android डिवाइस की स्थानीय वाक् पहचान का उपयोग करता है। संचार में वाक् पहचान चालू करें और रेडियो ऑडियो प्राप्त करें ताकि उसका पाठ दिखे। पहचान की उपलब्धता आपके डिवाइस पर निर्भर करती है; वेब या iOS पर इसका समर्थन नहीं है।';
+
+  @override
+  String get tipsFirstMailTitle => 'अपना पहला Winlink ईमेल भेजें';
+
+  @override
+  String get tipsFirstMailBody =>
+      'Winlink खाता सेट करने के बाद मेल खोलें और परीक्षण के लिए छोटा ईमेल लिखें। उसे भेजने की कतार में जोड़ें, फिर संगत Winlink गेटवे से सिंक करें। आप मानचित्र पर गेटवे चुनकर मेल सिंक भी शुरू कर सकते हैं। रेडियो पर तेज़ स्थानांतरण के लिए संदेश और अटैचमेंट छोटे रखें।';
+
+  @override
+  String get tipsWeatherTitle => 'APRS से मौसम रिपोर्ट प्राप्त करें';
+
+  @override
+  String get tipsWeatherBody =>
+      'कॉलसाइन और ट्रांसमिट की अनुमति सेट होने के बाद APRS टैब का मेन्यू खोलें और “मौसम रिपोर्ट का अनुरोध करें” चुनें। स्थान, समय और रिपोर्ट का प्रकार चुनकर WxBot को अनुरोध भेजें। APRS-IS या रेडियो गेटवे के माध्यम से सेवा तक पहुँचने वाला APRS पथ चाहिए; जवाब APRS संदेशों के रूप में दिखाई देते हैं।';
+
+  @override
+  String get tipsSmsTitle => 'APRS से SMS भेजें';
+
+  @override
+  String get tipsSmsBody =>
+      'APRS टैब का मेन्यू खोलें और APRS SMS चुनें। समर्थित फ़ोन नंबर और छोटा संदेश दर्ज करें। प्राप्तकर्ता को पहले SMS संवाद के लिंक से गेटवे सेवा में शामिल होने की सहमति देनी होगी। सेवा तक APRS पथ आवश्यक है। समर्थित देशों और नंबर के प्रारूपों की जानकारी संवाद में दी गई है।';
+
+  @override
+  String get tipsLocationTitle => 'अपने स्टेशन का स्थान सेट करें';
+
+  @override
+  String get tipsLocationBody =>
+      'सेटिंग्स / लाइसेंस में स्थान मैन्युअल रूप से चुनें या उपलब्ध GPS स्रोत चुनें। सही स्थान से APRS मानचित्र, आसपास के गेटवे की खोज और उपग्रह पास के पूर्वानुमान अधिक उपयोगी होते हैं। स्थान बदलने पर मैन्युअल स्थान अपडेट करें।';
+
+  @override
+  String get tipsContactsTitle => 'उपयोगी स्टेशन संपर्क में सहेजें';
+
+  @override
+  String get tipsContactsBody =>
+      'जिन स्टेशनों को आप अक्सर संदेश भेजते हैं या जिनसे जुड़ते हैं, उन्हें संपर्क में सहेजें। उपयोगी APRS स्टेशन, Winlink गेटवे और पैकेट रेडियो स्टेशन जोड़ें, ताकि कॉलसाइन दोबारा लिखे बिना उन्हें जल्दी खोज सकें।';
+
+  @override
+  String get tipsPacketsTitle => 'रेडियो पर हो रही गतिविधि देखें';
+
+  @override
+  String get tipsPacketsBody =>
+      'प्राप्त पैकेट ट्रैफ़िक और डिकोड किए गए डेटा की जाँच के लिए पैकेट खोलें। यह APRS सीखने या रेडियो कनेक्शन की समस्या पता करने में उपयोगी है। केवल प्राप्त करने और सुनने के लिए ट्रांसमिट चालू करना आवश्यक नहीं है।';
+
+  @override
   String get commsOriginalSpeech => 'मूल वाक् पहचान';
 
   @override

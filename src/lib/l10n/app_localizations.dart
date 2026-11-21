@@ -112,6 +112,228 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @tipsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tips'**
+  String get tipsTitle;
+
+  /// No description provided for @tipsShowOnStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Show on start'**
+  String get tipsShowOnStart;
+
+  /// No description provided for @tipsPrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get tipsPrevious;
+
+  /// No description provided for @tipsNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get tipsNext;
+
+  /// No description provided for @tipsDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get tipsDone;
+
+  /// No description provided for @tipsTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Todo'**
+  String get tipsTodo;
+
+  /// No description provided for @tipsOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings / {tab}'**
+  String tipsOpenSettings(String tab);
+
+  /// No description provided for @tipsOpenFeature.
+  ///
+  /// In en, this message translates to:
+  /// **'Open {feature}'**
+  String tipsOpenFeature(String feature);
+
+  /// No description provided for @tipsPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip #{current}'**
+  String tipsPosition(int current);
+
+  /// No description provided for @tipsLicenseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock HTCommander\'s transmit features'**
+  String get tipsLicenseTitle;
+
+  /// No description provided for @tipsLicenseBody.
+  ///
+  /// In en, this message translates to:
+  /// **'If you have an amateur radio license, enter your callsign and choose a station ID from 0 to 15 in Settings / License. Select \"Enable transmit\" and save. This unlocks messaging, Winlink mail, terminal, BBS and other transmit features. Only enable transmission when your license permits it.'**
+  String get tipsLicenseBody;
+
+  /// No description provided for @tipsWinlinkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up Winlink email'**
+  String get tipsWinlinkTitle;
+
+  /// No description provided for @tipsWinlinkBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a Winlink.org account for your callsign, then enter your Winlink account password in Settings / Winlink and save. With your callsign and transmit permission configured, this enables the Mail tab. Your Winlink password is different from an APRS-IS passcode.'**
+  String get tipsWinlinkBody;
+
+  /// No description provided for @tipsAprsIsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to APRS over the internet'**
+  String get tipsAprsIsTitle;
+
+  /// No description provided for @tipsAprsIsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'In Settings / APRS, enable APRS-IS, choose a server region and enter the APRS-IS passcode for your licensed callsign. Choose a receive range and save. APRS-IS lets you follow nearby stations and exchange APRS messages over the internet without a local radio gateway.'**
+  String get tipsAprsIsBody;
+
+  /// No description provided for @tipsPushTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive APRS push notifications'**
+  String get tipsPushTitle;
+
+  /// No description provided for @tipsPushBody.
+  ///
+  /// In en, this message translates to:
+  /// **'On Android or iOS, first enable APRS-IS with a valid passcode. Then enable APRS cloud notifications in Settings / APRS and allow notifications when prompted. Messages addressed to your station can then notify you while the app is in the background. This option is not available on desktop or web.'**
+  String get tipsPushBody;
+
+  /// No description provided for @tipsSatelliteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore satellite mode'**
+  String get tipsSatelliteTitle;
+
+  /// No description provided for @tipsSatelliteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable satellite support in Settings / Application to reveal the Satellite tab. Set your location in Settings / License or use GPS so pass predictions are for your station. Open Satellite to explore upcoming passes and supported radio tracking features.'**
+  String get tipsSatelliteBody;
+
+  /// No description provided for @tipsFccTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Look up US amateur callsigns offline'**
+  String get tipsFccTitle;
+
+  /// No description provided for @tipsFccBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Callsign Lookup from the Help menu and download the FCC callsign database. You can then look up US amateur operators without an internet connection. Keep the database updated for recent license changes. Offline database downloads are available in native apps, not web browsers.'**
+  String get tipsFccBody;
+
+  /// No description provided for @tipsGatewaysTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find Winlink gateways offline'**
+  String get tipsGatewaysTitle;
+
+  /// No description provided for @tipsGatewaysBody.
+  ///
+  /// In en, this message translates to:
+  /// **'In Settings / Winlink, download the offline Winlink gateway directory before going off-grid. In Map, enable Show Winlink Gateways to find nearby gateways and their frequencies. Select a compatible gateway to sync mail. Downloads require internet access and are not available on web.'**
+  String get tipsGatewaysBody;
+
+  /// No description provided for @tipsSpeechTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn received speech into text'**
+  String get tipsSpeechTitle;
+
+  /// No description provided for @tipsSpeechBody.
+  ///
+  /// In en, this message translates to:
+  /// **'On supported audio platforms, open Settings / Comms to configure speech-to-text. On desktop, choose and download a recognition model and select its language. Android uses its on-device recognizer. In Comms, enable speech-to-text and receive radio audio to see transcriptions. Recognition availability depends on your device; it is not supported on web or iOS.'**
+  String get tipsSpeechBody;
+
+  /// No description provided for @tipsFirstMailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send your first Winlink email'**
+  String get tipsFirstMailTitle;
+
+  /// No description provided for @tipsFirstMailBody.
+  ///
+  /// In en, this message translates to:
+  /// **'After setting up your Winlink account, open Mail and compose a short test email. Queue it for sending, then sync with a compatible Winlink gateway. You can also select a gateway on the Map and choose Sync mail. Keep messages and attachments small for faster radio transfers.'**
+  String get tipsFirstMailBody;
+
+  /// No description provided for @tipsWeatherTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Get a weather report using APRS'**
+  String get tipsWeatherTitle;
+
+  /// No description provided for @tipsWeatherBody.
+  ///
+  /// In en, this message translates to:
+  /// **'With your callsign and transmit permission configured, open the APRS tab\'s menu and choose Weather Report. Select a location, time and report type, then send the request to WxBot. You need an APRS path to the service, through APRS-IS or a radio gateway; replies appear as APRS messages.'**
+  String get tipsWeatherBody;
+
+  /// No description provided for @tipsSmsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send an SMS using APRS'**
+  String get tipsSmsTitle;
+
+  /// No description provided for @tipsSmsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the APRS tab\'s menu and choose APRS SMS. Enter a supported phone number and a short message. The recipient must first opt in to the gateway service using the link in the SMS dialog. An APRS path to the service is required. Supported countries and number formats are explained in the dialog.'**
+  String get tipsSmsBody;
+
+  /// No description provided for @tipsLocationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set your station\'s location'**
+  String get tipsLocationTitle;
+
+  /// No description provided for @tipsLocationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'In Settings / License, choose a manual location or an available GPS source. A correct location makes APRS maps, nearby gateway searches and satellite pass predictions more useful. Update a manual location when you move.'**
+  String get tipsLocationBody;
+
+  /// No description provided for @tipsContactsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep useful stations in Contacts'**
+  String get tipsContactsTitle;
+
+  /// No description provided for @tipsContactsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Contacts to save stations you message or connect to often. Add useful APRS stations, Winlink gateways and packet stations so you can find them again quickly instead of retyping callsigns.'**
+  String get tipsContactsBody;
+
+  /// No description provided for @tipsPacketsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'See what is happening on the air'**
+  String get tipsPacketsTitle;
+
+  /// No description provided for @tipsPacketsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Packets to inspect received packet traffic and decoded data. This is useful when learning APRS or troubleshooting a radio connection. Receive-only listening does not require enabling transmit.'**
+  String get tipsPacketsBody;
+
   /// No description provided for @commsOriginalSpeech.
   ///
   /// In en, this message translates to:

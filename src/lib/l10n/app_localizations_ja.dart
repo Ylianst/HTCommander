@@ -9,6 +9,137 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get tipsTitle => 'ヒント';
+
+  @override
+  String get tipsShowOnStart => '起動時に表示';
+
+  @override
+  String get tipsPrevious => '前へ';
+
+  @override
+  String get tipsNext => '次へ';
+
+  @override
+  String get tipsDone => '完了';
+
+  @override
+  String get tipsTodo => '未完了';
+
+  @override
+  String tipsOpenSettings(String tab) {
+    return '設定 / $tabを開く';
+  }
+
+  @override
+  String tipsOpenFeature(String feature) {
+    return '$featureを開く';
+  }
+
+  @override
+  String tipsPosition(int current) {
+    return 'ヒント #$current';
+  }
+
+  @override
+  String get tipsLicenseTitle => 'HTCommanderの送信機能を有効にする';
+
+  @override
+  String get tipsLicenseBody =>
+      'アマチュア無線の免許をお持ちの場合は、設定 / ライセンスでコールサインを入力し、0～15の局IDを選択してください。「このアプリケーションによる送信を許可」を選択して保存すると、メッセージ、Winlinkメール、ターミナル、BBSなどの送信機能が使えるようになります。免許で許可されている場合にのみ送信を有効にしてください。';
+
+  @override
+  String get tipsWinlinkTitle => 'Winlinkメールを設定する';
+
+  @override
+  String get tipsWinlinkBody =>
+      '自分のコールサインでWinlink.orgのアカウントを作成し、設定 / WinlinkにWinlinkアカウントのパスワードを入力して保存してください。コールサインと送信許可が設定されていると、メールタブが有効になります。WinlinkのパスワードはAPRS-ISのパスコードとは異なります。';
+
+  @override
+  String get tipsAprsIsTitle => 'インターネット経由でAPRSに接続する';
+
+  @override
+  String get tipsAprsIsBody =>
+      '設定 / APRSでAPRS-ISを有効にし、サーバーの地域を選択して、免許を受けたコールサインのAPRS-ISパスコードを入力してください。受信範囲を選択して保存します。APRS-ISを使えば、近くに無線ゲートウェイがなくても、インターネット経由で周辺の局を確認したり、APRSメッセージをやり取りしたりできます。';
+
+  @override
+  String get tipsPushTitle => 'APRSのプッシュ通知を受け取る';
+
+  @override
+  String get tipsPushBody =>
+      'AndroidまたはiOSでは、まず有効なパスコードでAPRS-ISを有効にしてください。次に設定 / APRSでAPRSクラウド通知を有効にし、通知の許可を求められたら許可します。アプリがバックグラウンドにあるときも、自局宛てのメッセージを通知で受け取れるようになります。この機能はデスクトップ版とWeb版では利用できません。';
+
+  @override
+  String get tipsSatelliteTitle => '衛星モードを試す';
+
+  @override
+  String get tipsSatelliteBody =>
+      '設定 / アプリケーションで衛星のサポートを有効にすると、衛星タブが表示されます。設定 / ライセンスで位置を設定するかGPSを使用すると、自局に合わせた衛星通過予測が得られます。衛星タブを開いて、今後の通過や対応する無線機の追尾機能を確認してください。';
+
+  @override
+  String get tipsFccTitle => '米国のアマチュア無線コールサインをオフラインで検索する';
+
+  @override
+  String get tipsFccBody =>
+      'ヘルプメニューからコールサイン検索を開き、FCCのコールサインデータベースをダウンロードしてください。インターネットに接続していなくても、米国のアマチュア無線局を検索できます。最近の免許変更を反映するため、データベースを最新の状態に保ってください。オフラインデータベースのダウンロードはネイティブアプリで利用でき、Webブラウザーでは利用できません。';
+
+  @override
+  String get tipsGatewaysTitle => 'Winlinkゲートウェイをオフラインで探す';
+
+  @override
+  String get tipsGatewaysBody =>
+      'インターネットが使えない場所へ出かける前に、設定 / WinlinkでWinlinkゲートウェイのオフライン一覧をダウンロードしてください。地図で「Winlink ゲートウェイを表示」を有効にすると、近くのゲートウェイと周波数を確認できます。対応するゲートウェイを選択してメールを同期してください。ダウンロードにはインターネット接続が必要で、Web版では利用できません。';
+
+  @override
+  String get tipsSpeechTitle => '受信した音声を文字にする';
+
+  @override
+  String get tipsSpeechBody =>
+      '音声に対応するプラットフォームでは、設定 / 通信を開いて音声認識を設定してください。デスクトップでは認識モデルを選択してダウンロードし、言語を選びます。Androidは端末内の音声認識を使用します。通信タブで音声認識を有効にして無線音声を受信すると、文字起こしを確認できます。利用可否は端末によって異なり、Web版とiOSでは対応していません。';
+
+  @override
+  String get tipsFirstMailTitle => '最初のWinlinkメールを送信する';
+
+  @override
+  String get tipsFirstMailBody =>
+      'Winlinkアカウントの設定後、メールを開いて短いテストメールを作成してください。送信待ちにしてから、対応するWinlinkゲートウェイで同期します。地図でゲートウェイを選択してメールの同期を開始することもできます。無線での転送を速くするため、メッセージや添付ファイルは小さくしてください。';
+
+  @override
+  String get tipsWeatherTitle => 'APRSで気象レポートを取得する';
+
+  @override
+  String get tipsWeatherBody =>
+      'コールサインと送信許可を設定したら、APRSタブのメニューで「気象レポートを要求」を選択してください。位置、時刻、レポートの種類を選び、WxBotにリクエストを送信します。APRS-ISまたは無線ゲートウェイを通じてサービスに届くAPRS経路が必要です。返信はAPRSメッセージとして表示されます。';
+
+  @override
+  String get tipsSmsTitle => 'APRSでSMSを送信する';
+
+  @override
+  String get tipsSmsBody =>
+      'APRSタブのメニューでAPRS SMSを選択してください。対応する電話番号と短いメッセージを入力します。受信者はSMSダイアログ内のリンクから、事前にゲートウェイサービスの利用に同意する必要があります。サービスに届くAPRS経路が必要です。対応国や電話番号の形式はダイアログに説明されています。';
+
+  @override
+  String get tipsLocationTitle => '自局の位置を設定する';
+
+  @override
+  String get tipsLocationBody =>
+      '設定 / ライセンスで位置を手動指定するか、利用可能なGPSソースを選択してください。正しい位置を設定すると、APRS地図、近くのゲートウェイの検索、衛星通過予測をより便利に使えます。移動したときは手動設定の位置を更新してください。';
+
+  @override
+  String get tipsContactsTitle => '便利な局を連絡先に保存する';
+
+  @override
+  String get tipsContactsBody =>
+      'よくメッセージを送ったり接続したりする局を連絡先に保存してください。便利なAPRS局、Winlinkゲートウェイ、パケット無線局を登録すれば、コールサインを入力し直さずにすぐ見つけられます。';
+
+  @override
+  String get tipsPacketsTitle => '無線で何が起きているか確認する';
+
+  @override
+  String get tipsPacketsBody =>
+      'パケットを開いて、受信したパケット通信やデコードされたデータを確認してください。APRSの学習や無線接続のトラブルシューティングに役立ちます。受信のみで聞く場合は、送信を有効にする必要はありません。';
+
+  @override
   String get commsOriginalSpeech => '元の音声認識結果';
 
   @override

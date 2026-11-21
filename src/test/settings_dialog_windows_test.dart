@@ -14,6 +14,37 @@ import 'package:htcommander/services/data_broker.dart';
 /// Regression coverage for issue #59: opening the settings dialog on desktop
 /// (Windows) must build and lay out every tab without throwing or overflowing.
 void main() {
+  for (final platform in [TargetPlatform.windows, TargetPlatform.android]) {
+    testWidgets('named settings links select Application on $platform', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = platform;
+      tester.view.physicalSize = const Size(1400, 1800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      try {
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const Scaffold(
+              body: SettingsDialog(initialTabName: 'Application'),
+            ),
+          ),
+        );
+        await tester.pump();
+        final tabBar = tester.widget<TabBar>(find.byType(TabBar));
+        expect(
+          (tabBar.tabs[tabBar.controller!.index] as Tab).text,
+          'Application',
+        );
+        expect(tester.takeException(), isNull);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+  }
+
   testWidgets('settings dialog builds every tab on Windows without overflow', (
     tester,
   ) async {
