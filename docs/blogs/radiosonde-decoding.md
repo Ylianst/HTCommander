@@ -109,6 +109,11 @@ Windows, Linux, macOS, and Android, the six families now use the C++17
 bundled by Dart's native-asset build hook. Web and iOS continue to use Dart.
 No external decoder executable, download, or additional runtime is needed.
 
+Android C++ native assets link the static C++ runtime and explicitly link the
+system math library (`libm.so`), including compiler-generated calls such as
+`sincos`. Unresolved symbols fail the Android native build rather than producing
+a library that fails to load at app startup.
+
 The per-sample matched-filter scans, timing recovery, and bit slicing run
 natively for DFM, RS41, M10/M20, and LMS6. iMet's tone detection, transition
 reconstruction, and serial deframing also run natively. Only compact candidate

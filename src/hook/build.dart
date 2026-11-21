@@ -26,7 +26,11 @@ Future<void> main(List<String> args) async {
       includes: ['native'],
       language: Language.cpp,
       std: 'c++17',
-      flags: [if (os == OS.windows) '/EHsc'],
+      flags: [
+        if (os == OS.windows) '/EHsc',
+        if (os == OS.android) '-Wl,--no-undefined',
+      ],
+      libraries: [if (os == OS.android) 'm'],
       cppLinkStdLib: os == OS.android ? 'c++_static' : null,
     ).run(input: input, output: output);
     output.dependencies.addAll([
@@ -41,6 +45,7 @@ Future<void> main(List<String> args) async {
       language: Language.cpp,
       std: 'c++17',
       flags: [
+        if (os == OS.android) '-Wl,--no-undefined',
         if (os == OS.windows) ...[
           '/EHsc',
           '/O2',
@@ -50,6 +55,7 @@ Future<void> main(List<String> args) async {
           '-ffp-contract=off',
         ],
       ],
+      libraries: [if (os == OS.android) 'm'],
       cppLinkStdLib: os == OS.android ? 'c++_static' : null,
     ).run(input: input, output: output);
     output.dependencies.add(input.packageRoot.resolve('native/xara_dsp.h'));
@@ -62,6 +68,7 @@ Future<void> main(List<String> args) async {
       language: Language.cpp,
       std: 'c++17',
       flags: [
+        if (os == OS.android) '-Wl,--no-undefined',
         if (os == OS.windows) ...[
           '/EHsc',
           '/O2',
@@ -71,6 +78,7 @@ Future<void> main(List<String> args) async {
           '-ffp-contract=off',
         ],
       ],
+      libraries: [if (os == OS.android) 'm'],
       cppLinkStdLib: os == OS.android ? 'c++_static' : null,
     ).run(input: input, output: output);
     output.dependencies.add(input.packageRoot.resolve('native/packet_modem.h'));
@@ -86,6 +94,7 @@ Future<void> main(List<String> args) async {
       language: Language.cpp,
       std: 'c++17',
       flags: [
+        if (os == OS.android) '-Wl,--no-undefined',
         if (os == OS.windows) ...[
           '/EHsc',
           '/O2',
@@ -95,6 +104,7 @@ Future<void> main(List<String> args) async {
           '-ffp-contract=off',
         ],
       ],
+      libraries: [if (os == OS.android) 'm'],
       cppLinkStdLib: os == OS.android ? 'c++_static' : null,
     ).run(input: input, output: output);
     output.dependencies.add(input.packageRoot.resolve('native/sstv_dsp.h'));

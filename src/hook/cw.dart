@@ -13,6 +13,7 @@ Future<void> buildCw(BuildInput input, BuildOutputBuilder output) async {
     language: Language.cpp,
     std: 'c++17',
     flags: [
+      if (os == OS.android) '-Wl,--no-undefined',
       if (os == OS.windows) ...[
         '/EHsc',
         '/O2',
@@ -22,6 +23,7 @@ Future<void> buildCw(BuildInput input, BuildOutputBuilder output) async {
         '-ffp-contract=off',
       ],
     ],
+    libraries: [if (os == OS.android) 'm'],
     cppLinkStdLib: os == OS.android ? 'c++_static' : null,
   ).run(input: input, output: output);
   output.dependencies.add(input.packageRoot.resolve('native/cw_dsp.h'));

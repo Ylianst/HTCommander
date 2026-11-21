@@ -18,6 +18,7 @@ Future<void> buildSatellite(BuildInput input, BuildOutputBuilder output) async {
     language: Language.cpp,
     std: 'c++17',
     flags: [
+      if (os == OS.android) '-Wl,--no-undefined',
       if (os == OS.windows) ...[
         '/EHsc',
         '/O2',
@@ -29,6 +30,7 @@ Future<void> buildSatellite(BuildInput input, BuildOutputBuilder output) async {
         '-fvisibility=hidden',
       ],
     ],
+    libraries: [if (os == OS.android) 'm'],
     cppLinkStdLib: os == OS.android ? 'c++_static' : null,
   ).run(input: input, output: output);
   output.dependencies.add(

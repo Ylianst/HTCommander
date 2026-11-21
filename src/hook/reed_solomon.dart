@@ -16,8 +16,10 @@ Future<void> buildReedSolomon(
     language: Language.cpp,
     std: 'c++17',
     flags: [
+      if (os == OS.android) '-Wl,--no-undefined',
       if (os == OS.windows) ...['/EHsc', '/O2'] else '-O3',
     ],
+    libraries: [if (os == OS.android) 'm'],
     cppLinkStdLib: os == OS.android ? 'c++_static' : null,
   ).run(input: input, output: output);
   output.dependencies.add(input.packageRoot.resolve('native/reed_solomon.h'));
