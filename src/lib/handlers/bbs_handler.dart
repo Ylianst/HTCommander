@@ -43,8 +43,42 @@ import 'bbs_files.dart';
 import 'bbs_menu.dart';
 import 'bbs_monitor.dart';
 import 'bbs_settings.dart';
+import 'bbs_store.dart';
 
 export 'bbs_menu.dart' show BbsMenu, BbsMenuReply, BbsFileTransfer;
+
+class _BbsLine {
+  const _BbsLine(this.text, {required this.terminated});
+
+  final String text;
+  final bool terminated;
+}
+
+class _BbsTextInput {
+  final _buffer = StringBuffer();
+  late final _decoder = const Utf8Decoder(
+    allowMalformed: true,
+  ).startChunkedConversion(StringConversionSink.fromStringSink(_buffer));
+  bool _endedWithCr = false;
+
+  List<_BbsLine> decode(Uint8List data) {
+    _decoder.add(data);
+    var text = _buffer.toString();
+    _buffer.clear();
+    if (text.isEmpty) return [];
+    if (_endedWithCr && text.startsWith('\n')) text = text.substring(1);
+    _endedWithCr = text.endsWith('\r');
+    final parts = text
+        .replaceAll('\r\n', '\r')
+        .replaceAll('\n', '\r')
+        .split('\r');
+    return [
+      for (var i = 0; i < parts.length; i++)
+        if (i < parts.length - 1 || parts[i].isNotEmpty)
+          _BbsLine(parts[i], terminated: i < parts.length - 1),
+    ];
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Data classes (broker payloads)
@@ -1085,7 +1119,7 @@ class Bbs {
         _dispatchControl('Download not accepted', session.remoteCallsign);
         final queued = session.sessionState.remove('bbsQueue');
         _sessionSend(session, 'Download cancelled.\r');
-        if (queued is List<String> && queued.isNotEmpty) {
+        if (queued is List<_BbsLine> && queued.isNotEmpty) {
           _processBbsLines(session, queued);
         }
       } else if (yapp.processIncomingData(data)) {
@@ -1098,36 +1132,22 @@ class Bbs {
   void _processBbsStream(BbsLink session, Uint8List data) {
     if (!enabled) return;
 
-    final pending = session.sessionState.remove('bbsPartialLine') as String?;
-    final dataStr = (pending ?? '') + utf8.decode(data, allowMalformed: true);
-    final dataStrs = dataStr
-        .replaceAll('\r\n', '\r')
-        .replaceAll('\n', '\r')
-        .split('\r');
-
-    // A Winlink client SID (e.g. "[RMS Express-1.7.28.0-B2FHM$]") may arrive
-    // split across several frames. Hold back an unterminated line that could
-    // be the start of a SID so we don't mistake the fragment for a BBS
-    // command and drop the CMS relay.
-    final last = dataStrs.last;
-    if (last.isNotEmpty &&
-        last.startsWith('[') &&
-        last.length < _maxPartialSidLength) {
-      session.sessionState['bbsPartialLine'] = last;
-      dataStrs.removeLast();
-    }
+    final input =
+        session.sessionState.putIfAbsent('bbsTextInput', () => _BbsTextInput())
+            as _BbsTextInput;
+    final dataStrs = input.decode(data);
 
     // While a reply is still being prepared (e.g. a callsign lookup), queue
     // new lines so that replies keep their order.
     final queued = session.sessionState['bbsQueue'];
-    if (queued is List<String>) {
+    if (queued is List<_BbsLine>) {
       queued.addAll(dataStrs);
       return;
     }
     _processBbsLines(session, dataStrs);
   }
 
-  void _processBbsLines(BbsLink session, List<String> dataStrs) {
+  void _processBbsLines(BbsLink session, List<_BbsLine> dataStrs) {
     if (!enabled) return;
 
     // Replies to several lines received together go out in one send.
@@ -1139,12 +1159,27 @@ class Bbs {
     }
 
     for (int lineIndex = 0; lineIndex < dataStrs.length; lineIndex++) {
-      final str = dataStrs[lineIndex];
-      if (str.isEmpty) continue;
+      final line = dataStrs[lineIndex];
+      final pending = session.sessionState.remove('bbsPartialLine') as String?;
+      final str = (pending ?? '') + line.text;
+      final composing = BbsMenu.isComposing(session.sessionState);
+      // Preserve draft lines and Winlink SIDs across transport frames, including
+      // lines queued behind an asynchronous menu command.
+      if (!line.terminated &&
+          (composing ||
+              (str.startsWith('[') && str.length < _maxPartialSidLength))) {
+        const max = BbsStore.maxComposedMessageLength + 1;
+        session.sessionState['bbsPartialLine'] = str.length > max
+            ? str.substring(0, max)
+            : str;
+        continue;
+      }
+      if (!composing && str.isEmpty) continue;
       _dispatchTraffic(session.remoteCallsign, false, str.trim());
 
       // Switch to Winlink mail mode when the station sends a WL2K SID.
-      if (!session.sessionState.containsKey('mode') &&
+      if (!composing &&
+          !session.sessionState.containsKey('mode') &&
           str.length > 6 &&
           str.indexOf('-') > 0 &&
           str.startsWith('[') &&
@@ -1155,7 +1190,7 @@ class Bbs {
         remainingData.write(str);
         for (int j = lineIndex + 1; j < dataStrs.length; j++) {
           remainingData.write('\r');
-          remainingData.write(dataStrs[j]);
+          remainingData.write(dataStrs[j].text);
         }
         _processMailStream(
           session,
@@ -1234,7 +1269,7 @@ class Bbs {
       return;
     }
     _sessionSend(session, reply.text);
-    if (queued is List<String> && queued.isNotEmpty) {
+    if (queued is List<_BbsLine> && queued.isNotEmpty) {
       _processBbsLines(session, queued);
     }
   }
@@ -1324,7 +1359,7 @@ class Bbs {
     if (!session.isConnected) return;
     final queued = session.sessionState.remove('bbsQueue');
     _sessionSend(session, '$message${BbsMenu.prompt}');
-    if (queued is List<String> && queued.isNotEmpty) {
+    if (queued is List<_BbsLine> && queued.isNotEmpty) {
       _processBbsLines(session, queued);
     }
   }

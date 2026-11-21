@@ -663,7 +663,12 @@ class TerminalHandler {
 
   /// Sends a line of text over the current connection.
   void send(String text) {
-    if (text.isEmpty) return;
+    if (text.isEmpty &&
+        _localLink == null &&
+        _session?.currentState != AX25ConnectionState.connected &&
+        _xaraState != _XaraState.connected) {
+      return;
+    }
     final localLink = _localLink;
     if (localLink != null) {
       _text(outgoing: true, from: _remote, to: _remote, text: '$text\n');
@@ -684,6 +689,13 @@ class TerminalHandler {
       return;
     }
     final station = _station;
+    if (text.isEmpty &&
+        station != null &&
+        station.terminalProtocol != TerminalProtocol.x25Session &&
+        station.terminalProtocol != TerminalProtocol.xaraNarrow &&
+        station.terminalProtocol != TerminalProtocol.xaraWide) {
+      return;
+    }
 
     // "Wait for Connection" has no configured station: send through the live
     // connected-mode session directly.

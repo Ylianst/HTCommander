@@ -24,9 +24,10 @@ Stations connected to the BBS (over AX.25, XARA or the HTTP BBS) can type the fo
 | Command | Description |
 |---|---|
 | `M` | Show the main menu (`H` and `?` also work). |
-| `B [n]` | List the last messages on the message board, with their number, poster and time. |
+| `B [n]` | List the last messages on the message board, with their number, poster and time. Multi-line or long messages show a short preview; use `R <#>` to read them in full. |
 | `R <#>` | Read a single board message. |
 | `P <text>` | Post a short message (up to 200 characters) on the board. |
+| `P` | Compose a message over several lines (up to 2,000 characters, including line breaks). `/EX` saves it; `/ABORT` cancels it. |
 | `K <#>` | Delete a board message. Only the poster (with any SSID) or the station running the BBS can delete a message. |
 | `A [n]` | List the last APRS messages this station received, over the air or from APRS-IS. |
 | `AM [n]` | List the last APRS messages received for the connected station (any SSID). |
@@ -45,6 +46,25 @@ Stations connected to the BBS (over AX.25, XARA or the HTTP BBS) can type the fo
 When a station connects it is greeted by callsign. Returning stations are told when they were last connected and how many new board messages and APRS messages for them have arrived since. APRS lists skip acknowledgements, bulletins and repeats of the same message, and show times in the BBS station's local time. The message board and the list of stations are shared by every radio BBS and the HTTP BBS, and are kept across restarts (the 500 most recent messages and stations).
 
 Note that callsigns are not authenticated, over the radio or the web, so the board and deletions rely on stations using their own callsign.
+
+### Multi-line board messages
+
+Type `P` alone to start a message, then enter each line separately. Blank lines
+and indentation are preserved. Finish with `/EX` on its own line to post the
+whole message, or `/ABORT` to discard it. These commands are not case sensitive.
+To include `/EX` or `/ABORT` as message text, type `//EX` or `//ABORT`.
+Other commands, including `D` and `M`, are treated as text while composing.
+
+The limit is 2,000 characters for the whole message, counting each line break
+as one character. A line that would exceed the limit is rejected without
+changing the draft; you can still save the accepted lines or cancel. An empty
+message cannot be saved. Drafts belong to each connection and are discarded
+on disconnection; only saved messages survive restarts.
+
+Composition works over AX.25, XARA, the local terminal, and the HTTP BBS. The
+web terminal remains a line-at-a-time input: press Send or Enter for each line,
+including blank lines. Existing `P <text>` posts still use the 200-character
+limit and single-line whitespace normalization.
 
 ## Customizing the BBS
 

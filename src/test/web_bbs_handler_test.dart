@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/handlers/bbs_handler.dart';
 import 'package:htcommander/handlers/bbs_settings.dart';
+import 'package:htcommander/handlers/bbs_store.dart';
 import 'package:htcommander/handlers/web_bbs_handler.dart';
 import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/services/data_broker_client.dart';
@@ -146,6 +147,67 @@ void main() {
       expect(stats.last.stats.callsign, 'W1AW-5');
       expect(stats.last.stats.protocol, 'Web');
       expect(stats.last.stats.packetsIn, 3);
+    });
+
+    test(
+      'composes messages with blank lines over multiple WebSocket messages',
+      () async {
+        final store = BbsStore();
+        handler.menu = BbsMenu(store: store);
+        final ws = await connect('W1AW');
+        final received = StreamController<String>();
+        ws.listen((m) => received.add(m as String), onDone: received.close);
+        final messages = StreamIterator<String>(received.stream);
+        addTearDown(messages.cancel);
+        addTearDown(ws.close);
+        await messages.moveNext(); // Session control.
+        await messages.moveNext(); // Banner.
+
+        ws.add('P\r');
+        await messages.moveNext();
+        expect(messages.current, contains('/EX saves'));
+        ws.add('  First\r');
+        await messages.moveNext();
+        ws.add('\r');
+        await messages.moveNext();
+        ws.add('D\r\n//EX\r\nLast\r\n/EX\r\n');
+        for (var i = 0; i < 4; i++) {
+          expect(await messages.moveNext(), isTrue);
+        }
+        expect(messages.current, contains('#1 posted'));
+        expect(store.messages.single.text, '  First\n\nD\n/EX\nLast');
+        ws.add('B\r');
+        await messages.moveNext();
+        expect(messages.current, contains('R 1 to read'));
+        expect(messages.current, isNot(contains('\r  Last\r')));
+        ws.add('R 1\r');
+        await messages.moveNext();
+        expect(messages.current, contains('\r  \r  D\r  /EX\r  Last\r'));
+      },
+    );
+
+    test('disconnection discards a web draft without posting it', () async {
+      final store = BbsStore();
+      handler.menu = BbsMenu(store: store);
+      final ws = await connect('W1AW');
+      final messages = StreamIterator<dynamic>(ws);
+      await messages.moveNext();
+      await messages.moveNext();
+      ws.add('P\rUnfinished\r');
+      await messages.moveNext();
+      await messages.moveNext();
+      await ws.close();
+      await messages.cancel();
+      expect(store.messages, isEmpty);
+      final next = await connect('W1AW');
+      final replies = StreamIterator<dynamic>(next);
+      await replies.moveNext();
+      await replies.moveNext();
+      next.add('P Finished\r');
+      await replies.moveNext();
+      expect(store.messages.single.text, 'Finished');
+      await next.close();
+      await replies.cancel();
     });
 
     test('closes connections that send oversized messages', () async {

@@ -73,6 +73,11 @@ class BbsAprsMessage {
 /// Looks up a callsign (no SSID) in the offline callsign database.
 typedef BbsCallsignLookup = Future<CallsignRecord?> Function(String callsign);
 
+class _BbsDraft {
+  final List<String> lines = [];
+  int length = 0;
+}
+
 /// The BBS menu. Each command is a line starting with a command word, optionally
 /// followed by an argument (e.g. `B 20`, `P Hello all`, `C W1AW`).
 class BbsMenu {
@@ -123,6 +128,9 @@ class BbsMenu {
   BbsStore get store => _storeOverride ?? BbsStore.instance;
 
   BbsFileStore get files => _filesOverride ?? BbsFileStore.instance;
+
+  static bool isComposing(Map<String, Object?> session) =>
+      session['bbsDraft'] is _BbsDraft;
 
   bool get _hasCallsignLookup {
     if (!BbsSettings.load().callsignLookupEnabled) return false;
@@ -207,13 +215,19 @@ class BbsMenu {
   /// than a disconnect end with the [prompt], except YAPP downloads (the
   /// transport sends the prompt when the transfer ends). [transfer] says how
   /// this client can exchange files. [session] is the client's session state,
-  /// needed to play games; while a game runs, lines go to the game.
+  /// needed to compose messages and play games. Drafts receive lines before
+  /// command parsing, so command words can be included in a message.
   FutureOr<BbsMenuReply> handleLine(
     String callsign,
     String line, {
     BbsFileTransfer transfer = BbsFileTransfer.none,
     Map<String, Object?>? session,
   }) {
+    if (session != null && isComposing(session)) {
+      return _withPrompt(
+        BbsMenuReply(_compose(callsign.trim().toUpperCase(), line, session)),
+      );
+    }
     if (session != null && BbsGames.isPlaying(session)) {
       return _withPrompt(BbsMenuReply(_games.play(session, line)));
     }
@@ -253,7 +267,10 @@ class BbsMenu {
       'N' || 'NEWS' => _announcement(settings),
       'B' || 'BOARD' => _board(arg),
       'R' || 'READ' => _read(arg),
-      'P' || 'POST' => _post(caller, arg),
+      'P' || 'POST' =>
+        arg.isEmpty && session != null
+            ? _startDraft(session)
+            : _post(caller, arg),
       'K' || 'KILL' || 'DEL' || 'DELETE' => _delete(caller, arg),
       'A' || 'APRS' =>
         settings.aprsMessagesEnabled
@@ -304,8 +321,9 @@ class BbsMenu {
         '[B]oard [n]     List board messages (${store.messages.length})\r',
       )
       ..write('[R]ead <#>      Read a board message\r')
-      ..write('[P]ost <text>   Post on the board\r')
-      ..write('[K]ill <#>      Delete your board message\r');
+      ..write('[P]ost <text>   Post on the board\r');
+    if (games) sb.write('P              Compose a multi-line message\r');
+    sb.write('[K]ill <#>      Delete your board message\r');
     if (settings.aprsMessagesEnabled) {
       final aprs = aprsMessages();
       final base = _baseCall(caller);
@@ -397,13 +415,63 @@ class BbsMenu {
           : 'Message board, last ${shown.length} of ${all.length} messages:\r',
     );
     for (final m in shown) {
-      sb.write(_messageText(m));
+      sb.write(_messageText(m, preview: true));
     }
     return sb.toString();
   }
 
-  static String _messageText(BbsBoardMessage m) =>
-      '#${m.id} ${m.callsign} ${_date(m.time)}\r  ${m.text}\r';
+  static String _messageText(BbsBoardMessage m, {bool preview = false}) {
+    final lines = _toBbsText(m.text).split('\r');
+    final first = lines.first;
+    final excerpt = first.length > BbsStore.maxMessageLength
+        ? first.substring(0, BbsStore.maxMessageLength)
+        : first;
+    final body =
+        preview &&
+            (lines.length > 1 || first.length > BbsStore.maxMessageLength)
+        ? '$excerpt ... (R ${m.id} to read)'
+        : lines.join('\r  ');
+    return '#${m.id} ${m.callsign} ${_date(m.time)}\r  $body\r';
+  }
+
+  static String _startDraft(Map<String, Object?> session) {
+    session['bbsDraft'] = _BbsDraft();
+    return 'Enter message, up to ${BbsStore.maxComposedMessageLength} '
+        'characters including line breaks.\r'
+        '/EX saves; /ABORT cancels. Blank lines are allowed.\r'
+        'Use //EX or //ABORT to include those words as text.\r';
+  }
+
+  String _compose(String caller, String line, Map<String, Object?> session) {
+    final draft = session['bbsDraft'] as _BbsDraft;
+    final command = line.trim().toUpperCase();
+    if (command == '/ABORT') {
+      session.remove('bbsDraft');
+      return 'Message cancelled.\r';
+    }
+    if (command == '/EX') {
+      final text = draft.lines.join('\n');
+      if (text.trim().isEmpty) {
+        return 'Message is empty. Enter text or /ABORT to cancel.\r';
+      }
+      final m = store.post(caller, text, time: _clock());
+      session.remove('bbsDraft');
+      return 'Message #${m.id} posted.\r';
+    }
+    var text = line.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), ' ');
+    if (command == '//EX' || command == '//ABORT') {
+      final slash = text.indexOf('/');
+      text = text.replaceRange(slash, slash + 1, '');
+    }
+    final length = draft.length + text.length + (draft.lines.isEmpty ? 0 : 1);
+    if (length > BbsStore.maxComposedMessageLength) {
+      return 'Message too long (max ${BbsStore.maxComposedMessageLength}). '
+          'Line not added; /EX saves the draft, /ABORT cancels.\r';
+    }
+    draft.lines.add(text);
+    draft.length = length;
+    return '';
+  }
 
   String _read(String arg) {
     final id = _number(arg);

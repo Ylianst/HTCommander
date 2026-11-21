@@ -14,6 +14,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/handlers/terminal_handler.dart';
+import 'package:htcommander/handlers/bbs_store.dart';
 import 'package:htcommander/models/station_info.dart';
 import 'package:htcommander/radio/ax25_address.dart';
 import 'package:htcommander/radio/ax25_packet.dart';
@@ -336,10 +337,7 @@ void main() {
     'incoming sessions count text and YAPP bytes without duplicate RX',
     () async {
       handler.waitForConnection(radioId);
-      expect(
-        statuses[radioId]!.text,
-        'Waiting for connection...',
-      );
+      expect(statuses[radioId]!.text, 'Waiting for connection...');
       void receive(int type, {Uint8List? data, int nr = 0}) {
         final packet = AX25Packet(
           addresses: [
@@ -502,6 +500,19 @@ void main() {
       expect(state()['status'], 'idle');
       expect(state()['protocol'], isNull);
       expect(notices.last['kind'], 'disconnected');
+      expect(commands, isEmpty);
+    });
+
+    test('sends blank paragraph lines to the local BBS', () {
+      final previous = BbsStore.instance;
+      BbsStore.instance = BbsStore();
+      addTearDown(() => BbsStore.instance = previous);
+      command('TerminalConnectLocalBbs');
+      for (final text in ['P', 'First', '', '  Last', '/EX']) {
+        command('TerminalSend', {'Text': text});
+      }
+      expect(BbsStore.instance.messages.single.text, 'First\n\n  Last');
+      expect(incoming(), contains('#1 posted'));
       expect(commands, isEmpty);
     });
 

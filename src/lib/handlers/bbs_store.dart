@@ -68,6 +68,9 @@ class BbsStore {
   /// Longest board message accepted, in characters.
   static const int maxMessageLength = 200;
 
+  /// Longest composed board message, including newline characters.
+  static const int maxComposedMessageLength = 2000;
+
   /// Oldest messages are dropped beyond this many.
   final int maxMessages;
 

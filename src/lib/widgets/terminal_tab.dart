@@ -302,7 +302,7 @@ class _TerminalTabState extends State<TerminalTab>
 
   void _onSend() {
     final text = _inputController.text;
-    if (text.isEmpty) return;
+    if (text.isEmpty && !_isConnected) return;
     _command('TerminalSend', <String, Object?>{'Text': text});
     _inputController.clear();
     _inputFocus.requestFocus();

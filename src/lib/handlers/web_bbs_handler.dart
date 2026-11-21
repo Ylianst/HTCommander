@@ -54,7 +54,7 @@ class WebBbsHandler {
   /// Lines received from a client while one of its replies is being prepared.
   final Map<BbsWebClient, List<String>> _pending = {};
 
-  /// Per-client menu session state (running game).
+  /// Per-client menu session state (message draft or running game).
   final Map<BbsWebClient, Map<String, Object?>> _sessions = {};
 
   /// Clients turned away by the access list, until their socket closes.
@@ -175,6 +175,10 @@ class WebBbsHandler {
         .replaceAll('\r\n', '\r')
         .replaceAll('\n', '\r')
         .split('\r');
+    if (lines.last.isEmpty &&
+        (message.endsWith('\r') || message.endsWith('\n'))) {
+      lines.removeLast();
+    }
     // While a reply is still being prepared (e.g. a callsign lookup), queue
     // new lines so that replies keep their order.
     final queued = _pending[client];
@@ -188,15 +192,19 @@ class WebBbsHandler {
   void _processLines(BbsWebClient client, List<String> lines) {
     for (var i = 0; i < lines.length; i++) {
       // Drop control characters so they cannot garble the traffic log.
-      final line = lines[i].replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '').trim();
-      if (line.isEmpty) continue;
+      final session = _sessions.putIfAbsent(client, () => <String, Object?>{});
+      final composing = BbsMenu.isComposing(session);
+      final line = composing
+          ? lines[i].replaceAll(RegExp(r'[\x00-\x1F\x7F]'), ' ')
+          : lines[i].replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '').trim();
+      if (!composing && line.trim().isEmpty) continue;
       _dispatchTraffic(client.callsign, false, line);
 
       final reply = menu.handleLine(
         client.callsign,
         line,
         transfer: BbsFileTransfer.web,
-        session: _sessions.putIfAbsent(client, () => <String, Object?>{}),
+        session: session,
       );
       if (reply is BbsMenuReply) {
         if (!_applyReply(client, reply)) return;

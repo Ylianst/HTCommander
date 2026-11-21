@@ -180,6 +180,157 @@ void main() {
     });
   });
 
+  group('message composition', () {
+    String compose(Map<String, Object?> session, String line) =>
+        (menu.handleLine('W1AW', line, session: session) as BbsMenuReply).text;
+
+    test('saves paragraphs, indentation and command words as one message', () {
+      final session = <String, Object?>{};
+      expect(compose(session, 'P'), contains('/EX saves'));
+      compose(session, '  First line');
+      compose(session, '');
+      compose(session, 'D');
+      compose(session, '//EX');
+      compose(session, '//ABORT');
+      compose(session, 'a\x1b[2J\tb');
+      expect(store.messages, isEmpty);
+      expect(compose(session, '/ex'), contains('#1 posted'));
+      expect(BbsMenu.isComposing(session), isFalse);
+      expect(
+        store.messages.single.text,
+        '  First line\n\nD\n/EX\n/ABORT\na [2J b',
+      );
+      expect(run('W1AW', 'B'), contains('First line ... (R 1 to read)'));
+      expect(run('W1AW', 'B'), isNot(contains('/ABORT')));
+      expect(run('W1AW', 'R 1'), contains('\r  \r  D\r  /EX\r'));
+    });
+
+    test(
+      'empty saves retain the draft; cancellation and sessions are isolated',
+      () {
+        final first = <String, Object?>{};
+        final second = <String, Object?>{};
+        compose(first, 'P');
+        compose(first, '');
+        expect(compose(first, '/EX'), contains('Message is empty'));
+        expect(BbsMenu.isComposing(first), isTrue);
+        compose(second, 'POST');
+        compose(second, 'Other session');
+        expect(compose(first, '/abort'), contains('cancelled'));
+        expect(BbsMenu.isComposing(first), isFalse);
+        compose(second, '/EX');
+        expect(store.messages.single.text, 'Other session');
+        expect(compose(first, 'M'), contains('[P]ost'));
+      },
+    );
+
+    test(
+      'counts newlines toward the limit and rejects only the excess line',
+      () {
+        final session = <String, Object?>{};
+        compose(session, 'P');
+        compose(session, 'x' * 1998);
+        compose(session, 'y');
+        expect(compose(session, ''), contains('Line not added'));
+        compose(session, '/EX');
+        expect(store.messages.single.text, '${'x' * 1998}\ny');
+        expect(store.messages.single.text.length, 2000);
+        final board = run('W1AW', 'B');
+        expect(board, contains('${'x' * 200} ... (R 1 to read)'));
+        expect(board, isNot(contains('x' * 201)));
+
+        compose(session, 'P');
+        expect(compose(session, 'x' * 2001), contains('Line not added'));
+        compose(session, 'Recovered');
+        compose(session, '/EX');
+        expect(store.messages.last.text, 'Recovered');
+      },
+    );
+
+    test('long single-line drafts also get bounded board previews', () {
+      final session = <String, Object?>{};
+      compose(session, 'P');
+      compose(session, 'x' * 2000);
+      compose(session, '/EX');
+      expect(run('W1AW', 'B'), contains('${'x' * 200} ... (R 1 to read)'));
+      expect(run('W1AW', 'R 1'), contains('x' * 2000));
+    });
+
+    test('radio stream preserves fragmented UTF-8, CRLF and blank lines', () {
+      final bbs = Bbs(432)..enabled = true;
+      bbs.menu = menu;
+      final link = _TestLink('W1AW');
+      bbs.openLink(link, cmsRelay: false);
+      addTearDown(bbs.dispose);
+      void send(List<int> bytes) =>
+          bbs.linkReceived(link, Uint8List.fromList(bytes));
+
+      send(utf8.encode('P\r'));
+      final bytes = utf8.encode('\n  First \u{1F600}');
+      send(bytes.sublist(0, bytes.length - 2));
+      send(bytes.sublist(bytes.length - 2));
+      send(utf8.encode('\r'));
+      send(utf8.encode('\n\r\n[RMS Express-1.0-B2FHM\$]\r\nD\r\n/'));
+      expect(store.messages, isEmpty);
+      send(utf8.encode('EX\r\nB\r\nR 1\r\n'));
+      expect(
+        store.messages.single.text,
+        '  First \u{1F600}\n\n[RMS Express-1.0-B2FHM\$]\nD',
+      );
+      expect(link.closed, isFalse);
+      expect(link.sessionState['mode'], isNull);
+      expect(link.text, contains('#1 posted'));
+      expect(link.text, contains('R 1 to read'));
+    });
+
+    test(
+      'queued composition keeps partial lines behind asynchronous commands',
+      () async {
+        final gate = Completer<CallsignRecord?>();
+        final bbs = Bbs(433)..enabled = true;
+        bbs.menu = BbsMenu(
+          store: store,
+          callsignLookupAvailable: () => true,
+          callsignLookup: (_) => gate.future,
+        );
+        final link = _TestLink('W1AW');
+        bbs.openLink(link, cmsRelay: false);
+        addTearDown(bbs.dispose);
+        bbs.linkReceived(
+          link,
+          Uint8List.fromList(utf8.encode('C W1AW\rP\rFir')),
+        );
+        bbs.linkReceived(link, Uint8List.fromList(utf8.encode('st\r\r/EX\r')));
+        gate.complete(null);
+        await Future<void>.delayed(Duration.zero);
+        expect(store.messages.single.text, 'First\n');
+      },
+    );
+
+    test(
+      'oversized fragmented lines are rejected and reconnect discards drafts',
+      () {
+        final bbs = Bbs(434)..enabled = true;
+        bbs.menu = menu;
+        final link = _TestLink('W1AW');
+        bbs.openLink(link, cmsRelay: false);
+        addTearDown(bbs.dispose);
+        void send(String text) =>
+            bbs.linkReceived(link, Uint8List.fromList(utf8.encode(text)));
+        send('P\r${'x' * 3000}');
+        send('${'x' * 3000}\rKept\r/EX\r');
+        expect(link.text, contains('Line not added'));
+        expect(store.messages.single.text, 'Kept');
+        send('P\rDiscarded\r');
+        bbs.closeLink(link);
+        bbs.openLink(link, cmsRelay: false);
+        expect(BbsMenu.isComposing(link.sessionState), isFalse);
+        send('P\rFresh\r/EX\r');
+        expect(store.messages.last.text, 'Fresh');
+      },
+    );
+  });
+
   group('visitors', () {
     test('lists the last unique stations, most recent first', () {
       expect(run('W1AW', 'L'), contains('No stations'));
@@ -339,8 +490,9 @@ void main() {
       await first.init();
       first.post('W1AW', 'one', time: now);
       first.post('K7ABC', 'two', time: now);
+      first.post('W1AW', 'First\n\n  Last', time: now);
       first.post('K7ABC', 'three', time: now);
-      first.delete(3);
+      first.delete(4);
       first.recordVisit('W1AW-5', 'Web', time: now);
       first.recordVisit(
         'W1AW-5',
@@ -351,9 +503,13 @@ void main() {
 
       final second = BbsStore();
       await second.init();
-      expect(second.messages.map((m) => m.text), ['one', 'two']);
+      expect(second.messages.map((m) => m.text), [
+        'one',
+        'two',
+        'First\n\n  Last',
+      ]);
       expect(second.message(2)!.callsign, 'K7ABC');
-      expect(second.post('W1AW', 'four').id, 4);
+      expect(second.post('W1AW', 'four').id, 5);
       final visit = second.visit('w1aw-5')!;
       expect(visit.count, 2);
       expect(visit.protocol, 'AX.25');
