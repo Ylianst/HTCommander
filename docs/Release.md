@@ -27,9 +27,15 @@
 This triggers the GitHub Actions workflow which will:
 
 - Build Windows (MSI), Linux, and macOS (DMG) installers
+- Build signed Android APKs separately for ARM64, ARMv7, and x86-64, plus an AAB for Google Play
 - Generate desktop update packages for self-update
 - Create a GitHub Release with the installers attached
 - Commit the update artifacts to `docs/` so the self-updater can find them
+
+The Android APK release assets are `HTCommander-arm64-v8a.apk`,
+`HTCommander-armeabi-v7a.apk`, and `HTCommander-x86_64.apk`. The workflow uses
+`flutter build apk --release --split-per-abi` instead of publishing a universal
+APK. The AAB remains `htcommander-<version>.aab`.
 
 ## Mac App Store
 

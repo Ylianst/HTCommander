@@ -24,8 +24,12 @@ EchoLink and the following radios should work with this application:
 - [macOS Installer (.dmg)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.dmg). Universal binary.
 - [Linux x64 (.tar.gz)](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.tar.gz) | [.deb](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.deb) | [.rpm](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.rpm) | [.AppImage](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-x64.AppImage). Should work, please test and report.
 - [Linux ARM64 (.tar.gz)](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-arm64.tar.gz) | [.deb](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-arm64.deb) | [.rpm](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-arm64.rpm) | [.AppImage](https://github.com/Ylianst/HTCommander/releases/latest/download/htcommander-linux-arm64.AppImage). Should work, please test and report.
-- [Google Play](https://play.google.com/store/apps/details?id=com.meshcentral.htcommander) | [Android (.apk)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander.apk). Android 5.0 or higher.
+- [Google Play](https://play.google.com/store/apps/details?id=com.meshcentral.htcommander) | Android APK: [ARM64](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander-arm64-v8a.apk) | [ARMv7](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander-armeabi-v7a.apk) | [x86-64](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander-x86_64.apk). Android 5.0 or higher.
 - [Web Version](https://ylianst.github.io/HTCommanderWeb/). Browsers with Bluetooth support (Chrome & Edge).
+
+Choose the ARM64 APK for most modern Android phones, ARMv7 for 32-bit ARM devices,
+or x86-64 for compatible emulators/devices. Each APK contains only its target
+architecture; Google Play selects the appropriate architecture automatically.
 
 ### Features
 
