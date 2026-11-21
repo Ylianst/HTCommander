@@ -19,11 +19,11 @@ import 'dart:isolate';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 
 import 'data_broker.dart';
 import 'tls_ca_bundle.dart';
-
 
 /// Recognizer family a model belongs to; selects the sherpa-onnx config the
 /// recognition isolate builds.
@@ -104,6 +104,7 @@ class SherpaModelManager {
 
   static const String _releaseBase =
       'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/';
+  static Future<void>? _vadDownload;
 
   /// Default model when none is selected or an unknown id is stored.
   static const String defaultModelId = 'sense-voice';
@@ -235,13 +236,24 @@ class SherpaModelManager {
   /// Public helper returning the on-disk directory for [model].
   static Future<Directory> modelDirectory(SttModel model) => _modelDir(model);
 
-  static Future<bool> _isInstalledIn(SttModel model, Directory dir) async {
+  static Future<bool> _asrInstalledIn(SttModel model, Directory dir) async {
     for (final local in model.files.keys) {
       if (!await File('${dir.path}/$local').exists()) return false;
     }
     final primary = File('${dir.path}/${model.primaryFile}');
     return await primary.length() > 1024 * 1024;
   }
+
+  static File _vadFile(Directory modelDir) =>
+      File('${modelDir.parent.path}/silero_vad.onnx');
+
+  static Future<bool> _vadInstalled(Directory modelDir) async {
+    final file = _vadFile(modelDir);
+    return await file.exists() && await file.length() > 600 * 1024;
+  }
+
+  static Future<bool> _isInstalledIn(SttModel model, Directory dir) async =>
+      await _asrInstalledIn(model, dir) && await _vadInstalled(dir);
 
   /// Whether [modelId] is fully downloaded and ready to load.
   static Future<bool> isInstalled(String modelId) async {
@@ -258,6 +270,8 @@ class SherpaModelManager {
       final f = File('${dir.path}/$local');
       if (await f.exists()) total += await f.length();
     }
+    final vad = _vadFile(dir);
+    if (await vad.exists()) total += await vad.length();
     return total;
   }
 
@@ -301,26 +315,40 @@ class SherpaModelManager {
 
       await dir.create(recursive: true);
 
+      if (!await _asrInstalledIn(model, dir)) {
+        n.value = const SttModelStatus(SttModelState.downloading);
+        final archiveFile = File('${dir.path}/${model.id}.tar.bz2.part');
+        try {
+          await _download(model.archiveUrl, archiveFile, (received, total) {
+            onDownloadProgress?.call(received, total);
+            n.value = SttModelStatus(
+              SttModelState.downloading,
+              receivedBytes: received,
+              totalBytes: total,
+            );
+          });
+          n.value = const SttModelStatus(SttModelState.installing);
+          if (!await _extractWithProgress(
+            model,
+            archiveFile.path,
+            dir.path,
+            n,
+          )) {
+            throw StateError('Model extraction failed');
+          }
+        } finally {
+          if (await archiveFile.exists()) await archiveFile.delete();
+        }
+      }
       n.value = const SttModelStatus(SttModelState.downloading);
-      final archiveFile = File('${dir.path}/${model.id}.tar.bz2.part');
-      await _download(model.archiveUrl, archiveFile, (received, total) {
-        onDownloadProgress?.call(received, total);
-        n.value = SttModelStatus(
-          SttModelState.downloading,
-          receivedBytes: received,
-          totalBytes: total,
-        );
-      });
+      if (!await _vadInstalled(dir)) {
+        _vadDownload ??= _downloadVad(dir).whenComplete(() {
+          _vadDownload = null;
+        });
+        await _vadDownload;
+      }
 
-      n.value = const SttModelStatus(SttModelState.installing);
-      final ok = await _extractWithProgress(model, archiveFile.path, dir.path, n);
-
-      // Best-effort cleanup of the downloaded archive.
-      try {
-        if (await archiveFile.exists()) await archiveFile.delete();
-      } catch (_) {}
-
-      if (!ok || !await _isInstalledIn(model, dir)) {
+      if (!await _isInstalledIn(model, dir)) {
         n.value = const SttModelStatus(
           SttModelState.error,
           message: 'Model installation failed',
@@ -329,6 +357,12 @@ class SherpaModelManager {
       }
 
       n.value = const SttModelStatus(SttModelState.ready);
+      DataBroker.dispatch(
+        deviceId: 0,
+        name: 'SpeechModelReady',
+        data: model.id,
+        store: false,
+      );
       return _resolve(model, dir);
     } catch (e) {
       debugPrint('[SherpaModelManager] Failed to prepare ${model.id}: $e');
@@ -337,15 +371,55 @@ class SherpaModelManager {
     }
   }
 
+  static Future<void> _downloadVad(Directory dir) async {
+    final file = _vadFile(dir);
+    final part = File('${file.path}.part');
+    try {
+      await _download('${_releaseBase}silero_vad.onnx', part, (
+        received,
+        total,
+      ) {
+        onDownloadProgress?.call(received, total);
+      });
+      if (await part.length() <= 600 * 1024) {
+        throw StateError('VAD download is truncated');
+      }
+      await part.rename(file.path);
+    } finally {
+      if (await part.exists()) await part.delete();
+    }
+  }
+
   static SttModelPaths _resolve(SttModel model, Directory dir) {
     return SttModelPaths(model.family, <String, String>{
       for (final local in model.files.keys) local: '${dir.path}/$local',
+      'silero_vad.onnx': _vadFile(dir).path,
+      if (model.family == SttModelFamily.streamingZipformer)
+        'bpe.vocab': '${dir.path}/bpe.vocab',
     });
+  }
+
+  /// The original model's small SentencePiece vocabulary is bundled, not
+  /// downloaded or reconstructed from token IDs. sherpa needs a file path.
+  static Future<void> installBundledVocabulary(
+    SttModel model,
+    Directory dir,
+  ) async {
+    if (model.family != SttModelFamily.streamingZipformer) return;
+    final contents = await rootBundle.loadString(
+      'assets/stt/zipformer-en-20m.vocab',
+    );
+    final file = File('${dir.path}/bpe.vocab');
+    if (await file.exists() && await file.readAsString() == contents) return;
+    await file.writeAsString(contents, flush: true);
   }
 
   /// Resolves model file paths from an already known install directory without
   /// downloading or extracting any files.
-  static SttModelPaths resolveInstalledModelPaths(SttModel model, Directory dir) {
+  static SttModelPaths resolveInstalledModelPaths(
+    SttModel model,
+    Directory dir,
+  ) {
     return _resolve(model, dir);
   }
 
@@ -411,7 +485,9 @@ class SherpaModelManager {
     File dest,
     void Function(int received, int total) onProgress,
   ) async {
-    final client = context == null ? HttpClient() : HttpClient(context: context);
+    final client = context == null
+        ? HttpClient()
+        : HttpClient(context: context);
     try {
       final request = await client.getUrl(Uri.parse(url));
       final response = await request.close();
@@ -452,9 +528,7 @@ void _extractIsolate(List<Object> args) {
   final outDir = args[2] as String;
   final spec = (args[3] as Map).cast<String, String>();
   // Archive base name -> local file name to write.
-  final wanted = <String, String>{
-    for (final e in spec.entries) e.value: e.key,
-  };
+  final wanted = <String, String>{for (final e in spec.entries) e.value: e.key};
   try {
     final total = File(archivePath).lengthSync();
     final input = InputFileStream(archivePath);

@@ -9,6 +9,14 @@ class AppLocalizationsPl extends AppLocalizations {
   AppLocalizationsPl([String locale = 'pl']) : super(locale);
 
   @override
+  String get commsOriginalSpeech => 'Oryginalne rozpoznanie mowy';
+
+  @override
+  String commsSpeechDiagnostics(int queueMs, int decodeMs) {
+    return 'Mowa na tekst: dźwięk w kolejce $queueMs ms; ostatnie dekodowanie $decodeMs ms';
+  }
+
+  @override
   String get settingsCustomMapEnabled => 'Użyj własnego źródła map';
 
   @override

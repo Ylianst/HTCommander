@@ -1,4 +1,6 @@
 {
+  "commsOriginalSpeech": "Ursprüngliche Spracherkennung",
+  "commsSpeechDiagnostics": "Sprache zu Text: Audio-Warteschlange {queueMs} ms; letzte Dekodierung {decodeMs} ms",
   "settingsCustomMapEnabled": "Eigene Kartenquelle verwenden",
   "settingsCustomMapUrl": "URL der Kartenkacheln",
   "settingsCustomMapAttribution": "Quellenangabe (optional)",

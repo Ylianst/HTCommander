@@ -5,26 +5,14 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 Speech-to-text engine abstraction for the CommsHandler.
 
-The C# application transcribed received radio audio with the Whisper library by
-feeding it raw PCM audio chunks. The Flutter port keeps the same streaming
-contract (start a segment, push PCM frames, complete the segment to force a
-final result) but delegates the actual recognition to a platform-specific
-engine so each platform can use the most native capability available:
-
-  - macOS / iOS  -> Apple `SFSpeechRecognizer` with a
-    `SFSpeechAudioBufferRecognitionRequest`. This is the one major native API
-    that accepts arbitrary audio buffers (not just the live microphone),
-    supports on-device recognition and reports partial + final results.
-  - Android / Windows / web -> no native API accepts raw PCM buffers
-    (`SpeechRecognizer` and the Web Speech API are microphone-only), so an
-    unsupported no-op engine is used. These platforms can later be backed by an
-    offline engine such as Vosk, which accepts PCM, without changing this
-    interface or the CommsHandler wiring.
+Desktop uses sherpa-onnx; Android 13+ feeds PCM to its on-device recognizer.
+Web and iOS do not support radio audio streams and must not run recognition.
 */
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/services.dart';
 
 // The sherpa-onnx engine depends on dart:ffi and must never be compiled into
@@ -33,8 +21,13 @@ import 'package:flutter/services.dart';
 import 'speech_to_text_engine_stub.dart'
     if (dart.library.io) 'speech_to_text_engine_native.dart';
 
+bool get isRadioSpeechSupported =>
+    !kIsWeb && defaultTargetPlatform != TargetPlatform.iOS;
+
 /// A single speech-recognition result for the current voice segment.
 class SpeechResult {
+  final int segmentId;
+
   /// The recognized text so far (cumulative for the active segment).
   final String text;
 
@@ -42,7 +35,23 @@ class SpeechResult {
   /// belong to a new segment.
   final bool isFinal;
 
-  const SpeechResult(this.text, this.isFinal);
+  const SpeechResult(this.text, this.isFinal, {required this.segmentId});
+}
+
+class SpeechDiagnostics {
+  final int segmentId;
+  final int queuedAudioMs;
+  final int decodeMs;
+  final bool overloaded;
+  final String? error;
+
+  const SpeechDiagnostics({
+    required this.segmentId,
+    this.queuedAudioMs = 0,
+    this.decodeMs = 0,
+    this.overloaded = false,
+    this.error,
+  });
 }
 
 /// Streaming speech-to-text engine. Implementations transcribe 16-bit signed
@@ -60,6 +69,8 @@ abstract class SpeechToTextEngine {
   /// Emits true while audio is being actively recognized, false otherwise.
   Stream<bool> get processing;
 
+  Stream<SpeechDiagnostics> get diagnostics;
+
   /// Prepares the engine (permissions, locale, model). Returns true if speech
   /// recognition is available and authorized. Safe to call more than once.
   ///
@@ -68,7 +79,10 @@ abstract class SpeechToTextEngine {
   Future<bool> initialize({String localeId = ''});
 
   /// Begins a new voice segment. Any in-progress segment is discarded.
-  Future<void> startSegment();
+  Future<void> startSegment({
+    required int segmentId,
+    List<String> hotwords = const [],
+  });
 
   /// Pushes a chunk of 16-bit signed little-endian mono PCM at [sampleRate]
   /// (Hz) into the active segment.
@@ -82,10 +96,8 @@ abstract class SpeechToTextEngine {
   /// Finishes the active segment, forcing the engine to emit a final result.
   Future<void> completeSegment();
 
-  /// Decodes the active segment and emits a final result, but retains a short
-  /// tail of audio (overlap) as the start of a new segment so words at the
-  /// boundary are not lost. Use this instead of [completeSegment] +
-  /// [startSegment] when splitting long audio into chunks.
+  /// Flushes an internal recognition chunk without ending the transmission.
+  /// Results remain cumulative and retain the same segment ID.
   Future<void> splitSegment();
 
   /// Discards the active segment without emitting a final result.
@@ -97,19 +109,13 @@ abstract class SpeechToTextEngine {
 
 /// Returns the speech-to-text engine appropriate for the current platform.
 ///
-/// All native platforms use sherpa-onnx (SenseVoice) for consistent,
-/// high-quality offline recognition that accepts raw PCM buffers. Web has no
-/// PCM-buffer recognizer, so it falls back to the no-op engine.
-///
-/// [AppleSpeechToTextEngine] remains available as a lightweight native
-/// fallback (Apple `SFSpeechRecognizer`) if sherpa-onnx is undesired.
+/// Web and iOS are unsupported; desktop and Android accept radio PCM.
 SpeechToTextEngine createSpeechToTextEngine() {
-  if (kIsWeb) return UnsupportedSpeechToTextEngine();
+  if (!isRadioSpeechSupported) return UnsupportedSpeechToTextEngine();
   return createPlatformSpeechToTextEngine();
 }
 
-/// No-op engine used on platforms without a native PCM-buffer recognizer
-/// (Android, Windows, Linux, web). Reports unsupported and produces no results.
+/// No-op engine for platforms without radio audio streams.
 class UnsupportedSpeechToTextEngine implements SpeechToTextEngine {
   final StreamController<SpeechResult> _results =
       StreamController<SpeechResult>.broadcast();
@@ -128,10 +134,16 @@ class UnsupportedSpeechToTextEngine implements SpeechToTextEngine {
   Stream<bool> get processing => _processing.stream;
 
   @override
+  Stream<SpeechDiagnostics> get diagnostics => const Stream.empty();
+
+  @override
   Future<bool> initialize({String localeId = ''}) async => false;
 
   @override
-  Future<void> startSegment() async {}
+  Future<void> startSegment({
+    required int segmentId,
+    List<String> hotwords = const [],
+  }) async {}
 
   @override
   Future<void> processPcm16(
@@ -161,6 +173,7 @@ class UnsupportedSpeechToTextEngine implements SpeechToTextEngine {
 /// that accepts PCM buffers. The native side is implemented in Swift in the
 /// macOS and iOS runners and bridged over the channels below.
 class AppleSpeechToTextEngine implements SpeechToTextEngine {
+  int _segmentId = 0;
   static const MethodChannel _channel = MethodChannel(
     'com.htcommander/speech_to_text',
   );
@@ -187,6 +200,9 @@ class AppleSpeechToTextEngine implements SpeechToTextEngine {
 
   @override
   Stream<bool> get processing => _processing.stream;
+
+  @override
+  Stream<SpeechDiagnostics> get diagnostics => const Stream.empty();
 
   @override
   Future<bool> initialize({String localeId = ''}) async {
@@ -217,7 +233,7 @@ class AppleSpeechToTextEngine implements SpeechToTextEngine {
           final text = (event['text'] as String?) ?? '';
           final isFinal = (event['isFinal'] as bool?) ?? false;
           if (!_results.isClosed) {
-            _results.add(SpeechResult(text, isFinal));
+            _results.add(SpeechResult(text, isFinal, segmentId: _segmentId));
           }
           break;
         case 'processing':
@@ -238,7 +254,11 @@ class AppleSpeechToTextEngine implements SpeechToTextEngine {
   }
 
   @override
-  Future<void> startSegment() async {
+  Future<void> startSegment({
+    required int segmentId,
+    List<String> hotwords = const [],
+  }) async {
+    _segmentId = segmentId;
     if (!_ready || _disposed) return;
     try {
       await _channel.invokeMethod('startSegment');
@@ -288,7 +308,7 @@ class AppleSpeechToTextEngine implements SpeechToTextEngine {
   Future<void> splitSegment() async {
     // Apple engine has no native split; just complete and restart.
     await completeSegment();
-    await startSegment();
+    await startSegment(segmentId: _segmentId);
   }
 
   @override

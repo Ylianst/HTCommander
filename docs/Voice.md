@@ -2,24 +2,84 @@
 
 ![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/ht-voice.png?raw=true)
 
-Handi-Talky Commander has built-in speech recognition capabilities with integration of Open AI's Whisper. Radio audio will be run into a neural-network language model to convert into text and the results are quite impressive. A powerful CPU with AVX support is required.
+HTCommander transcribes received radio speech locally on Windows, macOS, Linux,
+and supported Android devices. **Web and iOS do not support radio audio streams
+and have no local speech-to-text engine or model controls.** Hosted web clients
+can still display transcripts produced by the desktop host.
 
-From within Handi-Talky Commander you can select and download one of the Whisper models. The larger the model, the better the results but also the more CPU power is required.
+Desktop recognition uses sherpa-onnx in a background isolate. In **Settings >
+Voice**, choose and download SenseVoice (English, Chinese, Japanese, Korean and
+Cantonese), Whisper Tiny/Base English, or streaming Zipformer English. Zipformer
+shows live partial text; batch models update after speech pauses. Audio is
+processed in memory, independently of the optional WAV recording feature.
 
-- Tiny, 77.7 MB
-- Tiny.en, 77.7 MB, English Only
-- Base, 148 MB
-- Base.en, 148 MB, English Only (Recommended)
-- Small, 488 MB
-- Small.en, 488 MB, English Only
-- Medium, 1.53 GB
-- Medium.en, 1.53 GB, English Only
+### Speech detection and transmission boundaries
 
-The English-only models are best if you intend to only listen to English conversations, otherwise, the normal models support a large range of languages. You can help the model out by selecting the language you will be listening to in the Settings panel, this will give a hint to the model to focus that selected language.
+Desktop model downloads include a shared Silero VAD model (about 629 KiB). If an
+existing recognition model is installed without VAD, click **Download** again:
+only the missing VAD is fetched, not the full recognition archive. Initialization
+never downloads models automatically or silently falls back to ungated audio.
 
-Once enabled, the voice recognition will run when the radio no longer receives a signal or every 20 to 30 seconds.
+Silero uses a conservative 0.35 threshold, 64 ms minimum speech, and 650 ms
+silence endpointing, with approximately 320 ms pre-roll. These are starting
+values, not guarantees for weak or noisy radio signals. Speech-free stretches
+do not reach the recognizer. Internal chunks are capped at approximately
+26 seconds; forced splits retain audio overlap and reconcile matching boundary
+words. All utterances remain in **one bubble per radio transmission**.
 
-In addition, there is support for text-to-speech (TTS) using the Microsoft Speech API. So, you can type a message and it will be read on the radio.
+Each transmission has its own ID, radio, channel and start time. Delayed final
+results update that transmission's bubble without overwriting a newer one.
+Provisional history entries are persisted only after finalization; disabling
+recognition and shutdown allow up to ten seconds for pending finals, then log a
+timeout and preserve available partial text.
+
+Android 13+ uses the OS on-device recognizer with a PCM pipe and OS-managed
+language models. It retains the OS's segmented-session speech endpointing and
+requires no sherpa/VAD download. Each transmission owns a separate recognizer
+and listener so delayed results keep their original ID. Actual support for PCM
+input, segmented sessions and vocabulary hints depends on the device's speech
+recognition service.
+
+### Radio vocabulary and diagnostics
+
+Zipformer uses modified beam search with modest contextual biasing for common
+radio terms (CQ, QSO, QSY, QTH, QRM, QRN, QRP, QRZ, RST, VHF/UHF and related
+vocabulary) and the operator's configured callsign spoken in NATO phonetics.
+The original model's 500-piece SentencePiece vocabulary (about 9 KiB) is bundled
+so native hotword tokenization matches the trained model rather than guessing
+from token IDs.
+Android receives the same phrases as optional OS biasing strings. SenseVoice
+and Whisper do not use transducer hotwords.
+
+Complete NATO-phonetic runs shaped like callsigns are normalized, for example
+"kilo six alpha bravo charlie" becomes `K6ABC`. Ordinary names, frequencies and
+ambiguous homophones are not guessed or replaced using a station directory.
+The original recognizer text is retained in the database and shown in message
+details when it differs from the displayed text.
+
+Hover the Comms status indicator for queued audio duration and the last decode
+time. An orange indicator and a logged error report overload or recognition
+failure. More than ten seconds of queued audio interrupts the affected
+transmission rather than silently dropping words; reception resumes below the
+five-second low-water mark. Existing partial text is retained, but an interrupted
+transcript is not complete. Playback and other audio decoders are unaffected.
+
+For native integration testing, `src/test/sherpa_speech_test.dart` accepts local
+public Zipformer archive contents via `STT_MODEL_FIXTURE` and a Silero model via
+`STT_VAD_FIXTURE`. On Windows also set `STT_NATIVE_LIBRARY_DIRECTORY` to the
+matching sherpa Windows DLL directory; the test preloads its ONNX runtime to
+avoid the older Windows system DLL. No model files are committed or downloaded
+by the test.
+
+The bundled `assets/stt/zipformer-en-20m.vocab` is derived with SentencePiece
+from the Apache-2.0-licensed [original model's bpe.model](https://huggingface.co/desh2608/icefall-asr-librispeech-pruned-transducer-stateless7-streaming-small/blob/be162ecc09bade73063a671fad9d18220149d25b/data/lang_bpe_500/bpe.model),
+revision `be162ecc09bade73063a671fad9d18220149d25b`.
+Source SHA-256: `c53433de083c4a6ad12d034550ef22de68cec62c4f58932a7b6b8b2f1e743fa5`.
+Export each piece with `id_to_piece(i)` and its original `get_score(i)`,
+tab-separated, using nine significant digits. No inference weights are bundled.
+
+Text-to-speech is provided by the platform TTS service, so a typed message can
+be synthesized and transmitted on supported radio-audio platforms.
 
 ## Live Window and Stored History
 

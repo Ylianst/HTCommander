@@ -1,4 +1,6 @@
 {
+  "commsOriginalSpeech": "Oryginalne rozpoznanie mowy",
+  "commsSpeechDiagnostics": "Mowa na tekst: dźwięk w kolejce {queueMs} ms; ostatnie dekodowanie {decodeMs} ms",
   "settingsCustomMapEnabled": "Użyj własnego źródła map",
   "settingsCustomMapUrl": "URL kafelków mapy",
   "settingsCustomMapAttribution": "Informacja o autorstwie (opcjonalna)",

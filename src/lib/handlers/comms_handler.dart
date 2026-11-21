@@ -13,10 +13,9 @@ Scope of this port (core handler + broker contract):
   - Clear-history command and the related broadcast events.
   - Auto-disable when the target radio disconnects or its audio is turned off.
 
-The following heavy features from the original C# are intentionally STUBBED
-here as clean extension points and produce no functional behaviour yet:
-  - Speech-to-text (Whisper) decoding of incoming audio frames.
-  - Text-to-speech synthesis (Speak command).
+Speech-to-text uses offline desktop models or Android's on-device recognizer.
+Web and iOS do not support radio audio streams. Text-to-speech synthesis uses
+the platform TTS service.
 
 Morse-code transmit is implemented: the Morse command generates tone PCM via
 MorseCodeEngine and transmits it through the radio audio path.
@@ -72,6 +71,7 @@ import '../sstv/sstv_monitor.dart';
 import '../sstv/sstv_worker.dart';
 import '../utils/num_parsing.dart';
 import 'speech_to_text_engine.dart';
+import 'radio_speech.dart';
 
 /// Encoding type for voice text entries. Mirrors the C# `VoiceTextEncodingType`.
 enum VoiceTextEncodingType {
@@ -159,6 +159,9 @@ VoiceTextEncodingType _encodingFromString(Object? value) {
 /// Represents a voice text entry (received or transmitted).
 class DecodedTextEntry {
   String? text;
+  String? originalText;
+  String? updateKey;
+  bool speechPending = false;
   String? channel;
   DateTime time;
 
@@ -199,6 +202,8 @@ class DecodedTextEntry {
 
   DecodedTextEntry({
     this.text,
+    this.originalText,
+    this.updateKey,
     this.channel,
     DateTime? time,
     this.isReceived = true,
@@ -217,6 +222,8 @@ class DecodedTextEntry {
 
   Map<String, Object?> toJson() => <String, Object?>{
     'text': text,
+    if (originalText != null) 'originalText': originalText,
+    if (updateKey != null) 'updateKey': updateKey,
     'channel': channel,
     'time': time.millisecondsSinceEpoch,
     'isReceived': isReceived,
@@ -245,6 +252,8 @@ class DecodedTextEntry {
     }
     return DecodedTextEntry(
       text: json['text'] as String?,
+      originalText: json['originalText'] as String?,
+      updateKey: json['updateKey'] as String?,
       channel: json['channel'] as String?,
       time: time,
       isReceived: json['isReceived'] as bool? ?? true,
@@ -267,9 +276,26 @@ class DecodedTextEntry {
   }
 }
 
+class _SpeechSegment {
+  final int id;
+  final int deviceId;
+  final String channel;
+  final DateTime started = DateTime.now();
+  final Completer<void> done = Completer<void>();
+  DecodedTextEntry? entry;
+  bool committed = false;
+  bool ended = false;
+
+  _SpeechSegment(this.id, this.deviceId, this.channel);
+}
+
 /// Comms Handler - listens to audio data from radios and maintains a history of
 /// decoded/transmitted voice text. Registered as a Data Broker handler.
 class CommsHandler {
+  CommsHandler({SpeechToTextEngine Function()? speechEngineFactory})
+    : _speechEngineFactory = speechEngineFactory ?? createSpeechToTextEngine;
+
+  final SpeechToTextEngine Function() _speechEngineFactory;
   static const int _maxHistorySize = 1000;
 
   // Persisting on every added entry is coalesced into at most one database
@@ -332,22 +358,21 @@ class CommsHandler {
   // state, mirroring the recording and SSTV features. It tracks whichever radio
   // device is currently streaming received audio.
   static const int _sttSampleRate = 32000;
-  // Force a split/final if a single segment accumulates more than ~27s of new
-  // audio (32000 Hz * 2 bytes/sample * 27 s). After a split the worker retains
-  // a 2-second overlap tail, so the total decode buffer is at most 29s — safely
-  // under the Whisper 30-second hard limit.
-  static const int _sttMaxSegmentBytes = 32000 * 2 * 27;
   SpeechToTextEngine? _sttEngine;
   StreamSubscription<SpeechResult>? _sttResultSub;
   StreamSubscription<bool>? _sttProcessingSub;
+  StreamSubscription<SpeechDiagnostics>? _sttDiagnosticSub;
   bool _speechToTextEnabled = true;
   bool _sttReady = false;
   int _sttDeviceId = -1;
   bool _sttSegmentActive = false;
-  int _sttSegmentBytes = 0;
-  String _sttChannel = '';
-  DecodedTextEntry? _sttCurrentEntry;
-  bool _sttBoundaryFinalPending = false;
+  int _sttNextSegmentId = 0;
+  int? _sttSegmentId;
+  final Map<int, _SpeechSegment> _sttSegments = {};
+  int _sttQueuedAudioMs = 0;
+  int _sttDecodeMs = 0;
+  bool _sttOverloaded = false;
+  String? _sttError;
 
   // SSTV auto-decode state.
   static const String _sstvFolderName = 'SSTV';
@@ -592,7 +617,15 @@ class CommsHandler {
       callback: _onSpeechToTextEnabledChanged,
     );
     _speechToTextEnabled =
-        _broker.getValue<bool>(0, 'SpeechToTextEnabled', true) ?? true;
+        isRadioSpeechSupported &&
+        (_broker.getValue<bool>(0, 'SpeechToTextEnabled', true) ?? true);
+    for (final name in ['VoiceModel', 'VoiceLanguage', 'SpeechModelReady']) {
+      _broker.subscribe(
+        deviceId: 0,
+        name: name,
+        callback: _onSpeechConfigurationChanged,
+      );
+    }
 
     // Restore persisted recording flag (device 0 = settings).
     _recordingEnabled =
@@ -631,7 +664,7 @@ class CommsHandler {
     // Initialize the speech-to-text engine if speech-to-text is enabled.
     // Web has no PCM-buffer recognizer; every other platform is supported
     // (Android feeds PCM into the OS on-device recognizer, no model download).
-    if (_speechToTextEnabled && !kIsWeb) {
+    if (_speechToTextEnabled && isRadioSpeechSupported) {
       unawaited(_initializeSpeechEngine());
     }
 
@@ -715,9 +748,6 @@ class CommsHandler {
       '[CommsHandler] Enabled for device $deviceId, language: $language',
     );
 
-    // Speech-to-text engine initialization is deferred in this build.
-    // TODO(stt): initialize the speech-to-text engine here when available.
-
     _dispatchCommsHandlerState();
   }
 
@@ -728,8 +758,6 @@ class CommsHandler {
     final previousDeviceId = _targetDeviceId;
     _enabled = false;
     _targetDeviceId = -1;
-
-    // Speech-to-text cleanup is deferred in this build.
 
     // Indicate we are no longer listening/processing.
     if (previousDeviceId > 0) {
@@ -751,12 +779,12 @@ class CommsHandler {
 
   /// Handles changes to the persisted `SpeechToTextEnabled` setting (device 0).
   void _onSpeechToTextEnabledChanged(int deviceId, String name, Object? data) {
-    final enabled = data is bool ? data : true;
+    final enabled = isRadioSpeechSupported && (data is bool ? data : true);
     if (_speechToTextEnabled == enabled) return;
     _speechToTextEnabled = enabled;
     _broker.logInfo('[CommsHandler] SpeechToTextEnabled changed to: $enabled');
     // Web has no PCM-buffer recognizer; speech-to-text is disabled there.
-    if (kIsWeb) return;
+    if (!isRadioSpeechSupported) return;
     if (enabled) {
       unawaited(_initializeSpeechEngine());
     } else {
@@ -765,11 +793,41 @@ class CommsHandler {
     _dispatchCommsHandlerState();
   }
 
+  Future<void>? _sttReconfiguration;
+  int _sttConfigurationVersion = 0;
+  String? _sttConfiguredModel;
+  String? _sttConfiguredLanguage;
+  void _onSpeechConfigurationChanged(int deviceId, String name, Object? data) {
+    if (!_speechToTextEnabled || !isRadioSpeechSupported) return;
+    final model = _broker.getValue<String>(0, 'VoiceModel', 'sense-voice');
+    final language = _broker.getValue<String>(0, 'VoiceLanguage', 'auto');
+    if (name == 'SpeechModelReady' && data != model) return;
+    if (_sttReady &&
+        model == _sttConfiguredModel &&
+        language == _sttConfiguredLanguage) {
+      return;
+    }
+    _sttConfigurationVersion++;
+    _sttReconfiguration ??= _restartSpeechEngine().whenComplete(() {
+      _sttReconfiguration = null;
+    });
+  }
+
+  Future<void> _restartSpeechEngine() async {
+    int version;
+    do {
+      version = _sttConfigurationVersion;
+      await _cleanupSpeechEngine();
+      if (_disposed || !_speechToTextEnabled) return;
+      await _initializeSpeechEngine();
+    } while (version != _sttConfigurationVersion);
+  }
+
   /// Creates and initializes the platform speech-to-text engine. Safe to call
   /// repeatedly; only the first successful initialization takes effect.
   Future<void> _initializeSpeechEngine() async {
-    if (_disposed || _sttEngine != null) return;
-    final engine = createSpeechToTextEngine();
+    if (_disposed || !isRadioSpeechSupported || _sttEngine != null) return;
+    final engine = _speechEngineFactory();
     _sttEngine = engine;
     if (!engine.isSupported) {
       _broker.logInfo(
@@ -779,8 +837,16 @@ class CommsHandler {
     }
     _sttResultSub = engine.results.listen(_onSpeechResult);
     _sttProcessingSub = engine.processing.listen(_onSpeechProcessing);
+    _sttDiagnosticSub = engine.diagnostics.listen(_onSpeechDiagnostics);
     try {
-      final localeId = (_voiceLanguage == 'auto') ? '' : _voiceLanguage;
+      final localeId =
+          _broker.getValue<String>(0, 'VoiceLanguage', 'auto') ?? 'auto';
+      _sttConfiguredLanguage = localeId;
+      _sttConfiguredModel = _broker.getValue<String>(
+        0,
+        'VoiceModel',
+        'sense-voice',
+      );
       final ready = await engine.initialize(localeId: localeId);
       // The engine may have been disposed while we awaited initialization.
       if (_disposed || _sttEngine != engine) return;
@@ -802,22 +868,24 @@ class CommsHandler {
 
   /// Tears down the speech-to-text engine and any in-progress segment.
   Future<void> _cleanupSpeechEngine() async {
-    // Commit any in-progress bubble to history before disposing the engine so
-    // its text isn't lost and the next segment (e.g. after re-enabling) always
-    // starts a fresh bubble.
-    _finalizeSttBubble();
+    await _drainSpeechSegments();
     final engine = _sttEngine;
-    _commitCurrentSttEntry();
     _sttEngine = null;
     _sttReady = false;
     _sttSegmentActive = false;
-    _sttSegmentBytes = 0;
+    _sttError = null;
+    _sttQueuedAudioMs = 0;
+    _sttDecodeMs = 0;
+    _sttOverloaded = false;
+    _dispatchSttProcessing(listening: false, processing: false);
     _sttDeviceId = -1;
-    _sttCurrentEntry = null;
+    _sttSegmentId = null;
     await _sttResultSub?.cancel();
     _sttResultSub = null;
     await _sttProcessingSub?.cancel();
     _sttProcessingSub = null;
+    await _sttDiagnosticSub?.cancel();
+    _sttDiagnosticSub = null;
     if (engine != null) {
       try {
         await engine.dispose();
@@ -825,120 +893,131 @@ class CommsHandler {
         _broker.logError('[CommsHandler] Error disposing speech engine: $e');
       }
     }
-    _sttBoundaryFinalPending = false;
+    _sttOverloaded = false;
   }
 
-  /// Commits the latest visible transcript at an app-owned segment boundary.
-  /// This happens synchronously so a following segment cannot reuse the UI's
-  /// in-progress bubble while the platform recognizer is still finalizing.
   void _commitCurrentSttEntry() {
-    final entry = _sttCurrentEntry;
-    final text = entry?.text ?? '';
-    final channel = entry?.channel ?? '';
-    if (entry == null || !_sttHasContent(text)) return;
-    final now = DateTime.now();
-    entry.time = now;
-    _decodedTextHistory.add(entry);
-    _trimHistory();
-    unawaited(_saveVoiceTextHistory());
-    _dispatchDecodedTextHistory();
-    _dispatchSttTextReady(text, channel, now, true);
-    _sttBoundaryFinalPending = true;
-    _sttCurrentEntry = null;
-    _currentEntry = null;
-    _dispatchCurrentEntry();
-  }
-
-  /// Commits the in-progress speech-to-text bubble to history as a final entry
-  /// and clears the current-entry slot, so the next segment starts a new
-  /// bubble. Used when the engine is torn down (speech-to-text disabled) with
-  /// unfinalized text that would otherwise be lost or reused.
-  void _finalizeSttBubble() {
-    final entry = _sttCurrentEntry;
-    _sttCurrentEntry = null;
-    _currentEntry = null;
-    if (entry != null) {
-      final text = (entry.text ?? '').trim();
-      final channel = entry.channel ?? '';
-      final time = entry.time;
-      if (text.isNotEmpty && _sttHasContent(text)) {
-        _decodedTextHistory.add(
-          DecodedTextEntry(
-            text: text,
-            channel: channel,
-            time: time,
-            isReceived: true,
-            encoding: VoiceTextEncodingType.voice,
-          ),
-        );
-        _trimHistory();
-        unawaited(_saveVoiceTextHistory());
-        _dispatchDecodedTextHistory();
-        _dispatchSttTextReady(text, channel, time, true);
-      }
-    }
-    _dispatchCurrentEntry();
-  }
-
-  /// Handles a partial or final recognition result from the speech engine.
-  void _onSpeechResult(SpeechResult result) {
-    if (_disposed || _sttDeviceId <= 0) return;
-    final text = result.text.trim();
-    final now = DateTime.now();
-    final channel = _sttChannel.isNotEmpty ? _sttChannel : _currentChannelName;
-
-    if (!result.isFinal) {
-      // In-progress text: update or create the current STT entry.
-      if (text.isEmpty || !_sttHasContent(text)) return;
-      final entry = _sttCurrentEntry ?? DecodedTextEntry();
-      entry.text = text;
-      entry.channel = channel;
-      entry.time = now;
-      entry.isReceived = true;
-      entry.encoding = VoiceTextEncodingType.voice;
-      _sttCurrentEntry = entry;
-      _currentEntry = entry;
+    final segment = _sttSegments[_sttSegmentId];
+    if (segment == null) return;
+    segment.ended = true;
+    _publishSpeechEntry(segment);
+    if (identical(_currentEntry, segment.entry)) {
+      _currentEntry = null;
       _dispatchCurrentEntry();
-      _dispatchSttTextReady(text, channel, now, false);
-    } else {
-      if (text.isEmpty || !_sttHasContent(text)) return;
+    }
+  }
 
-      // FM end, length splitting, and disabling STT commit the visible entry
-      // immediately. Consume the corresponding delayed platform final so it
-      // cannot create a duplicate or clear a newer partial bubble.
-      if (_sttBoundaryFinalPending) {
-        _sttBoundaryFinalPending = false;
-        return;
+  void _publishSpeechEntry(_SpeechSegment segment) {
+    final entry = segment.entry;
+    if (entry == null) return;
+    if (segment.ended) {
+      if (!segment.committed) {
+        final index = _decodedTextHistory.indexWhere(
+          (e) => e.time.isAfter(entry.time),
+        );
+        if (index < 0) {
+          _decodedTextHistory.add(entry);
+        } else {
+          _decodedTextHistory.insert(index, entry);
+        }
+        segment.committed = true;
+        _trimHistory();
       }
-
-      // A backend can emit a final without a preceding partial. Preserve it as
-      // a standalone completed entry, but never clear a newer active segment.
-      final entry = DecodedTextEntry(
-        text: text,
-        channel: channel,
-        time: now,
-        isReceived: true,
-        encoding: VoiceTextEncodingType.voice,
-      );
-      _decodedTextHistory.add(entry);
-      _trimHistory();
       unawaited(_saveVoiceTextHistory());
       _dispatchDecodedTextHistory();
-      _dispatchSttTextReady(text, channel, now, true);
+    } else if (segment.id == _sttSegmentId) {
+      _currentEntry = entry;
+      _dispatchCurrentEntry();
+    }
+    _dispatchSttTextReady(segment, entry, segment.ended);
+  }
+
+  void _onSpeechResult(SpeechResult result) {
+    final segment = _sttSegments[result.segmentId];
+    if (segment == null) return;
+    final text = result.text.trim();
+    if (_sttHasContent(text)) {
+      final entry = segment.entry ??= DecodedTextEntry(
+        channel: segment.channel,
+        time: segment.started,
+        updateKey:
+            'stt_${segment.started.microsecondsSinceEpoch}_${segment.id}',
+      );
+      entry.originalText = text;
+      entry.text = RadioSpeechVocabulary.normalizeCallsigns(text);
+      entry.speechPending = !result.isFinal;
+    }
+    if (result.isFinal) segment.ended = true;
+    _publishSpeechEntry(segment);
+    if (result.isFinal) _finishSpeechSegment(segment);
+  }
+
+  void _finishSpeechSegment(_SpeechSegment segment) {
+    segment.entry?.speechPending = false;
+    if (identical(_currentEntry, segment.entry)) {
+      _currentEntry = null;
+      _dispatchCurrentEntry();
+    }
+    if (segment.id == _sttSegmentId) {
+      _sttSegmentActive = false;
+      _dispatchSttProcessing(
+        listening: false,
+        processing: _sttQueuedAudioMs > 0,
+      );
+    }
+    _sttSegments.remove(segment.id);
+    if (!segment.done.isCompleted) segment.done.complete();
+    unawaited(_saveVoiceTextHistory());
+  }
+
+  Future<void> _drainSpeechSegments() async {
+    if (_sttSegmentActive) _handleSttEnd();
+    final segments = _sttSegments.values.toList();
+    try {
+      await Future.wait(
+        segments.map((s) => s.done.future),
+      ).timeout(const Duration(seconds: 10));
+    } on TimeoutException {
+      _broker.logError(
+        '[CommsHandler] Speech finalization timed out; preserving available partials',
+      );
+      for (final segment in segments) {
+        if (!_sttSegments.containsKey(segment.id)) continue;
+        segment.ended = true;
+        _publishSpeechEntry(segment);
+        _finishSpeechSegment(segment);
+      }
     }
   }
 
-  /// Whether a speech-to-text result carries any real content. Whisper emits
-  /// punctuation-only fragments (e.g. "." or "?") for silence or noise; a
-  /// result with no letter or digit is dropped rather than shown as a bubble.
-  bool _sttHasContent(String text) => RegExp(r'[A-Za-z0-9]').hasMatch(text);
+  bool _sttHasContent(String text) =>
+      RegExp(r'[\p{L}\p{N}]', unicode: true).hasMatch(text);
+
+  void _onSpeechDiagnostics(SpeechDiagnostics diagnostics) {
+    _sttQueuedAudioMs = diagnostics.queuedAudioMs;
+    _sttDecodeMs = diagnostics.decodeMs;
+    _sttOverloaded = diagnostics.overloaded;
+    if (diagnostics.error != null) {
+      _sttError = diagnostics.error;
+      _broker.logError('[CommsHandler] ${diagnostics.error}');
+      final segment = _sttSegments[diagnostics.segmentId];
+      if (segment != null) {
+        segment.ended = true;
+        _publishSpeechEntry(segment);
+        _finishSpeechSegment(segment);
+        if (segment.id == _sttSegmentId) unawaited(_sttEngine?.resetSegment());
+      }
+      _sttReady = _sttEngine?.isReady ?? false;
+    }
+    _dispatchSttProcessing(
+      listening: _sttSegmentActive,
+      processing: _sttQueuedAudioMs > 0,
+    );
+  }
 
   /// Handles the engine's processing (listening/recognizing) indicator.
   void _onSpeechProcessing(bool active) {
     if (_disposed) return;
-    if (!active && !_sttSegmentActive) {
-      _sttBoundaryFinalPending = false;
-    }
     // When the model is actively decoding, show red (processing=true).
     // When decoding finishes and no segment is active, hide the indicator.
     // When decoding finishes but a segment is still active (split), show green.
@@ -957,29 +1036,14 @@ class CommsHandler {
   /// [_dispatchTextReady] only fires for an enabled target radio (never set in
   /// this build).
   void _dispatchSttTextReady(
-    String text,
-    String channel,
-    DateTime time,
+    _SpeechSegment segment,
+    DecodedTextEntry entry,
     bool completed,
   ) {
-    if (_sttDeviceId <= 0) return;
     _broker.dispatch(
-      deviceId: _sttDeviceId,
+      deviceId: segment.deviceId,
       name: 'TextReady',
-      data: <String, Object?>{
-        'text': text,
-        'channel': channel,
-        'time': time.millisecondsSinceEpoch,
-        'completed': completed,
-        'isReceived': true,
-        'encoding': _encodingToString(VoiceTextEncodingType.voice),
-        'latitude': 0,
-        'longitude': 0,
-        'source': null,
-        'destination': null,
-        'filename': null,
-        'duration': 0,
-      },
+      data: <String, Object?>{...entry.toJson(), 'completed': completed},
       store: false,
     );
   }
@@ -992,7 +1056,14 @@ class CommsHandler {
     _broker.dispatch(
       deviceId: _sttDeviceId,
       name: 'ProcessingVoice',
-      data: <String, Object?>{'listening': listening, 'processing': processing},
+      data: <String, Object?>{
+        'listening': listening,
+        'processing': processing,
+        'queuedAudioMs': _sttQueuedAudioMs,
+        'decodeMs': _sttDecodeMs,
+        'overloaded': _sttOverloaded,
+        'error': _sttError,
+      },
       store: false,
     );
   }
@@ -1123,7 +1194,12 @@ class CommsHandler {
   /// Starts a new speech-to-text segment for received (non-transmit) audio on
   /// [deviceId]. Locks onto a single device for the duration of the segment.
   void _handleSttStart(int deviceId, Object? data) {
-    if (!_speechToTextEnabled || !_sttReady || deviceId <= 0) return;
+    if (!_speechToTextEnabled ||
+        !_sttReady ||
+        _sttOverloaded ||
+        deviceId <= 0) {
+      return;
+    }
     // Don't run speech-to-text while an SSTV image is being received: the SSTV
     // tones aren't speech and the recognizer would compete for CPU with the
     // image decoder, stalling reception.
@@ -1161,12 +1237,21 @@ class CommsHandler {
     final engine = _sttEngine;
     if (engine == null) return;
     _sttDeviceId = deviceId;
-    _sttChannel = channel;
+    if (_sttSegmentActive) _handleSttEnd();
+    final segment = _SpeechSegment(++_sttNextSegmentId, deviceId, channel);
+    _sttSegments[segment.id] = segment;
+    _sttSegmentId = segment.id;
     _sttSegmentActive = true;
-    _sttSegmentBytes = 0;
-    _sttCurrentEntry = null;
+    _sttError = null;
     if (channel.isNotEmpty) _currentChannelName = channel;
-    unawaited(engine.startSegment());
+    unawaited(
+      engine.startSegment(
+        segmentId: segment.id,
+        hotwords: RadioSpeechVocabulary.hotwords(
+          _broker.getValue<String>(0, 'CallSign', '') ?? '',
+        ),
+      ),
+    );
     _dispatchSttProcessing(listening: true, processing: false);
   }
 
@@ -1206,11 +1291,6 @@ class CommsHandler {
       _radiosondeDeviceId = -1;
     }
 
-    // Speech-to-text flush (deferred) for the enabled target radio.
-    if (deviceId == _targetDeviceId && _enabled) {
-      // TODO(stt): flush the current speech segment.
-    }
-
     // Speech-to-text: complete the active segment to force a final result.
     if (_sttSegmentActive && deviceId == _sttDeviceId) {
       _handleSttEnd();
@@ -1224,7 +1304,6 @@ class CommsHandler {
     final engine = _sttEngine;
     _commitCurrentSttEntry();
     _sttSegmentActive = false;
-    _sttSegmentBytes = 0;
     if (engine != null) unawaited(engine.completeSegment());
     // Don't dispatch here — the worker will emit processing events around
     // the actual decode, which _onSpeechProcessing handles.
@@ -1237,18 +1316,25 @@ class CommsHandler {
     if (!_sttSegmentActive) return;
     final engine = _sttEngine;
     _sttSegmentActive = false;
-    _sttSegmentBytes = 0;
-    _sttCurrentEntry = null;
+    final segment = _sttSegments[_sttSegmentId];
+    if (segment != null) {
+      _sttSegments.remove(segment.id);
+      if (!segment.done.isCompleted) segment.done.complete();
+    }
     _currentEntry = null;
     if (engine != null) unawaited(engine.resetSegment());
     _dispatchSttProcessing(listening: false, processing: false);
   }
 
-  /// Feeds a received PCM frame into the active speech-to-text segment. Bounds
-  /// the segment size by forcing a final result and restarting if it grows too
-  /// large.
+  /// Feeds received PCM into the transmission; the backend owns utterance
+  /// endpointing and bounded internal recognition chunks.
   void _handleSttFrame(int deviceId, Map data) {
-    if (!_speechToTextEnabled || !_sttReady || deviceId <= 0) return;
+    if (!_speechToTextEnabled ||
+        !_sttReady ||
+        _sttOverloaded ||
+        deviceId <= 0) {
+      return;
+    }
     // Suspend speech-to-text while an SSTV image is being received so the
     // recognizer doesn't process the SSTV tones or starve the image decoder.
     if (_sstvDecoding) return;
@@ -1290,19 +1376,6 @@ class CommsHandler {
     }
 
     unawaited(engine.processPcm16(bytes, offset, length, _sttSampleRate));
-    _sttSegmentBytes += length;
-
-    if (_sttSegmentBytes >= _sttMaxSegmentBytes) {
-      // Segment ran too long: decode and keep a short overlap tail so words
-      // at the boundary are not lost.
-      _broker.logInfo(
-        '[CommsHandler] Speech segment split due to length limit',
-      );
-      _commitCurrentSttEntry();
-      unawaited(engine.splitSegment());
-      _sttSegmentBytes = 0;
-      _sttCurrentEntry = null;
-    }
   }
 
   void _onAudioDataAvailable(int deviceId, String name, Object? data) {
@@ -1340,11 +1413,6 @@ class CommsHandler {
           recorder.write(bytes, offset, length);
         }
       }
-    }
-
-    // Speech-to-text (deferred) for the enabled target radio.
-    if (deviceId == _targetDeviceId && _enabled) {
-      // TODO(stt): feed PCM frames to the speech-to-text engine.
     }
 
     // Speech-to-text: feed received PCM frames into the active segment.
@@ -2596,6 +2664,12 @@ class CommsHandler {
   }
 
   void _onClearVoiceText(int deviceId, String name, Object? data) {
+    unawaited(_sttEngine?.resetSegment());
+    for (final segment in _sttSegments.values) {
+      if (!segment.done.isCompleted) segment.done.complete();
+    }
+    _sttSegments.clear();
+    _sttSegmentActive = false;
     _decodedTextHistory.clear();
     _currentEntry = null;
     _historyDirty = false;
@@ -3380,8 +3454,7 @@ class CommsHandler {
     final pending = <DecodedTextEntry>[];
     for (var i = _decodedTextHistory.length - 1; i >= 0; i--) {
       final entry = _decodedTextHistory[i];
-      if (entry.persisted) break;
-      pending.add(entry);
+      if (!entry.persisted && !entry.speechPending) pending.add(entry);
     }
     if (pending.isEmpty) return;
     final ordered = pending.reversed.toList(growable: false);
@@ -3402,6 +3475,7 @@ class CommsHandler {
   /// torn down, rather than being lost while the debounce timer is still
   /// pending.
   Future<void> flush() async {
+    await _drainSpeechSegments();
     _finalizeRecording();
     while (_pendingRecordings.isNotEmpty) {
       await Future.wait(_pendingRecordings.toList());
@@ -3462,13 +3536,7 @@ class CommsHandler {
     _broker.dispatch(
       deviceId: 1,
       name: 'CurrentDecodedTextEntry',
-      data: entry == null
-          ? null
-          : <String, Object?>{
-              'text': entry.text,
-              'channel': entry.channel,
-              'time': entry.time.millisecondsSinceEpoch,
-            },
+      data: entry?.toJson(),
       store: true,
     );
   }

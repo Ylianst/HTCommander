@@ -29,6 +29,7 @@ class CommsMessageDetails {
   final double? latitude;
   final double? longitude;
   final String text;
+  final String? originalText;
   final String? filename;
   final String? imagePath;
 
@@ -56,6 +57,7 @@ class CommsMessageDetails {
     this.latitude,
     this.longitude,
     this.text = '',
+    this.originalText,
     this.filename,
     this.imagePath,
     this.wpm,
@@ -114,10 +116,14 @@ class MessageDetailsDialog extends StatelessWidget {
     CommsMessageDetails d,
   ) {
     final items = <MessageDetailItem>[];
-    items.add(MessageDetailItem(l10n.msgdFieldType, _typeLabel(l10n, d.encoding)));
     items.add(
-      MessageDetailItem(l10n.msgdFieldDirection,
-          d.isReceived ? l10n.msgdDirReceived : l10n.msgdDirSent),
+      MessageDetailItem(l10n.msgdFieldType, _typeLabel(l10n, d.encoding)),
+    );
+    items.add(
+      MessageDetailItem(
+        l10n.msgdFieldDirection,
+        d.isReceived ? l10n.msgdDirReceived : l10n.msgdDirSent,
+      ),
     );
     items.add(MessageDetailItem(l10n.msgdFieldTime, _formatTime(d.time)));
     if (d.channel.isNotEmpty) {
@@ -150,10 +156,12 @@ class MessageDetailsDialog extends StatelessWidget {
             MessageDetailItem(l10n.msgdFieldLongitude, lon.toStringAsFixed(6)),
           );
         }
-        items.add(MessageDetailItem(
-          'Format',
-          s.lengthBits == 144 ? 'Long (144-bit)' : 'Short (112-bit)',
-        ));
+        items.add(
+          MessageDetailItem(
+            'Format',
+            s.lengthBits == 144 ? 'Long (144-bit)' : 'Short (112-bit)',
+          ),
+        );
         items.add(MessageDetailItem('BCH-1', s.crc1Ok ? 'OK' : 'FAIL'));
         if (s.lengthBits == 144) {
           items.add(MessageDetailItem('BCH-2', s.crc2Ok ? 'OK' : 'FAIL'));
@@ -191,26 +199,49 @@ class MessageDetailsDialog extends StatelessWidget {
         if (r.sondeType.isNotEmpty) {
           items.add(MessageDetailItem('Sonde type', r.sondeType));
         }
-        items.add(MessageDetailItem(
-            l10n.msgdFieldLatitude, r.latitude.toStringAsFixed(6)));
-        items.add(MessageDetailItem(
-            l10n.msgdFieldLongitude, r.longitude.toStringAsFixed(6)));
         items.add(
-            MessageDetailItem('Altitude', '${r.altitude.toStringAsFixed(1)} m'));
-        items.add(MessageDetailItem(
-            'Horizontal speed', '${r.horizontalSpeed.toStringAsFixed(1)} m/s'));
-        items.add(MessageDetailItem(
-            'Vertical speed', '${r.verticalSpeed.toStringAsFixed(1)} m/s'));
+          MessageDetailItem(
+            l10n.msgdFieldLatitude,
+            r.latitude.toStringAsFixed(6),
+          ),
+        );
         items.add(
-            MessageDetailItem('Heading', '${r.heading.toStringAsFixed(1)}\u00B0'));
+          MessageDetailItem(
+            l10n.msgdFieldLongitude,
+            r.longitude.toStringAsFixed(6),
+          ),
+        );
+        items.add(
+          MessageDetailItem('Altitude', '${r.altitude.toStringAsFixed(1)} m'),
+        );
+        items.add(
+          MessageDetailItem(
+            'Horizontal speed',
+            '${r.horizontalSpeed.toStringAsFixed(1)} m/s',
+          ),
+        );
+        items.add(
+          MessageDetailItem(
+            'Vertical speed',
+            '${r.verticalSpeed.toStringAsFixed(1)} m/s',
+          ),
+        );
+        items.add(
+          MessageDetailItem('Heading', '${r.heading.toStringAsFixed(1)}\u00B0'),
+        );
         items.add(MessageDetailItem('Satellites', '${r.satellites}'));
         final t = r.temperatureC;
         if (t != null) {
           items.add(
-              MessageDetailItem('Temperature', '${t.toStringAsFixed(1)}\u00B0C'));
+            MessageDetailItem('Temperature', '${t.toStringAsFixed(1)}\u00B0C'),
+          );
         }
-        items.add(MessageDetailItem(
-            'Sonde time (UTC)', _formatTime(r.dateTimeUtc.toLocal())));
+        items.add(
+          MessageDetailItem(
+            'Sonde time (UTC)',
+            _formatTime(r.dateTimeUtc.toLocal()),
+          ),
+        );
         if (r.count >= 2) {
           items.add(MessageDetailItem('Fixes received', '${r.count}'));
           final last = r.lastReceivedTime;
@@ -241,13 +272,21 @@ class MessageDetailsDialog extends StatelessWidget {
       items.add(MessageDetailItem(l10n.msgdFieldReceiver, destination));
     }
     if (d.duration > 0) {
-      items.add(MessageDetailItem(l10n.msgdFieldDuration,
-          formatDurationCompact(Duration(seconds: d.duration))));
+      items.add(
+        MessageDetailItem(
+          l10n.msgdFieldDuration,
+          formatDurationCompact(Duration(seconds: d.duration)),
+        ),
+      );
     }
     final keyType = d.keyType;
     if (keyType != null && keyType.isNotEmpty) {
-      items.add(MessageDetailItem(
-          'Key type', keyType == 'paddle' ? 'Paddle key' : 'Straight key'));
+      items.add(
+        MessageDetailItem(
+          'Key type',
+          keyType == 'paddle' ? 'Paddle key' : 'Straight key',
+        ),
+      );
     }
     final wpm = d.wpm;
     if (wpm != null && wpm > 0) {
@@ -256,12 +295,18 @@ class MessageDetailsDialog extends StatelessWidget {
     final lat = d.latitude;
     final lon = d.longitude;
     if (lat != null && lon != null && (lat != 0 || lon != 0)) {
-      items.add(MessageDetailItem(l10n.msgdFieldLatitude, lat.toStringAsFixed(6)));
       items.add(
-          MessageDetailItem(l10n.msgdFieldLongitude, lon.toStringAsFixed(6)));
+        MessageDetailItem(l10n.msgdFieldLatitude, lat.toStringAsFixed(6)),
+      );
+      items.add(
+        MessageDetailItem(l10n.msgdFieldLongitude, lon.toStringAsFixed(6)),
+      );
     }
     if (d.text.trim().isNotEmpty) {
       items.add(MessageDetailItem(l10n.msgdFieldMessage, d.text.trim()));
+    }
+    if (d.originalText != null && d.originalText != d.text) {
+      items.add(MessageDetailItem(l10n.commsOriginalSpeech, d.originalText!));
     }
     final filename = d.filename;
     if (filename != null && filename.isNotEmpty) {
@@ -344,7 +389,10 @@ class MessageDetailsDialog extends StatelessWidget {
         Offset.zero & overlay.size,
       ),
       items: [
-        PopupMenuItem<String>(value: 'copyValue', child: Text(l10n.apdCopyValue)),
+        PopupMenuItem<String>(
+          value: 'copyValue',
+          child: Text(l10n.apdCopyValue),
+        ),
         PopupMenuItem<String>(value: 'copyAll', child: Text(l10n.apdCopyAll)),
       ],
     );
@@ -505,7 +553,9 @@ class _DetailRow extends StatelessWidget {
       onSecondaryTapDown: (d) => onContextMenu(d.globalPosition),
       onLongPressStart: (d) => onContextMenu(d.globalPosition),
       child: Container(
-        color: striped ? scheme.surfaceContainerHigh : scheme.surfaceContainerLow,
+        color: striped
+            ? scheme.surfaceContainerHigh
+            : scheme.surfaceContainerLow,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -112,6 +112,18 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @commsOriginalSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'Original speech recognition'**
+  String get commsOriginalSpeech;
+
+  /// No description provided for @commsSpeechDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech-to-text: queued audio {queueMs} ms; last decode {decodeMs} ms'**
+  String commsSpeechDiagnostics(int queueMs, int decodeMs);
+
   /// No description provided for @settingsCustomMapEnabled.
   ///
   /// In en, this message translates to:

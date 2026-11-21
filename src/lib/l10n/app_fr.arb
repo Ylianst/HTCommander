@@ -1,4 +1,6 @@
 {
+  "commsOriginalSpeech": "Reconnaissance vocale originale",
+  "commsSpeechDiagnostics": "Parole en texte : audio en attente {queueMs} ms ; dernier décodage {decodeMs} ms",
   "settingsCustomMapEnabled": "Utiliser une source de carte personnalisée",
   "settingsCustomMapUrl": "URL des tuiles de carte",
   "settingsCustomMapAttribution": "Attribution (facultative)",

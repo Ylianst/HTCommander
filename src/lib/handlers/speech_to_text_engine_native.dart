@@ -20,7 +20,8 @@ import 'sherpa_speech_to_text_engine.dart';
 /// bundled sherpa native libraries (they are stubbed out of the APK); instead
 /// it feeds PCM into the OS on-device recognizer via
 /// [AndroidSpeechToTextEngine], which requires no model download.
-SpeechToTextEngine createPlatformSpeechToTextEngine() =>
-    Platform.isAndroid
-        ? AndroidSpeechToTextEngine()
-        : SherpaSpeechToTextEngine();
+SpeechToTextEngine createPlatformSpeechToTextEngine() => Platform.isIOS
+    ? UnsupportedSpeechToTextEngine()
+    : Platform.isAndroid
+    ? AndroidSpeechToTextEngine()
+    : SherpaSpeechToTextEngine();

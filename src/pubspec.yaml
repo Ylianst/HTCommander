@@ -197,6 +197,7 @@ flutter:
     # to the OS store when downloading callsign databases, so an outdated system
     # trust store doesn't break updates. See services/callsign_lookup_service.dart.
     - assets/certs/cacert.pem
+    - assets/stt/zipformer-en-20m.vocab
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

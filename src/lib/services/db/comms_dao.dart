@@ -29,6 +29,9 @@ class CommsDao {
 
   static const String _table = 'comms_events';
 
+  static Future<void> addOriginalTextColumn(Database db) =>
+      db.execute('ALTER TABLE comms_events ADD COLUMN original_text TEXT');
+
   Future<Map<String, Object?>> page({List<int>? before}) => readHistoryPage(
     _db,
     table: _table,
@@ -154,6 +157,7 @@ class CommsDao {
       'channel': j['channel'],
       'is_received': (j['isReceived'] as bool? ?? true) ? 1 : 0,
       'text': j['text'],
+      'original_text': j['originalText'],
       'source': j['source'],
       'destination': j['destination'],
       'lat': j['latitude'],
@@ -172,6 +176,7 @@ class CommsDao {
     final radiosonde = row['radiosonde_json'] as String?;
     return DecodedTextEntry.fromJson(<String, dynamic>{
       'text': row['text'],
+      'originalText': row['original_text'],
       'channel': row['channel'],
       'time': row['time_ms'],
       'isReceived': (row['is_received'] as int? ?? 1) != 0,

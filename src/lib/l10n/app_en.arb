@@ -1,4 +1,12 @@
 {
+  "commsOriginalSpeech": "Original speech recognition",
+  "commsSpeechDiagnostics": "Speech-to-text: queued audio {queueMs} ms; last decode {decodeMs} ms",
+  "@commsSpeechDiagnostics": {
+    "placeholders": {
+      "queueMs": {"type": "int"},
+      "decodeMs": {"type": "int"}
+    }
+  },
   "settingsCustomMapEnabled": "Use custom map source",
   "settingsCustomMapUrl": "Map tile URL",
   "settingsCustomMapAttribution": "Attribution (optional)",

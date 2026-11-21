@@ -38,6 +38,7 @@ import '../services/microphone_capture.dart';
 import '../services/shared_microphone.dart';
 import '../services/sherpa_model_manager.dart';
 import '../handlers/android_speech_to_text_engine.dart';
+import '../handlers/speech_to_text_engine.dart';
 import '../models/radio_models.dart';
 import '../radio/radio_models.dart' as radio;
 import '../utils/channel_share.dart';
@@ -125,6 +126,10 @@ class _CommsTabState extends State<CommsTab>
   bool _audioEnabled = false;
   bool _isListening = false;
   bool _isProcessing = false;
+  int _speechQueuedMs = 0;
+  int _speechDecodeMs = 0;
+  bool _speechOverloaded = false;
+  String? _speechError;
   bool _isTransmitting = false;
   bool _speechToTextEnabled = true;
   bool _sttModelReady = false;
@@ -1230,10 +1235,14 @@ class _CommsTabState extends State<CommsTab>
   }
 
   void _onProcessingVoice(int deviceId, String name, Object? data) {
-    if (data is! Map) return;
+    if (data is! Map || !isRadioSpeechSupported) return;
     setState(() {
       _isListening = data['listening'] as bool? ?? false;
       _isProcessing = data['processing'] as bool? ?? false;
+      _speechQueuedMs = data['queuedAudioMs'] as int? ?? 0;
+      _speechDecodeMs = data['decodeMs'] as int? ?? 0;
+      _speechOverloaded = data['overloaded'] == true;
+      _speechError = data['error'] as String?;
     });
   }
 
@@ -1277,7 +1286,7 @@ class _CommsTabState extends State<CommsTab>
     // Speech-to-text is not available on the web build (no on-device recognizer
     // and no bundled model), and probing platform/model state there hits
     // dart:io, so report it as not ready and skip the platform checks.
-    if (kIsWeb) {
+    if (!isRadioSpeechSupported) {
       _sttStatusNotifier?.removeListener(_onSttModelStatusChanged);
       _sttStatusNotifier = null;
       _sttModelReady = false;
@@ -1397,6 +1406,7 @@ class _CommsTabState extends State<CommsTab>
 
     _appendVoiceHistory(
       text: text ?? '',
+      originalText: data['originalText'] as String?,
       channel: data['channel'] as String? ?? '',
       time: _parseTime(data['time']),
       completed: data['completed'] as bool? ?? false,
@@ -1423,6 +1433,7 @@ class _CommsTabState extends State<CommsTab>
   /// Appends a completed entry, or updates the single in-progress entry.
   void _appendVoiceHistory({
     required String text,
+    String? originalText,
     required String channel,
     required DateTime time,
     required bool completed,
@@ -1483,6 +1494,7 @@ class _CommsTabState extends State<CommsTab>
         latitude: hasLocation ? latitude : null,
         longitude: hasLocation ? longitude : null,
         text: text,
+        originalText: originalText,
         filename: filename,
         imagePath: imagePath,
         wpm: wpm,
@@ -1496,6 +1508,13 @@ class _CommsTabState extends State<CommsTab>
       final idx = _messages.indexWhere((m) => m.id == id);
       if (idx >= 0) {
         _messages[idx] = message;
+      } else if (updateKey?.startsWith('stt_') ?? false) {
+        final position = _messages.indexWhere((m) => m.time.isAfter(time));
+        if (position < 0) {
+          _messages.add(message);
+        } else {
+          _messages.insert(position, message);
+        }
       } else {
         _messages.add(message);
       }
@@ -1580,6 +1599,8 @@ class _CommsTabState extends State<CommsTab>
 
     final id = storedId != null
         ? 'stored_comms_$storedId'
+        : raw['updateKey'] is String
+        ? raw['updateKey'] as String
         : sarsat != null
         ? 'sarsat_${sarsat.hexId}_${time.millisecondsSinceEpoch}'
         : radiosonde != null
@@ -1620,6 +1641,7 @@ class _CommsTabState extends State<CommsTab>
         latitude: hasLocation ? latitude : null,
         longitude: hasLocation ? longitude : null,
         text: text,
+        originalText: raw['originalText'] as String?,
         filename: filename,
         imagePath: imagePath,
         wpm: wpm,
@@ -3565,15 +3587,29 @@ class _CommsTabState extends State<CommsTab>
                 ),
               ),
               // Processing indicator
-              if (_isListening || _isProcessing)
+              if (isRadioSpeechSupported &&
+                  (_isListening || _isProcessing || _speechError != null))
                 Padding(
                   padding: const EdgeInsets.only(left: 8),
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isProcessing ? Colors.red : Colors.green,
+                  child: Tooltip(
+                    message: [
+                      AppLocalizations.of(context).commsSpeechDiagnostics(
+                        _speechQueuedMs,
+                        _speechDecodeMs,
+                      ),
+                      ?_speechError,
+                    ].join('\n'),
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _speechOverloaded || _speechError != null
+                            ? Colors.orange
+                            : _isProcessing
+                            ? Colors.red
+                            : Colors.green,
+                      ),
                     ),
                   ),
                 ),

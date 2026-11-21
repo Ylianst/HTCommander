@@ -1,4 +1,6 @@
 {
+  "commsOriginalSpeech": "Reconocimiento de voz original",
+  "commsSpeechDiagnostics": "Voz a texto: audio en cola {queueMs} ms; última decodificación {decodeMs} ms",
   "settingsCustomMapEnabled": "Usar una fuente de mapas personalizada",
   "settingsCustomMapUrl": "URL de las teselas del mapa",
   "settingsCustomMapAttribution": "Atribución (opcional)",

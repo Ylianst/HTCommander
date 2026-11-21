@@ -1,4 +1,6 @@
 {
+  "commsOriginalSpeech": "元の音声認識結果",
+  "commsSpeechDiagnostics": "音声文字起こし: 待機中の音声 {queueMs} ms、最後のデコード {decodeMs} ms",
   "settingsCustomMapEnabled": "カスタム地図ソースを使用",
   "settingsCustomMapUrl": "地図タイルのURL",
   "settingsCustomMapAttribution": "出典表記（任意）",

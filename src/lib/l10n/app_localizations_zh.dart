@@ -9,6 +9,14 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get commsOriginalSpeech => '原始语音识别结果';
+
+  @override
+  String commsSpeechDiagnostics(int queueMs, int decodeMs) {
+    return '语音转文字：排队音频 $queueMs ms；上次解码 $decodeMs ms';
+  }
+
+  @override
   String get settingsCustomMapEnabled => '使用自定义地图源';
 
   @override

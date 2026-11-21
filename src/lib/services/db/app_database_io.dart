@@ -70,7 +70,7 @@ class AppDatabase {
 
   /// Current schema version. Bump and add an [onUpgrade] branch when the schema
   /// changes.
-  static const int _schemaVersion = 5;
+  static const int _schemaVersion = 6;
 
   static const String _dbFileName = 'htcommander.db';
 
@@ -132,6 +132,7 @@ class AppDatabase {
           if (oldVersion < 3) await PacketsDao.addAprsHiddenColumn(db);
           if (oldVersion < 4) await BbsDao.createSchema(db);
           if (oldVersion < 5) await MailDao.createSchema(db);
+          if (oldVersion < 6) await CommsDao.addOriginalTextColumn(db);
         },
       ),
     );
@@ -146,6 +147,7 @@ class AppDatabase {
         channel TEXT,
         is_received INTEGER NOT NULL,
         text TEXT,
+        original_text TEXT,
         source TEXT,
         destination TEXT,
         lat REAL NOT NULL DEFAULT 0,

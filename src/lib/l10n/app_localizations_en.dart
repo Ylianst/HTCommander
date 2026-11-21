@@ -9,6 +9,14 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get commsOriginalSpeech => 'Original speech recognition';
+
+  @override
+  String commsSpeechDiagnostics(int queueMs, int decodeMs) {
+    return 'Speech-to-text: queued audio $queueMs ms; last decode $decodeMs ms';
+  }
+
+  @override
   String get settingsCustomMapEnabled => 'Use custom map source';
 
   @override

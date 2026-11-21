@@ -9,6 +9,14 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get commsOriginalSpeech => 'मूल वाक् पहचान';
+
+  @override
+  String commsSpeechDiagnostics(int queueMs, int decodeMs) {
+    return 'वाक् से पाठ: कतार में ऑडियो $queueMs ms; अंतिम डिकोडिंग $decodeMs ms';
+  }
+
+  @override
   String get settingsCustomMapEnabled => 'कस्टम मानचित्र स्रोत का उपयोग करें';
 
   @override

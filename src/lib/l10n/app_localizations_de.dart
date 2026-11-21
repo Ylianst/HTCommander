@@ -9,6 +9,14 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get commsOriginalSpeech => 'Ursprüngliche Spracherkennung';
+
+  @override
+  String commsSpeechDiagnostics(int queueMs, int decodeMs) {
+    return 'Sprache zu Text: Audio-Warteschlange $queueMs ms; letzte Dekodierung $decodeMs ms';
+  }
+
+  @override
   String get settingsCustomMapEnabled => 'Eigene Kartenquelle verwenden';
 
   @override

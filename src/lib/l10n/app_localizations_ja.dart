@@ -9,6 +9,14 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get commsOriginalSpeech => '元の音声認識結果';
+
+  @override
+  String commsSpeechDiagnostics(int queueMs, int decodeMs) {
+    return '音声文字起こし: 待機中の音声 $queueMs ms、最後のデコード $decodeMs ms';
+  }
+
+  @override
   String get settingsCustomMapEnabled => 'カスタム地図ソースを使用';
 
   @override

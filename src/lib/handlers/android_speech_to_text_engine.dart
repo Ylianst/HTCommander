@@ -63,6 +63,8 @@ class AndroidSpeechToTextEngine implements SpeechToTextEngine {
   final StreamController<SpeechResult> _results =
       StreamController<SpeechResult>.broadcast();
   final StreamController<bool> _processing = StreamController<bool>.broadcast();
+  final _diagnostics = StreamController<SpeechDiagnostics>.broadcast();
+  int _segmentId = 0;
 
   /// Streaming resampler that converts the incoming PCM to [_targetSampleRate].
   final _LinearResampler _resampler = _LinearResampler(_targetSampleRate);
@@ -82,6 +84,9 @@ class AndroidSpeechToTextEngine implements SpeechToTextEngine {
 
   @override
   Stream<bool> get processing => _processing.stream;
+
+  @override
+  Stream<SpeechDiagnostics> get diagnostics => _diagnostics.stream;
 
   @override
   Future<bool> initialize({String localeId = ''}) async {
@@ -112,36 +117,84 @@ class AndroidSpeechToTextEngine implements SpeechToTextEngine {
   }
 
   void _listenEvents() {
-    _eventSub ??= _eventChannel.receiveBroadcastStream().listen((event) {
-      if (event is! Map) return;
-      final type = event['event'] as String?;
-      switch (type) {
-        case 'result':
-          final text = (event['text'] as String?) ?? '';
-          final isFinal = (event['isFinal'] as bool?) ?? false;
-          if (!_results.isClosed) _results.add(SpeechResult(text, isFinal));
-          break;
-        case 'processing':
-          final active = (event['active'] as bool?) ?? false;
-          if (!_processing.isClosed) _processing.add(active);
-          break;
-        case 'error':
-          if (!_processing.isClosed) _processing.add(false);
-          break;
-      }
-    }, onError: (Object _) {
-      if (!_processing.isClosed) _processing.add(false);
-    });
+    _eventSub ??= _eventChannel.receiveBroadcastStream().listen(
+      (event) {
+        if (event is! Map) return;
+        final type = event['event'] as String?;
+        switch (type) {
+          case 'result':
+            final text = (event['text'] as String?) ?? '';
+            final isFinal = (event['isFinal'] as bool?) ?? false;
+            if (!_results.isClosed) {
+              _results.add(
+                SpeechResult(
+                  text,
+                  isFinal,
+                  segmentId: event['segmentId'] as int,
+                ),
+              );
+            }
+            break;
+          case 'processing':
+            final active = (event['active'] as bool?) ?? false;
+            if (!_processing.isClosed) _processing.add(active);
+            break;
+          case 'error':
+            _diagnostics.add(
+              SpeechDiagnostics(
+                segmentId: event['segmentId'] as int? ?? _segmentId,
+                overloaded: event['overloaded'] == true,
+                error: 'Android speech recognition failed: ${event['code']}',
+              ),
+            );
+            if (!_processing.isClosed) {
+              _processing.add(false);
+            }
+            break;
+          case 'diagnostics':
+            _diagnostics.add(
+              SpeechDiagnostics(
+                segmentId: event['segmentId'] as int,
+                queuedAudioMs: event['queuedAudioMs'] as int? ?? 0,
+                decodeMs: event['decodeMs'] as int? ?? 0,
+                overloaded: event['overloaded'] == true,
+              ),
+            );
+            break;
+        }
+      },
+      onError: (Object error) {
+        _emitError('event stream', error);
+        if (!_processing.isClosed) _processing.add(false);
+      },
+    );
+  }
+
+  void _emitError(String operation, Object error) {
+    if (_diagnostics.isClosed) return;
+    _diagnostics.add(
+      SpeechDiagnostics(
+        segmentId: _segmentId,
+        error: 'Android speech $operation failed: $error',
+      ),
+    );
   }
 
   @override
-  Future<void> startSegment() async {
+  Future<void> startSegment({
+    required int segmentId,
+    List<String> hotwords = const [],
+  }) async {
     if (!_ready || _disposed) return;
     _resampler.reset();
+    _segmentId = segmentId;
     try {
-      await _channel.invokeMethod('startSegment');
-    } on PlatformException {
-      // Ignore; a failed start simply produces no results for this segment.
+      await _channel.invokeMethod('startSegment', {
+        'segmentId': segmentId,
+        'hotwords': hotwords,
+      });
+    } on PlatformException catch (e) {
+      _emitError('start', e);
     } on MissingPluginException {
       _ready = false;
     }
@@ -161,9 +214,10 @@ class AndroidSpeechToTextEngine implements SpeechToTextEngine {
       await _channel.invokeMethod('appendAudio', {
         'data': chunk,
         'sampleRate': _targetSampleRate,
+        'segmentId': _segmentId,
       });
-    } on PlatformException {
-      // Ignore transient write errors (e.g. session already finalized).
+    } on PlatformException catch (e) {
+      _emitError('audio write', e);
     } on MissingPluginException {
       _ready = false;
     }
@@ -173,9 +227,9 @@ class AndroidSpeechToTextEngine implements SpeechToTextEngine {
   Future<void> completeSegment() async {
     if (!_ready || _disposed) return;
     try {
-      await _channel.invokeMethod('completeSegment');
-    } on PlatformException {
-      // Ignore.
+      await _channel.invokeMethod('completeSegment', {'segmentId': _segmentId});
+    } on PlatformException catch (e) {
+      _emitError('complete', e);
     } on MissingPluginException {
       _ready = false;
     }
@@ -183,18 +237,16 @@ class AndroidSpeechToTextEngine implements SpeechToTextEngine {
 
   @override
   Future<void> splitSegment() async {
-    // No native split; complete the current session and open a new one.
-    await completeSegment();
-    await startSegment();
+    // Android endpoints utterances within the same segmented session.
   }
 
   @override
   Future<void> resetSegment() async {
     if (!_ready || _disposed) return;
     try {
-      await _channel.invokeMethod('resetSegment');
-    } on PlatformException {
-      // Ignore.
+      await _channel.invokeMethod('resetSegment', {'segmentId': _segmentId});
+    } on PlatformException catch (e) {
+      _emitError('reset', e);
     } on MissingPluginException {
       _ready = false;
     }
@@ -214,6 +266,7 @@ class AndroidSpeechToTextEngine implements SpeechToTextEngine {
     _eventSub = null;
     await _results.close();
     await _processing.close();
+    await _diagnostics.close();
   }
 }
 

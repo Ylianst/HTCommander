@@ -1,4 +1,6 @@
 {
+  "commsOriginalSpeech": "मूल वाक् पहचान",
+  "commsSpeechDiagnostics": "वाक् से पाठ: कतार में ऑडियो {queueMs} ms; अंतिम डिकोडिंग {decodeMs} ms",
   "settingsCustomMapEnabled": "कस्टम मानचित्र स्रोत का उपयोग करें",
   "settingsCustomMapUrl": "मानचित्र टाइल URL",
   "settingsCustomMapAttribution": "श्रेय (वैकल्पिक)",

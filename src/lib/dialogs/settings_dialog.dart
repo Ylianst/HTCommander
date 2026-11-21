@@ -21,6 +21,7 @@ import '../aprsis/aprsfi_client.dart';
 import '../echolink/echolink_credential_test.dart';
 import '../handlers/agent_api.dart';
 import '../handlers/location_handler.dart';
+import '../handlers/speech_to_text_engine.dart';
 import '../radio/repeaterbook_client.dart';
 import '../services/serial/serial_port.dart';
 import '../services/data_broker_client.dart';
@@ -383,8 +384,8 @@ class _SettingsDialogState extends State<SettingsDialog>
     _loadHistoryCounts();
 
     // Sync the speech-to-text model status shown in the Voice tab.
-    // Speech-to-text is not available on Android.
-    if (defaultTargetPlatform != TargetPlatform.android) {
+    if (isRadioSpeechSupported &&
+        defaultTargetPlatform != TargetPlatform.android) {
       SherpaModelManager.refreshStatus(
         SherpaModelManager.modelById(_settings.voiceModel).id,
       );
@@ -2538,6 +2539,7 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   /// Speech-to-text setup: model selection, language and on-device management.
   Widget _buildSpeechRecognitionSection() {
+    if (!isRadioSpeechSupported) return const SizedBox.shrink();
     final l10n = AppLocalizations.of(context);
     // Android transcribes via the OS on-device recognizer, which downloads no
     // model into the app, so the sherpa model picker/status is not shown.

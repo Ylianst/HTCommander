@@ -3,153 +3,173 @@ Copyright 2026 Ylian Saint-Hilaire
 Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 
-sherpa-onnx (SenseVoice) speech-to-text engine.
-
-This implements the shared [SpeechToTextEngine] contract used by the
-CommsHandler. Two model families are supported: batch models (SenseVoice,
-Whisper) accumulate a segment's audio and decode it once at the segment
-boundary, while streaming Zipformer transducer models feed audio into a
-persistent online stream and emit live partial results as words arrive. Each
-sample is processed exactly once in both modes.
-
-All heavy recognition work runs in a dedicated background isolate so the main
-isolate (UI + Bluetooth) never blocks. Audio is resampled from the radio rate
-(32 kHz) down to the 16 kHz mono float the model expects, entirely in memory —
-nothing is written to disk except the model files themselves.
+Desktop offline/streaming recognition and neural VAD share a worker isolate.
+Audio stays in memory. Internal utterances belong to one radio transmission.
 */
 
 import 'dart:async';
+import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 
 import '../services/sherpa_model_manager.dart';
+import 'radio_speech.dart';
 import 'speech_to_text_engine.dart';
 
-/// Speech-to-text engine backed by sherpa-onnx with the SenseVoice model.
-///
-/// Works on every native platform (macOS, iOS, Android, Windows, Linux). The
-/// model must be downloaded by the user in Settings before use.
 class SherpaSpeechToTextEngine implements SpeechToTextEngine {
-  final StreamController<SpeechResult> _results =
-      StreamController<SpeechResult>.broadcast();
-  final StreamController<bool> _processing = StreamController<bool>.broadcast();
-
+  final _results = StreamController<SpeechResult>.broadcast();
+  final _processing = StreamController<bool>.broadcast();
+  final _diagnostics = StreamController<SpeechDiagnostics>.broadcast();
+  final _backlog = SpeechAudioBacklog();
+  final _resampler = _LinearResampler(16000);
   Isolate? _isolate;
   SendPort? _workerSend;
   ReceivePort? _receivePort;
   Completer<bool>? _readyCompleter;
-
+  Map<String, Object?>? _pendingInit;
   bool _ready = false;
   bool _disposed = false;
-
-  /// Streaming 32 kHz -> 16 kHz resampler state for the active segment.
-  final _LinearResampler _resampler = _LinearResampler(16000);
+  int _segmentId = 0;
+  int _lastDiagnosticMs = 0;
+  int _lastDecodeMs = 0;
+  Completer<void>? _exited;
 
   @override
-  bool get isSupported => true;
-
+  bool get isSupported => !Platform.isIOS && !Platform.isAndroid;
   @override
   bool get isReady => _ready;
-
   @override
   Stream<SpeechResult> get results => _results.stream;
-
   @override
   Stream<bool> get processing => _processing.stream;
+  @override
+  Stream<SpeechDiagnostics> get diagnostics => _diagnostics.stream;
 
   @override
   Future<bool> initialize({String localeId = ''}) async {
-    if (_disposed) return false;
+    if (_disposed || !isSupported) return false;
     if (_ready) return true;
-
-    // Do not auto-download models here. The user must explicitly download
-    // from Settings -> Voice -> Speech-to-Text.
     final modelId = SherpaModelManager.selectedModelId();
-    final installed = await SherpaModelManager.isInstalled(modelId);
-    if (!installed) {
+    if (!await SherpaModelManager.isInstalled(modelId)) {
       await SherpaModelManager.refreshStatus(modelId);
-      debugPrint(
-        '[SherpaSTT] initialize skipped: model "$modelId" not installed. '
-        'Use Settings -> Voice -> Download.',
+      _emitDiagnostics(
+        error:
+            'Speech model or VAD is not installed. Download it in Settings > Voice.',
       );
-      _ready = false;
       return false;
     }
-
     final model = SherpaModelManager.modelById(modelId);
-    final modelDir = await SherpaModelManager.modelDirectory(model);
-    final paths = SherpaModelManager.resolveInstalledModelPaths(
-      model,
-      modelDir,
-    );
+    final dir = await SherpaModelManager.modelDirectory(model);
+    final paths = SherpaModelManager.resolveInstalledModelPaths(model, dir);
     if (_disposed) return false;
-
     try {
+      await SherpaModelManager.installBundledVocabulary(model, dir);
       _receivePort = ReceivePort();
       _readyCompleter = Completer<bool>();
-      _receivePort!.listen(_onWorkerMessage);
-
-      _isolate = await Isolate.spawn(
-        _sherpaWorkerEntry,
-        _receivePort!.sendPort,
-        debugName: 'sherpa-stt-worker',
-      );
-
-      // The worker hands back its command port, then we send the init request
-      // and wait for the ready handshake.
-      final initArgs = <String, Object?>{
+      _pendingInit = {
         'cmd': 'init',
         'family': paths.family.name,
         'files': paths.files,
         'language': _languageFromLocale(localeId),
-        'numThreads': 2,
       };
-      _pendingInit = initArgs;
-
-      _ready = await _readyCompleter!.future;
+      _receivePort!.listen(_onWorkerMessage);
+      _isolate = await Isolate.spawn(
+        _sherpaWorkerEntry,
+        _receivePort!.sendPort,
+        debugName: 'sherpa-stt-worker',
+        onError: _receivePort!.sendPort,
+        onExit: _receivePort!.sendPort,
+      );
+      _ready = await _readyCompleter!.future.timeout(
+        const Duration(seconds: 30),
+      );
       return _ready;
     } catch (e) {
-      debugPrint('[SherpaSTT] initialize failed: $e');
+      _emitDiagnostics(error: 'Speech initialization failed: $e');
+      _isolate?.kill(priority: Isolate.immediate);
       _ready = false;
       return false;
     }
   }
 
-  Map<String, Object?>? _pendingInit;
+  void _emitDiagnostics({String? error, bool force = false}) {
+    if (_disposed) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (error == null &&
+        !force &&
+        _backlog.samples != 0 &&
+        now - _lastDiagnosticMs < 250) {
+      return;
+    }
+    _lastDiagnosticMs = now;
+    _diagnostics.add(
+      SpeechDiagnostics(
+        segmentId: _segmentId,
+        queuedAudioMs: _backlog.milliseconds,
+        decodeMs: _lastDecodeMs,
+        overloaded: _backlog.overloaded,
+        error: error,
+      ),
+    );
+  }
 
   void _onWorkerMessage(dynamic message) {
-    if (message is! Map) return;
-    final event = message['event'] as String?;
-    switch (event) {
+    if (_disposed) return;
+    if (message == null && _exited != null) {
+      if (!_exited!.isCompleted) _exited!.complete();
+      return;
+    }
+    if (message is! Map) {
+      _ready = false;
+      if (!(_readyCompleter?.isCompleted ?? true)) {
+        _readyCompleter!.complete(false);
+      }
+      _emitDiagnostics(error: 'Speech worker exited unexpectedly: $message');
+      return;
+    }
+    switch (message['event']) {
       case 'port':
-        _workerSend = message['port'] as SendPort?;
-        // Now that we have the command port, kick off initialization.
-        final init = _pendingInit;
-        if (init != null) {
-          _pendingInit = null;
-          _workerSend?.send(init);
-        }
+        _workerSend = message['port'] as SendPort;
+        _workerSend!.send(_pendingInit);
+        _pendingInit = null;
         break;
       case 'ready':
-        final ok = (message['ok'] as bool?) ?? false;
         if (!(_readyCompleter?.isCompleted ?? true)) {
-          _readyCompleter!.complete(ok);
+          _readyCompleter!.complete(message['ok'] == true);
         }
         break;
       case 'result':
-        final text = (message['text'] as String?) ?? '';
-        final isFinal = (message['isFinal'] as bool?) ?? false;
-        if (!_results.isClosed) _results.add(SpeechResult(text, isFinal));
+        _results.add(
+          SpeechResult(
+            message['text'] as String,
+            message['isFinal'] as bool,
+            segmentId: message['segmentId'] as int,
+          ),
+        );
         break;
       case 'processing':
-        final active = (message['active'] as bool?) ?? false;
-        if (!_processing.isClosed) _processing.add(active);
+        _processing.add(message['active'] as bool);
+        break;
+      case 'ack':
+        final wasOverloaded = _backlog.overloaded;
+        _backlog.acknowledge(message['samples'] as int);
+        _emitDiagnostics(force: wasOverloaded != _backlog.overloaded);
+        break;
+      case 'decode':
+        _lastDecodeMs = message['decodeMs'] as int;
+        _emitDiagnostics();
         break;
       case 'error':
-        debugPrint('[SherpaSTT] worker error: ${message['message']}');
+        _diagnostics.add(
+          SpeechDiagnostics(
+            segmentId: message['segmentId'] as int? ?? _segmentId,
+            queuedAudioMs: _backlog.milliseconds,
+            overloaded: _backlog.overloaded,
+            error: message['message'] as String,
+          ),
+        );
         if (!(_readyCompleter?.isCompleted ?? true)) {
           _readyCompleter!.complete(false);
         }
@@ -158,10 +178,18 @@ class SherpaSpeechToTextEngine implements SpeechToTextEngine {
   }
 
   @override
-  Future<void> startSegment() async {
+  Future<void> startSegment({
+    required int segmentId,
+    List<String> hotwords = const [],
+  }) async {
     if (!_ready || _disposed) return;
+    _segmentId = segmentId;
     _resampler.reset();
-    _workerSend?.send(const <String, Object?>{'cmd': 'start'});
+    _workerSend!.send({
+      'cmd': 'start',
+      'segmentId': segmentId,
+      'hotwords': hotwords,
+    });
   }
 
   @override
@@ -174,66 +202,76 @@ class SherpaSpeechToTextEngine implements SpeechToTextEngine {
     if (!_ready || _disposed || length <= 0) return;
     final samples = _resampler.process(data, offset, length, sampleRate);
     if (samples.isEmpty) return;
-    _workerSend?.send(<String, Object?>{'cmd': 'audio', 'samples': samples});
+    if (!_backlog.enqueue(samples.length)) {
+      _emitDiagnostics(
+        error:
+            'Speech recognition fell more than 10 seconds behind; this transmission was interrupted.',
+        force: true,
+      );
+      return;
+    }
+    _workerSend!.send({
+      'cmd': 'audio',
+      'segmentId': _segmentId,
+      'samples': samples,
+    });
+    _emitDiagnostics();
   }
 
   @override
   Future<void> completeSegment() async {
-    if (!_ready || _disposed) return;
-    _workerSend?.send(const <String, Object?>{'cmd': 'complete'});
+    if (_ready && !_disposed) {
+      _workerSend!.send({'cmd': 'complete', 'segmentId': _segmentId});
+    }
   }
 
   @override
   Future<void> splitSegment() async {
-    if (!_ready || _disposed) return;
-    _workerSend?.send(const <String, Object?>{'cmd': 'split'});
+    if (_ready && !_disposed) {
+      _workerSend!.send({'cmd': 'split', 'segmentId': _segmentId});
+    }
   }
 
   @override
   Future<void> resetSegment() async {
-    if (!_ready || _disposed) return;
     _resampler.reset();
-    _workerSend?.send(const <String, Object?>{'cmd': 'reset'});
+    if (_ready && !_disposed) {
+      _workerSend!.send({'cmd': 'reset', 'segmentId': _segmentId});
+    }
   }
 
   @override
   Future<void> dispose() async {
-    if (_disposed) return;
-    _disposed = true;
     _ready = false;
-    _workerSend?.send(const <String, Object?>{'cmd': 'dispose'});
-    _workerSend = null;
-    _receivePort?.close();
-    _receivePort = null;
-    _isolate?.kill(priority: Isolate.beforeNextEvent);
-    _isolate = null;
-    if (!_results.isClosed) await _results.close();
-    if (!_processing.isClosed) await _processing.close();
+    if (!(_readyCompleter?.isCompleted ?? true)) {
+      _readyCompleter!.complete(false);
+    }
+    try {
+      if (_workerSend != null) {
+        _exited = Completer<void>();
+        _workerSend!.send(const {'cmd': 'dispose'});
+        await _exited!.future.timeout(const Duration(seconds: 2));
+      }
+    } finally {
+      _disposed = true;
+      _receivePort?.close();
+      _isolate?.kill(priority: Isolate.beforeNextEvent);
+      await _results.close();
+      await _processing.close();
+      await _diagnostics.close();
+    }
   }
 
-  /// Maps a BCP-47 locale (e.g. "en-US") to a SenseVoice language code.
-  /// SenseVoice accepts: auto, zh, en, ja, ko, yue. Anything else -> auto.
   static String _languageFromLocale(String localeId) {
-    if (localeId.isEmpty || localeId == 'auto') return 'auto';
     final lang = localeId.split(RegExp('[-_]')).first.toLowerCase();
-    const supported = {'zh', 'en', 'ja', 'ko', 'yue'};
-    return supported.contains(lang) ? lang : 'auto';
+    return const {'zh', 'en', 'ja', 'ko', 'yue'}.contains(lang) ? lang : 'auto';
   }
 }
 
-/// Streaming linear resampler that converts arbitrary-rate 16-bit signed
-/// little-endian mono PCM into 16 kHz mono float in `[-1, 1]`. State is kept
-/// between calls so frame boundaries do not introduce clicks; [reset] clears it
-/// at the start of each segment.
 class _LinearResampler {
   _LinearResampler(this.targetRate);
-
   final int targetRate;
-
-  // Position (in source samples, fractional) of the next output sample,
-  // relative to the start of the current input chunk.
   double _nextPos = 0;
-  // Last source sample of the previous chunk (source index -1 for this chunk).
   double _prev = 0;
   bool _hasPrev = false;
 
@@ -244,330 +282,315 @@ class _LinearResampler {
   }
 
   Float32List process(Uint8List data, int offset, int length, int sourceRate) {
-    // Whole 16-bit samples available in this chunk.
-    final sampleCount = length ~/ 2;
-    if (sampleCount <= 0) return Float32List(0);
-
-    final view = ByteData.sublistView(data, offset, offset + sampleCount * 2);
-    double srcAt(int i) {
-      // i == -1 refers to the carried-over tail of the previous chunk.
-      if (i < 0) {
-        return _hasPrev ? _prev : view.getInt16(0, Endian.little) / 32768.0;
-      }
-      return view.getInt16(i * 2, Endian.little) / 32768.0;
-    }
-
-    final ratio = sourceRate / targetRate; // source samples per output sample
-    final out = <double>[];
+    final count = length ~/ 2;
+    if (count == 0) return Float32List(0);
+    final view = ByteData.sublistView(data, offset, offset + count * 2);
+    double at(int i) => i < 0
+        ? (_hasPrev ? _prev : view.getInt16(0, Endian.little) / 32768)
+        : view.getInt16(i * 2, Endian.little) / 32768;
+    final ratio = sourceRate / targetRate;
+    final output = <double>[];
     var pos = _nextPos;
-    // Produce outputs while the upper interpolation neighbour exists.
-    while (pos <= sampleCount - 1) {
-      final i0 = pos.floor();
-      final frac = pos - i0;
-      final s0 = srcAt(i0);
-      final s1 = srcAt(i0 + 1);
-      out.add(s0 + (s1 - s0) * frac);
+    while (pos <= count - 1) {
+      final index = pos.floor();
+      final fraction = pos - index;
+      output.add(
+        fraction == 0
+            ? at(index)
+            : at(index) + (at(index + 1) - at(index)) * fraction,
+      );
       pos += ratio;
     }
-
-    // Carry state to the next chunk: shift positions back by this chunk's
-    // length so the next chunk starts at source index 0 again.
-    _nextPos = pos - sampleCount;
-    _prev = srcAt(sampleCount - 1);
+    _nextPos = pos - count;
+    _prev = at(count - 1);
     _hasPrev = true;
-
-    return Float32List.fromList(out);
+    return Float32List.fromList(output);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Worker isolate
-// ---------------------------------------------------------------------------
-
-/// Entry point for the recognition isolate. Owns the sherpa-onnx recognizer
-/// and the accumulated audio buffer for the active segment.
-void _sherpaWorkerEntry(SendPort mainSend) {
+void _sherpaWorkerEntry(SendPort main) {
   final commands = ReceivePort();
-  mainSend.send(<String, Object?>{'event': 'port', 'port': commands.sendPort});
+  main.send({'event': 'port', 'port': commands.sendPort});
+  sherpa.OfflineRecognizer? offline;
+  sherpa.OnlineRecognizer? online;
+  sherpa.OnlineStream? stream;
+  sherpa.VoiceActivityDetector? vad;
+  final gate = SpeechAudioGate();
+  final audio = <Float32List>[];
+  var pending = Float32List(0);
+  var audioSamples = 0;
+  var hasNewAudio = false;
+  var segmentId = 0;
+  var committed = '';
+  var lastPartial = '';
+  var overlap = false;
+  var hotwords = '';
+  const rate = 16000;
+  const window = 512;
 
-  // Batch (offline) recognizer + its accumulated segment buffer.
-  sherpa.OfflineRecognizer? offlineRecognizer;
-  final List<double> buffer = <double>[];
-  // Streaming (online) recognizer + the current segment's live stream.
-  sherpa.OnlineRecognizer? onlineRecognizer;
-  sherpa.OnlineStream? onlineStream;
-  const sampleRate = 16000;
-  // Last cumulative hypothesis emitted for the active streaming segment, used
-  // to skip duplicate partials when no new tokens were decoded.
-  var lastStreamingText = '';
-
-  String decodeOffline() {
-    final rec = offlineRecognizer;
-    if (rec == null || buffer.isEmpty) return '';
-    final stream = rec.createStream();
-    try {
-      stream.acceptWaveform(
-        samples: Float32List.fromList(buffer),
-        sampleRate: sampleRate,
-      );
-      rec.decode(stream);
-      return rec.getResult(stream).text;
-    } finally {
-      stream.free();
-    }
+  void emitResult(bool isFinal, [String? hypothesis]) {
+    final text = hypothesis ?? committed;
+    if (!isFinal && text == lastPartial) return;
+    lastPartial = text;
+    main.send({
+      'event': 'result',
+      'segmentId': segmentId,
+      'text': text,
+      'isFinal': isFinal,
+    });
   }
 
-  // Runs the streaming decode loop over the audio already in the stream and
-  // returns the current cumulative hypothesis.
+  Float32List flattenAudio() {
+    final samples = Float32List(audioSamples);
+    var offset = 0;
+    for (final chunk in audio) {
+      samples.setRange(offset, offset + chunk.length, chunk);
+      offset += chunk.length;
+    }
+    return samples;
+  }
+
   String drainStreaming() {
-    final rec = onlineRecognizer;
-    final stream = onlineStream;
-    if (rec == null || stream == null) return lastStreamingText;
-    while (rec.isReady(stream)) {
-      rec.decode(stream);
+    final timer = Stopwatch()..start();
+    var decoded = false;
+    while (online!.isReady(stream!)) {
+      online!.decode(stream!);
+      decoded = true;
     }
-    return rec.getResult(stream).text;
-  }
-
-  void startStreamingSegment() {
-    final rec = onlineRecognizer;
-    if (rec == null) return;
-    onlineStream?.free();
-    onlineStream = rec.createStream();
-    lastStreamingText = '';
-  }
-
-  // Flushes trailing context and emits the streaming segment's final result.
-  void finalizeStreaming() {
-    final stream = onlineStream;
-    if (onlineRecognizer == null || stream == null) return;
-    mainSend.send(<String, Object?>{'event': 'processing', 'active': true});
-    try {
-      stream.inputFinished();
-      final text = drainStreaming();
-      mainSend.send(<String, Object?>{
-        'event': 'result',
-        'text': text,
-        'isFinal': true,
-      });
-    } catch (e) {
-      mainSend.send(<String, Object?>{
-        'event': 'error',
-        'message': 'streaming final decode failed: $e',
-      });
+    if (decoded) {
+      main.send({'event': 'decode', 'decodeMs': timer.elapsedMilliseconds});
     }
-    mainSend.send(<String, Object?>{'event': 'processing', 'active': false});
+    return online!.getResult(stream!).text;
   }
 
-  commands.listen((message) {
+  void finishUtterance({bool keepOverlap = false}) {
+    if (audioSamples == 0 || !hasNewAudio) return;
+    final timer = Stopwatch()..start();
+    main.send({'event': 'processing', 'active': true});
+    final samples = flattenAudio();
+    String text;
+    if (online != null) {
+      // Flush encoder look-ahead before asking for the final hypothesis.
+      stream!.acceptWaveform(samples: Float32List(rate ~/ 3), sampleRate: rate);
+      stream!.inputFinished();
+      text = drainStreaming();
+      stream!.free();
+      stream = null;
+    } else {
+      final utterance = offline!.createStream();
+      try {
+        utterance.acceptWaveform(samples: samples, sampleRate: rate);
+        offline!.decode(utterance);
+        text = offline!.getResult(utterance).text;
+      } finally {
+        utterance.free();
+      }
+    }
+    committed = appendSpeechText(committed, text, overlap: overlap);
+    audio.clear();
+    audioSamples = 0;
+    hasNewAudio = false;
+    overlap = keepOverlap;
+    if (keepOverlap) {
+      final count = online == null ? rate * 2 : rate ~/ 3;
+      final start = (samples.length - count).clamp(0, samples.length);
+      audio.add(Float32List.sublistView(samples, start));
+      audioSamples = samples.length - start;
+      if (online != null) {
+        stream = online!.createStream(hotwords: hotwords);
+        stream!.acceptWaveform(samples: audio.single, sampleRate: rate);
+      }
+      // Bound the native VAD's active-segment storage as well as ASR audio.
+      vad!.reset();
+      gate.reset();
+    }
+    emitResult(false);
+    main.send({'event': 'decode', 'decodeMs': timer.elapsedMilliseconds});
+    main.send({'event': 'processing', 'active': false});
+  }
+
+  void acceptSpeech(Float32List frame) {
+    hasNewAudio = true;
+    audio.add(frame);
+    audioSamples += frame.length;
+    if (online != null) {
+      stream ??= online!.createStream(hotwords: hotwords);
+      stream!.acceptWaveform(samples: frame, sampleRate: rate);
+      emitResult(
+        false,
+        appendSpeechText(committed, drainStreaming(), overlap: overlap),
+      );
+    }
+    // Includes retained overlap, so Whisper never receives >=30 seconds.
+    if (audioSamples >= rate * 26) {
+      finishUtterance(keepOverlap: true);
+    }
+  }
+
+  void acceptWindow(Float32List frame) {
+    vad!.acceptWaveform(frame);
+    final update = gate.process(frame, vad!.isDetected());
+    for (final samples in update.audio) {
+      acceptSpeech(samples);
+    }
+    if (update.ended) finishUtterance();
+    while (!vad!.isEmpty()) {
+      vad!.pop();
+    }
+  }
+
+  void reset() {
+    stream?.free();
+    stream = null;
+    audio.clear();
+    audioSamples = 0;
+    hasNewAudio = false;
+    pending = Float32List(0);
+    gate.reset();
+    vad?.reset();
+    committed = '';
+    lastPartial = '';
+    overlap = false;
+  }
+
+  commands.listen((dynamic message) {
     if (message is! Map) return;
-    final cmd = message['cmd'] as String?;
-    switch (cmd) {
-      case 'init':
-        try {
-          sherpa.initBindings();
-          final family = message['family'] as String?;
-          final files = (message['files'] as Map).cast<String, String>();
-          final lang = (message['language'] as String?) ?? 'auto';
-          final threads = (message['numThreads'] as int?) ?? 2;
-          final tokens = files['tokens.txt'] ?? '';
-
-          if (family == 'streamingZipformer') {
-            onlineRecognizer = sherpa.OnlineRecognizer(
-              sherpa.OnlineRecognizerConfig(
-                model: sherpa.OnlineModelConfig(
-                  transducer: sherpa.OnlineTransducerModelConfig(
-                    encoder: files['encoder.int8.onnx'] ?? '',
-                    decoder: files['decoder.onnx'] ?? '',
-                    joiner: files['joiner.int8.onnx'] ?? '',
+    final cmd = message['cmd'];
+    final timer = Stopwatch()..start();
+    try {
+      if (cmd == 'init') {
+        sherpa.initBindings();
+        final files = (message['files'] as Map).cast<String, String>();
+        final tokens = files['tokens.txt']!;
+        vad = sherpa.VoiceActivityDetector(
+          config: sherpa.VadModelConfig(
+            sileroVad: sherpa.SileroVadModelConfig(
+              model: files['silero_vad.onnx']!,
+              threshold: 0.35,
+              minSpeechDuration: 0.064,
+              minSilenceDuration: 0.65,
+              maxSpeechDuration: 27,
+            ),
+            debug: false,
+          ),
+          bufferSizeInSeconds: 30,
+        );
+        if (message['family'] == 'streamingZipformer') {
+          online = sherpa.OnlineRecognizer(
+            sherpa.OnlineRecognizerConfig(
+              model: sherpa.OnlineModelConfig(
+                transducer: sherpa.OnlineTransducerModelConfig(
+                  encoder: files['encoder.int8.onnx']!,
+                  decoder: files['decoder.onnx']!,
+                  joiner: files['joiner.int8.onnx']!,
+                ),
+                tokens: tokens,
+                modelingUnit: 'bpe',
+                bpeVocab: files['bpe.vocab']!,
+                numThreads: 2,
+                debug: false,
+              ),
+              decodingMethod: 'modified_beam_search',
+              maxActivePaths: 4,
+              hotwordsScore: 0.5,
+              enableEndpoint: false,
+            ),
+          );
+        } else {
+          final lang = message['language'] as String;
+          final model = message['family'] == 'whisper'
+              ? sherpa.OfflineModelConfig(
+                  whisper: sherpa.OfflineWhisperModelConfig(
+                    encoder: files['encoder.int8.onnx']!,
+                    decoder: files['decoder.int8.onnx']!,
+                    language: lang == 'auto' ? '' : lang,
+                    task: 'transcribe',
                   ),
                   tokens: tokens,
-                  numThreads: threads,
-                  provider: 'cpu',
+                  numThreads: 2,
                   debug: false,
-                ),
-                // Segment boundaries are driven by the app (FM end / length
-                // cap / toggle off), not the recognizer's silence endpointer.
-                enableEndpoint: false,
-              ),
-            );
-            mainSend.send(<String, Object?>{'event': 'ready', 'ok': true});
-            break;
-          }
-
-          final sherpa.OfflineModelConfig modelConfig;
-          if (family == 'whisper') {
-            modelConfig = sherpa.OfflineModelConfig(
-              whisper: sherpa.OfflineWhisperModelConfig(
-                encoder: files['encoder.int8.onnx'] ?? '',
-                decoder: files['decoder.int8.onnx'] ?? '',
-                // These models are English-only; let it auto otherwise.
-                language: lang == 'auto' ? '' : lang,
-                task: 'transcribe',
-              ),
-              tokens: tokens,
-              numThreads: threads,
-              provider: 'cpu',
-              debug: false,
-            );
-          } else {
-            modelConfig = sherpa.OfflineModelConfig(
-              senseVoice: sherpa.OfflineSenseVoiceModelConfig(
-                model: files['model.int8.onnx'] ?? '',
-                language: lang,
-                useInverseTextNormalization: true,
-              ),
-              tokens: tokens,
-              numThreads: threads,
-              provider: 'cpu',
-              debug: false,
-            );
-          }
-          offlineRecognizer = sherpa.OfflineRecognizer(
-            sherpa.OfflineRecognizerConfig(model: modelConfig),
+                )
+              : sherpa.OfflineModelConfig(
+                  senseVoice: sherpa.OfflineSenseVoiceModelConfig(
+                    model: files['model.int8.onnx']!,
+                    language: lang,
+                    useInverseTextNormalization: true,
+                  ),
+                  tokens: tokens,
+                  numThreads: 2,
+                  debug: false,
+                );
+          offline = sherpa.OfflineRecognizer(
+            sherpa.OfflineRecognizerConfig(model: model),
           );
-          mainSend.send(<String, Object?>{'event': 'ready', 'ok': true});
-        } catch (e) {
-          mainSend.send(<String, Object?>{
-            'event': 'error',
-            'message': 'init failed: $e',
-          });
-          mainSend.send(<String, Object?>{'event': 'ready', 'ok': false});
         }
-        break;
-
-      case 'start':
-        if (onlineRecognizer != null) {
-          startStreamingSegment();
-        } else {
-          buffer.clear();
-        }
-        break;
-
-      case 'audio':
-        final samples = message['samples'];
-        if (samples is! Float32List || samples.isEmpty) break;
-        if (onlineRecognizer != null) {
-          if (onlineStream == null) startStreamingSegment();
-          final stream = onlineStream;
-          if (stream == null) break;
-          try {
-            stream.acceptWaveform(samples: samples, sampleRate: sampleRate);
-            final text = drainStreaming();
-            if (text != lastStreamingText) {
-              lastStreamingText = text;
-              mainSend.send(<String, Object?>{
-                'event': 'result',
-                'text': text,
-                'isFinal': false,
-              });
-            }
-          } catch (e) {
-            mainSend.send(<String, Object?>{
-              'event': 'error',
-              'message': 'streaming decode failed: $e',
-            });
-          }
-        } else {
-          buffer.addAll(samples);
-        }
-        break;
-
-      case 'complete':
-        if (onlineRecognizer != null) {
-          finalizeStreaming();
-          onlineStream?.free();
-          onlineStream = null;
-          lastStreamingText = '';
-          break;
-        }
-        mainSend.send(<String, Object?>{'event': 'processing', 'active': true});
-        try {
-          final text = decodeOffline();
-          // Always emit a final (even empty) so the UI clears any partial.
-          mainSend.send(<String, Object?>{
-            'event': 'result',
-            'text': text,
-            'isFinal': true,
-          });
-        } catch (e) {
-          mainSend.send(<String, Object?>{
-            'event': 'error',
-            'message': 'final decode failed: $e',
-          });
-        }
-        buffer.clear();
-        mainSend.send(<String, Object?>{
-          'event': 'processing',
-          'active': false,
-        });
-        break;
-
-      case 'split':
-        if (onlineRecognizer != null) {
-          // Length-cap boundary: finalize the current bubble and open a fresh
-          // stream. Streaming already consumed each sample once, so there is
-          // no overlap tail to carry over.
-          finalizeStreaming();
-          startStreamingSegment();
-          break;
-        }
-        // Decode current buffer, emit final result, then keep a 2-second tail
-        // as overlap for the next segment to avoid losing boundary words.
-        mainSend.send(<String, Object?>{'event': 'processing', 'active': true});
-        try {
-          final text = decodeOffline();
-          mainSend.send(<String, Object?>{
-            'event': 'result',
-            'text': text,
-            'isFinal': true,
-          });
-        } catch (e) {
-          mainSend.send(<String, Object?>{
-            'event': 'error',
-            'message': 'split decode failed: $e',
-          });
-        }
-        // Retain last ~2 seconds (32000 samples at 16 kHz) as overlap.
-        const overlapSamples = sampleRate * 2;
-        if (buffer.length > overlapSamples) {
-          final tail = buffer.sublist(buffer.length - overlapSamples);
-          buffer.clear();
-          buffer.addAll(tail);
-        }
-        // Segment remains active — signal processing done.
-        mainSend.send(<String, Object?>{'event': 'processing', 'active': false});
-        break;
-
-      case 'reset':
-        if (onlineRecognizer != null) {
-          onlineStream?.free();
-          onlineStream = null;
-          lastStreamingText = '';
-        } else {
-          buffer.clear();
-        }
-        mainSend.send(<String, Object?>{
-          'event': 'processing',
-          'active': false,
-        });
-        break;
-
-      case 'dispose':
-        try {
-          offlineRecognizer?.free();
-        } catch (_) {}
-        try {
-          onlineStream?.free();
-        } catch (_) {}
-        try {
-          onlineRecognizer?.free();
-        } catch (_) {}
-        offlineRecognizer = null;
-        onlineRecognizer = null;
-        onlineStream = null;
+        main.send({'event': 'ready', 'ok': true});
+      } else if (cmd == 'start') {
+        reset();
+        segmentId = message['segmentId'] as int;
+        hotwords = online == null
+            ? ''
+            : (message['hotwords'] as List)
+                  .cast<String>()
+                  .map((phrase) => phrase.toUpperCase())
+                  .join('/');
+      } else if (cmd == 'dispose') {
+        reset();
+        vad?.free();
+        online?.free();
+        offline?.free();
         commands.close();
         Isolate.exit();
+      } else if (message['segmentId'] == segmentId) {
+        switch (cmd) {
+          case 'audio':
+            final samples = message['samples'] as Float32List;
+            final joined = Float32List(pending.length + samples.length)
+              ..setAll(0, pending)
+              ..setAll(pending.length, samples);
+            var offset = 0;
+            while (offset + window <= joined.length) {
+              acceptWindow(
+                Float32List.sublistView(joined, offset, offset + window),
+              );
+              offset += window;
+            }
+            pending = Float32List.fromList(joined.sublist(offset));
+            break;
+          case 'complete':
+            if (pending.isNotEmpty) {
+              acceptWindow(Float32List(window)..setAll(0, pending));
+            }
+            vad!.flush();
+            finishUtterance();
+            emitResult(true);
+            reset();
+            break;
+          case 'split':
+            finishUtterance(keepOverlap: true);
+            break;
+          case 'reset':
+            reset();
+            main.send({'event': 'processing', 'active': false});
+            break;
+        }
+      }
+    } catch (e) {
+      main.send({
+        'event': 'error',
+        'segmentId': segmentId,
+        'message': 'Speech $cmd failed: $e',
+      });
+      if (cmd == 'init') main.send({'event': 'ready', 'ok': false});
+      main.send({'event': 'processing', 'active': false});
+    } finally {
+      if (cmd == 'audio') {
+        main.send({
+          'event': 'ack',
+          'samples': (message['samples'] as Float32List).length,
+          'decodeMs': timer.elapsedMilliseconds,
+        });
+      }
     }
   });
 }

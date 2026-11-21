@@ -1,4 +1,6 @@
 {
+  "commsOriginalSpeech": "Riconoscimento vocale originale",
+  "commsSpeechDiagnostics": "Voce in testo: audio in coda {queueMs} ms; ultima decodifica {decodeMs} ms",
   "settingsCustomMapEnabled": "Usa una sorgente di mappe personalizzata",
   "settingsCustomMapUrl": "URL delle tessere della mappa",
   "settingsCustomMapAttribution": "Attribuzione (facoltativa)",

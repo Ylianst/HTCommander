@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
+import android.os.SystemClock
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -19,347 +20,266 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.OutputStream
 import java.util.concurrent.Executors
 
-/**
- * Feeds raw PCM into Android's on-device [SpeechRecognizer] without bundling any
- * model in the APK.
- *
- * Android 13 (API 33) added [RecognizerIntent.EXTRA_AUDIO_SOURCE], which lets a
- * caller hand the recognizer an already-open audio source (a
- * [ParcelFileDescriptor]) instead of having it open the microphone. This plugin
- * creates a pipe, passes the read end to the recognizer, and writes the radio
- * PCM delivered from Dart into the write end. Combined with
- * `EXTRA_SEGMENTED_SESSION = EXTRA_AUDIO_SOURCE`, the recognition session ends
- * only when the write end is closed, so the app controls segment boundaries.
- *
- * Channel contract (mirrors [AndroidSpeechToTextEngine] on the Dart side):
- *   - MethodChannel `com.htcommander/android_speech_to_text`
- *       initialize {localeId} -> Bool   (false if unsupported/unavailable)
- *       startSegment                     (opens a new recognition session)
- *       appendAudio {data, sampleRate}   (16-bit LE mono PCM at 16 kHz)
- *       completeSegment                  (closes audio -> forces final result)
- *       resetSegment                     (cancels without emitting a result)
- *       dispose
- *   - EventChannel `com.htcommander/android_speech_to_text_events`
- *       {event: "result", text, isFinal}
- *       {event: "processing", active}
- *       {event: "error", code}
- *
- * The recognizer's audio source is fixed at 16 kHz mono 16-bit PCM (the
- * `EXTRA_AUDIO_SOURCE_*` defaults); the Dart side resamples before sending.
- */
+/** On-device PCM recognition. Each transmission owns its recognizer and
+ * listener so a delayed final can never be relabelled as another transmission. */
 class AndroidSpeechToTextPlugin(
     private val context: Context,
     messenger: BinaryMessenger,
 ) : MethodChannel.MethodCallHandler {
-
     companion object {
         private const val TAG = "AndroidStt"
-        private const val METHOD_CHANNEL = "com.htcommander/android_speech_to_text"
-        private const val EVENT_CHANNEL = "com.htcommander/android_speech_to_text_events"
-        private const val SAMPLE_RATE = 16000
+        private const val RATE = 16000
+        private const val MAX_QUEUED_BYTES = RATE * 2 * 10
     }
 
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private val methodChannel = MethodChannel(messenger, METHOD_CHANNEL)
-    private val eventChannel = EventChannel(messenger, EVENT_CHANNEL)
+    private class Session(
+        val id: Int,
+        val recognizer: SpeechRecognizer,
+        val input: ParcelFileDescriptor,
+        var output: OutputStream?,
+    ) {
+        var text = ""
+        var partial = ""
+        var closing = false
+        var closedAt = 0L
+    }
 
-    /** Single background thread that owns the blocking writes into the pipe. */
-    private val ioExecutor = Executors.newSingleThreadExecutor()
-
-    private var eventSink: EventChannel.EventSink? = null
-    private var recognizer: SpeechRecognizer? = null
-    private var localeId: String = ""
-
-    /** Write end of the pipe for the active segment, or null when idle. */
-    private var audioOut: OutputStream? = null
-    /** Read end handed to the recognizer; closed only on teardown. */
-    private var audioIn: ParcelFileDescriptor? = null
-
-    /**
-     * Text finalized so far within the current segmented session. The on-device
-     * recognizer endpoints on short pauses and emits an `onSegmentResults` per
-     * utterance, but the app wants one bubble per radio transmission (like the
-     * desktop models). Each utterance is appended here and reported as
-     * in-progress; the accumulated text is only emitted as final when the
-     * session ends (the audio pipe closes on completeSegment / split).
-     */
-    private var sessionText: String = ""
+    private val main = Handler(Looper.getMainLooper())
+    private val io = Executors.newSingleThreadExecutor()
+    private val sessions = mutableMapOf<Int, Session>()
+    private var activeId: Int? = null
+    private var sink: EventChannel.EventSink? = null
+    private var localeId = ""
+    private var queuedBytes = 0
+    private var overloaded = false
+    private var lastDiagnostics = 0L
 
     init {
-        methodChannel.setMethodCallHandler(this)
-        eventChannel.setStreamHandler(object : EventChannel.StreamHandler {
-            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                eventSink = events
-            }
-
-            override fun onCancel(arguments: Any?) {
-                eventSink = null
-            }
-        })
+        MethodChannel(messenger, "com.htcommander/android_speech_to_text")
+            .setMethodCallHandler(this)
+        EventChannel(messenger, "com.htcommander/android_speech_to_text_events")
+            .setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    sink = events
+                }
+                override fun onCancel(arguments: Any?) { sink = null }
+            })
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        when (call.method) {
-            "isSupported" -> {
-                result.success(isDeviceSupported())
+        try {
+            when (call.method) {
+                "isSupported" -> result.success(isSupported())
+                "initialize" -> {
+                    localeId = call.argument<String>("localeId") ?: ""
+                    result.success(isSupported())
+                }
+                "startSegment" -> {
+                    start(call.argument<Int>("segmentId")!!,
+                        call.argument<List<String>>("hotwords") ?: emptyList())
+                    result.success(null)
+                }
+                "appendAudio" -> {
+                    append(call.argument<Int>("segmentId")!!,
+                        call.argument<ByteArray>("data")!!)
+                    result.success(null)
+                }
+                "completeSegment" -> {
+                    complete(call.argument<Int>("segmentId")!!)
+                    result.success(null)
+                }
+                "resetSegment" -> {
+                    sessions[call.argument<Int>("segmentId")]?.let { release(it) }
+                    result.success(null)
+                }
+                "dispose" -> {
+                    sessions.values.toList().forEach { release(it) }
+                    result.success(null)
+                }
+                else -> result.notImplemented()
             }
-            "initialize" -> {
-                localeId = call.argument<String>("localeId") ?: ""
-                result.success(initialize())
-            }
-            "startSegment" -> {
-                startSegment()
-                result.success(null)
-            }
-            "appendAudio" -> {
-                val data = call.argument<ByteArray>("data")
-                if (data != null) appendAudio(data)
-                result.success(null)
-            }
-            "completeSegment" -> {
-                completeSegment()
-                result.success(null)
-            }
-            "resetSegment" -> {
-                resetSegment()
-                result.success(null)
-            }
-            "dispose" -> {
-                dispose()
-                result.success(null)
-            }
-            else -> result.notImplemented()
-        }
-    }
-
-    /**
-     * Whether the device can feed PCM to an on-device recognizer. Stable across
-     * the engine's enable/disable lifecycle (no recognizer is created), so the
-     * UI can keep the speech-to-text toggle enabled whenever recognition is
-     * possible. False below API 33 or without an on-device recognition service.
-     */
-    private fun isDeviceSupported(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
-        return SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
-    }
-
-    /**
-     * Verifies the platform can feed PCM to an on-device recognizer and creates
-     * the (reused) recognizer instance. Returns false when the device is below
-     * API 33 or has no on-device recognition service, so the Dart engine reports
-     * itself unsupported and speech-to-text stays disabled.
-     */
-    private fun initialize(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || !isDeviceSupported()) {
-            return false
-        }
-        if (recognizer != null) return true
-        return try {
-            recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(context).apply {
-                setRecognitionListener(listener)
-            }
-            true
         } catch (e: Exception) {
-            Log.w(TAG, "createOnDeviceSpeechRecognizer failed", e)
-            false
+            Log.e(TAG, "${call.method} failed", e)
+            result.error("SPEECH_ERROR", e.message, null)
         }
     }
 
-    private fun startSegment() {
-        val rec = recognizer ?: return
-        // A length-limit split completes the previous session and immediately
-        // starts a new one, so the recognizer's own end-of-session final may
-        // not have been delivered before rec.cancel() below discards it. Commit
-        // whatever text was accumulated as final first, so the finished bubble
-        // lands in history and the next bubble starts fresh. (After a normal
-        // transmission end, onEndOfSegmentedSession already cleared sessionText,
-        // so this is a no-op.)
-        if (sessionText.isNotEmpty()) {
-            sendResult(sessionText, isFinal = true)
-            sessionText = ""
-        }
-        // Discard any session still in flight before opening a new one.
-        closeAudio()
-        rec.cancel()
+    private fun isSupported() =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
 
+    private fun event(values: Map<String, Any?>) {
+        sink?.success(values)
+    }
+
+    private fun diagnostics(id: Int, decodeMs: Long = 0, force: Boolean = false) {
+        val now = SystemClock.elapsedRealtime()
+        if (!force && queuedBytes != 0 && now - lastDiagnostics < 250) return
+        lastDiagnostics = now
+        event(mapOf("event" to "diagnostics", "segmentId" to id,
+            "queuedAudioMs" to queuedBytes * 1000 / (RATE * 2),
+            "decodeMs" to decodeMs, "overloaded" to overloaded))
+    }
+
+    private fun result(session: Session, final: Boolean) {
+        val text = listOf(session.text, session.partial).filter { it.isNotEmpty() }.joinToString(" ")
+        event(mapOf("event" to "result", "segmentId" to session.id,
+            "text" to text, "isFinal" to final))
+    }
+
+    private fun fail(session: Session, code: String) {
+        Log.e(TAG, "segment ${session.id}: $code")
+        event(mapOf("event" to "error", "segmentId" to session.id,
+            "code" to code, "overloaded" to overloaded))
+        release(session)
+    }
+
+    private fun start(id: Int, hotwords: List<String>) {
+        check(isSupported()) { "On-device PCM recognition is unavailable" }
+        activeId?.let { old -> sessions[old]?.let { complete(old) } }
         val pipe = ParcelFileDescriptor.createPipe()
-        val readSide = pipe[0]
-        val writeSide = pipe[1]
-        audioOut = ParcelFileDescriptor.AutoCloseOutputStream(writeSide)
-        // SpeechRecognizer marshals the audio-source descriptor asynchronously
-        // (after it binds to the recognition service), so this read end must
-        // stay open until the segment is torn down; closing it here would race
-        // the transfer. Keeping it open does not affect end-of-audio detection,
-        // which depends only on the write end being closed.
-        audioIn = readSide
-
+        val rec = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+        val session = Session(id, rec, pipe[0], ParcelFileDescriptor.AutoCloseOutputStream(pipe[1]))
+        sessions[id] = session
+        activeId = id
+        rec.setRecognitionListener(listener(session))
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(
-                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
-            )
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             if (localeId.isNotEmpty() && localeId != "auto") {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, localeId)
             }
-            // Feed audio from the pipe instead of the microphone.
-            putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, readSide)
+            putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, session.input)
             putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
-            putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE, SAMPLE_RATE)
+            putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE, RATE)
             putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT, 1)
-            // End the session only when the audio pipe is closed.
-            putExtra(
-                RecognizerIntent.EXTRA_SEGMENTED_SESSION,
-                RecognizerIntent.EXTRA_AUDIO_SOURCE,
-            )
+            putExtra(RecognizerIntent.EXTRA_SEGMENTED_SESSION, RecognizerIntent.EXTRA_AUDIO_SOURCE)
+            putExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, ArrayList(hotwords))
         }
-
         try {
             rec.startListening(intent)
         } catch (e: Exception) {
-            Log.w(TAG, "startListening failed", e)
-            closeAudio()
+            fail(session, "startListening: ${e.message}")
         }
     }
 
-    private fun appendAudio(data: ByteArray) {
-        val out = audioOut ?: return
-        ioExecutor.execute {
+    private fun append(id: Int, data: ByteArray) {
+        val session = sessions[id] ?: return
+        if (session.closing) return
+        val output = session.output ?: return
+        if (queuedBytes + data.size > MAX_QUEUED_BYTES) {
+            overloaded = true
+            fail(session, "More than 10 seconds of audio queued; transmission interrupted")
+            diagnostics(id, force = true)
+            return
+        }
+        queuedBytes += data.size
+        diagnostics(id)
+        val timeout = Runnable {
+            if (sessions[id] === session) {
+                overloaded = true
+                fail(session, "Audio pipe stalled")
+                diagnostics(id, force = true)
+            }
+        }
+        main.postDelayed(timeout, session, 10000)
+        io.execute {
+            var failure: Exception? = null
+            try { output.write(data) } catch (e: Exception) { failure = e }
+            main.post {
+                main.removeCallbacks(timeout)
+                queuedBytes -= data.size
+                val wasOverloaded = overloaded
+                if (queuedBytes <= MAX_QUEUED_BYTES / 2) overloaded = false
+                failure?.let { e ->
+                    if (sessions[id] === session) fail(session, "audio write: ${e.message}")
+                }
+                diagnostics(id, force = queuedBytes == 0 || wasOverloaded != overloaded)
+            }
+        }
+    }
+
+    private fun complete(id: Int) {
+        val session = sessions[id] ?: return
+        if (session.closing) return
+        session.closing = true
+        session.closedAt = SystemClock.elapsedRealtime()
+        if (activeId == id) activeId = null
+        val output = session.output
+        io.execute {
             try {
-                out.write(data)
+                output?.close()
             } catch (e: Exception) {
-                // Pipe closed or broken (e.g. session already finalized).
-                Log.d(TAG, "audio write failed: ${e.message}")
+                main.post {
+                    if (sessions[id] === session) fail(session, "audio close: ${e.message}")
+                }
+            } finally {
+                main.post { session.output = null }
             }
+        }
+        main.postDelayed(Runnable {
+            if (sessions[id] === session) fail(session, "Final result timed out")
+        }, session, 10000)
+    }
+
+    private fun release(session: Session) {
+        if (sessions.remove(session.id) !== session) return
+        main.removeCallbacksAndMessages(session)
+        if (activeId == session.id) activeId = null
+        session.recognizer.cancel()
+        session.recognizer.destroy()
+        session.input.close()
+        val output = session.output
+        session.output = null
+        // Close directly to unblock a writer; queuing close behind a blocked
+        // write would prevent every subsequent transmission from progressing.
+        try { output?.close() } catch (e: Exception) {
+            Log.w(TAG, "Closing cancelled audio pipe", e)
         }
     }
 
-    private fun completeSegment() {
-        // Closing the write end signals end-of-audio; the recognizer then emits
-        // its final result via onSegmentResults / onResults.
-        val out = audioOut
-        audioOut = null
-        ioExecutor.execute {
-            try {
-                out?.flush()
-                out?.close()
-            } catch (_: Exception) {
-            }
-        }
-    }
-
-    private fun resetSegment() {
-        closeAudio()
-        sessionText = ""
-        mainHandler.post {
-            try {
-                recognizer?.cancel()
-            } catch (_: Exception) {
-            }
-        }
-    }
-
-    private fun closeAudio() {
-        val out = audioOut
-        val inFd = audioIn
-        audioOut = null
-        audioIn = null
-        ioExecutor.execute {
-            try {
-                out?.close()
-            } catch (_: Exception) {
-            }
-            try {
-                inFd?.close()
-            } catch (_: Exception) {
-            }
-        }
-    }
-
-    private fun dispose() {
-        closeAudio()
-        mainHandler.post {
-            try {
-                recognizer?.destroy()
-            } catch (_: Exception) {
-            }
-            recognizer = null
-        }
-        // Do NOT shut down ioExecutor here: this plugin instance lives for the
-        // whole app lifetime and is reused. `dispose` is an engine-level
-        // teardown (speech-to-text toggled off), not plugin removal. Shutting
-        // the executor down permanently would make every later appendAudio /
-        // completeSegment throw RejectedExecutionException after the feature is
-        // re-enabled, so no PCM would ever reach the recognizer again.
-    }
-
-    private fun sendEvent(map: Map<String, Any?>) {
-        mainHandler.post { eventSink?.success(map) }
-    }
-
-    /** First recognition hypothesis in [bundle], or null if there is none. */
-    private fun firstMatch(bundle: Bundle?): String? =
-        bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
-
-    /** Concatenates [sessionText] with [tail], inserting a single space. */
-    private fun combine(tail: String): String =
-        if (sessionText.isEmpty()) tail else "$sessionText $tail"
-
-    private fun sendResult(text: String, isFinal: Boolean) {
-        if (text.isEmpty()) return
-        sendEvent(mapOf("event" to "result", "text" to text, "isFinal" to isFinal))
-    }
-
-    private val listener = object : RecognitionListener {
+    private fun listener(session: Session) = object : RecognitionListener {
+        private fun valid() = sessions[session.id] === session
+        private fun first(bundle: Bundle?) =
+            bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: ""
         override fun onReadyForSpeech(params: Bundle?) {
-            sendEvent(mapOf("event" to "processing", "active" to true))
+            if (valid()) event(mapOf("event" to "processing", "active" to true))
         }
-
         override fun onBeginningOfSpeech() {}
-
         override fun onRmsChanged(rmsdB: Float) {}
-
         override fun onBufferReceived(buffer: ByteArray?) {}
-
         override fun onEndOfSpeech() {}
-
-        override fun onError(error: Int) {
-            sendEvent(mapOf("event" to "error", "code" to error))
-            sendEvent(mapOf("event" to "processing", "active" to false))
-        }
-
-        override fun onResults(results: Bundle?) {
-            // Non-segmented fallback: fold this result into the session and
-            // finalize, since no onEndOfSegmentedSession will follow.
-            firstMatch(results)?.let { sessionText = combine(it) }
-            sendResult(sessionText, isFinal = true)
-            sessionText = ""
-            sendEvent(mapOf("event" to "processing", "active" to false))
-        }
-
-        override fun onPartialResults(partialResults: Bundle?) {
-            val text = firstMatch(partialResults) ?: return
-            // Show the whole session so far plus the live (uncommitted) tail.
-            sendResult(combine(text), isFinal = false)
-        }
-
-        override fun onSegmentResults(segmentResults: Bundle) {
-            // The recognizer endpointed on a pause. Append the utterance to the
-            // session but keep the bubble open (in-progress), so a short pause
-            // does not split it. The final is emitted on session end.
-            firstMatch(segmentResults)?.let { sessionText = combine(it) }
-            sendResult(sessionText, isFinal = false)
-        }
-
-        override fun onEndOfSegmentedSession() {
-            // Audio pipe closed (radio stopped or length-limit split): commit
-            // the accumulated text as the single final result for this bubble.
-            sendResult(sessionText, isFinal = true)
-            sessionText = ""
-            sendEvent(mapOf("event" to "processing", "active" to false))
-        }
-
         override fun onEvent(eventType: Int, params: Bundle?) {}
+        override fun onError(error: Int) {
+            if (valid()) fail(session, "Recognizer error $error")
+        }
+        override fun onPartialResults(partialResults: Bundle?) {
+            if (!valid()) return
+            session.partial = first(partialResults)
+            result(session, false)
+        }
+        override fun onSegmentResults(segmentResults: Bundle) {
+            if (!valid()) return
+            session.text = listOf(session.text, first(segmentResults))
+                .filter { it.isNotEmpty() }.joinToString(" ")
+            session.partial = ""
+            result(session, false)
+        }
+        override fun onResults(results: Bundle?) {
+            if (!valid()) return
+            session.partial = first(results)
+            finish()
+        }
+        override fun onEndOfSegmentedSession() {
+            if (valid()) finish()
+        }
+        private fun finish() {
+            result(session, true)
+            diagnostics(session.id, if (session.closedAt == 0L) 0
+                else SystemClock.elapsedRealtime() - session.closedAt, force = true)
+            release(session)
+            event(mapOf("event" to "processing", "active" to sessions.isNotEmpty()))
+        }
     }
 }

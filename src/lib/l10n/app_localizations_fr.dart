@@ -9,6 +9,14 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get commsOriginalSpeech => 'Reconnaissance vocale originale';
+
+  @override
+  String commsSpeechDiagnostics(int queueMs, int decodeMs) {
+    return 'Parole en texte : audio en attente $queueMs ms ; dernier décodage $decodeMs ms';
+  }
+
+  @override
   String get settingsCustomMapEnabled =>
       'Utiliser une source de carte personnalisée';
 

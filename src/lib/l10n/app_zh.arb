@@ -1,4 +1,6 @@
 {
+  "commsOriginalSpeech": "原始语音识别结果",
+  "commsSpeechDiagnostics": "语音转文字：排队音频 {queueMs} ms；上次解码 {decodeMs} ms",
   "settingsCustomMapEnabled": "使用自定义地图源",
   "settingsCustomMapUrl": "地图瓦片 URL",
   "settingsCustomMapAttribution": "署名信息（可选）",
