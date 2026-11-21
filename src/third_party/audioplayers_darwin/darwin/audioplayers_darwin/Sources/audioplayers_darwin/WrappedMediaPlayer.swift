@@ -1,0 +1,294 @@
+import AVKit
+
+private let defaultPlaybackRate: Double = 1.0
+
+private let defaultVolume: Double = 1.0
+
+private let defaultReleaseMode: ReleaseMode = ReleaseMode.release
+
+typealias Completer = () -> Void
+
+typealias CompleterError = (Error?) -> Void
+
+enum ReleaseMode: String {
+  case stop
+  case release
+  case loop
+}
+
+@MainActor class WrappedMediaPlayer {
+  private(set) var eventHandler: AudioPlayersStreamHandler
+  private(set) var isPlaying: Bool
+  var releaseMode: ReleaseMode
+
+  private var reference: AudioplayersDarwinPlugin
+  private var player: AVPlayer
+  private var playbackRate: Double
+  private var volume: Double
+  private var url: String?
+
+  private var completionObserver: TimeObserver?
+  private var playerItemStatusObservation: NSKeyValueObservation?
+
+  init(
+    reference: AudioplayersDarwinPlugin,
+    eventHandler: AudioPlayersStreamHandler,
+    player: AVPlayer = AVPlayer.init(),
+    playbackRate: Double = defaultPlaybackRate,
+    volume: Double = defaultVolume,
+    releaseMode: ReleaseMode = defaultReleaseMode,
+    url: String? = nil
+  ) {
+    self.reference = reference
+    self.eventHandler = eventHandler
+    self.player = player
+    self.completionObserver = nil
+    self.playerItemStatusObservation = nil
+
+    self.isPlaying = false
+    self.playbackRate = playbackRate
+    self.volume = volume
+    self.releaseMode = releaseMode
+    self.url = url
+  }
+
+  func setSourceUrl(
+    url: String,
+    isLocal: Bool,
+    mimeType: String? = nil
+  ) async throws {
+    let playbackStatus = player.currentItem?.status
+
+    if self.url != url || playbackStatus == .failed || playbackStatus == nil {
+      reset()
+      self.url = url
+      let playerItem = try createPlayerItem(url: url, isLocal: isLocal, mimeType: mimeType)
+      // Need to observe item status immediately after creating:
+      try await setUpPlayerItemStatusObservation(playerItem)
+      // Needs to be called after the preparation has completed.
+      self.updateDuration()
+
+      self.setUpSoundCompletedObserver(self.player, playerItem)
+      self.eventHandler.onPrepared(isPrepared: true)
+    } else {
+      if playbackStatus == .readyToPlay {
+        self.eventHandler.onPrepared(isPrepared: true)
+      }
+    }
+  }
+
+  func getDuration() -> Int? {
+    guard let duration = getDurationCMTime() else {
+      return nil
+    }
+    return fromCMTime(time: duration)
+  }
+
+  func getCurrentPosition() -> Int? {
+    guard let time = getCurrentCMTime() else {
+      return nil
+    }
+    return fromCMTime(time: time)
+  }
+
+  func pause() {
+    isPlaying = false
+    player.pause()
+  }
+
+  func resume() {
+    isPlaying = true
+    configParameters(player: player)
+    if #available(iOS 10.0, macOS 10.12, *) {
+      player.playImmediately(atRate: Float(playbackRate))
+    } else {
+      player.play()
+    }
+    updateDuration()
+  }
+
+  func setVolume(volume: Double) {
+    self.volume = volume
+    player.volume = Float(volume)
+  }
+
+  func setPlaybackRate(playbackRate: Double) {
+    self.playbackRate = playbackRate
+    if isPlaying {
+      // Setting the rate causes the player to resume playing. So setting it only, when already playing.
+      player.rate = Float(playbackRate)
+    }
+  }
+
+  func seek(time: CMTime) async {
+    guard let currentItem = player.currentItem else {
+      return
+    }
+    await currentItem.seek(to: time)
+    if !self.isPlaying {
+      self.player.pause()
+    }
+    self.eventHandler.onSeekComplete()
+  }
+
+  func stop() async {
+    pause()
+    if releaseMode == ReleaseMode.release {
+      await release()
+    } else if (getCurrentPosition() ?? 0) != 0 {
+      await seek(time: toCMTime(millis: 0))
+    }
+  }
+
+  func release() async {
+    if self.isPlaying {
+      pause()
+    }
+    self.reset()
+  }
+
+  func dispose() async {
+    await release()
+    self.eventHandler.dispose()
+  }
+
+  private func getDurationCMTime() -> CMTime? {
+    return player.currentItem?.asset.duration
+  }
+
+  private func getCurrentCMTime() -> CMTime? {
+    return player.currentItem?.currentTime()
+  }
+
+  private func createPlayerItem(
+    url: String,
+    isLocal: Bool,
+    mimeType: String? = nil
+  ) throws -> AVPlayerItem {
+    guard
+      let parsedUrl = isLocal
+        ? URL(fileURLWithPath: url.deletingPrefix("file://")) : URL(string: url)
+    else {
+      throw AudioPlayerError.error("Url not valid: \(url)")
+    }
+
+    let playerItem: AVPlayerItem
+
+    if let unwrappedMimeType = mimeType {
+      if #available(iOS 17, macOS 14.0, *) {
+        let asset = AVURLAsset(
+          url: parsedUrl, options: [AVURLAssetOverrideMIMETypeKey: unwrappedMimeType])
+        playerItem = AVPlayerItem(asset: asset)
+      } else {
+        let asset = AVURLAsset(
+          url: parsedUrl, options: ["AVURLAssetOutOfBandMIMETypeKey": unwrappedMimeType])
+        playerItem = AVPlayerItem(asset: asset)
+      }
+    } else {
+      playerItem = AVPlayerItem(url: parsedUrl)
+    }
+
+    playerItem.audioTimePitchAlgorithm = AVAudioTimePitchAlgorithm.timeDomain
+    return playerItem
+  }
+
+  private func setUpPlayerItemStatusObservation(
+    _ playerItem: AVPlayerItem
+  ) async throws {
+    try await withCheckedThrowingContinuation { continuation in
+      var didResume = false
+      playerItemStatusObservation = playerItem.observe(\AVPlayerItem.status) {
+        [weak self] (playerItem, change) in
+        let status = playerItem.status
+        let message = "player status: \(status), change: \(change)"
+        Task { @MainActor [weak self] in
+          guard let self = self, !didResume else {
+            return
+          }
+          self.eventHandler.onLog(message: message)
+
+          switch status {
+          case .readyToPlay:
+            didResume = true
+            continuation.resume()
+          case .failed:
+            didResume = true
+            self.reset()
+            continuation.resume(throwing: AudioPlayerError.error("Failed to set playerItem"))
+          default:
+            // Do not resume continuation yet
+            break
+          }
+        }
+      }
+      // Replacing the player item triggers continuation of the observation.
+      self.player.replaceCurrentItem(with: playerItem)
+    }
+
+    playerItemStatusObservation?.invalidate()
+    playerItemStatusObservation = nil
+  }
+
+  private func setUpSoundCompletedObserver(_ player: AVPlayer, _ playerItem: AVPlayerItem) {
+    let observer = NotificationCenter.default.addObserver(
+      forName: NSNotification.Name.AVPlayerItemDidPlayToEndTime,
+      object: playerItem,
+      queue: nil
+    ) {
+      [weak self] (_) in
+      Task { @MainActor [weak self] in
+        guard let self = self else {
+          return
+        }
+        await self.onSoundComplete()
+      }
+    }
+    self.completionObserver = TimeObserver(player: player, observer: observer)
+  }
+
+  private func configParameters(player: AVPlayer) {
+    if isPlaying {
+      player.volume = Float(volume)
+      player.rate = Float(playbackRate)
+    }
+  }
+
+  private func reset() {
+    playerItemStatusObservation?.invalidate()
+    playerItemStatusObservation = nil
+    if let cObserver = completionObserver {
+      NotificationCenter.default.removeObserver(cObserver.observer)
+      completionObserver = nil
+    }
+    player.replaceCurrentItem(with: nil)
+    self.url = nil
+  }
+
+  private func updateDuration() {
+    guard let duration = player.currentItem?.asset.duration else {
+      return
+    }
+    if CMTimeGetSeconds(duration) > 0 {
+      let millis = fromCMTime(time: duration)
+      eventHandler.onDuration(millis: millis)
+    }
+  }
+
+  private func onSoundComplete() async {
+    if !isPlaying {
+      return
+    }
+
+    reference.controlAudioSession()
+    eventHandler.onComplete()
+
+    await seek(time: toCMTime(millis: 0))
+    if self.releaseMode == ReleaseMode.loop {
+      self.resume()
+    } else if self.releaseMode == ReleaseMode.release {
+      await self.release()
+    } else {
+      self.isPlaying = false
+    }
+  }
+}

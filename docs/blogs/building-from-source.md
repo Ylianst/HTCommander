@@ -121,6 +121,30 @@ flutter build macos --release
 The app bundle appears in `build/macos/Build/Products/Release/`. Use
 `flutter run -d macos` for live development.
 
+**macOS build warnings:**
+
+- `flutter_pcm_sound` and `flutter_tts` currently use CocoaPods instead of Swift
+  Package Manager. Flutter's migration notice is expected; keep CocoaPods
+  installed until those plugins support SPM.
+- Firebase Messaging's deprecated `UNNotificationPresentationOptionAlert`
+  and Geolocator's deprecated `authorizationStatus` warnings come from the
+  upstream plugins, not the app.
+- Repeated `Stale file ... is located outside of the allowed root paths` warnings
+  indicate Xcode cached outputs from a different build directory (for example,
+  a custom validation build). With builds stopped, run `flutter clean`,
+  `flutter pub get`, then rebuild using the normal Flutter build directory.
+- The Darwin audio plugins are vendored under `src/third_party` to fix
+  `audioplayers_darwin` observer callbacks accessing main-actor state off actor
+  (including weak captures and exactly-once continuation completion), and
+  `record_darwin`'s implicit generic-to-raw-pointer conversions. The recorder
+  helpers use scoped typed pointers; their callers pass only CoreAudio C structs
+  and scalars. Upstream licenses are retained.
+
+`Invalid engine handle`, a failure to foreground the app, and Bluetooth
+connection timeouts are runtime diagnostics, not compiler warnings. In
+particular, repeated RFCOMM timeouts mean a radio connection did not succeed;
+they should not be treated as a successful connection or hidden.
+
 ### Linux
 
 Linux needs the most system packages because HTCommander's desktop build links

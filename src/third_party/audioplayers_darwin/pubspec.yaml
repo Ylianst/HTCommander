@@ -1,0 +1,30 @@
+name: audioplayers_darwin
+description: iOS and macOS implementation of audioplayers, a Flutter plugin to play multiple audio files simultaneously
+version: 6.5.0
+homepage: https://github.com/bluefireteam/audioplayers
+repository: https://github.com/bluefireteam/audioplayers/tree/master/packages/audioplayers_darwin
+
+flutter:
+  plugin:
+    implements: audioplayers
+    platforms:
+      ios:
+        pluginClass: AudioplayersDarwinPlugin
+        sharedDarwinSource: true
+      macos:
+        pluginClass: AudioplayersDarwinPlugin
+        sharedDarwinSource: true
+
+dependencies:
+  audioplayers_platform_interface: ^7.2.0
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flame_lint: ^1.4.3
+  flutter_test:
+    sdk: flutter
+
+environment:
+  sdk: ^3.6.0
+  flutter: ">=3.44.0"

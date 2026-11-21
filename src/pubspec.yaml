@@ -119,6 +119,12 @@ dev_dependencies:
 # disabled on Android at runtime; these stubs prevent ~50 MB of unused native
 # code from being bundled.
 dependency_overrides:
+  # Darwin audio patches for Swift concurrency and CoreAudio pointer warnings.
+  # Keep these in sync with upstream when the fixes are released.
+  audioplayers_darwin:
+    path: third_party/audioplayers_darwin
+  record_darwin:
+    path: third_party/record_darwin
   # Vendored, patched copy of desktop_drop: the upstream Windows plugin only
   # reads dropped files (CF_HDROP), so links dragged from a web browser were
   # never delivered. The patched Windows plugin also reads dropped text / URLs
