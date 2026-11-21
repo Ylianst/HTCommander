@@ -85,6 +85,16 @@ diagnosis and fix.
 
 ---
 
+## VardeFM Modem
+
+1. **[Bringing VardeFM Into HTCommander: An Open FM Modem With Its Own Waveform](vardefm-integration-plan.md)**
+   How VardeFM's OFDM, LDPC, and reliable byte-stream link work, and a staged
+   plan to integrate its Rust core with HTCommander's Bluetooth audio,
+   terminal, and Winlink paths. Covers host-interface versus on-air
+   compatibility, audio timing, native packaging, and validation.
+
+---
+
 ## Firmware Updates
 
 FIguring out the radio's firmware-update path — from
@@ -122,6 +132,12 @@ The low-level language HTCommander and the radio speak to each other.
    `0x85` message-ID sentinel, the field catalog and the location-request /
    call-request verbs, and an honest ledger of the location bytes still on the
    workbench.
+
+3. **[Packet Chess: A Stateless Protocol for Playing Chess Over Radio](radio-chess-protocol.md)**
+   A proposed transport-independent wire format that packs a complete chess
+   position and move into 58 bytes, handles missed packets through
+   self-contained board snapshots, and adds a separate, replay-safe UTF-8 chat
+   stream for each game.
 
 ---
 
