@@ -2553,8 +2553,8 @@ class Radio implements FirmwareRadio {
 
   /// Requests the radio's supported frequency ranges (READ_FREQ_RANGE). The
   /// reply is handled by [_handleReadFreqRange], which parses the bands into
-  /// [freqRanges] and dispatches the `FreqRanges` event. The number of ranges
-  /// is reported by GET_DEV_INFO's `freqRangeCount`.
+  /// [freqRanges] and dispatches the `FreqRanges` event. Probed on connection
+  /// even when GET_DEV_INFO reports a zero `freqRangeCount`.
   void readFreqRange() {
     _sendCommand(
       RadioCommandGroup.basic,
@@ -3592,11 +3592,8 @@ class Radio implements FirmwareRadio {
         RadioBasicCommand.getHtStatus,
         null,
       );
-      // D9000-APP advertises zero bands but returns them in READ_FREQ_RANGE.
-      if (info!.freqRangeCount > 0 ||
-          (info!.vendorId == 4 && info!.productId == 0x0302)) {
-        readFreqRange();
-      }
+      // Some firmware reports zero bands despite supporting READ_FREQ_RANGE.
+      readFreqRange();
       _updateChannels();
       _updateRegionNames();
     }

@@ -171,13 +171,37 @@ void main() {
       );
     }
 
-    test('other radios with no reported bands are not probed', () async {
-      await receive('000280040000000101000180001000');
+    test('unknown radios can return bands despite advertising zero', () async {
+      await receive('000280040007123401000180001000');
       expect(radio.info!.freqRangeCount, 0);
       expect(
         transport.sent,
-        isNot(contains(orderedEquals(GaiaProtocol.encode(_bytes('00020027'))))),
+        contains(orderedEquals(GaiaProtocol.encode(_bytes('00020027')))),
       );
+      await receive('0002802700808800ae00c800c8819001e0');
+      expect(broker.getValueDynamic(deviceId, 'FreqRanges'), [
+        {'lowHz': 136000000, 'highHz': 174000000, 'mod': 2},
+        {'lowHz': 400000000, 'highHz': 480000000, 'mod': 2},
+      ]);
     });
+
+    test(
+      'unsupported band discovery leaves other initialization working',
+      () async {
+        await receive('000280040007123401000180001000');
+        transport.sent.clear();
+        await receive('0002802701');
+        expect(radio.freqRanges, isEmpty);
+        expect(broker.getValueDynamic(deviceId, 'FreqRanges'), isNull);
+        expect(transport.sent, isEmpty);
+
+        await receive('0002800a${captures.last.settings}');
+        expect(radio.settings!.channelA, captures.last.channelA);
+        expect(
+          broker.getValue<Map<String, dynamic>>(deviceId, 'Settings'),
+          isNotNull,
+        );
+      },
+    );
   });
 }

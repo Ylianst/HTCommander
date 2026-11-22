@@ -377,12 +377,14 @@ Worked example — a real reply body from a dual-band HT:
 | P4 | `0x8190` → 400, FM TX/RX | `0x0208` → 520 | 400–520 MHz (FM TX/RX, 70 cm) |
 | term | `0x4000` → 0 | `0x0000` → 0 | end of list |
 
-HTCommander reads this on every connection (when `freqRangeCount > 0`) and uses
+HTCommander probes this on every connection, regardless of `freqRangeCount`, and uses
 the bands to validate channel-edit frequencies and to grey out RepeaterBook and
 Winlink stations the radio cannot tune.
 The captured D9000-APP (vendor `4`, product `0x0302`) reports
-`freqRangeCount == 0` despite supporting this command, so HTCommander also reads
-its bands on connection. Both supplied AP-2 and D9000-APP captures return
+`freqRangeCount == 0` despite supporting this command; the same discovery
+behavior applies to all models without vendor-specific exceptions. Unsupported
+or short replies are logged and leave the current bands unchanged, without
+blocking initialization. Both supplied AP-2 and D9000-APP captures return
 136–174 MHz and 400–480 MHz FM TX/RX bands, with an intervening 200–200 MHz
 entry that is skipped.
 The Radio Information dialog's **Copy All** includes the reported frequency
