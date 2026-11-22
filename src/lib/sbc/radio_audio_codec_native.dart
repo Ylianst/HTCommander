@@ -146,14 +146,20 @@ final class _NativeRadioAudioCodec implements RadioAudioCodec, Finalizable {
   late final Pointer<_TxResult> _tx;
   late final Pointer<_RxResult> _rx;
   bool _disposed = false;
+  bool _receiving = false;
 
   void _checkAlive() {
     if (_disposed) throw StateError('Native radio audio codec is disposed');
   }
 
+  void _checkIdle() {
+    _checkAlive();
+    if (_receiving) throw StateError('Reentrant native radio audio operation');
+  }
+
   @override
   EncodedRadioAudio encode(Uint8List pcm, {required bool isDataFrame}) {
-    _checkAlive();
+    _checkIdle();
     if (pcm.length > RadioAudioCodec.maxInputBytes) {
       throw ArgumentError.value(
         pcm.length,
@@ -198,20 +204,35 @@ final class _NativeRadioAudioCodec implements RadioAudioCodec, Finalizable {
     required int Function() decodeMask,
     required void Function(ReceivedRadioAudio packet) onPacket,
   }) {
-    _checkAlive();
-    for (int base = 0; base < bytes.length;) {
+    _checkIdle();
+    _receiving = true;
+    try {
+      _receiveBytes(bytes, decodeMask: decodeMask, onPacket: onPacket);
+    } finally {
+      _receiving = false;
+    }
+  }
+
+  void _receiveBytes(
+    Uint8List bytes, {
+    required int Function() decodeMask,
+    required void Function(ReceivedRadioAudio packet) onPacket,
+  }) {
+    for (int base = 0; base < bytes.length && !_disposed;) {
       final remaining = bytes.length - base;
       final length = remaining < RadioAudioCodec.maxInputBytes
           ? remaining
           : RadioAudioCodec.maxInputBytes;
       _arena.asTypedList(length).setRange(0, length, bytes, base);
       int offset = 0;
-      while (offset < length) {
+      while (offset < length && !_disposed) {
+        final mask = decodeMask();
+        if (_disposed) return;
         final status = _receive(
           _handle,
           _arena + offset,
           length - offset,
-          decodeMask(),
+          mask,
           _rx,
         );
         if (status < 0) {
@@ -252,7 +273,7 @@ final class _NativeRadioAudioCodec implements RadioAudioCodec, Finalizable {
 
   @override
   void resetReceiver({bool resetDecoder = true}) {
-    _checkAlive();
+    _checkIdle();
     _reset(_handle, resetDecoder ? 3 : 2);
   }
 

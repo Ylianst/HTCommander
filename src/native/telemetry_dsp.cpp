@@ -69,7 +69,29 @@ struct Recording {
   }
 };
 
-int rounded(double x) { return static_cast<int>(std::round(x)); }
+int rounded(double x) {
+  return static_cast<int>(std::clamp(std::round(x),
+      static_cast<double>(INT32_MIN), static_cast<double>(INT32_MAX)));
+}
+
+bool valid_input(const int16_t* pcm, int n, int rate) {
+  return n >= 0 && n < INT32_MAX && (pcm || n == 0) &&
+      rate >= 8000 && rate <= 384000;
+}
+
+bool valid_sonde(int rate, int mode, int chip_rate, int symbols,
+                 const double* header, int hlen) {
+  if (rate < 8000 || rate > 384000 || mode < 0 || mode > 4 ||
+      chip_rate < 1 || chip_rate > rate || symbols < 1 || symbols > 1000000 ||
+      hlen < 0 || hlen > 1024) return false;
+  if (mode == 4) return true;
+  const int alignment = mode == 0 ? 2 : (mode == 1 ? 8 : (mode == 2 ? 16 : 1));
+  if (symbols % alignment || !header || hlen < 1 ||
+      int64_t(hlen) * rate / chip_rate >= INT32_MAX) return false;
+  for (int i = 0; i < hlen; ++i)
+    if (header[i] != 1 && header[i] != -1) return false;
+  return true;
+}
 
 struct Run { int start, end; double level; };
 
@@ -146,10 +168,11 @@ void matched_sonde(Result& result, const int16_t* pcm, int n, int rate,
   std::vector<double> scores(std::min(last, block_size + 2 * window));
   // Overlapping score blocks preserve local-max and plateau decisions without
   // retaining an audio-sized score array or updating a deque for every sample.
-  for (int begin = 1; begin < last - 1; begin += block_size) {
-    const int end = std::min(last - 1, begin + block_size);
+  for (int begin = 1; begin < last - 1;) {
+    const int end = static_cast<int>(std::min(int64_t(last - 1),
+                                            int64_t(begin) + block_size));
     const int lo = std::max(0, begin - window);
-    const int hi = std::min(last, end + window);
+    const int hi = static_cast<int>(std::min(int64_t(last), int64_t(end) + window));
     correlate(prefix, runs, lo, hi, norm, scores.data());
     for (int center = begin; center < end; ++center) {
       const double score = scores[center - lo];
@@ -157,7 +180,7 @@ void matched_sonde(Result& result, const int16_t* pcm, int n, int rate,
       if (a < threshold) continue;
       bool maximum = true;
       for (int k = std::max(0, center - window);
-           k <= std::min(last - 1, center + window); ++k) {
+           k <= std::min(int64_t(last - 1), int64_t(center) + window); ++k) {
         if (std::abs(scores[k - lo]) > a) { maximum = false; break; }
       }
       if (!maximum) continue;
@@ -167,6 +190,7 @@ void matched_sonde(Result& result, const int16_t* pcm, int n, int rate,
         peaks.push_back({center, score});
       }
     }
+    begin = end;
   }
   double refined = sps;
   std::vector<int> diffs;
@@ -372,7 +396,7 @@ void coherent(Result& result, const int16_t* pcm, int n, int rate, double carrie
   for (int i = 0; i < count;) {
     if (std::abs(corr[i]) < max_abs * 0.5) { ++i; continue; }
     int best = i;
-    for (int j = i; j < count && j < i + guard; ++j)
+    for (int j = i; j < count && int64_t(j) < int64_t(i) + guard; ++j)
       if (std::abs(corr[j]) > std::abs(corr[best])) best = j;
     for (int pol : {1, -1}) {
       Frame bits(144);
@@ -390,7 +414,7 @@ void coherent(Result& result, const int16_t* pcm, int n, int rate, double carrie
       bits.resize(bits[24] == 1 ? 144 : 112);
       result.frames.push_back(std::move(bits));
     }
-    i = best + guard;
+    i = static_cast<int>(std::min(int64_t(count), int64_t(best) + guard));
   }
 }
 
@@ -467,7 +491,7 @@ void* ht_telemetry_create() {
 }
 
 int16_t* ht_telemetry_resize(void* context, int32_t count) {
-  if (!context || count < 0) return nullptr;
+  if (!context || count < 0 || count == INT32_MAX) return nullptr;
   auto& recording = *static_cast<Recording*>(context);
   try {
     recording.pcm.resize(count);
@@ -481,12 +505,14 @@ void ht_telemetry_destroy(void* context) { delete static_cast<Recording*>(contex
 void* ht_telemetry_recording_sonde(
     void* context, int32_t rate, int32_t mode, int32_t chip_rate,
     int32_t symbols, const double* header, int32_t hlen) {
-  if (!context) return nullptr;
+  if (!context || !valid_sonde(rate, mode, chip_rate, symbols, header, hlen))
+    return nullptr;
   try {
     auto& recording = *static_cast<Recording*>(context);
     auto result = std::make_unique<Result>();
     const auto* pcm = recording.pcm.data();
     const int n = static_cast<int>(recording.pcm.size());
+    if (!n) return result.release();
     if (mode == 4) imet(*result, pcm, n, rate);
     else matched_sonde(*result, pcm, n, rate, mode, chip_rate, symbols,
                        header, hlen, &recording);
@@ -504,8 +530,11 @@ void* ht_telemetry_recording_sarsat(void* context, int32_t rate, double carrier)
 void* ht_telemetry_sonde(const int16_t* pcm, int32_t n, int32_t rate,
                          int32_t mode, int32_t chip_rate, int32_t symbols,
                          const double* header, int32_t hlen) {
+  if (!valid_input(pcm, n, rate) ||
+      !valid_sonde(rate, mode, chip_rate, symbols, header, hlen)) return nullptr;
   try {
     auto result = std::make_unique<Result>();
+    if (!n) return result.release();
     if (mode == 4) imet(*result, pcm, n, rate);
     else matched_sonde(*result, pcm, n, rate, mode, chip_rate, symbols, header, hlen);
     return result.release();
@@ -513,20 +542,28 @@ void* ht_telemetry_sonde(const int16_t* pcm, int32_t n, int32_t rate,
 }
 
 void* ht_telemetry_sarsat(const int16_t* pcm, int32_t n, int32_t rate, double carrier) {
+  if (!valid_input(pcm, n, rate) || !std::isfinite(carrier) ||
+      carrier <= 250 || carrier + 250 >= rate / 2.0) return nullptr;
   try {
     auto result = std::make_unique<Result>();
+    if (n < rate / 4) return result.release();
     coherent(*result, pcm, n, rate, carrier);
     fm_sarsat(*result, pcm, n, rate);
     return result.release();
   } catch (const std::exception&) { return nullptr; }
 }
 int32_t ht_telemetry_count(const void* result) {
+  if (!result) return -1;
   return static_cast<int32_t>(static_cast<const Result*>(result)->frames.size());
 }
 int32_t ht_telemetry_length(const void* result, int32_t frame) {
+  if (!result || frame < 0 ||
+      size_t(frame) >= static_cast<const Result*>(result)->frames.size()) return -1;
   return static_cast<int32_t>(static_cast<const Result*>(result)->frames[frame].size());
 }
 const uint8_t* ht_telemetry_data(const void* result, int32_t frame) {
+  if (!result || frame < 0 ||
+      size_t(frame) >= static_cast<const Result*>(result)->frames.size()) return nullptr;
   return static_cast<const Result*>(result)->frames[frame].data();
 }
 void ht_telemetry_free(void* result) { delete static_cast<Result*>(result); }

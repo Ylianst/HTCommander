@@ -148,7 +148,7 @@ int32_t ht_sstv_scanline(const double* input, double* scratch, int32_t* pixels,
   if (!input || !scratch || !pixels || !c) return -1;
   const int kind = c[0], width = c[1], count = c[2];
   if (kind < 0 || kind > 5 ||
-      width <= 0 || count <= 0 || !std::isfinite(alpha) ||
+      width <= 0 || width > INT32_MAX / 2 || count <= 0 || !std::isfinite(alpha) ||
       !std::isfinite(offset)) return -1;
   const int channels = kind == 5 ? 1 : (kind == 2 ? 4 :
                         (kind == 3 || kind == 4 ? 2 : 3));

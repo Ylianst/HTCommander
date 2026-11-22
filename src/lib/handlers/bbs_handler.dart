@@ -444,10 +444,6 @@ class Bbs {
   /// Clients beyond this many are told the BBS is busy and disconnected.
   int maxLinks = defaultMaxLinks;
 
-  /// Longest unterminated "[..." fragment held back while waiting for the rest
-  /// of a Winlink SID; longer fragments are processed as regular input.
-  static const int _maxPartialSidLength = 128;
-
   /// Creates the Winlink CMS relay for a connecting client; replaceable in tests.
   static WinlinkGatewayRelay Function(int deviceId, DataBrokerClient broker)
   relayFactory = WinlinkGatewayRelay.new;
@@ -1163,11 +1159,9 @@ class Bbs {
       final pending = session.sessionState.remove('bbsPartialLine') as String?;
       final str = (pending ?? '') + line.text;
       final composing = BbsMenu.isComposing(session.sessionState);
-      // Preserve draft lines and Winlink SIDs across transport frames, including
-      // lines queued behind an asynchronous menu command.
-      if (!line.terminated &&
-          (composing ||
-              (str.startsWith('[') && str.length < _maxPartialSidLength))) {
+      // Packet boundaries are not line endings, including for lines queued
+      // behind an asynchronous menu command.
+      if (!line.terminated) {
         const max = BbsStore.maxComposedMessageLength + 1;
         session.sessionState['bbsPartialLine'] = str.length > max
             ? str.substring(0, max)

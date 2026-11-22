@@ -8,6 +8,7 @@
 // Initialisation remains in the original Dart package. No orbital model,
 // gravity constant, integration step or convergence policy is approximated.
 #include <cmath>
+#include <cstdio>
 #include <new>
 #include <cstdint>
 
@@ -18,6 +19,9 @@
 #endif
 
 namespace {
+void invalid(const char* function) {
+  std::fprintf(stderr, "%s: invalid native arguments\n", function);
+}
 constexpr double pi = 3.14159265358979323846;
 constexpr double twopi = 2.0 * pi;
 constexpr int capacity = 256;
@@ -398,10 +402,11 @@ EXPORT int32_t ht_satellite_abi() { return 2; }
 EXPORT int32_t ht_satellite_coefficient_count() { return coefficientCount; }
 EXPORT Engine* ht_satellite_create() { return new (std::nothrow) Engine; }
 EXPORT void ht_satellite_destroy(Engine* e) { delete e; }
-EXPORT double* ht_satellite_coefficients(Engine* e) { return e->coefficients; }
-EXPORT double* ht_satellite_times(Engine* e) { return e->times; }
-EXPORT double* ht_satellite_rows(Engine* e) { return e->rows; }
+EXPORT double* ht_satellite_coefficients(Engine* e) { return e ? e->coefficients : nullptr; }
+EXPORT double* ht_satellite_times(Engine* e) { return e ? e->times : nullptr; }
+EXPORT double* ht_satellite_rows(Engine* e) { return e ? e->rows : nullptr; }
 EXPORT void ht_satellite_init(Engine* e) {
+  if (!e) return invalid(__func__);
   int i = 0;
 #define LOAD(name) e->satellite.name = e->coefficients[i++];
   FIELDS(LOAD)
@@ -418,6 +423,7 @@ EXPORT int32_t ht_satellite_batch(Engine* e, int32_t count) {
 
 EXPORT void ht_satellite_observer(Engine* e, double latitude, double longitude,
                                    double altitudeMeters) {
+  if (!e) return invalid(__func__);
   const double lat = latitude * (pi / 180.0);
   const double lon = longitude * (pi / 180.0);
   const double h = altitudeMeters / 1000.0;

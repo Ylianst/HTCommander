@@ -103,6 +103,17 @@ NativeSstvDemodulator create(
   int max20,
   bool useSimd,
 ) {
+  RangeError.checkValueInInterval(sampleRate, 1, 0x7fffffff, 'sampleRate');
+  RangeError.checkValueInInterval(taps.length, 1, 0x7fffffff ~/ 4, 'tapCount');
+  RangeError.checkValueInInterval(syncCount, 1, 0x7fffffff ~/ 2, 'syncCount');
+  if (min5 < 0 ||
+      max5 < min5 ||
+      max9 < max5 ||
+      max20 < max9 ||
+      max20 >= 0x7fffffff ||
+      taps.any((value) => !value.isFinite)) {
+    throw ArgumentError('Invalid native SSTV filter or sync thresholds');
+  }
   final coefficients = calloc<Double>(taps.length);
   try {
     coefficients.asTypedList(taps.length).setAll(0, taps);
@@ -159,6 +170,7 @@ final class _Demodulator implements NativeSstvDemodulator, Finalizable {
   @override
   bool process(Float64List samples, int channelSelect) {
     if (_disposed) throw StateError('SSTV demodulator is disposed');
+    RangeError.checkValueInInterval(channelSelect, 0, 4, 'channelSelect');
     if (samples.isEmpty) return false;
     RangeError.checkValueInInterval(samples.length, 1, 0x7fffffff, 'length');
     _reserveSamples(samples.length);
@@ -221,6 +233,9 @@ final class _Demodulator implements NativeSstvDemodulator, Finalizable {
 
   bool _readSync() {
     final result = _sync.ref;
+    if (result.detected < 0) {
+      throw StateError('Native SSTV demodulator rejected its arguments');
+    }
     syncWidth = result.width;
     syncOffset = result.offset;
     frequencyOffset = result.frequencyOffset;

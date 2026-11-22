@@ -371,6 +371,35 @@ void main() {
     expect(bbs.links.map((l) => l.remoteCallsign), ['N1ABC']);
   });
 
+  test('partial commands stay isolated until their line endings', () async {
+    final local = _TestLink('LOCAL');
+    bbs.openLink(local);
+    frame('N1ABC', FrameType.uFrameSabm);
+    for (final relay in relays) {
+      relay.result.complete(false);
+    }
+    await settle();
+    local.sent.clear();
+    final initialRadioText = textTo('N1ABC');
+
+    say('N1ABC', 'S');
+    bbs.linkReceived(local, Uint8List.fromList(utf8.encode('M')));
+    expect(textTo('N1ABC'), initialRadioText);
+    expect(local.sent, isEmpty);
+
+    say('N1ABC', '\r');
+    await settle();
+    expect(textTo('N1ABC'), contains('open source'));
+    expect(local.sent, isEmpty);
+
+    bbs.linkReceived(local, Uint8List.fromList(utf8.encode('\r\nS\r\nM')));
+    expect(local.text, contains('[D]isconnect'));
+    expect(local.text, contains('open source'));
+    expect('[D]isconnect'.allMatches(local.text), hasLength(1));
+    bbs.linkReceived(local, Uint8List.fromList(utf8.encode('\r')));
+    expect('[D]isconnect'.allMatches(local.text), hasLength(2));
+  });
+
   test('generic links can be attached, served and closed', () async {
     final local = _TestLink('LOCAL');
     bbs.openLink(local);

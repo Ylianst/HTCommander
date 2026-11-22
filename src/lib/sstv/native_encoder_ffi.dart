@@ -53,6 +53,17 @@ external int _encode(
   required int silenceSamples,
   required bool useSimd,
 }) => using((arena) {
+  if (width < 1 ||
+      height < 1 ||
+      width > 0x7fffffff ||
+      height > 0x7fffffff ||
+      width * height > pixels.length ||
+      sampleRate < 1 ||
+      sampleRate > 0x7fffffff ||
+      silenceSamples < 0 ||
+      !phase.isFinite) {
+    throw ArgumentError('Invalid native SSTV encoder dimensions or phase');
+  }
   final count = _length(sampleRate, code);
   if (count < 0) throw ArgumentError('Invalid native SSTV mode or sample rate');
   final bytesPerSample = pcm16 ? 2 : 8;

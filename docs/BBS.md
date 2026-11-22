@@ -21,6 +21,10 @@ The **Traffic** panel at the bottom of the BBS tab shows the BBS conversations l
 
 Stations connected to the BBS (over AX.25, XARA or the HTTP BBS) can type the following commands. Commands are not case sensitive, and `[n]` is an optional number of entries to list (10 by default, at most 50).
 
+Over AX.25, XARA and local stream connections, press Enter to finish a command
+(carriage return; LF and CRLF are also accepted). Commands, including game
+actions, are buffered across packets until the line ending arrives.
+
 | Command | Description |
 |---|---|
 | `M` | Show the main menu (`H` and `?` also work). |

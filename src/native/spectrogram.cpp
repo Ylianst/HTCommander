@@ -2,6 +2,7 @@
 #include "spectrogram.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <limits>
 #include <new>
@@ -9,6 +10,9 @@
 #include <vector>
 
 namespace {
+void invalid(const char* function) {
+  std::fprintf(stderr, "%s: invalid native arguments\n", function);
+}
 struct Spectrogram {
   int size, step, first, height, fixed = 0;
   size_t start = 0, head = 0;
@@ -75,6 +79,7 @@ void ht_spectrogram_destroy(void* context) {
 int32_t ht_spectrogram_add(void* context, const double* samples, int32_t count) {
   if (!context || count < 0 || (!samples && count)) return -1;
   auto& s = *static_cast<Spectrogram*>(context);
+  if (size_t(count) > size_t(INT32_MAX) - (s.samples.size() - s.start)) return -1;
   try {
     s.reserve_samples(count);
     if (count) s.samples.insert(s.samples.end(), samples, samples + count);
@@ -84,8 +89,10 @@ int32_t ht_spectrogram_add(void* context, const double* samples, int32_t count) 
 }
 
 int32_t ht_spectrogram_pcm(void* context, const uint8_t* samples, int32_t count) {
-  if (!context || count < 0 || (!samples && count)) return -1;
+  if (!context || count < 0 || count > INT32_MAX / 2 ||
+      (!samples && count)) return -1;
   auto& s = *static_cast<Spectrogram*>(context);
+  if (size_t(count) > size_t(INT32_MAX) - (s.samples.size() - s.start)) return -1;
   try {
     s.reserve_samples(count);
     const auto offset = s.samples.size();
@@ -154,19 +161,24 @@ int32_t ht_spectrogram_resize(void* context, int32_t columns) {
 }
 
 int32_t ht_spectrogram_width(void* context) {
+  if (!context) return -1;
   return static_cast<int32_t>(static_cast<Spectrogram*>(context)->columns.size());
 }
 int32_t ht_spectrogram_pending(void* context) {
+  if (!context) return -1;
   return static_cast<Spectrogram*>(context)->pending();
 }
 int32_t ht_spectrogram_next(void* context) {
+  if (!context) return -1;
   return static_cast<int32_t>(static_cast<Spectrogram*>(context)->next());
 }
 void ht_spectrogram_roll_reset(void* context, int32_t offset) {
+  if (!context) return invalid(__func__);
   auto& s = *static_cast<Spectrogram*>(context);
   s.roll_offset = -s.processed + offset;
 }
 void ht_spectrogram_clear(void* context) {
+  if (!context) return invalid(__func__);
   auto& s = *static_cast<Spectrogram*>(context);
   if (s.fixed > 0) {
     for (auto& column : s.columns) std::fill(column.begin(), column.end(), 0.0);
@@ -176,6 +188,7 @@ void ht_spectrogram_clear(void* context) {
   s.processed = s.roll_offset = 0;
 }
 void ht_spectrogram_peak(void* context, double* result) {
+  if (!context || !result) return invalid(__func__);
   auto& s = *static_cast<Spectrogram*>(context);
   result[0] = result[1] = std::numeric_limits<double>::quiet_NaN();
   if (s.columns.empty()) return;

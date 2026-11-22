@@ -1,7 +1,7 @@
 #include "flutter_window.h"
 
 #include <optional>
-#include <vector>
+#include <flutter/plugin_registrar_windows.h>
 
 #include "flutter/generated_plugin_registrant.h"
 #include <desktop_multi_window/desktop_multi_window_plugin.h>
@@ -20,6 +20,22 @@
 #include <record_windows/record_windows_plugin_c_api.h>
 #include <screen_retriever_windows/screen_retriever_windows_plugin_c_api.h>
 #include <url_launcher_windows/url_launcher_windows.h>
+
+namespace {
+
+// Registrar ownership tears down callbacks before the sub-window's messenger
+// is destroyed, rather than retaining plugins in process-lifetime vectors.
+class NativeAudioPlugins : public flutter::Plugin {
+ public:
+  explicit NativeAudioPlugins(flutter::BinaryMessenger* messenger)
+      : pcm_(messenger), bluetooth_(messenger, pcm_.output()) {}
+
+ private:
+  PcmPlayerPlugin pcm_;
+  BluetoothClassicPlugin bluetooth_;
+};
+
+}  // namespace
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -94,15 +110,11 @@ bool FlutterWindow::OnCreate() {
     UrlLauncherWindowsRegisterWithRegistrar(
         engine->GetRegistrarForPlugin("UrlLauncherWindows"));
 
-    // Keep the app-specific plugin instances alive for the sub-window's
-    // lifetime.
-    static std::vector<std::unique_ptr<BluetoothClassicPlugin>> bt_plugins;
-    static std::vector<std::unique_ptr<PcmPlayerPlugin>> pcm_plugins;
-    pcm_plugins.push_back(
-        std::make_unique<PcmPlayerPlugin>(engine->messenger()));
-    bt_plugins.push_back(
-        std::make_unique<BluetoothClassicPlugin>(
-            engine->messenger(), pcm_plugins.back()->output()));
+    auto* registrar = flutter::PluginRegistrarManager::GetInstance()
+                          ->GetRegistrar<flutter::PluginRegistrarWindows>(
+                              engine->GetRegistrarForPlugin("NativeAudioPlugins"));
+    registrar->AddPlugin(
+        std::make_unique<NativeAudioPlugins>(registrar->messenger()));
   });
 
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
@@ -146,7 +158,9 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
 
   switch (message) {
     case WM_FONTCHANGE:
-      flutter_controller_->engine()->ReloadSystemFonts();
+      if (flutter_controller_) {
+        flutter_controller_->engine()->ReloadSystemFonts();
+      }
       break;
   }
 

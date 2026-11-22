@@ -178,6 +178,34 @@ void main() {
     }
   });
 
+  test(
+    'adventure commands wait for a line ending across XARA frames',
+    () async {
+      final xara = FakeXara(412);
+      final bbs = Bbs(412)..enabled = true;
+      try {
+        xara.connectFrom('N1ABC');
+        expect(await waitFor(() => xara.text.endsWith('>\r')), isTrue);
+        xara.receive('G 6\r');
+        expect(xara.text, contains('Packet Adventure'));
+        xara.sent.clear();
+
+        xara.receive('take batter');
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(xara.sent, isEmpty);
+        xara.receive('y');
+        expect(xara.sent, isEmpty);
+        xara.receive('\r');
+        expect(xara.text, contains('Taken: BATTERY'));
+        expect(xara.text, isNot(contains('Unknown')));
+        expect('Taken: BATTERY'.allMatches(xara.text), hasLength(1));
+      } finally {
+        bbs.dispose();
+        xara.dispose();
+      }
+    },
+  );
+
   test('a Winlink SID over XARA switches to the mail server', () async {
     final xara = FakeXara(402);
     final bbs = Bbs(402)..enabled = true;

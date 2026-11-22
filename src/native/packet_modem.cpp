@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <new>
 #include <vector>
 
@@ -457,7 +458,8 @@ struct Receiver {
     uint32_t* out = events;
     int j = 0;
     auto sample_at = [&](int i) {
-      int sample = pcm[2 * i] | (pcm[2 * i + 1] << 8);
+      const size_t pos = static_cast<size_t>(i) * 2;
+      int sample = pcm[pos] | (pcm[pos + 1] << 8);
       if (sample >= 32768) sample -= 65536;
       return sample / 16384.0;
     };
@@ -496,10 +498,35 @@ void* ht_packet_rx_create(const ht_packet_rx_config* c, const float* pre,
       c->pll_step == 0 || c->pll_step >= 0x80000000u ||
       !(c->locked_inertia >= 0 && c->locked_inertia <= 1) ||
       !(c->searching_inertia >= 0 && c->searching_inertia <= 1) ||
+      !(c->fast_attack >= 0 && c->fast_attack <= 1) ||
+      !(c->slow_decay >= 0 && c->slow_decay <= 1) ||
+      !std::isfinite(c->normalize) ||
       (c->mode >= 2 && (c->delay_taps < 1 ||
           c->b_offs < 0 || c->b_offs >= c->delay_taps ||
           c->c_offs < 0 || c->c_offs >= c->delay_taps ||
           c->s_offs < 0 || c->s_offs >= c->delay_taps))) return nullptr;
+  double input_bound = c->pre_taps ? 0 : 2;
+  for (int i = 0; i < c->pre_taps; ++i) {
+    if (!std::isfinite(pre[i])) return nullptr;
+    input_bound += 2 * std::abs(static_cast<double>(pre[i]));
+  }
+  for (int i = 0; i < c->lp_taps; ++i)
+    if (!std::isfinite(lp[i])) return nullptr;
+  double oscillator_bound = 0;
+  if (c->mode < 2 || c->use_lo) {
+    for (int i = 0; i < 256; ++i) {
+      if (!std::isfinite(oscillator[i])) return nullptr;
+      oscillator_bound = std::max(oscillator_bound,
+          std::abs(static_cast<double>(oscillator[i])));
+    }
+  }
+  for (int i = 0; i < c->slicers; ++i)
+    if (!std::isfinite(gains[i]) || gains[i] < 0) return nullptr;
+  // Histories store floats. Reject configurations that can overflow them and
+  // turn a PSK phase into a NaN-derived Gray-table index.
+  const double mixer_bound = c->mode >= 2 && !c->use_lo
+      ? input_bound * input_bound : input_bound * oscillator_bound;
+  if (mixer_bound > std::numeric_limits<float>::max()) return nullptr;
   try {
     return new Receiver(*c, pre, lp, oscillator, gains);
   } catch (const std::bad_alloc&) {
@@ -509,9 +536,11 @@ void* ht_packet_rx_create(const ht_packet_rx_config* c, const float* pre,
 
 void ht_packet_rx_destroy(void* state) { delete static_cast<Receiver*>(state); }
 
-int32_t ht_packet_rx_process(void* state, const uint8_t* pcm, intptr_t offset,
-    int32_t samples, uint32_t* events, int32_t capacity) {
-  if (!state || !pcm || !events || offset < 0 || samples < 0) return -1;
+int32_t ht_packet_rx_process_bounded(void* state, const uint8_t* pcm, intptr_t pcm_bytes,
+    intptr_t offset, int32_t samples, uint32_t* events, int32_t capacity) {
+  if (!state || !pcm || !events || pcm_bytes < 0 || offset < 0 ||
+      offset > pcm_bytes || samples < 0 ||
+      samples > (pcm_bytes - offset) / 2 || capacity < 0) return -1;
   auto& r = *static_cast<Receiver*>(state);
   if (event_capacity(r.c, samples) > capacity) return -1;
   switch (r.c.mode) {

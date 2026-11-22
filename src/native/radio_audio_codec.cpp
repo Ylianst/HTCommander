@@ -554,7 +554,7 @@ int32_t ht_audio_receive(HtAudioCodec* c, const uint8_t* bytes, int32_t length,
       if (!c->escaped && b == 0x7d) { c->escaped = true; continue; }
       const uint8_t value = c->escaped ? b ^ 0x20 : b;
       c->escaped = false;
-      if (c->packetSize == kPacketLimit) {
+      if (c->packetSize >= kPacketLimit) {
         result->payload_bytes = static_cast<int32_t>(c->packetSize - 1);
         result->rejected_bytes = result->payload_bytes + 1;
         result->error = HT_AUDIO_ERROR_OVERFLOW;

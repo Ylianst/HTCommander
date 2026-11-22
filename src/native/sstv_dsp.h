@@ -31,6 +31,8 @@ HT_SSTV_EXPORT HtSstvDemodulator* ht_sstv_create(
 HT_SSTV_EXPORT void ht_sstv_destroy(HtSstvDemodulator* state);
 // Demodulates in place, retaining oscillator/filter/sync state across blocks.
 // channel_select: 0 mono, 1 left, 2 right, 3 sum, 4 complex I/Q.
+// Invalid process arguments emit a function-named stderr diagnostic and set
+// result->detected to -1 when result is non-null (0 means valid input/no sync).
 HT_SSTV_EXPORT void ht_sstv_process(
     HtSstvDemodulator* state, double* samples, int32_t length,
     int32_t channel_select, HtSstvSync* result);

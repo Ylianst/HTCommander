@@ -46,6 +46,35 @@ Float64List _tones(int rate, int channel) {
 }
 
 void main() {
+  test('native demodulator rejects zero-length filter storage', () {
+    expect(
+      () => createNativeSstvDemodulator(
+        8000,
+        Float64List(0),
+        1,
+        1,
+        2,
+        3,
+        4,
+        useSimd: true,
+      ),
+      throwsRangeError,
+    );
+    expect(
+      () => createNativeSstvDemodulator(
+        8000,
+        Float64List.fromList([1]),
+        0,
+        1,
+        2,
+        3,
+        4,
+        useSimd: true,
+      ),
+      throwsRangeError,
+    );
+  }, skip: !nativeSstvSupported);
+
   for (final useNative in [false, true]) {
     test(
       'PCM16 input preserves streaming DSP and complete image ($useNative)',

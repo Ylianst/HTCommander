@@ -288,11 +288,13 @@ int32_t ht_sstv_encode(
     int32_t rate, int32_t code, double* phase, void* output,
     int64_t capacity, int32_t pcm, int32_t simd) {
   Mode mode{};
-  if (rate <= 0 || width <= 0 || height <= 0 ||
+  if (!pixels || !phase || !output || rate <= 0 || width <= 0 || height <= 0 ||
       static_cast<int64_t>(width) * height > pixel_count ||
       !configure(code, mode) || !std::isfinite(*phase) ||
       length(mode, rate) != capacity) return -1;
-  Writer writer(output, rate, *phase, pcm != 0, simd != 0);
+  double initial_phase = std::fmod(*phase, two_pi);
+  if (initial_phase < 0) initial_phase += two_pi;
+  Writer writer(output, rate, initial_phase, pcm != 0, simd != 0);
   if (code >= 0) writer.header(code);
   double levels[4][800];
   for (int line = 0; line < mode.height; line += mode.step) {

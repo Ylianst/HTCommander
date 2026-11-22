@@ -22,6 +22,49 @@ Matcher _samplesCloseTo(Iterable<double> expected) =>
     );
 
 void main() {
+  test('native plans reject unsafe table dimensions and indices', () {
+    expect(
+      () => createNativeFft(Float64List(3), Float64List(2), Int32List(4)),
+      throwsArgumentError,
+    );
+    expect(
+      () => createNativeFft(
+        Float64List(2),
+        Float64List(2),
+        Int32List.fromList([0, 1, 2, 4]),
+      ),
+      throwsRangeError,
+    );
+    expect(
+      () => createNativeFir(Float64List(3), Float64List(2), 1),
+      throwsArgumentError,
+    );
+    expect(
+      () => createNativeFir(Float64List(2), Float64List(2), 0),
+      throwsArgumentError,
+    );
+    expect(() => createNativeRows(0, 4), throwsRangeError);
+    expect(
+      () => createNativeResampler(Float64List(3), 1, 1),
+      throwsArgumentError,
+    );
+    final resampler = createNativeResampler(Float64List(8), 2, 1)!;
+    expect(() => resampler.process([1, 2, 3, 4], 0, 0, 1, 0), throwsRangeError);
+    for (final (fraction, whole, part) in [
+      (double.nan, 1, 0.0),
+      (-0.1, 1, 0.0),
+      (1.0, 1, 0.0),
+      (0.0, 0, 0.0),
+      (0.0, -1, 0.5),
+      (0.0, 1, double.infinity),
+    ]) {
+      expect(
+        () => resampler.process([1, 2, 3, 4], 1, fraction, whole, part),
+        throwsArgumentError,
+      );
+    }
+  }, skip: !nativeDspEnabled);
+
   group(
     'native XARA numerical parity',
     () {

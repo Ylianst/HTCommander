@@ -18,6 +18,8 @@ class NativePcmOutput;
 ///   - MethodChannel   com.htcommander/bluetooth_classic
 ///   - EventChannel    com.htcommander/bluetooth_classic_data
 ///   - EventChannel    com.htcommander/bluetooth_classic_audio
+/// Background operations (including retired connection readers and replies)
+/// are cancelled/joined before channels or their messenger can be destroyed.
 class BluetoothClassicPlugin {
  public:
   BluetoothClassicPlugin(flutter::BinaryMessenger* messenger,

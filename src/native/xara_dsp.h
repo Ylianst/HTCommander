@@ -17,6 +17,11 @@ extern "C" {
 #endif
 
 // All buffers belong to the caller. No pointer is retained across calls.
+// Invalid arguments to void kernels emit a function-named stderr diagnostic.
+// Pointer allocation extents cannot be inferred by this ABI: callers must
+// supply the documented lengths; Dart wrappers validate typed-list extents.
+// FFT n is a power of two, cosine/sine have n/2 entries, reverse has n
+// entries in [0,n), and re/im have n entries each.
 // SIMD uses only baseline SSE2 (x86-64) or NEON (ARM64); other targets use scalar.
 HT_XARA_EXPORT int32_t ht_xara_simd_width(void);
 HT_XARA_EXPORT void ht_xara_fft(
@@ -66,14 +71,16 @@ typedef struct {
   double fraction;
 } HtXaraResampled;
 
-// Returns 0 on success, -1 on insufficient output capacity.
+// table has (phases+1)*2*half entries; index >= half-1; fraction/part are
+// in [0,1), whole >= 0 and whole+part > 0.
+// Returns 0 on success, -1 on insufficient capacity, -2 on invalid parameters.
 HT_XARA_EXPORT int32_t ht_xara_resample(
     const double* x, int32_t length, const double* table, int32_t half,
     int32_t phases, int32_t index, double fraction, int32_t whole,
     double part, double* out, int32_t capacity, HtXaraResampled* result,
     int32_t simd);
 
-// Returns iterations run, -1 on invalid permutation, -2 on allocation failure.
+// Returns iterations run, -1 on invalid input, -2 on allocation failure.
 // The four input streams have k + 3 entries. bits has k entries.
 // min_iters=0 disables early CRC termination; white is one byte per bit.
 HT_XARA_EXPORT int32_t ht_xara_turbo(

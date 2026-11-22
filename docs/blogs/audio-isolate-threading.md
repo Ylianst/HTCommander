@@ -30,6 +30,18 @@ local transmit monitoring and other audio sources still use the shared player.
 Device ownership remains reference-counted by `PcmPlayer`; native Bluetooth
 playback does not open a second competing output device.
 
+The Dart codec's synchronous receive callbacks cannot reenter receive, encode or
+reset while its shared native input arena is in use. Such calls throw a
+`StateError` instead of overwriting the remaining input. Disposal from either the
+decode-mask or packet callback stops delivery before another native access;
+callback exceptions release the receive guard.
+
+Windows Bluetooth teardown closes admission to background operations, cancels
+socket I/O, and joins every reader, writer and method reply before unregistering
+channels. This includes connections already removed from the active maps.
+Detached-window native audio plugins are owned by their Flutter registrar and
+destroyed before its messenger, not retained until process exit.
+
 **Windows audio scheduling:** the native speaker-output worker and the audio
 RFCOMM reader (which also runs receive SBC decoding) register with Windows MMCSS
 under its `Audio` task at `AVRT_PRIORITY_HIGH`. Registration is scoped to each
@@ -128,15 +140,24 @@ paths to the checkout):
 cl /nologo /std:c++17 /EHsc /W4 /WX /DNOMINMAX native_radio_playback_test.cpp radio_audio_playback.cpp radio_audio_codec.cpp
 cl /nologo /std:c++17 /EHsc /W4 /WX /DNOMINMAX /D_WINMM_ /Fe:native_pcm_output_test.exe native_pcm_output.cpp native_pcm_output_test.cpp /link user32.lib avrt.lib
 cl /nologo /std:c++17 /EHsc /W4 /WX /DNOMINMAX audio_thread_priority_test.cpp
+cl /nologo /std:c++17 /EHsc /W4 /WX native_thread_group_test.cpp
 ```
 
 Sources: [receive pipeline test](../../src/test/native_radio_playback_test.cpp)
 and [output worker test](../../src/windows/runner/tests/native_pcm_output_test.cpp).
 The [scheduling test](../../src/windows/runner/tests/audio_thread_priority_test.cpp)
 substitutes MMCSS calls to check registration cleanup and the thread-priority
-fallback without depending on the MMCSS service. Run all three executables after
+fallback without depending on the MMCSS service. The
+[thread ownership test](../../src/windows/runner/tests/native_thread_group_test.cpp)
+checks retired callbacks, late-start rejection and teardown waiting. Run all four executables after
 compiling. The Flutter routing regression lives in
 [native_radio_audio_test.dart](../../src/test/native_radio_audio_test.dart).
+The [Bluetooth plugin test](../../src/windows/runner/tests/bluetooth_classic_plugin_test.cpp)
+uses a fake Flutter messenger to check null method arguments, in-flight reply
+teardown and channel unregistration. Link it with the runner's Bluetooth, native
+PCM output, playback and codec objects, the Flutter wrapper/import libraries, and
+`windowsapp.lib`, `winmm.lib`, `user32.lib`, `avrt.lib`; put
+`windows\flutter\ephemeral` on `PATH` for `flutter_windows.dll`.
 
 ---
 

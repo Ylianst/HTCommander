@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/widgets/spectrogram/spectrogram_fft.dart';
 import 'package:htcommander/widgets/spectrogram/spectrogram_generator.dart';
 import 'package:htcommander/widgets/spectrogram/spectrogram_view.dart';
+import 'package:htcommander/widgets/spectrogram/native_spectrogram.dart';
+import 'package:htcommander/hamlib/xara/native_dsp.dart';
 
 Float64List _samples(int length, [int offset = 0]) => Float64List.fromList(
   List.generate(length, (i) {
@@ -83,6 +85,43 @@ SpectrogramController _controller() => SpectrogramController(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test(
+    'native spectrogram rejects mismatched window and empty render is safe',
+    () {
+      expect(
+        () => createNativeSpectrogram(16, 4, 0, 8, Float64List(15)),
+        throwsArgumentError,
+      );
+      final native = createNativeSpectrogram(16, 4, 0, 8, Float64List(16))!;
+      try {
+        native.render(
+          Uint8List(0),
+          SpectrogramColormap.viridis,
+          1,
+          1,
+          false,
+          true,
+          0,
+        );
+        expect(
+          () => native.render(
+            Uint8List(0),
+            SpectrogramColormap.viridis,
+            1,
+            1,
+            false,
+            false,
+            -1,
+          ),
+          throwsRangeError,
+        );
+      } finally {
+        native.dispose();
+      }
+    },
+    skip: !nativeDspEnabled,
+  );
 
   test('accelerated FFT matches the Dart reference', () {
     final random = math.Random(42);

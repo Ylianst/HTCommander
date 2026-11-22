@@ -12,6 +12,9 @@ abstract interface class RadioAudioCodec {
   static const int pcmBytesPerBatch = 6144;
 
   EncodedRadioAudio encode(Uint8List pcm, {required bool isDataFrame});
+
+  /// Callbacks may dispose the codec to stop delivery, but must not reenter
+  /// receive, encode or resetReceiver while the input buffer is being consumed.
   void receive(
     Uint8List bytes, {
     required int Function() decodeMask,

@@ -291,6 +291,15 @@ final class _Fft extends _Storage implements NativeXaraFft {
 
   _Fft(Float64List cosine, Float64List sine, Int32List reverse)
     : n = reverse.length {
+    if (n < 1 ||
+        (n & (n - 1)) != 0 ||
+        cosine.length != n ~/ 2 ||
+        sine.length != n ~/ 2) {
+      throw ArgumentError('Invalid native XARA FFT tables');
+    }
+    for (final index in reverse) {
+      RangeError.checkValueInInterval(index, 0, n - 1, 'FFT reverse index');
+    }
     _ensure(4 * n * sizeOf<Double>() + n * sizeOf<Int32>());
     _re = _memory.cast();
     _im = _re + n;
@@ -339,7 +348,12 @@ final class _Fir extends _Storage implements NativeXaraFir {
 
   _Fir(Float64List real, Float64List imag, this.dec)
     : hr = Float64List.fromList(real.reversed.toList()),
-      hi = Float64List.fromList(imag.reversed.toList());
+      hi = Float64List.fromList(imag.reversed.toList()) {
+    if (real.isEmpty || real.length != imag.length || dec < 1) {
+      throw ArgumentError('Invalid native XARA FIR taps or decimation');
+    }
+    RangeError.checkValueInInterval(dec, 1, 0x7fffffff, 'decimation');
+  }
 
   @override
   Float64List process(Float64List samples, int count) {
@@ -369,6 +383,8 @@ final class _Rows extends _Storage implements NativeXaraRows {
   int base = 0, end = 0;
 
   _Rows(this.capacity, this.width) {
+    RangeError.checkValueInInterval(capacity, 1, 0x7fffffff, 'capacity');
+    RangeError.checkValueInInterval(width, 1, 0x7fffffff, 'width');
     _ensure((capacity + 1) * width * sizeOf<Float>());
   }
 
@@ -462,8 +478,12 @@ final class _Pattern extends _Storage implements NativeXaraPattern {
   }
 
   @override
-  Float64List terms(NativeXaraRows source, int first, int last,
-      [double markerMin = double.negativeInfinity]) {
+  Float64List terms(
+    NativeXaraRows source,
+    int first,
+    int last, [
+    double markerMin = double.negativeInfinity,
+  ]) {
     if (source is! _Rows ||
         first < source.base ||
         last < first ||
@@ -508,7 +528,18 @@ final class _Resampler extends _Storage implements NativeXaraResampler {
   final Float64List table;
   final int half, phases;
 
-  _Resampler(this.table, this.half, this.phases);
+  _Resampler(Float64List table, this.half, this.phases)
+    : table = Float64List.fromList(table) {
+    if (half < 1 || phases < 1 || table.length != (phases + 1) * 2 * half) {
+      throw ArgumentError('Invalid native XARA resampler kernel');
+    }
+    RangeError.checkValueInInterval(
+      table.length,
+      1,
+      0x7fffffff,
+      'kernel length',
+    );
+  }
 
   @override
   (List<double>, int, double) process(
@@ -518,6 +549,19 @@ final class _Resampler extends _Storage implements NativeXaraResampler {
     int whole,
     double part,
   ) {
+    RangeError.checkValueInInterval(index, half - 1, 0x7fffffff, 'index');
+    RangeError.checkValueInInterval(samples.length, 0, 0x7fffffff, 'length');
+    if (!fraction.isFinite ||
+        fraction < 0 ||
+        fraction >= 1 ||
+        whole < 0 ||
+        whole > 0x7fffffff ||
+        !part.isFinite ||
+        part < 0 ||
+        part >= 1 ||
+        (whole == 0 && part == 0)) {
+      throw ArgumentError('Invalid native XARA resampler phase or step');
+    }
     final available = samples.length - half - index;
     if (available <= 0) return (<double>[], index, fraction);
     final capacity = (available / (whole + part)).ceil() + 1;
@@ -572,7 +616,8 @@ final class _Resampler extends _Storage implements NativeXaraResampler {
   int nbytes,
 ) {
   final k = perm.length, tlen = k + 3;
-  if (k > 0x7ffff000 ||
+  if (k < 1 ||
+      k > 0x7ffff000 ||
       ls.length != tlen ||
       lp1.length != tlen ||
       ls2.length != tlen ||
@@ -580,6 +625,7 @@ final class _Resampler extends _Storage implements NativeXaraResampler {
       iters < 0 ||
       iters >= 0x7fffffff ||
       minIters < 0 ||
+      !scale.isFinite ||
       nbytes < 0 ||
       nbytes > k ~/ 8) {
     throw ArgumentError('Invalid native XARA turbo decoder input');

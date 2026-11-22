@@ -119,6 +119,16 @@ final class _Spectrogram implements NativeSpectrogram, Finalizable {
 
   _Spectrogram(int size, int step, int first, int last, Float64List window)
     : height = last - first {
+    if (size < 2 ||
+        (size & (size - 1)) != 0 ||
+        step < 1 ||
+        step > size ||
+        first < 0 ||
+        last < first ||
+        last > size ~/ 2 ||
+        window.length != size) {
+      throw ArgumentError('Invalid native spectrogram dimensions or window');
+    }
     _ensure(size * sizeOf<Double>());
     _storage.cast<Double>().asTypedList(size).setAll(0, window);
     _context = _create(size, step, first, last, _storage.cast());
@@ -226,7 +236,9 @@ final class _Spectrogram implements NativeSpectrogram, Finalizable {
     int count,
   ) {
     final w = width;
+    RangeError.checkValueInInterval(count, 0, w, 'count');
     RangeError.checkValidRange(0, w * height * 4, rgba.length);
+    if (count == 0 || height == 0) return;
     final bytes = count * height * 4;
     _ensure(bytes + 768);
     final colors = _storage + bytes;

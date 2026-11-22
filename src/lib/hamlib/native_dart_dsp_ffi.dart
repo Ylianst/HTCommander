@@ -342,7 +342,7 @@ final class _Ldpc implements NativeDartLdpc, Finalizable {
   @override
   Uint8List decode(Float64List llr, Int32List? corrections, int iterations) {
     if (llr.length != n) throw ArgumentError('Expected $n LDPC LLRs');
-    if (iterations <= 0) throw ArgumentError.value(iterations, 'iterations');
+    RangeError.checkValueInInterval(iterations, 1, 0x7fffffff, 'iterations');
     if (corrections != null && corrections.isEmpty) {
       throw ArgumentError('Correction counter must not be empty');
     }
@@ -360,6 +360,7 @@ final class _Ldpc implements NativeDartLdpc, Finalizable {
       _work,
       _out,
     );
+    if (corrected < 0) throw StateError('Native DART LDPC decode failed');
     if (corrections != null) corrections[0] += corrected;
     return Uint8List.fromList(_outView);
   }
@@ -578,6 +579,7 @@ double fskModulate(
   RangeError.checkValueInInterval(sps, 1, 2048, 'FSK symbol length');
   RangeError.checkValueInInterval(out.length, 1, 4096, 'FSK TX count');
   if (out.length != ((bits.length + 1) ~/ 2) * sps ||
+      !phase.isFinite ||
       steps.length != 4 ||
       cosine.length != 4 * sps ||
       sine.length != 4 * sps) {

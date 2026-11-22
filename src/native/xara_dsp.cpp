@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <limits>
 #include <new>
 #include <stdexcept>
@@ -23,6 +24,9 @@
 #endif
 
 namespace {
+void invalid(const char* function) {
+  std::fprintf(stderr, "%s: invalid native arguments\n", function);
+}
 #if defined(HT_XARA_SSE2)
 using V2 = __m128d;
 inline V2 load(const double* p) { return _mm_loadu_pd(p); }
@@ -163,6 +167,10 @@ int32_t ht_xara_simd_width() {
 
 void ht_xara_fft(double* re, double* im, const double* cosine, const double* sine,
                  const int32_t* reverse, int32_t n, int32_t inverse, int32_t simd) {
+  if (n < 1 || (n & (n - 1)) || !re || !im || !reverse ||
+      (n > 1 && (!cosine || !sine))) return invalid(__func__);
+  for (int i = 0; i < n; ++i)
+    if (reverse[i] < 0 || reverse[i] >= n) return invalid(__func__);
   for (int i = 0; i < n; ++i) {
     const int j = reverse[i];
     if (j > i) {
@@ -211,10 +219,15 @@ void ht_xara_fft_direct(
     double* re, double* im, const double* cosine, const double* sine,
     const int32_t* reverse, int32_t n, int32_t inverse, int32_t simd,
     double* work) {
+  if (n < 1 || (n & (n - 1)) || !re || !im || !reverse ||
+      (n > 1 && (!cosine || !sine))) return invalid(__func__);
+  for (int index = 0; index < n; ++index)
+    if (reverse[index] < 0 || reverse[index] >= n) return invalid(__func__);
   const uintptr_t r = reinterpret_cast<uintptr_t>(re);
   const uintptr_t i = reinterpret_cast<uintptr_t>(im);
   const uintptr_t bytes = static_cast<uintptr_t>(n) * sizeof(double);
   if (r < i + bytes && i < r + bytes) {
+    if (!work) return invalid(__func__);
     std::copy_n(re, n, work);
     std::copy_n(im, n, work + n);
     ht_xara_fft(work, work + n, cosine, sine, reverse, n, inverse, simd);
@@ -227,6 +240,10 @@ void ht_xara_fft_direct(
 
 void ht_xara_fir(const double* x, const double* hr, const double* hi, int32_t taps,
                  int32_t dec, int32_t count, double* out, int32_t simd) {
+  if (!x || !hr || !hi || !out || taps < 1 || dec < 1 || count < 0 ||
+      int64_t(count) * 2 > INT32_MAX ||
+      (count > 0 && int64_t(count - 1) * dec + taps > INT32_MAX))
+    return invalid(__func__);
   for (int o = 0; o < count; ++o) {
     const double* v = x + o * dec;
     double ar = 0, ai = 0;
@@ -254,6 +271,9 @@ void ht_xara_fir(const double* x, const double* hr, const double* hi, int32_t ta
 
 void ht_xara_append_row(float* diff, int32_t capacity, int32_t width,
                         int32_t index, const float* row) {
+  if (!diff || !row || capacity < 1 || width < 1 || index < 0 ||
+      index >= capacity || int64_t(width) * capacity > INT32_MAX)
+    return invalid(__func__);
   for (int k = 0; k < width; ++k) diff[k * capacity + index] = row[k];
 }
 
@@ -261,6 +281,9 @@ void ht_xara_append_spectrum(
     float* diff, int32_t capacity, int32_t index,
     const double* re, const double* im, const float* previous,
     float* row, int32_t n, int32_t has_previous) {
+  if (!diff || !re || !im || !row || (has_previous && !previous) ||
+      capacity < 1 || index < 0 || index >= capacity || n < 1 ||
+      int64_t(n) * 2 * capacity > INT32_MAX) return invalid(__func__);
   for (int k = 0; k < n; ++k) {
     const double ar = static_cast<float>(re[k]), ai = static_cast<float>(im[k]);
     double dr = 0.0, di = 0.0;
@@ -283,6 +306,15 @@ void ht_xara_correlate(
     const int32_t* rows, const int32_t* bins, const double* refs,
     int32_t markers, int32_t cells, int32_t first, int32_t count,
     double marker_min, double* scratch, double* out, int32_t simd) {
+  if (!diff || !rows || !bins || !refs || !scratch || !out ||
+      capacity < 1 || first < 0 || first >= capacity ||
+      markers < 1 || cells < markers || cells > INT32_MAX / 2 ||
+      count < 0 || count > INT32_MAX / 4) return invalid(__func__);
+  for (int c = 0; c < cells; ++c) {
+    if (rows[c] < 0 || bins[c] < 0 ||
+        int64_t(bins[c] + int64_t{2}) * capacity > INT32_MAX)
+      return invalid(__func__);
+  }
   const bool gated = marker_min != -std::numeric_limits<double>::infinity();
   std::fill(scratch, scratch + 4 * count, 0.0);
   for (int c = 0; c < cells; ++c) {
@@ -300,7 +332,7 @@ void ht_xara_correlate(
     const double rr = refs[2 * c], ri = refs[2 * c + 1];
     const float* real = diff + bins[c] * capacity;
     const float* imag = real + capacity;
-    int row = (first + rows[c]) % capacity;
+    int row = static_cast<int>((int64_t(first) + rows[c]) % capacity);
     int j = 0;
 #if defined(HT_XARA_SSE2) || defined(HT_XARA_NEON)
     if (simd) {
@@ -354,9 +386,14 @@ int32_t ht_xara_resample(
     const double* x, int32_t length, const double* table, int32_t half,
     int32_t phases, int32_t index, double fraction, int32_t whole,
     double part, double* out, int32_t capacity, HtXaraResampled* result, int32_t simd) {
+  if (!x || !table || !out || !result || length < 0 || half < 1 ||
+      phases < 1 || int64_t(phases + int64_t{1}) * 2 * half > INT32_MAX ||
+      index < half - 1 || whole < 0 || capacity < 0 ||
+      !(fraction >= 0 && fraction < 1) || !(part >= 0 && part < 1) ||
+      (whole == 0 && part == 0)) return -2;
   int count = 0;
   const int n = 2 * half;
-  while (index + half < length) {
+  while (int64_t(index) + half < length) {
     if (count == capacity) return -1;
     const double pos = fraction * phases;
     const int p = std::min(static_cast<int>(pos), phases - 1);
@@ -379,12 +416,14 @@ int32_t ht_xara_resample(
 #endif
     for (; k < n; ++k) acc += v[k] * (a[k] + w * (b[k] - a[k]));
     out[count++] = acc;
-    index += whole;
+    int64_t next = int64_t(index) + whole;
     fraction += part;
     if (fraction >= 1.0) {
       fraction -= 1.0;
-      ++index;
+      ++next;
     }
+    if (next > INT32_MAX) return -2;
+    index = static_cast<int>(next);
   }
   result->index = index;
   result->fraction = fraction;
@@ -397,6 +436,10 @@ int32_t ht_xara_turbo(
     const int32_t* perm, int32_t k, int32_t iters, double scale,
     int32_t min_iters, const uint8_t* white, int32_t white_length,
     int32_t nbytes, uint8_t* bits) {
+  if (!ls || !lp1 || !ls2 || !lp2 || !perm || !bits ||
+      k < 1 || k > 0x7ffff000 || iters < 0 || iters == INT32_MAX ||
+      min_iters < 0 || white_length < 0 || (white_length && !white) ||
+      nbytes < 0 || nbytes > k / 8 || !std::isfinite(scale)) return -1;
   try {
     const int tlen = k + 3;
     const int nwin = (tlen + window - 1) / window;

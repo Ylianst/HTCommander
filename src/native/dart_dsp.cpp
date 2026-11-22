@@ -3,6 +3,7 @@
 #include "dart_dsp.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <limits>
 
 #if defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
@@ -16,6 +17,23 @@
 #define HT_DART_NEON
 #endif
 
+namespace {
+void invalid(const char* function) {
+  std::fprintf(stderr, "%s: invalid native arguments\n", function);
+}
+bool valid_graph(const uint16_t* starts, const uint16_t* columns, int k, int n) {
+  if (!starts || !columns || n != 648 ||
+      (k != 324 && k != 432 && k != 486 && k != 540) || starts[0] != 0)
+    return false;
+  const int m = n - k;
+  for (int c = 0; c < m; ++c)
+    if (starts[c] > starts[c + 1]) return false;
+  for (int e = 0; e < starts[m]; ++e)
+    if (columns[e] >= n) return false;
+  return true;
+}
+}
+
 int32_t ht_dart_simd_width() {
 #if defined(HT_DART_SSE2) || defined(HT_DART_NEON)
   return 2;
@@ -27,6 +45,8 @@ int32_t ht_dart_simd_width() {
 void ht_dart_multiply_conjugate(
     double* re, double* im, const double* ref_re, const double* ref_im,
     int32_t n, int32_t simd) {
+  if (!re || !im || !ref_re || !ref_im || n < 0 || n > 2048)
+    return invalid(__func__);
   int i = 0;
 #if defined(HT_DART_SSE2)
   if (simd) {
@@ -55,6 +75,8 @@ void ht_dart_multiply_conjugate(
 }
 
 double ht_dart_peak(const double* samples, int32_t count, int32_t simd) {
+  if (count < 0 || count > 4096 || (!samples && count))
+    return std::numeric_limits<double>::quiet_NaN();
   int i = 0;
   double peak = 0;
 #if defined(HT_DART_SSE2)
@@ -86,6 +108,8 @@ double ht_dart_peak(const double* samples, int32_t count, int32_t simd) {
 
 int32_t ht_dart_to_pcm(const double* samples, int32_t count, double scale,
                         int16_t* out, int32_t simd) {
+  if (count < 0 || count > 4096 || (count && (!samples || !out)) ||
+      !std::isfinite(scale)) return -1;
   int i = 0;
 #if defined(HT_DART_SSE2)
   if (simd) {
@@ -135,6 +159,8 @@ int32_t ht_dart_to_pcm(const double* samples, int32_t count, double scale,
 }
 
 void ht_dart_from_pcm(const int16_t* samples, int32_t count, double* out, int32_t simd) {
+  if (count < 0 || count > 4096 || (count && (!samples || !out)))
+    return invalid(__func__);
   int i = 0;
 #if defined(HT_DART_SSE2)
   if (simd) {
@@ -164,6 +190,8 @@ void ht_dart_from_pcm(const int16_t* samples, int32_t count, double* out, int32_
 void ht_dart_ldpc_encode(const uint16_t* starts, const uint16_t* columns,
                          int32_t k, int32_t n, const uint8_t* info,
                          uint8_t* out) {
+  if (!info || !out || !valid_graph(starts, columns, k, n))
+    return invalid(__func__);
   std::copy_n(info, k, out);
   int parity = 0;
   for (int c = 0; c < n - k; ++c) {
@@ -179,7 +207,14 @@ int32_t ht_dart_ldpc_decode(
     const uint16_t* var_starts, const uint16_t* var_edges,
     int32_t k, int32_t n, int32_t iterations, const double* llr,
     double* work, uint8_t* out) {
+  if (!var_starts || !var_edges || !llr || !work || !out || iterations < 1 ||
+      !valid_graph(starts, columns, k, n) || var_starts[0] != 0) return -1;
   const int m = n - k, edges = starts[m];
+  if (var_starts[n] != edges) return -1;
+  for (int v = 0; v < n; ++v)
+    if (var_starts[v] > var_starts[v + 1]) return -1;
+  for (int i = 0; i < edges; ++i)
+    if (var_edges[i] >= edges) return -1;
   // Each phase can overwrite its input after taking the row minimum / column
   // sum: every edge belongs to exactly one check and one variable.
   double* q = work;
@@ -239,6 +274,8 @@ int32_t ht_dart_ldpc_decode(
 void ht_dart_dft(const double* input, const double* cosine,
                  const double* sine, int32_t n, double norm,
                  int32_t inverse, double* out) {
+  if (!input || !cosine || !sine || !out || n < 1 || n > 128)
+    return invalid(__func__);
   for (int k = 0; k < n; ++k) {
     double re = 0, im = 0;
     for (int i = 0; i < n; ++i) {
@@ -255,6 +292,9 @@ void ht_dart_dft(const double* input, const double* cosine,
 void ht_dart_correlate(const double* samples, const double* reference,
                        int32_t length, double energy, int32_t start,
                        int32_t count, double* out) {
+  if (!samples || !reference || !out || length < 1 || length > 2048 ||
+      count < 0 || count > 64 || start < 0 ||
+      int64_t(start) + count + length > INT32_MAX) return invalid(__func__);
   for (int p = 0; p < count; ++p) {
     double corr = 0, rx_energy = 0;
     for (int i = 0; i < length; ++i) {
@@ -270,6 +310,9 @@ void ht_dart_correlate(const double* samples, const double* reference,
 void ht_dart_corr_normalize(
     const double* samples, int32_t length, double energy,
     const double* correlation, int32_t n, int32_t count, double* out) {
+  if (!samples || !correlation || !out || n < 1 || n > 2048 ||
+      length < 1 || length > n || count < 0 || count > n - length + 1)
+    return invalid(__func__);
   double rx_energy = 0;
   for (int i = 0; i < length; ++i) rx_energy += samples[i] * samples[i];
   for (int p = 0; p < count; ++p) {
@@ -293,6 +336,9 @@ void ht_dart_corr_normalize(
 void ht_dart_fsk_energy(const double* samples, int32_t count,
                         const double* cosine, const double* sine,
                         int32_t stride, double* out, int32_t simd) {
+  if (!cosine || !sine || !out || stride < 1 || stride > 2048 ||
+      count < 0 || count > stride || (!samples && count))
+    return invalid(__func__);
   for (int t = 0; t < 4; ++t) {
     double re = 0, im = 0;
 #if defined(HT_DART_SSE2)
@@ -342,6 +388,10 @@ void ht_dart_fsk_soft(
     const double* samples, int32_t count, const double* cosine,
     const double* sine, int32_t stride, double* out, int32_t symbols,
     double* quality, int32_t measure_snr, int32_t simd) {
+  if (!samples || !cosine || !sine || !out || (measure_snr && !quality) ||
+      stride < 1 || stride > 2048 || symbols < 1 ||
+      int64_t(symbols) * stride > 4096 || count < 0 ||
+      count > int64_t(symbols) * stride) return invalid(__func__);
   for (int s = 0; s < symbols; ++s) {
     const int offset = std::min(s * stride, count);
     const int length = std::min(stride, count - offset);
@@ -370,6 +420,12 @@ double ht_dart_fsk_modulate(
     const uint8_t* bits, int32_t count, int32_t sps, const double* steps,
     const double* cosine, const double* sine, double phase, double* out) {
   constexpr double tau = 6.28318530717958647692;
+  if (!bits || !steps || !cosine || !sine || !out ||
+      count < 0 || sps < 1 || int64_t(sps) * 4 > INT32_MAX ||
+      ((int64_t(count) + 1) / 2) * sps > INT32_MAX ||
+      !std::isfinite(phase)) return std::numeric_limits<double>::quiet_NaN();
+  for (int i = 0; i < count; ++i)
+    if (bits[i] > 1) return std::numeric_limits<double>::quiet_NaN();
   for (int i = 0; i < count; i += 2) {
     const int symbol = (bits[i] << 1) | (i + 1 < count ? bits[i + 1] : 0);
     const double re = std::cos(phase), im = std::sin(phase);

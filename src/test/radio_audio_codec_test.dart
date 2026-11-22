@@ -410,6 +410,77 @@ void main() {
     expect(packets[3].pcm, expectedB);
   });
 
+  test('receive callbacks reject operations that would overwrite input', () {
+    final packets = <ReceivedRadioAudio>[];
+    final wire = Uint8List.fromList([
+      ..._packet(2, [1]),
+      ..._packet(2, [2]),
+    ]);
+    void checkReentrancy() {
+      expect(() => _receive(codec, wire), throwsStateError);
+      expect(
+        () => codec.encode(Uint8List(256), isDataFrame: false),
+        throwsStateError,
+      );
+      expect(() => codec.resetReceiver(), throwsStateError);
+    }
+
+    codec.receive(
+      wire,
+      decodeMask: () {
+        checkReentrancy();
+        return 0;
+      },
+      onPacket: (packet) {
+        checkReentrancy();
+        packets.add(packet);
+      },
+    );
+    expect(packets.map((p) => p.payloadBytes), [1, 1]);
+    codec.resetReceiver();
+    expect(_receive(codec, wire), hasLength(2));
+  });
+
+  test('callback exceptions release the receive guard', () {
+    final wire = _packet(2, [1]);
+    expect(
+      () => codec.receive(
+        wire,
+        decodeMask: () => throw StateError('callback failure'),
+        onPacket: (_) => fail('No packet should be delivered'),
+      ),
+      throwsStateError,
+    );
+    expect(_receive(codec, wire), hasLength(1));
+  });
+
+  test('disposal from either receive callback stops native access', () {
+    final wire = Uint8List(RadioAudioCodec.maxInputBytes + 10)
+      ..setAll(0, _packet(2, [1]));
+    for (final disposeInMask in [false, true]) {
+      final local = RadioAudioCodec();
+      var masks = 0, packets = 0;
+      try {
+        local.receive(
+          wire,
+          decodeMask: () {
+            masks++;
+            if (disposeInMask) local.dispose();
+            return 0;
+          },
+          onPacket: (_) {
+            packets++;
+            local.dispose();
+          },
+        );
+        expect(masks, 1);
+        expect(packets, disposeInMask ? 0 : 1);
+      } finally {
+        local.dispose();
+      }
+    }
+  });
+
   test(
     'valid decoded prefix survives invalid sync, header, CRC, and truncation',
     () {

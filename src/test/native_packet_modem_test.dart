@@ -464,4 +464,18 @@ void main() {
       throwsStateError,
     );
   }, skip: !nativePacketModemEnabled);
+
+  test('non-finite and overflowing filter configurations are rejected', () {
+    for (final coefficient in [double.nan, double.infinity, 3.402823466e38]) {
+      final sink = _Receiver();
+      final state = PskDemodulatorState();
+      DemodPsk(
+        sink,
+      ).init(ModemType.qpsk, V26Alternative.b, 32000, 2400, 'R', state);
+      state.psk.usePrefilter = 1;
+      state.psk.preFilterTaps = 1;
+      state.psk.preFilter[0] = coefficient;
+      expect(() => NativePacketDemodulator(state, sink), throwsStateError);
+    }
+  }, skip: !nativePacketModemEnabled);
 }

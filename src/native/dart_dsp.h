@@ -12,8 +12,13 @@ extern "C" {
 #endif
 
 // All storage belongs to the caller. LDPC workspace has edges doubles;
+// Invalid arguments to void kernels emit a function-named stderr diagnostic.
 // the output buffer holds n hard-decision bytes (first k are information).
-// Decode returns the correction count, including on iteration exhaustion;
+// Only n=648, k=324/432/486/540 are supported. starts has n-k+1 entries;
+// columns/var_edges have starts[n-k] entries, var_starts has n+1 entries.
+// Allocation extents are the caller's responsibility (checked in Dart).
+// Decode returns -1 for invalid graph metadata/arguments, otherwise the
+// correction count, including on iteration exhaustion;
 // as in the reference implementation, the frame CRC decides acceptance.
 HT_DART_EXPORT void ht_dart_ldpc_encode(
     const uint16_t* starts, const uint16_t* columns, int32_t k, int32_t n,

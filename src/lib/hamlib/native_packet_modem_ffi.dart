@@ -103,14 +103,16 @@ external void _destroy(Pointer<Void> state);
     Pointer<Void>,
     Pointer<Uint8>,
     IntPtr,
+    IntPtr,
     Int32,
     Pointer<Uint32>,
     Int32,
   )
->(symbol: 'ht_packet_rx_process', assetId: _asset, isLeaf: true)
+>(symbol: 'ht_packet_rx_process_bounded', assetId: _asset, isLeaf: true)
 external int _process(
   Pointer<Void> state,
   Pointer<Uint8> pcm,
+  int pcmBytes,
   int offset,
   int samples,
   Pointer<Uint32> events,
@@ -248,6 +250,7 @@ final class PacketDemodulator implements NativePacketDemodulator, Finalizable {
         final events = _process(
           _state,
           pcm.address,
+          pcm.length,
           offset,
           count,
           _eventView.address,

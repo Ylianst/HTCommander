@@ -33,9 +33,12 @@ HT_PACKET_API void ht_packet_rx_destroy(void* state);
 // Events in chronological order: bit 0 = value, 1..7 = quality,
 // 8..11 = slicer, 12 = DCD event (otherwise a raw demodulated bit).
 // Negative result means invalid arguments; no state is consumed.
+// pcm_bytes is the available byte length, including offset. Each sample uses
+// two bytes; capacity is the number of uint32_t entries in events.
 // Borrows PCM/event storage only for this call; no allocations or callbacks.
-HT_PACKET_API int32_t ht_packet_rx_process(void* state, const uint8_t* pcm,
-    intptr_t offset, int32_t samples, uint32_t* events, int32_t capacity);
+HT_PACKET_API int32_t ht_packet_rx_process_bounded(void* state, const uint8_t* pcm,
+    intptr_t pcm_bytes, intptr_t offset, int32_t samples, uint32_t* events,
+    int32_t capacity);
 HT_PACKET_API int32_t ht_packet_tx(const ht_packet_tx_config* config,
     const int16_t* sine, const uint8_t* bits, int32_t count,
     uint8_t* pcm, int32_t capacity_samples, int32_t leading, int32_t trailing);

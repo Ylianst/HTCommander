@@ -4,7 +4,9 @@
 #include "sstv_dsp.h"
 
 #include <cmath>
+#include <cstdio>
 #include <new>
+#include <stdexcept>
 #include <vector>
 
 #if defined(__SSE2__) || defined(_M_X64)
@@ -17,6 +19,13 @@
 
 namespace {
 constexpr double pi = 3.14159265358979323846;
+void invalid(const char* function, HtSstvSync* result) {
+  std::fprintf(stderr, "%s: invalid native arguments\n", function);
+  if (result) {
+    *result = {};
+    result->detected = -1;
+  }
+}
 }
 
 struct HtSstvDemodulator {
@@ -136,10 +145,18 @@ int32_t ht_sstv_simd_width() {
 HtSstvDemodulator* ht_sstv_create(
     int32_t rate, const double* taps, int32_t count, int32_t sync_count,
     int32_t min5, int32_t max5, int32_t max9, int32_t max20, int32_t simd) {
+  if (rate < 1 || !taps || count < 1 || count > INT32_MAX / 4 ||
+      sync_count < 1 || sync_count > INT32_MAX / 2 ||
+      min5 < 0 || max5 < min5 || max9 < max5 || max20 < max9 ||
+      max20 == INT32_MAX) return nullptr;
+  for (int i = 0; i < count; ++i)
+    if (!std::isfinite(taps[i])) return nullptr;
   try {
     return new HtSstvDemodulator(rate, taps, count, sync_count,
                                  min5, max5, max9, max20, simd != 0);
   } catch (const std::bad_alloc&) {
+    return nullptr;
+  } catch (const std::length_error&) {
     return nullptr;
   }
 }
@@ -204,12 +221,16 @@ static void process_samples(HtSstvDemodulator* s, double* samples, int32_t lengt
 
 void ht_sstv_process(HtSstvDemodulator* state, double* samples, int32_t length,
                      int32_t channel, HtSstvSync* result) {
+  if (!state || !result || length < 0 || (!samples && length) ||
+      channel < 0 || channel > 4) return invalid(__func__, result);
   process_samples(state, samples, length, channel, result,
                    [samples](int i) { return samples[i]; });
 }
 
 void ht_sstv_process_pcm16(HtSstvDemodulator* state, const uint8_t* pcm,
                            int32_t length, double* output, HtSstvSync* result) {
+  if (!state || !result || length < 0 || (!pcm && length) ||
+      (!output && length / 2)) return invalid(__func__, result);
   process_samples(state, output, length / 2, 0, result, [pcm](int i) {
     const int raw = pcm[2 * i] | (pcm[2 * i + 1] << 8);
     return (raw >= 0x8000 ? raw - 0x10000 : raw) / 32768.0;

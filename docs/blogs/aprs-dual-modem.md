@@ -92,6 +92,15 @@ per modem. The smaller blocks also reduce event-buffer capacity. Input is never
 modified or retained by the native kernel, and calls stay short so the runtime
 can resume garbage collection between blocks.
 
+The native receive entry point checks the supplied PCM byte length and offset
+before reading samples, as well as the event-buffer capacity. Configurations with
+non-finite coefficients or float-history overflow are rejected before decoding;
+this prevents an invalid PSK phase from becoming a Gray-table index. The bounded
+entry point uses a distinct FFI symbol so an older DLL cannot accept the changed
+argument layout. Native bounds regressions are in
+[native_packet_modem_bounds_test.cpp](../../src/test/native_packet_modem_bounds_test.cpp)
+and can also be run with AddressSanitizer.
+
 Each modem owns tap-sized circular histories and a reusable event buffer; there
 are no per-sample heap allocations or Dart/native callbacks. Only recovered bits,
 quality measurements and carrier changes return to the existing Dart HDLC/FX.25
