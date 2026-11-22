@@ -49,7 +49,8 @@ disable **Show on start** to stop automatic display. Settings links open the
 relevant page directly. The header shows the tip number and a compact green
 **Done** indicator for configured features; hands-on tips offer a saved
 **Todo / Done** checkbox in the header that can be checked or unchecked.
-**Show on start** sits alongside the navigation buttons.
+**Show on start** sits alongside the navigation buttons, moving above them
+when space is limited so button labels remain on one line.
 The first Winlink email tip is automatically done when the **Sent** mailbox
 contains an email.
 

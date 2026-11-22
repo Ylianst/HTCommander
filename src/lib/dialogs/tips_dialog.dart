@@ -214,13 +214,15 @@ class _TipsDialogState extends State<TipsDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
             children: [
-              Expanded(
-                child: Text(
-                  l10n.tipsPosition(_index + 1),
-                  style: DialogStyles.titleStyle,
-                ),
+              Text(
+                l10n.tipsPosition(_index + 1),
+                style: DialogStyles.titleStyle,
               ),
               if (configured == null)
                 InkWell(
@@ -250,14 +252,18 @@ class _TipsDialogState extends State<TipsDialog> {
                     ],
                   ),
                 )
-              else if (done) ...[
-                const Icon(Icons.check_box, color: Colors.green, size: 20),
-                const SizedBox(width: 4),
-                Text(
-                  l10n.tipsDone,
-                  style: Theme.of(context).textTheme.bodySmall,
+              else if (done)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_box, color: Colors.green, size: 20),
+                    const SizedBox(width: 4),
+                    Text(
+                      l10n.tipsDone,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
-              ],
             ],
           ),
           const SizedBox(height: 16),
@@ -313,58 +319,58 @@ class _TipsDialogState extends State<TipsDialog> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 4,
             children: [
-              Expanded(
-                flex: 2,
-                child: InkWell(
-                  onTap: () => _broker.dispatch(
-                    deviceId: 0,
-                    name: 'TipsShowOnStart',
-                    data: !TipsDialog.showOnStart,
-                  ),
-                  child: Row(
-                    children: [
-                      Checkbox(
-                        visualDensity: VisualDensity.compact,
-                        value: TipsDialog.showOnStart,
-                        onChanged: (value) => _broker.dispatch(
-                          deviceId: 0,
-                          name: 'TipsShowOnStart',
-                          data: value ?? false,
-                        ),
+              InkWell(
+                onTap: () => _broker.dispatch(
+                  deviceId: 0,
+                  name: 'TipsShowOnStart',
+                  data: !TipsDialog.showOnStart,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Checkbox(
+                      visualDensity: VisualDensity.compact,
+                      value: TipsDialog.showOnStart,
+                      onChanged: (value) => _broker.dispatch(
+                        deviceId: 0,
+                        name: 'TipsShowOnStart',
+                        data: value ?? false,
                       ),
-                      Expanded(
-                        child: Text(
-                          l10n.tipsShowOnStart,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
+                    ),
+                    Flexible(
+                      child: Text(
+                        l10n.tipsShowOnStart,
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+              Wrap(
+                spacing: 8,
+                children: [
+                  TextButton(
+                    style: navigationStyle,
+                    onPressed: _opening ? null : () => _move(-1),
+                    child: Text(l10n.tipsPrevious),
                   ),
-                ),
-              ),
-              Flexible(
-                child: TextButton(
-                  style: navigationStyle,
-                  onPressed: _opening ? null : () => _move(-1),
-                  child: Text(l10n.tipsPrevious),
-                ),
-              ),
-              Flexible(
-                child: TextButton(
-                  style: navigationStyle,
-                  onPressed: _opening ? null : () => _move(1),
-                  child: Text(l10n.tipsNext),
-                ),
-              ),
-              Flexible(
-                child: TextButton(
-                  style: navigationStyle,
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.commonClose),
-                ),
+                  TextButton(
+                    style: navigationStyle,
+                    onPressed: _opening ? null : () => _move(1),
+                    child: Text(l10n.tipsNext),
+                  ),
+                  TextButton(
+                    style: navigationStyle,
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(l10n.commonClose),
+                  ),
+                ],
               ),
             ],
           ),

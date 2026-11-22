@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/aprs/aprs_util.dart';
 import 'package:htcommander/dialogs/tips_dialog.dart';
@@ -54,6 +55,23 @@ void main() {
 
   final done = find.text('Done');
 
+  void expectSingleLineNavigation(WidgetTester tester, List<String> labels) {
+    for (final label in labels) {
+      final paragraph = tester.renderObject<RenderParagraph>(find.text(label));
+      final painter = TextPainter(
+        text: paragraph.text,
+        textDirection: paragraph.textDirection,
+        textScaler: paragraph.textScaler,
+      )..layout();
+      expect(
+        paragraph.size.height,
+        closeTo(painter.height, 0.01),
+        reason: '$label should not wrap',
+      );
+      painter.dispose();
+    }
+  }
+
   testWidgets('first tip links to License and reflects saved configuration', (
     tester,
   ) async {
@@ -90,6 +108,11 @@ void main() {
     expect(
       tester.getCenter(find.text('Show on start')).dx,
       lessThan(tester.getCenter(find.text('Previous')).dx),
+    );
+    expectSingleLineNavigation(tester, ['Previous', 'Next', 'Close']);
+    expect(
+      tester.getTopLeft(done).dx,
+      closeTo(tester.getTopRight(find.byIcon(Icons.check_box)).dx + 4, 0.01),
     );
     expect(
       tester.widget<Icon>(find.byIcon(Icons.check_box)).color,
@@ -258,10 +281,37 @@ void main() {
     set('TipsNextId', 'removed-tip');
     await open(tester);
     expect(find.text("Unlock HTCommander's transmit features"), findsOneWidget);
+    expect(
+      tester.getBottomLeft(find.text('Show on start')).dy,
+      lessThan(tester.getTopLeft(find.text('Previous')).dy),
+    );
+    expectSingleLineNavigation(tester, ['Previous', 'Next', 'Close']);
+    await tap(tester, 'Show on start');
+    expect(TipsDialog.showOnStart, isFalse);
     for (var i = 0; i < 14; i++) {
       await tap(tester, 'Next');
       expect(tester.takeException(), isNull, reason: 'tip $i');
     }
+    await tap(tester, 'Close');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('larger mobile text moves startup preference above navigation', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await open(tester);
+    expect(
+      tester.getBottomLeft(find.text('Show on start')).dy,
+      lessThan(tester.getTopLeft(find.text('Previous')).dy),
+    );
+    expectSingleLineNavigation(tester, ['Previous', 'Next', 'Close']);
+    await tap(tester, 'Next');
+    expect(find.text('Set up Winlink email'), findsOneWidget);
     await tap(tester, 'Close');
     expect(tester.takeException(), isNull);
   });
@@ -308,6 +358,11 @@ void main() {
       await open(tester, locale: locale);
       expect(find.text(l10n.tipsPosition(10)), findsOneWidget);
       expect(find.text(l10n.tipsTodo), findsOneWidget);
+      expectSingleLineNavigation(tester, [
+        l10n.tipsPrevious,
+        l10n.tipsNext,
+        l10n.commonClose,
+      ]);
       expect(tester.takeException(), isNull);
       await tap(tester, l10n.tipsTodo);
       expect(find.text(l10n.tipsDone), findsOneWidget);
