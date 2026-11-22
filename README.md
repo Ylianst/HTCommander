@@ -17,6 +17,15 @@ EchoLink and the following radios should work with this application:
 - Vero VR-N75, VR-N76, VR-N7500, VR-N7600
 - Radtel RT-660
 
+Experimental, capture-based support is also included for **Benshi AP-2** and
+**Zastone D9000-APP** (Bluetooth names `AP-2` and `ZASTONE`). Their control
+protocol uses the existing vendor service UUID. Regression tests cover model
+recognition, frequency-band discovery, status notifications, and settings
+writes at each radio's original payload length. Physical-radio testing is still
+needed for channel programming, Bluetooth audio, packet radio, and firmware
+updates. The D9000-APP capture reports programmable-button discovery (`GET_PF`)
+as unsupported. Hongkaide HK-7000APP is not yet verified or explicitly supported.
+
 ### Installation
 
 - [Windows Installer (.msi)](https://github.com/Ylianst/HTCommander/releases/latest/download/HTCommander-x64.msi). Only runs on 64bit Windows 10 and 11.

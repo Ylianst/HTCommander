@@ -3592,8 +3592,9 @@ class Radio implements FirmwareRadio {
         RadioBasicCommand.getHtStatus,
         null,
       );
-      // Read the radio's supported frequency bands when it advertises any.
-      if (info!.freqRangeCount > 0) {
+      // D9000-APP advertises zero bands but returns them in READ_FREQ_RANGE.
+      if (info!.freqRangeCount > 0 ||
+          (info!.vendorId == 4 && info!.productId == 0x0302)) {
         readFreqRange();
       }
       _updateChannels();

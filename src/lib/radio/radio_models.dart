@@ -98,6 +98,10 @@ class RadioDevInfo {
         return 'HG-UV98';
       case 0x0005:
         return 'HAM-AIO';
+      case 0x0302:
+        return 'Zastone D9000-APP';
+      case 0x1002:
+        return 'Benshi AP-2';
       default:
         return 'Unknown Radio ($productId)';
     }

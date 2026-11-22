@@ -322,8 +322,15 @@ block; fields are bit-packed starting at offset 5:
 | 14 | `0xF0` | `freqRangeCount` |
 
 `productId` also drives the friendly name (`0x0001` → VR-N7500, `0x0002` →
-VR-N76, `0x0003` → SA-888S, `0x0004` → HG-UV98, `0x0005` → HAM-AIO). This reply
+VR-N76, `0x0003` → SA-888S, `0x0004` → HG-UV98, `0x0005` → HAM-AIO,
+`0x0302` → Zastone D9000-APP, `0x1002` → Benshi AP-2). This reply
 is what tells the app how many channels and regions to enumerate.
+
+AP-2 and D9000-APP Bluetooth Classic captures use the same GAIA framing and
+vendor service UUID as the existing radios. Both report 16 channels. Their
+successful `READ_SETTINGS` replies contain respectively 22 and 12 settings
+bytes after the status byte; settings writes preserve that length and all
+unmodified bytes rather than expanding older replies to a newer layout.
 
 ### READ_FREQ_RANGE (39) → tunable bands
 
@@ -373,6 +380,11 @@ Worked example — a real reply body from a dual-band HT:
 HTCommander reads this on every connection (when `freqRangeCount > 0`) and uses
 the bands to validate channel-edit frequencies and to grey out RepeaterBook and
 Winlink stations the radio cannot tune.
+The captured D9000-APP (vendor `4`, product `0x0302`) reports
+`freqRangeCount == 0` despite supporting this command, so HTCommander also reads
+its bands on connection. Both supplied AP-2 and D9000-APP captures return
+136–174 MHz and 400–480 MHz FM TX/RX bands, with an intervening 200–200 MHz
+entry that is skipped.
 The Radio Information dialog's **Copy All** includes the reported frequency
 ranges and their capability labels, matching the displayed section.
 

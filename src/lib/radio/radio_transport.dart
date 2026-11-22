@@ -80,6 +80,8 @@ class DiscoveredDevice {
     'VR-N7500',
     'VR-N7600',
     'DB50-B',
+    'AP-2',
+    'ZASTONE',
   ];
 
   /// Whether this device's advertised name matches a known radio product name.

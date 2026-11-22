@@ -280,6 +280,7 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
     // See GitHub issue #35.
     private static let targetDeviceNames = [
         "UV-PRO", "UV-50PRO", "GA-5WB", "VR-N75", "VR-N76", "VR-N7500", "VR-N7600", "DB50-B",
+        "AP-2", "ZASTONE",
         "WP-C1", "HT-CH1", "QUANSHENG", "VR-N", "SA-888S", "HG-UV98", "UV-98",
         "HAM-AIO", "VR-6600PRO", "TH-UV88", "3B01B", "E1WPR", "PNI-HP98WP"
     ]
