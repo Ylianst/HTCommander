@@ -63,6 +63,21 @@ original samples. Queues containing non-radio PCM retain the existing 800 ms
 admission cap rather than flushing another source's audio. Reset failures are
 logged and disable output admission until the device is set up again.
 
+**Native playback input validation:** Linux and macOS PCM setup retain their
+nonpositive-value defaults, but reject positive rates above 384000 Hz or channel
+counts above 32 before narrowing or calculating buffer sizes. Linux rejects
+partial 16-bit frames and queued-frame arithmetic overflow; its PulseAudio
+latency calculation ignores the failure sentinel and saturates reported frames
+at `INT_MAX` without overflowing intermediate products. macOS rejects
+partial-frame feeds or individual feeds exceeding two seconds, and trims old
+FIFO data before appending so the pending backlog stays within that limit.
+These setup/feed rejections return `false` through the existing method-channel
+success envelope, not a new error envelope; failed latency reads report only
+the software queue. macOS control-channel sends likewise reject empty data or
+lengths above 65535 bytes before converting the RFCOMM length to UInt16.
+The standalone output-worker regression also exercises the portable Linux
+format/latency helpers; Linux/macOS device validation still requires those hosts.
+
 **Receive decoder workers:** DART and packet-modem (AFSK/PSK, including HDLC and
 FX.25) reception now runs in a persistent worker per modem instance. SSTV and
 buffered radiosonde reception have separate persistent workers. Native DSP calls

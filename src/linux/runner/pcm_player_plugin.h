@@ -8,6 +8,8 @@
 // _NativeChannelPcmPlayer works unchanged:
 //   - MethodChannel  com.htcommander/pcm_player
 //   - EventChannel   com.htcommander/pcm_player_feed  (remaining buffered frames)
+// Positive formats are limited to 384000 Hz and 32 channels. Feeds must contain
+// complete 16-bit interleaved frames; failed latency reads add no device frames.
 
 #ifndef RUNNER_PCM_PLAYER_PLUGIN_H_
 #define RUNNER_PCM_PLAYER_PLUGIN_H_

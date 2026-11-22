@@ -5,6 +5,7 @@
 // channel contract; it mirrors the Windows waveOut plugin.
 
 #include "pcm_player_plugin.h"
+#include "pcm_player_bounds.h"
 
 #include <pulse/error.h>
 #include <pulse/simple.h>
@@ -101,7 +102,7 @@ static gpointer pcm_play_thread(gpointer user_data) {
 
       int frame_bytes = channels * 2;
       if (frame_bytes <= 0) frame_bytes = 2;
-      gint64 frames = (gint64)c->len / frame_bytes;
+      gint64 frames = static_cast<gint64>(c->len / frame_bytes);
 
       g_mutex_lock(&p->lock);
       p->queued_frames -= frames;
@@ -112,8 +113,7 @@ static gpointer pcm_play_thread(gpointer user_data) {
       // Report roughly how many frames remain to be played: what is still in
       // our queue plus what PulseAudio has buffered but not yet rendered.
       pa_usec_t latency = pa_simple_get_latency(pa, &err);
-      gint64 latency_frames = (gint64)latency * rate / 1000000;
-      pcm_emit_feed(p, (gint)(queued + latency_frames));
+      pcm_emit_feed(p, pcm_bounds::BufferedFrames(queued, latency, rate));
     }
 
     pcm_chunk_free(c);
@@ -153,6 +153,7 @@ static gboolean pcm_setup(PcmPlugin* p, int rate, int channels,
   pcm_release(p);
   if (rate <= 0) rate = 32000;
   if (channels <= 0) channels = 1;
+  if (!pcm_bounds::ValidFormat(rate, channels)) return FALSE;
 
   pa_sample_spec ss;
   ss.format = PA_SAMPLE_S16LE;
@@ -197,15 +198,19 @@ static gboolean pcm_feed(PcmPlugin* p, const guint8* data, gsize len) {
     g_mutex_unlock(&p->lock);
     return FALSE;
   }
+  const gsize frame_bytes = static_cast<gsize>(p->channels) * 2;
+  if (len % frame_bytes != 0 ||
+      len / frame_bytes > static_cast<uint64_t>(G_MAXINT64 - p->queued_frames)) {
+    g_mutex_unlock(&p->lock);
+    return FALSE;
+  }
   PcmChunk* c = g_new0(PcmChunk, 1);
   c->data = (guint8*)g_malloc(len);
   memcpy(c->data, data, len);
   c->len = len;
   g_queue_push_tail(p->queue, c);
 
-  int frame_bytes = p->channels * 2;
-  if (frame_bytes <= 0) frame_bytes = 2;
-  p->queued_frames += (gint64)len / frame_bytes;
+  p->queued_frames += static_cast<gint64>(len / frame_bytes);
 
   g_cond_signal(&p->cond);
   g_mutex_unlock(&p->lock);
@@ -219,7 +224,9 @@ static int pcm_int_arg(FlValue* args, const char* key, int fallback) {
   if (!args) return fallback;
   FlValue* v = fl_value_lookup_string(args, key);
   if (v && fl_value_get_type(v) == FL_VALUE_TYPE_INT) {
-    return (int)fl_value_get_int(v);
+    const gint64 value = fl_value_get_int(v);
+    if (value < G_MININT || value > G_MAXINT) return G_MAXINT;
+    return static_cast<int>(value);
   }
   return fallback;
 }

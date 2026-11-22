@@ -219,7 +219,7 @@ void ht_xara_fft_direct(
     double* re, double* im, const double* cosine, const double* sine,
     const int32_t* reverse, int32_t n, int32_t inverse, int32_t simd,
     double* work) {
-  if (n < 1 || (n & (n - 1)) || !re || !im || !reverse ||
+  if (n < 1 || n > 2048 || (n & (n - 1)) || !re || !im || !reverse ||
       (n > 1 && (!cosine || !sine))) return invalid(__func__);
   for (int index = 0; index < n; ++index)
     if (reverse[index] < 0 || reverse[index] >= n) return invalid(__func__);
@@ -282,7 +282,7 @@ void ht_xara_append_spectrum(
     const double* re, const double* im, const float* previous,
     float* row, int32_t n, int32_t has_previous) {
   if (!diff || !re || !im || !row || (has_previous && !previous) ||
-      capacity < 1 || index < 0 || index >= capacity || n < 1 ||
+      capacity < 1 || index < 0 || index >= capacity || n < 1 || n > 128 ||
       int64_t(n) * 2 * capacity > INT32_MAX) return invalid(__func__);
   for (int k = 0; k < n; ++k) {
     const double ar = static_cast<float>(re[k]), ai = static_cast<float>(im[k]);
@@ -444,7 +444,7 @@ int32_t ht_xara_turbo(
     const int tlen = k + 3;
     const int nwin = (tlen + window - 1) / window;
     const int seg = ((nwin + segments - 1) / segments) * window;
-    const int nseg = (tlen + seg - 1) / seg;
+    const int nseg = static_cast<int>((int64_t(tlen) + seg - 1) / seg);
     std::vector<int> inv(k, -1);
     for (int i = 0; i < k; ++i) {
       if (perm[i] < 0 || perm[i] >= k || inv[perm[i]] != -1) return -1;
@@ -467,7 +467,9 @@ int32_t ht_xara_turbo(
       const int old = (it + 1) % 2, nw = it % 2;
       for (int d = 0; d < 2; ++d) {
         for (int i = 0; i < nseg; ++i) {
-          const int s0 = i * seg, s1 = std::min((i + 1) * seg, tlen);
+          const int s0 = i * seg;
+          const int s1 = static_cast<int>(std::min(int64_t(i + 1) * seg,
+                                                  int64_t(tlen)));
           for (int t = s0; t < s1; ++t) {
             x[t - s0] = t >= k ? systematic[d][t]
                 : (d == 0 ? ls[t] + le21[t] : ls2[t] + ext[0][perm[t]]);

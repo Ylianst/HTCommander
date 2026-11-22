@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <new>
 #include <cstdint>
+#include <limits>
 
 #if defined(_WIN32)
 #define EXPORT extern "C" __declspec(dllexport)
@@ -445,12 +446,28 @@ EXPORT void ht_satellite_observer(Engine* e, double latitude, double longitude,
 EXPORT int32_t ht_satellite_look_grid(Engine* e, int64_t epochUs,
     int64_t startUs, int64_t stepUs, int64_t toUs, int32_t count) {
   if (!e || count < 0 || count > capacity || stepUs <= 0) return -1;
+  constexpr auto maximum = std::numeric_limits<int64_t>::max();
+  constexpr auto minimum = std::numeric_limits<int64_t>::min();
+  int64_t timestamps[capacity];
+  // Validate the entire batch before touching propagation state or output.
   for (int i = 0; i < count; ++i) {
-    const int64_t candidate = startUs + stepUs * i;
+    if (i && stepUs > maximum / i) return -1;
+    const int64_t delta = stepUs * i;
+    if (startUs > maximum - delta) return -1;
+    const int64_t candidate = startUs + delta;
     const int64_t gridUs = candidate < toUs ? candidate : toUs;
     // findPasses converts grid integers to doubles, then rounds them back
     // before propagation. Match even outside the exact-integer double range.
-    const int64_t utcUs = std::llround(static_cast<double>(gridUs));
+    const double roundedUs = static_cast<double>(gridUs);
+    // INT64_MAX rounds up to 2^63 as a double, outside llround's range.
+    if (roundedUs >= 9223372036854775808.0) return -1;
+    const int64_t utcUs = std::llround(roundedUs);
+    if ((epochUs > 0 && utcUs < minimum + epochUs) ||
+        (epochUs < 0 && utcUs > maximum + epochUs)) return -1;
+    timestamps[i] = utcUs;
+  }
+  for (int i = 0; i < count; ++i) {
+    const int64_t utcUs = timestamps[i];
     double state[6];
     auto* row = e->rows + i * 5;
     int status = step(e->satellite, (utcUs - epochUs) / 6.0e7, state);

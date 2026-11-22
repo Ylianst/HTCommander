@@ -52,6 +52,8 @@ Native calls process at most 256 samples per FFI transition. The API copies
 results into Dart-owned buffers; no pointer escapes and buffers are local
 to each engine/worker. Explicit disposal and a native finalizer release
 storage. Calls are non-leaf, allowing normal VM coordination.
+Pass-grid batches reject overflowing timestamp arithmetic and out-of-range
+double-to-integer rounding before changing propagation state or writing rows.
 Compile with strict double arithmetic, no fast-math and no FP contraction;
 the helper sets `/fp:strict` or `-ffp-contract=off -fno-fast-math`.
 SIMD/float32 reassociation is intentionally not used for this sensitive kernel.

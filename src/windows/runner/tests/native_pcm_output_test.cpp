@@ -1,6 +1,7 @@
 // Copyright 2026 Ylian Saint-Hilaire - Apache 2.0
 //
 // Standalone deterministic WinMM substitute; no Flutter build/audio hardware.
+// Also exercises the Linux plugin's platform-independent bounds helpers.
 // From an MSVC developer prompt at the repository root:
 // cl /nologo /std:c++17 /EHsc /W4 /WX /DNOMINMAX /D_WINMM_ ^
 //   src\windows\runner\native_pcm_output.cpp ^
@@ -13,6 +14,7 @@
 #include <mmsystem.h>
 
 #include "..\native_pcm_output.h"
+#include "..\..\..\linux\runner\pcm_player_bounds.h"
 
 #include <atomic>
 #include <chrono>
@@ -202,6 +204,19 @@ MMRESULT WINAPI waveOutClose(HWAVEOUT handle) {
 }  // extern "C"
 
 int main() {
+  CHECK(!pcm_bounds::ValidFormat(32000, 257));  // Must not narrow to mono.
+  CHECK(!pcm_bounds::ValidFormat(32000, (std::numeric_limits<int>::max)()));
+  CHECK(!pcm_bounds::ValidFormat((std::numeric_limits<int>::max)(), 1));
+  CHECK(pcm_bounds::ValidFormat(48000, 2));
+  CHECK(pcm_bounds::BufferedFrames(640, 20000, 32000) == 1280);
+  CHECK(pcm_bounds::BufferedFrames(
+      640, (std::numeric_limits<uint64_t>::max)(), 32000) == 640);
+  CHECK(pcm_bounds::BufferedFrames(
+      640, (std::numeric_limits<uint64_t>::max)() - 1, 384000) ==
+      (std::numeric_limits<int>::max)());
+  CHECK(pcm_bounds::BufferedFrames(
+      (std::numeric_limits<int>::max)() - 1, 1000000, 32000) ==
+      (std::numeric_limits<int>::max)());
   {
     NativePcmOutput output;
     std::vector<uint8_t> mono(1280, 0);  // 20 ms silence at 32000 Hz.

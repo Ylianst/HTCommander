@@ -692,6 +692,7 @@ class BluetoothClassicHandler: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannel
     }
 
     private func send(address: String, data: Data) -> Bool {
+        guard !data.isEmpty, data.count <= Int(UInt16.max) else { return false }
         let normalizedAddress = address.uppercased().replacingOccurrences(of: ":", with: "-")
         
         guard let connection = connections[normalizedAddress], !connection.sharedAudioWriting else {
@@ -2005,6 +2006,8 @@ class PcmPlayerHandler: NSObject, FlutterPlugin, FlutterStreamHandler {
 
         sampleRate = rate > 0 ? rate : 32000
         channels = chans > 0 ? chans : 1
+        // Bound all subsequent Int products and UInt32 AudioQueue sizes.
+        guard sampleRate <= 384000, channels <= 32 else { return false }
 
         var format = AudioStreamBasicDescription(
             mSampleRate: Float64(sampleRate),
@@ -2071,10 +2074,17 @@ class PcmPlayerHandler: NSObject, FlutterPlugin, FlutterStreamHandler {
         // Append to the FIFO; the output callback drains it into the ring at the
         // real-time sample rate. Bound the backlog (~2 s) so a stalled consumer
         // cannot grow memory without limit; drop the oldest audio to catch up.
+        // Reject oversized or partial-frame feeds before copying their bytes.
         let frameBytes = max(channels * 2, 2)
         let maxBacklogBytes = sampleRate * frameBytes * 2
-        if (fifo.count - fifoHead) > maxBacklogBytes {
-            fifoHead += (fifo.count - fifoHead) - maxBacklogBytes
+        guard data.count % frameBytes == 0, data.count <= maxBacklogBytes else { return false }
+        let retainedBytes = maxBacklogBytes - data.count
+        if (fifo.count - fifoHead) > retainedBytes {
+            fifoHead += (fifo.count - fifoHead) - retainedBytes
+        }
+        if fifoHead > 0 {
+            fifo.removeFirst(fifoHead)
+            fifoHead = 0
         }
         data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
             fifo.append(contentsOf: raw.bindMemory(to: UInt8.self))

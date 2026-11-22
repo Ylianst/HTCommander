@@ -426,7 +426,7 @@ double ht_dart_fsk_modulate(
       !std::isfinite(phase)) return std::numeric_limits<double>::quiet_NaN();
   for (int i = 0; i < count; ++i)
     if (bits[i] > 1) return std::numeric_limits<double>::quiet_NaN();
-  for (int i = 0; i < count; i += 2) {
+  for (int64_t i = 0; i < count; i += 2) {
     const int symbol = (bits[i] << 1) | (i + 1 < count ? bits[i + 1] : 0);
     const double re = std::cos(phase), im = std::sin(phase);
     const double* c = cosine + symbol * sps;

@@ -7,9 +7,15 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
+extern "C" void* ht_satellite_create();
+extern "C" void ht_satellite_destroy(void*);
+extern "C" double* ht_satellite_rows(void*);
 extern "C" void ht_satellite_init(void*);
 extern "C" void ht_satellite_observer(void*, double, double, double);
+extern "C" int32_t ht_satellite_look_grid(void*, int64_t, int64_t, int64_t,
+                                         int64_t, int32_t);
 
 int main() {
   double re[4] = {1, 2, 3, 4}, im[4] = {};
@@ -18,6 +24,8 @@ int main() {
   ht_xara_fft(re, im, trig, trig, invalid_reverse, 4, 0, 1);
   assert(re[0] == 1 && re[3] == 4);
   ht_xara_fft_direct(re, im, trig, trig, invalid_reverse, -1, 0, 1, nullptr);
+  ht_xara_fft_direct(re, im, trig, trig, invalid_reverse, 4096, 0, 1, nullptr);
+  assert(re[0] == 1 && re[3] == 4);
   double work[8] = {};
   ht_xara_fft_direct(re, re, trig, trig, invalid_reverse, 4, 0, 1, work);
   assert(re[0] == 1 && re[3] == 4);
@@ -25,6 +33,9 @@ int main() {
   ht_xara_append_row(nullptr, 0, 0, 0, nullptr);
   ht_xara_append_spectrum(nullptr, 0, 0, nullptr, nullptr, nullptr,
                           nullptr, 0, 0);
+  float diff[2] = {17, 17}, row[2] = {17, 17};
+  ht_xara_append_spectrum(diff, 1, 0, re, im, nullptr, row, 129, 0);
+  assert(diff[0] == 17 && row[0] == 17);
   ht_xara_correlate(nullptr, 0, nullptr, nullptr, nullptr, 0, 0,
                     0, 0, 0, nullptr, nullptr, 1);
 
@@ -93,5 +104,21 @@ int main() {
   ht_spectrogram_roll_reset(nullptr, 0);
   ht_satellite_init(nullptr);
   ht_satellite_observer(nullptr, 0, 0, 0);
+  void* satellite = ht_satellite_create();
+  assert(satellite);
+  double* rows = ht_satellite_rows(satellite);
+  rows[0] = rows[5] = 17;
+  constexpr auto maximum = std::numeric_limits<int64_t>::max();
+  constexpr auto minimum = std::numeric_limits<int64_t>::min();
+  assert(ht_satellite_look_grid(satellite, 0, 0, maximum, 0, 3) == -1);
+  assert(ht_satellite_look_grid(satellite, 0, maximum - 1024, 2048,
+                                maximum, 2) == -1);
+  assert(ht_satellite_look_grid(satellite, 0, maximum, 1, maximum, 1) == -1);
+  assert(ht_satellite_look_grid(satellite, 1, minimum, 1, minimum, 1) == -1);
+  assert(ht_satellite_look_grid(satellite, minimum, 0, 1, 0, 1) == -1);
+  assert(rows[0] == 17 && rows[5] == 17);
+  assert(ht_satellite_look_grid(satellite, 0, -1000, 1000, 0, 2) == 0);
+  assert(rows[0] == 2 && rows[5] == 2);
+  ht_satellite_destroy(satellite);
   return 0;
 }
