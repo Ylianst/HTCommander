@@ -8,12 +8,12 @@
   "md5": "669fbff5db440892acb1a495a6cefe7b",
   "recordCount": 1588146,
   "overlay": {
-    "version": "2026.11.15",
-    "sourceDate": 20261115,
-    "url": "https://github.com/Ylianst/HTCommander/releases/download/callsign-db/fcc_amateur_overlay-0853693379be078adfcb51482c41f423.cdb.xz",
+    "version": "2026.11.22",
+    "sourceDate": 20261122,
+    "url": "https://github.com/Ylianst/HTCommander/releases/download/callsign-db/fcc_amateur_overlay-2d7ef31633c07df724fab13592085a38.cdb.xz",
     "compressed": true,
-    "sizeBytes": 1684348,
-    "md5": "0853693379be078adfcb51482c41f423",
-    "recordCount": 96470
+    "sizeBytes": 1723560,
+    "md5": "2d7ef31633c07df724fab13592085a38",
+    "recordCount": 99145
   }
 }
