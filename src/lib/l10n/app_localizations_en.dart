@@ -1274,6 +1274,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsEnableAgwpeServer => 'Enable AGWPE Server';
 
   @override
+  String get settingsEnableSmtpServer => 'Enable local SMTP server';
+
+  @override
+  String get settingsEnablePop3Server => 'Enable local POP3 server';
+
+  @override
+  String get settingsMailServerPassword => 'Mail bridge password';
+
+  @override
+  String get settingsMailServerCopyPassword => 'Copy mail bridge password';
+
+  @override
+  String get settingsMailServerNewPassword =>
+      'Generate a new mail bridge password';
+
+  @override
+  String get settingsMailServerPasswordCopied => 'Mail bridge password copied';
+
+  @override
+  String settingsMailServerNote(String account) {
+    return 'Desktop only. Connect to 127.0.0.1 with security set to None. Use $account@winlink.org as the email address and username, with this bridge password (not your Winlink password). SMTP queues mail until you sync Winlink. POP3 exposes Inbox; leave messages on the server to keep them in HTCommander. Client deletions move mail to Trash.';
+  }
+
+  @override
+  String get settingsMailServerInvalidSettings =>
+      'Set a callsign, a bridge password of at least 12 printable ASCII characters, and ports between 1 and 65535. Enabled SMTP and POP3 servers must use different ports.';
+
+  @override
   String get settingsEnableBbsWebServer => 'Enable HTTP BBS Server';
 
   @override

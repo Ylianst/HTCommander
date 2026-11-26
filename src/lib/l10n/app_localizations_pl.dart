@@ -1294,6 +1294,34 @@ class AppLocalizationsPl extends AppLocalizations {
   String get settingsEnableAgwpeServer => 'Włącz serwer AGWPE';
 
   @override
+  String get settingsEnableSmtpServer => 'Włącz lokalny serwer SMTP';
+
+  @override
+  String get settingsEnablePop3Server => 'Włącz lokalny serwer POP3';
+
+  @override
+  String get settingsMailServerPassword => 'Hasło mostu pocztowego';
+
+  @override
+  String get settingsMailServerCopyPassword => 'Kopiuj hasło mostu pocztowego';
+
+  @override
+  String get settingsMailServerNewPassword => 'Wygeneruj nowe hasło mostu';
+
+  @override
+  String get settingsMailServerPasswordCopied =>
+      'Skopiowano hasło mostu pocztowego';
+
+  @override
+  String settingsMailServerNote(String account) {
+    return 'Tylko komputery. Połącz z 127.0.0.1, ustawiając zabezpieczenia na Brak. Użyj $account@winlink.org jako adresu i nazwy użytkownika oraz tego hasła mostu (nie hasła Winlink). SMTP kolejkuje pocztę do synchronizacji Winlink. POP3 udostępnia skrzynkę odbiorczą; pozostaw wiadomości na serwerze, aby zachować je w HTCommander. Usunięcie w kliencie przenosi pocztę do kosza.';
+  }
+
+  @override
+  String get settingsMailServerInvalidSettings =>
+      'Ustaw znak wywoławczy, hasło mostu z co najmniej 12 drukowalnych znaków ASCII i porty od 1 do 65535. Włączone serwery SMTP i POP3 muszą używać różnych portów.';
+
+  @override
   String get settingsEnableBbsWebServer => 'Włącz serwer BBS HTTP';
 
   @override

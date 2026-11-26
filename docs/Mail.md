@@ -27,3 +27,53 @@ backup/restore remains compatible. If the application database is unavailable,
 the legacy file path uses coalesced worker-side serialization and a temporary
 file rename instead. Persistence failures are reported in diagnostics and
 failed writes remain pending for an explicit retry.
+
+## Desktop email clients (local SMTP / POP3)
+
+On Windows, macOS, and Linux, **Settings > Servers** can enable local SMTP and
+POP3 servers independently. Both are **disabled by default**. SMTP defaults to
+port **8025**, POP3 to **8110**; both ports are configurable. Changes take effect
+when you save settings and enabled servers restart with the app.
+
+Configure a separate Winlink account in a direct-connection email client such
+as Thunderbird or Apple Mail:
+
+| Setting | Value |
+| --- | --- |
+| Email address / username | `CALLSIGN@winlink.org` |
+| Incoming server | POP3, `127.0.0.1`, port `8110` (or your configured port) |
+| Outgoing server | SMTP, `127.0.0.1`, port `8025` (or your configured port) |
+| Connection security | None, for both servers |
+| Authentication | Normal password; enable outgoing SMTP authentication |
+| Password | The **mail bridge password** in Settings > Servers, not your Winlink password |
+
+Enabling either server generates a bridge password if none is configured.
+Use the copy button to paste it into your email client. Changing the password
+disconnects existing clients. If **Use station ID** is enabled for Winlink, use
+the suffixed callsign (for example `CALLSIGN-7@winlink.org`).
+The bridge password is kept in the platform's encrypted secret store and is
+not synchronized to hosted browsers or agents.
+
+The servers bind **only to IPv4 loopback**. Use `127.0.0.1`, not a LAN address;
+there is no TLS, LAN access, or internet relay. HTCommander must remain running.
+Mobile and browser builds do not expose this feature. Cloud-mediated clients
+that connect from a provider's servers cannot reach this local account.
+
+SMTP saves accepted mail durably into HTCommander's **Outbox**. Click **Connect**
+in the Mail tab or **Sync mail** on a Winlink gateway to transmit it. Sending from
+the email client does not automatically key the radio or initiate a Winlink
+session. The client's Sent folder means *accepted into HTCommander*, not
+necessarily transmitted through Winlink.
+
+Use plain-text composition, or multipart mail containing a plain-text part.
+MIME attachments, encoded subjects, and character sets are supported; HTML-only
+messages and Bcc are explicitly rejected rather than silently losing content or
+exposing hidden recipients. Sender addresses must match your configured Winlink
+account. Messages are limited to 10 MiB, and subjects to 252 UTF-8 bytes.
+
+POP3 exposes only **Inbox**, with stable message identifiers and a snapshot per
+login. Set your client to **leave messages on the server** to retain them in
+HTCommander. A POP3 deletion takes effect only on a successful `QUIT`, moving
+the message to **Trash**, not permanently deleting it. Disconnecting before
+`QUIT` or issuing `RSET` cancels pending deletions. Only one POP3 client may hold
+the maildrop at a time. POP3 does not synchronize folders or read/unread flags.

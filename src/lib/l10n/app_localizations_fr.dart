@@ -1298,6 +1298,34 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsEnableAgwpeServer => 'Activer le serveur AGWPE';
 
   @override
+  String get settingsEnableSmtpServer => 'Activer le serveur SMTP local';
+
+  @override
+  String get settingsEnablePop3Server => 'Activer le serveur POP3 local';
+
+  @override
+  String get settingsMailServerPassword => 'Mot de passe du pont de messagerie';
+
+  @override
+  String get settingsMailServerCopyPassword => 'Copier le mot de passe du pont';
+
+  @override
+  String get settingsMailServerNewPassword =>
+      'Générer un nouveau mot de passe du pont';
+
+  @override
+  String get settingsMailServerPasswordCopied => 'Mot de passe du pont copié';
+
+  @override
+  String settingsMailServerNote(String account) {
+    return 'Ordinateur uniquement. Connectez-vous à 127.0.0.1 avec la sécurité réglée sur Aucune. Utilisez $account@winlink.org comme adresse et nom d\'utilisateur, avec ce mot de passe du pont (pas celui de Winlink). SMTP met le courrier en attente jusqu\'à la synchronisation Winlink. POP3 expose la boîte de réception ; laissez les messages sur le serveur pour les conserver dans HTCommander. Les suppressions du client déplacent le courrier dans la corbeille.';
+  }
+
+  @override
+  String get settingsMailServerInvalidSettings =>
+      'Définissez un indicatif, un mot de passe du pont d\'au moins 12 caractères ASCII imprimables et des ports entre 1 et 65535. Les serveurs SMTP et POP3 activés doivent utiliser des ports différents.';
+
+  @override
   String get settingsEnableBbsWebServer => 'Activer le serveur BBS HTTP';
 
   @override

@@ -2356,6 +2356,54 @@ abstract class AppLocalizations {
   /// **'Enable AGWPE Server'**
   String get settingsEnableAgwpeServer;
 
+  /// No description provided for @settingsEnableSmtpServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable local SMTP server'**
+  String get settingsEnableSmtpServer;
+
+  /// No description provided for @settingsEnablePop3Server.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable local POP3 server'**
+  String get settingsEnablePop3Server;
+
+  /// No description provided for @settingsMailServerPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Mail bridge password'**
+  String get settingsMailServerPassword;
+
+  /// No description provided for @settingsMailServerCopyPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy mail bridge password'**
+  String get settingsMailServerCopyPassword;
+
+  /// No description provided for @settingsMailServerNewPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate a new mail bridge password'**
+  String get settingsMailServerNewPassword;
+
+  /// No description provided for @settingsMailServerPasswordCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Mail bridge password copied'**
+  String get settingsMailServerPasswordCopied;
+
+  /// No description provided for @settingsMailServerNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop only. Connect to 127.0.0.1 with security set to None. Use {account}@winlink.org as the email address and username, with this bridge password (not your Winlink password). SMTP queues mail until you sync Winlink. POP3 exposes Inbox; leave messages on the server to keep them in HTCommander. Client deletions move mail to Trash.'**
+  String settingsMailServerNote(String account);
+
+  /// No description provided for @settingsMailServerInvalidSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a callsign, a bridge password of at least 12 printable ASCII characters, and ports between 1 and 65535. Enabled SMTP and POP3 servers must use different ports.'**
+  String get settingsMailServerInvalidSettings;
+
   /// No description provided for @settingsEnableBbsWebServer.
   ///
   /// In en, this message translates to:

@@ -879,6 +879,19 @@
   "settingsAgentApiWarning": "Clients with this token can read this station's packet capture and logs, and can lock radios, run the BBS and make XARA connections, which transmit. A banner with a Stop button is shown while an agent is connected. Share the token only with tools you trust, and never expose the web server port to the internet.",
   "settingsPort": "Port:",
   "settingsEnableAgwpeServer": "Enable AGWPE Server",
+  "settingsEnableSmtpServer": "Enable local SMTP server",
+  "settingsEnablePop3Server": "Enable local POP3 server",
+  "settingsMailServerPassword": "Mail bridge password",
+  "settingsMailServerCopyPassword": "Copy mail bridge password",
+  "settingsMailServerNewPassword": "Generate a new mail bridge password",
+  "settingsMailServerPasswordCopied": "Mail bridge password copied",
+  "settingsMailServerNote": "Desktop only. Connect to 127.0.0.1 with security set to None. Use {account}@winlink.org as the email address and username, with this bridge password (not your Winlink password). SMTP queues mail until you sync Winlink. POP3 exposes Inbox; leave messages on the server to keep them in HTCommander. Client deletions move mail to Trash.",
+  "@settingsMailServerNote": {
+    "placeholders": {
+      "account": { "type": "String" }
+    }
+  },
+  "settingsMailServerInvalidSettings": "Set a callsign, a bridge password of at least 12 printable ASCII characters, and ports between 1 and 65535. Enabled SMTP and POP3 servers must use different ports.",
 
   "settingsEnableBbsWebServer": "Enable HTTP BBS Server",
 

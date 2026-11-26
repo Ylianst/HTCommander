@@ -381,6 +381,12 @@ launch worldwide twice a day.
    and local BBS negotiate GZIP per session while staying fully compatible with
    LZHUF-only stations and never inventing capabilities in CMS relay mode.
 
+2. **[Your Email Client, Your Radio: Local SMTP and POP3 for Winlink](winlink-local-mail-servers.md)**
+   How to use a desktop email client with HTCommander as the Winlink transport:
+   opt-in loopback servers, account setup, durable Outbox submission, POP3
+   retrieval and deletion rules, and the security and platform boundaries of
+   a local mail bridge.
+
 ---
 
 ## Data & Storage

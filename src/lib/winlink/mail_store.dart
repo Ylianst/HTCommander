@@ -284,6 +284,40 @@ class MailStore implements IMailStore {
     _queueSave(changed: [mail.mid!]);
   }
 
+  /// Publishes submitted mail only after it is safely stored, so a failed SMTP
+  /// submission cannot become visible to a concurrent Winlink sync.
+  Future<void> addMailDurably(WinLinkMail mail) async {
+    await flush();
+    if (_disposed) throw StateError('Mail store is closed');
+    if (mail.mid == null || mail.mid!.isEmpty) {
+      mail.mid = WinLinkMail.generateMID();
+    }
+    if (mailExists(mail.mid!)) throw StateError('Duplicate mail MID');
+    final dao = AppDatabase.instance?.mails;
+    final path = _mailsFilePath;
+    if (dao == null && path == null) {
+      throw StateError('Persistent mail storage is unavailable');
+    }
+    // Serialize this commit with timer-driven saves and other submissions.
+    while (_saving != null) {
+      await _saving;
+    }
+    _saving =
+        (() async {
+          if (dao != null) {
+            await dao.save([mail], <String>{});
+          } else {
+            await compute(_writeMailSnapshot, (path!, [..._cachedMails, mail]));
+          }
+          _cachedMails.add(mail);
+          _notifyMailsChanged();
+        })().whenComplete(() {
+          _saving = null;
+          if (_dirty) unawaited(flush().catchError(_reportError));
+        });
+    await _saving;
+  }
+
   @override
   void updateMail(WinLinkMail mail) {
     if (mail.mid == null || mail.mid!.isEmpty) {

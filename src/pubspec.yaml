@@ -101,6 +101,7 @@ dependencies:
   # BlueZ D-Bus client (already used by flutter_blue_plus on Linux) for MeshCore
   # PIN pairing on Linux; see lib/meshcore/meshcore_linux_pairing.dart.
   bluez: ^0.8.3
+  enough_mail: 3.0.0
 
 dev_dependencies:
   flutter_test:

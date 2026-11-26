@@ -435,6 +435,14 @@
   "settingsEnableWebServer": "Włącz serwer WWW",
   "settingsPort": "Port:",
   "settingsEnableAgwpeServer": "Włącz serwer AGWPE",
+  "settingsEnableSmtpServer": "Włącz lokalny serwer SMTP",
+  "settingsEnablePop3Server": "Włącz lokalny serwer POP3",
+  "settingsMailServerPassword": "Hasło mostu pocztowego",
+  "settingsMailServerCopyPassword": "Kopiuj hasło mostu pocztowego",
+  "settingsMailServerNewPassword": "Wygeneruj nowe hasło mostu",
+  "settingsMailServerPasswordCopied": "Skopiowano hasło mostu pocztowego",
+  "settingsMailServerNote": "Tylko komputery. Połącz z 127.0.0.1, ustawiając zabezpieczenia na Brak. Użyj {account}@winlink.org jako adresu i nazwy użytkownika oraz tego hasła mostu (nie hasła Winlink). SMTP kolejkuje pocztę do synchronizacji Winlink. POP3 udostępnia skrzynkę odbiorczą; pozostaw wiadomości na serwerze, aby zachować je w HTCommander. Usunięcie w kliencie przenosi pocztę do kosza.",
+  "settingsMailServerInvalidSettings": "Ustaw znak wywoławczy, hasło mostu z co najmniej 12 drukowalnych znaków ASCII i porty od 1 do 65535. Włączone serwery SMTP i POP3 muszą używać różnych portów.",
 
   "settingsEnableBbsWebServer": "Włącz serwer BBS HTTP",
 

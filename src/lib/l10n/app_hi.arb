@@ -435,6 +435,14 @@
   "settingsEnableWebServer": "वेब सर्वर सक्षम करें",
   "settingsPort": "पोर्ट:",
   "settingsEnableAgwpeServer": "AGWPE सर्वर सक्षम करें",
+  "settingsEnableSmtpServer": "स्थानीय SMTP सर्वर सक्षम करें",
+  "settingsEnablePop3Server": "स्थानीय POP3 सर्वर सक्षम करें",
+  "settingsMailServerPassword": "मेल ब्रिज पासवर्ड",
+  "settingsMailServerCopyPassword": "मेल ब्रिज पासवर्ड कॉपी करें",
+  "settingsMailServerNewPassword": "नया मेल ब्रिज पासवर्ड बनाएँ",
+  "settingsMailServerPasswordCopied": "मेल ब्रिज पासवर्ड कॉपी किया गया",
+  "settingsMailServerNote": "केवल डेस्कटॉप। सुरक्षा None रखकर 127.0.0.1 से जुड़ें। ईमेल और उपयोगकर्ता नाम के लिए {account}@winlink.org तथा यह ब्रिज पासवर्ड इस्तेमाल करें, Winlink पासवर्ड नहीं। SMTP मेल को Winlink सिंक होने तक कतार में रखता है। POP3 इनबॉक्स दिखाता है; HTCommander में मेल रखने के लिए संदेश सर्वर पर छोड़ें। क्लाइंट से हटाए गए मेल ट्रैश में जाते हैं।",
+  "settingsMailServerInvalidSettings": "कॉलसाइन, कम से कम 12 प्रिंट करने योग्य ASCII वर्णों का ब्रिज पासवर्ड और 1 से 65535 के बीच पोर्ट सेट करें। सक्षम SMTP और POP3 सर्वर के पोर्ट अलग होने चाहिए।",
 
   "settingsEnableBbsWebServer": "HTTP BBS सर्वर सक्षम करें",
 

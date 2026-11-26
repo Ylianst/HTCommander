@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -105,6 +106,10 @@ class _SettingsDialogState extends State<SettingsDialog>
   late TextEditingController _repeaterBookTokenController;
   late TextEditingController _webPortController;
   late TextEditingController _agwpePortController;
+  late TextEditingController _smtpPortController;
+  late TextEditingController _pop3PortController;
+  late TextEditingController _mailServerPasswordController;
+  bool _mailServerSettingsInvalid = false;
   late TextEditingController _bbsWebPortController;
   late TextEditingController _airplaneUrlController;
   late TextEditingController _customMapUrlController;
@@ -355,6 +360,15 @@ class _SettingsDialogState extends State<SettingsDialog>
     _agwpePortController = TextEditingController(
       text: _settings.agwpeServerPort.toString(),
     );
+    _smtpPortController = TextEditingController(
+      text: _settings.smtpServerPort.toString(),
+    );
+    _pop3PortController = TextEditingController(
+      text: _settings.pop3ServerPort.toString(),
+    );
+    _mailServerPasswordController = TextEditingController(
+      text: _settings.mailServerPassword,
+    );
     _bbsWebPortController = TextEditingController(
       text: _settings.bbsWebServerPort.toString(),
     );
@@ -447,6 +461,9 @@ class _SettingsDialogState extends State<SettingsDialog>
     _repeaterBookTokenController.dispose();
     _webPortController.dispose();
     _agwpePortController.dispose();
+    _smtpPortController.dispose();
+    _pop3PortController.dispose();
+    _mailServerPasswordController.dispose();
     _bbsWebPortController.dispose();
     _airplaneUrlController.dispose();
     _customMapUrlController.dispose();
@@ -942,6 +959,28 @@ class _SettingsDialogState extends State<SettingsDialog>
 
   void _onSave() async {
     final l10n = AppLocalizations.of(context);
+    final smtpPort = int.tryParse(_smtpPortController.text.trim());
+    final pop3Port = int.tryParse(_pop3PortController.text.trim());
+    final password = _mailServerPasswordController.text;
+    if (_visibleTabs.contains('Servers') &&
+        (_settings.smtpServerEnabled || _settings.pop3ServerEnabled) &&
+        (_settings.callSign.isEmpty ||
+            password.length < 12 ||
+            !RegExp(r'^[\x20-\x7e]+$').hasMatch(password) ||
+            (_settings.smtpServerEnabled &&
+                (smtpPort == null || smtpPort < 1 || smtpPort > 65535)) ||
+            (_settings.pop3ServerEnabled &&
+                (pop3Port == null || pop3Port < 1 || pop3Port > 65535)) ||
+            (_settings.smtpServerEnabled &&
+                _settings.pop3ServerEnabled &&
+                smtpPort == pop3Port))) {
+      setState(() => _mailServerSettingsInvalid = true);
+      _tabController.animateTo(_visibleTabs.indexOf('Servers'));
+      return;
+    }
+    _settings.smtpServerPort = smtpPort ?? _settings.smtpServerPort;
+    _settings.pop3ServerPort = pop3Port ?? _settings.pop3ServerPort;
+    _settings.mailServerPassword = password;
     if (_settings.customMapSourceEnabled &&
         !MapTileSource.isValidUrl(
           _customMapUrlController.text,
@@ -3865,6 +3904,159 @@ class _SettingsDialogState extends State<SettingsDialog>
     );
   }
 
+  void _generateMailServerPassword() {
+    final random = Random.secure();
+    _mailServerPasswordController.text = base64Url.encode(
+      List<int>.generate(24, (_) => random.nextInt(256)),
+    );
+  }
+
+  Widget _buildMailServerSettings(AppLocalizations l10n) {
+    void toggle(bool smtp, bool value) {
+      setState(() {
+        if (value && _mailServerPasswordController.text.isEmpty) {
+          _generateMailServerPassword();
+        }
+        if (smtp) {
+          _settings.smtpServerEnabled = value;
+        } else {
+          _settings.pop3ServerEnabled = value;
+        }
+        _mailServerSettingsInvalid = false;
+      });
+    }
+
+    Widget control(
+      String title,
+      bool enabled,
+      TextEditingController controller,
+      bool smtp,
+    ) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Checkbox(
+              value: enabled,
+              onChanged: (value) => toggle(smtp, value ?? false),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => toggle(smtp, !enabled),
+                child: Text(title),
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 48),
+          child: Row(
+            children: [
+              Text(l10n.settingsPort, style: DialogStyles.labelStyle),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 100,
+                child: TextField(
+                  controller: controller,
+                  enabled: enabled,
+                  keyboardType: TextInputType.number,
+                  decoration: _inputDecoration(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    var account = _settings.callSign;
+    if (_settings.winlinkUseStationId && _settings.stationId > 0) {
+      account += '-${_settings.stationId}';
+    }
+    final enabled = _settings.smtpServerEnabled || _settings.pop3ServerEnabled;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        control(
+          l10n.settingsEnableSmtpServer,
+          _settings.smtpServerEnabled,
+          _smtpPortController,
+          true,
+        ),
+        control(
+          l10n.settingsEnablePop3Server,
+          _settings.pop3ServerEnabled,
+          _pop3PortController,
+          false,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 48, top: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _mailServerPasswordController,
+                enabled: enabled,
+                obscureText: true,
+                decoration:
+                    _inputDecoration(
+                      labelText: l10n.settingsMailServerPassword,
+                    ).copyWith(
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: l10n.settingsMailServerCopyPassword,
+                            icon: const Icon(Icons.copy),
+                            onPressed: enabled
+                                ? () async {
+                                    await Clipboard.setData(
+                                      ClipboardData(
+                                        text:
+                                            _mailServerPasswordController.text,
+                                      ),
+                                    );
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          l10n.settingsMailServerPasswordCopied,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                : null,
+                          ),
+                          IconButton(
+                            tooltip: l10n.settingsMailServerNewPassword,
+                            icon: const Icon(Icons.refresh),
+                            onPressed: enabled
+                                ? () => setState(_generateMailServerPassword)
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l10n.settingsMailServerNote(
+                  account.isEmpty ? 'CALLSIGN' : account,
+                ),
+                style: _secondaryStyle(),
+              ),
+              if (_mailServerSettingsInvalid)
+                Text(
+                  l10n.settingsMailServerInvalidSettings,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildServersTab() {
     final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
@@ -3923,6 +4115,9 @@ class _SettingsDialogState extends State<SettingsDialog>
                   ),
                 ),
                 _buildAgentApiSettings(l10n),
+                const SizedBox(height: 16),
+                const Divider(),
+                _buildMailServerSettings(l10n),
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 16),

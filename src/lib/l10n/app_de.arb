@@ -435,6 +435,14 @@
   "settingsEnableWebServer": "Webserver aktivieren",
   "settingsPort": "Port:",
   "settingsEnableAgwpeServer": "AGWPE-Server aktivieren",
+  "settingsEnableSmtpServer": "Lokalen SMTP-Server aktivieren",
+  "settingsEnablePop3Server": "Lokalen POP3-Server aktivieren",
+  "settingsMailServerPassword": "Passwort der Mail-Brücke",
+  "settingsMailServerCopyPassword": "Passwort der Mail-Brücke kopieren",
+  "settingsMailServerNewPassword": "Neues Passwort der Mail-Brücke erzeugen",
+  "settingsMailServerPasswordCopied": "Passwort der Mail-Brücke kopiert",
+  "settingsMailServerNote": "Nur Desktop. Mit 127.0.0.1 verbinden und Sicherheit auf Keine setzen. E-Mail-Adresse und Benutzername: {account}@winlink.org. Dieses Brückenpasswort verwenden, nicht das Winlink-Passwort. SMTP stellt Nachrichten bis zur Winlink-Synchronisierung in die Warteschlange. POP3 zeigt den Posteingang; Nachrichten auf dem Server belassen, um sie in HTCommander zu behalten. Löschungen im Client verschieben Nachrichten in den Papierkorb.",
+  "settingsMailServerInvalidSettings": "Rufzeichen, Brückenpasswort mit mindestens 12 druckbaren ASCII-Zeichen und Ports zwischen 1 und 65535 festlegen. Aktivierte SMTP- und POP3-Server müssen verschiedene Ports verwenden.",
 
   "settingsEnableBbsWebServer": "HTTP-BBS-Server aktivieren",
 

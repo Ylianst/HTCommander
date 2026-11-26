@@ -435,6 +435,14 @@
   "settingsEnableWebServer": "Activer le serveur Web",
   "settingsPort": "Port :",
   "settingsEnableAgwpeServer": "Activer le serveur AGWPE",
+  "settingsEnableSmtpServer": "Activer le serveur SMTP local",
+  "settingsEnablePop3Server": "Activer le serveur POP3 local",
+  "settingsMailServerPassword": "Mot de passe du pont de messagerie",
+  "settingsMailServerCopyPassword": "Copier le mot de passe du pont",
+  "settingsMailServerNewPassword": "Générer un nouveau mot de passe du pont",
+  "settingsMailServerPasswordCopied": "Mot de passe du pont copié",
+  "settingsMailServerNote": "Ordinateur uniquement. Connectez-vous à 127.0.0.1 avec la sécurité réglée sur Aucune. Utilisez {account}@winlink.org comme adresse et nom d'utilisateur, avec ce mot de passe du pont (pas celui de Winlink). SMTP met le courrier en attente jusqu'à la synchronisation Winlink. POP3 expose la boîte de réception ; laissez les messages sur le serveur pour les conserver dans HTCommander. Les suppressions du client déplacent le courrier dans la corbeille.",
+  "settingsMailServerInvalidSettings": "Définissez un indicatif, un mot de passe du pont d'au moins 12 caractères ASCII imprimables et des ports entre 1 et 65535. Les serveurs SMTP et POP3 activés doivent utiliser des ports différents.",
 
   "settingsEnableBbsWebServer": "Activer le serveur BBS HTTP",
 

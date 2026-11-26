@@ -1298,6 +1298,36 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsEnableAgwpeServer => 'AGWPE-Server aktivieren';
 
   @override
+  String get settingsEnableSmtpServer => 'Lokalen SMTP-Server aktivieren';
+
+  @override
+  String get settingsEnablePop3Server => 'Lokalen POP3-Server aktivieren';
+
+  @override
+  String get settingsMailServerPassword => 'Passwort der Mail-Brücke';
+
+  @override
+  String get settingsMailServerCopyPassword =>
+      'Passwort der Mail-Brücke kopieren';
+
+  @override
+  String get settingsMailServerNewPassword =>
+      'Neues Passwort der Mail-Brücke erzeugen';
+
+  @override
+  String get settingsMailServerPasswordCopied =>
+      'Passwort der Mail-Brücke kopiert';
+
+  @override
+  String settingsMailServerNote(String account) {
+    return 'Nur Desktop. Mit 127.0.0.1 verbinden und Sicherheit auf Keine setzen. E-Mail-Adresse und Benutzername: $account@winlink.org. Dieses Brückenpasswort verwenden, nicht das Winlink-Passwort. SMTP stellt Nachrichten bis zur Winlink-Synchronisierung in die Warteschlange. POP3 zeigt den Posteingang; Nachrichten auf dem Server belassen, um sie in HTCommander zu behalten. Löschungen im Client verschieben Nachrichten in den Papierkorb.';
+  }
+
+  @override
+  String get settingsMailServerInvalidSettings =>
+      'Rufzeichen, Brückenpasswort mit mindestens 12 druckbaren ASCII-Zeichen und Ports zwischen 1 und 65535 festlegen. Aktivierte SMTP- und POP3-Server müssen verschiedene Ports verwenden.';
+
+  @override
   String get settingsEnableBbsWebServer => 'HTTP-BBS-Server aktivieren';
 
   @override

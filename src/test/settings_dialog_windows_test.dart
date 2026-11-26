@@ -14,6 +14,71 @@ import 'package:htcommander/services/data_broker.dart';
 /// Regression coverage for issue #59: opening the settings dialog on desktop
 /// (Windows) must build and lay out every tab without throwing or overflowing.
 void main() {
+  testWidgets('local mail servers default off and save validated ports', (
+    tester,
+  ) async {
+    DataBroker.reset();
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    tester.view.physicalSize = const Size(1400, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    DataBroker.dispatch(deviceId: 0, name: 'CallSign', data: 'N0CALL');
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (_) =>
+                      const SettingsDialog(initialTabName: 'Servers'),
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      final smtpPort = find.widgetWithText(TextField, '8025');
+      final popPort = find.widgetWithText(TextField, '8110');
+      expect(tester.widget<TextField>(smtpPort).enabled, isFalse);
+      expect(tester.widget<TextField>(popPort).enabled, isFalse);
+      await tester.tap(find.text('Enable local SMTP server'));
+      await tester.pumpAndSettle();
+      final password = find.widgetWithText(TextField, 'Mail bridge password');
+      expect(
+        tester.widget<TextField>(password).controller!.text.length,
+        greaterThanOrEqualTo(12),
+      );
+      await tester.enterText(smtpPort, '0');
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      expect(find.byType(SettingsDialog), findsOneWidget);
+      expect(find.textContaining('ports between 1 and 65535'), findsOneWidget);
+      expect(DataBroker.hasValue(0, 'smtpServerEnabled'), isFalse);
+      await tester.enterText(find.widgetWithText(TextField, '0'), '18025');
+      await tester.tap(find.text('Enable local POP3 server'));
+      await tester.pumpAndSettle();
+      await tester.enterText(popPort, '18110');
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      expect(find.byType(SettingsDialog), findsNothing);
+      expect(DataBroker.getValue<int>(0, 'smtpServerEnabled', 0), 1);
+      expect(DataBroker.getValue<int>(0, 'pop3ServerEnabled', 0), 1);
+      expect(DataBroker.getValue<int>(0, 'smtpServerPort', 0), 18025);
+      expect(DataBroker.getValue<int>(0, 'pop3ServerPort', 0), 18110);
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+      DataBroker.reset();
+    }
+  });
+
   for (final platform in [TargetPlatform.windows, TargetPlatform.android]) {
     testWidgets('named settings links select Application on $platform', (
       tester,

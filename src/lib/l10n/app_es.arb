@@ -435,6 +435,14 @@
   "settingsEnableWebServer": "Habilitar el servidor web",
   "settingsPort": "Puerto:",
   "settingsEnableAgwpeServer": "Habilitar el servidor AGWPE",
+  "settingsEnableSmtpServer": "Habilitar servidor SMTP local",
+  "settingsEnablePop3Server": "Habilitar servidor POP3 local",
+  "settingsMailServerPassword": "Contraseña del puente de correo",
+  "settingsMailServerCopyPassword": "Copiar contraseña del puente de correo",
+  "settingsMailServerNewPassword": "Generar nueva contraseña del puente de correo",
+  "settingsMailServerPasswordCopied": "Contraseña del puente de correo copiada",
+  "settingsMailServerNote": "Solo escritorio. Conecte a 127.0.0.1 con seguridad Ninguna. Use {account}@winlink.org como dirección de correo y usuario, con esta contraseña del puente (no la de Winlink). SMTP pone el correo en cola hasta sincronizar Winlink. POP3 muestra la bandeja de entrada; deje los mensajes en el servidor para conservarlos en HTCommander. Las eliminaciones del cliente mueven el correo a la papelera.",
+  "settingsMailServerInvalidSettings": "Configure un indicativo, una contraseña del puente de al menos 12 caracteres ASCII imprimibles y puertos entre 1 y 65535. SMTP y POP3 deben usar puertos distintos si ambos están habilitados.",
 
   "settingsEnableBbsWebServer": "Habilitar el servidor BBS HTTP",
 

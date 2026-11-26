@@ -1240,6 +1240,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsEnableAgwpeServer => '启用 AGWPE 服务器';
 
   @override
+  String get settingsEnableSmtpServer => '启用本地 SMTP 服务器';
+
+  @override
+  String get settingsEnablePop3Server => '启用本地 POP3 服务器';
+
+  @override
+  String get settingsMailServerPassword => '邮件桥接密码';
+
+  @override
+  String get settingsMailServerCopyPassword => '复制邮件桥接密码';
+
+  @override
+  String get settingsMailServerNewPassword => '生成新的邮件桥接密码';
+
+  @override
+  String get settingsMailServerPasswordCopied => '已复制邮件桥接密码';
+
+  @override
+  String settingsMailServerNote(String account) {
+    return '仅限桌面平台。连接 127.0.0.1，安全设置选择“无”。邮箱地址和用户名使用 $account@winlink.org，并使用此桥接密码（不是 Winlink 密码）。SMTP 将邮件排队，直到同步 Winlink。POP3 提供收件箱；要在 HTCommander 中保留邮件，请选择在服务器上保留邮件。客户端删除操作会将邮件移至垃圾箱。';
+  }
+
+  @override
+  String get settingsMailServerInvalidSettings =>
+      '请设置呼号、至少包含 12 个可打印 ASCII 字符的桥接密码，以及 1 至 65535 的端口。启用的 SMTP 和 POP3 服务器必须使用不同端口。';
+
+  @override
   String get settingsEnableBbsWebServer => '启用 HTTP BBS 服务器';
 
   @override

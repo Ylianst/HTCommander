@@ -85,6 +85,11 @@ class AppSettings {
   String agentApiToken;
   bool agwpeServerEnabled;
   int agwpeServerPort;
+  bool smtpServerEnabled;
+  int smtpServerPort;
+  bool pop3ServerEnabled;
+  int pop3ServerPort;
+  String mailServerPassword;
 
   /// Public, unauthenticated web terminal for the BBS (see WebBbsHandler).
   bool bbsWebServerEnabled;
@@ -235,6 +240,11 @@ class AppSettings {
     this.agentApiToken = '',
     this.agwpeServerEnabled = false,
     this.agwpeServerPort = 8000,
+    this.smtpServerEnabled = false,
+    this.smtpServerPort = 8025,
+    this.pop3ServerEnabled = false,
+    this.pop3ServerPort = 8110,
+    this.mailServerPassword = '',
     this.bbsWebServerEnabled = false,
     this.bbsWebServerPort = 8023,
     this.bbsFileUploadsEnabled = true,
@@ -299,6 +309,11 @@ class AppSettings {
     String? agentApiToken,
     bool? agwpeServerEnabled,
     int? agwpeServerPort,
+    bool? smtpServerEnabled,
+    int? smtpServerPort,
+    bool? pop3ServerEnabled,
+    int? pop3ServerPort,
+    String? mailServerPassword,
     bool? bbsWebServerEnabled,
     int? bbsWebServerPort,
     bool? bbsFileUploadsEnabled,
@@ -365,6 +380,11 @@ class AppSettings {
       agentApiToken: agentApiToken ?? this.agentApiToken,
       agwpeServerEnabled: agwpeServerEnabled ?? this.agwpeServerEnabled,
       agwpeServerPort: agwpeServerPort ?? this.agwpeServerPort,
+      smtpServerEnabled: smtpServerEnabled ?? this.smtpServerEnabled,
+      smtpServerPort: smtpServerPort ?? this.smtpServerPort,
+      pop3ServerEnabled: pop3ServerEnabled ?? this.pop3ServerEnabled,
+      pop3ServerPort: pop3ServerPort ?? this.pop3ServerPort,
+      mailServerPassword: mailServerPassword ?? this.mailServerPassword,
       bbsWebServerEnabled: bbsWebServerEnabled ?? this.bbsWebServerEnabled,
       bbsWebServerPort: bbsWebServerPort ?? this.bbsWebServerPort,
       bbsFileUploadsEnabled:
@@ -487,6 +507,16 @@ class AppSettings {
           (DataBroker.getValue<int>(0, 'agwpeServerEnabled', 0) ?? 0) == 1,
       agwpeServerPort:
           DataBroker.getValue<int>(0, 'agwpeServerPort', 8000) ?? 8000,
+      smtpServerEnabled:
+          (DataBroker.getValue<int>(0, 'smtpServerEnabled', 0) ?? 0) == 1,
+      smtpServerPort:
+          DataBroker.getValue<int>(0, 'smtpServerPort', 8025) ?? 8025,
+      pop3ServerEnabled:
+          (DataBroker.getValue<int>(0, 'pop3ServerEnabled', 0) ?? 0) == 1,
+      pop3ServerPort:
+          DataBroker.getValue<int>(0, 'pop3ServerPort', 8110) ?? 8110,
+      mailServerPassword:
+          DataBroker.getValue<String>(0, 'MailServerPassword', '') ?? '',
       bbsWebServerEnabled:
           (DataBroker.getValue<int>(0, 'bbsWebServerEnabled', 0) ?? 0) == 1,
       bbsWebServerPort:
@@ -691,6 +721,31 @@ class AppSettings {
       deviceId: 0,
       name: 'bbsWebServerEnabled',
       data: bbsWebServerEnabled ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'MailServerPassword',
+      data: mailServerPassword,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'smtpServerPort',
+      data: smtpServerPort,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'pop3ServerPort',
+      data: pop3ServerPort,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'smtpServerEnabled',
+      data: smtpServerEnabled ? 1 : 0,
+    );
+    DataBroker.dispatch(
+      deviceId: 0,
+      name: 'pop3ServerEnabled',
+      data: pop3ServerEnabled ? 1 : 0,
     );
     DataBroker.dispatch(
       deviceId: 0,

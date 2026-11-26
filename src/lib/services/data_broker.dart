@@ -65,7 +65,11 @@ class DataBroker {
   /// SharedPreferences, mirroring the C# `ISecretStore` approach. Loaded into
   /// memory at startup by [loadSecrets] (which also migrates any legacy
   /// plaintext copy written before encryption existed).
-  static const Set<String> _secretKeys = {'RepeaterBookToken', 'AgentApiToken'};
+  static const Set<String> _secretKeys = {
+    'RepeaterBookToken',
+    'AgentApiToken',
+    'MailServerPassword',
+  };
 
   /// Singleton instance
   static final DataBroker _instance = DataBroker._internal();

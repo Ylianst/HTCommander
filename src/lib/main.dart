@@ -42,6 +42,8 @@ import 'handlers/bbs_handler.dart';
 import 'handlers/bbs_monitor.dart';
 import 'handlers/bbs_store.dart';
 import 'handlers/agwpe_handler.dart';
+import 'handlers/mail_server_handler_stub.dart'
+    if (dart.library.io) 'handlers/mail_server_handler.dart';
 import 'handlers/web_server_handler.dart';
 import 'handlers/web_bbs_handler.dart';
 import 'handlers/home_assistant_handler.dart';
@@ -646,6 +648,9 @@ Future<void> _startApp(List<String> args) async {
     final agwpeHandler = AgwpeHandler();
     agwpeHandler.init();
     DataBroker.addDataHandler('AgwpeHandler', agwpeHandler);
+    final mailServerHandler = MailServerHandler(mailStore);
+    mailServerHandler.init();
+    DataBroker.addDataHandler('MailServerHandler', mailServerHandler);
   }
 
   // Register the web server handler (desktop only) so that, when enabled in

@@ -1255,6 +1255,33 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsEnableAgwpeServer => 'AGWPE サーバーを有効化';
 
   @override
+  String get settingsEnableSmtpServer => 'ローカル SMTP サーバーを有効化';
+
+  @override
+  String get settingsEnablePop3Server => 'ローカル POP3 サーバーを有効化';
+
+  @override
+  String get settingsMailServerPassword => 'メールブリッジのパスワード';
+
+  @override
+  String get settingsMailServerCopyPassword => 'メールブリッジのパスワードをコピー';
+
+  @override
+  String get settingsMailServerNewPassword => '新しいメールブリッジのパスワードを生成';
+
+  @override
+  String get settingsMailServerPasswordCopied => 'メールブリッジのパスワードをコピーしました';
+
+  @override
+  String settingsMailServerNote(String account) {
+    return 'デスクトップ専用。接続先は 127.0.0.1、セキュリティは「なし」です。メールアドレスとユーザー名に $account@winlink.org、このブリッジのパスワードを使用します（Winlink のパスワードではありません）。SMTP は Winlink 同期までメールを待機させます。POP3 は受信トレイを公開します。HTCommander に残すにはメッセージをサーバーに残してください。クライアントで削除したメールはゴミ箱に移動します。';
+  }
+
+  @override
+  String get settingsMailServerInvalidSettings =>
+      'コールサイン、12 文字以上の印字可能 ASCII 文字のブリッジパスワード、1〜65535 のポートを設定してください。有効な SMTP と POP3 は異なるポートを使用する必要があります。';
+
+  @override
   String get settingsEnableBbsWebServer => 'HTTP BBS サーバーを有効化';
 
   @override
