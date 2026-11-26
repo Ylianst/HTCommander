@@ -199,8 +199,10 @@ class _AprsTabState extends State<AprsTab>
   bool _aprsIsEnabled = false;
   bool _historicalLoaded = false;
   bool _aprsIsHistoricalLoaded = false;
+  // A literal bound, not `1 << 32`: on the web, shifts wrap at 32 bits, so
+  // `1 << 32` is 0 there and `nextInt(0)` throws a RangeError.
   final String _historyClientId =
-      '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
+      '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(0xFFFFFFFF)}';
   int _historySerial = 0;
   String? _historyRequestId;
   final Map<String, List<int>?> _historyBefore = {};
