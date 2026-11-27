@@ -29,8 +29,10 @@ class StoredHistoryDialog extends StatefulWidget {
 
 class _StoredHistoryDialogState extends State<StoredHistoryDialog> {
   final DataBrokerClient _broker = DataBrokerClient();
+  // A literal bound, not `1 << 32`: on the web, shifts wrap at 32 bits, so
+  // `1 << 32` is 0 there and `nextInt(0)` throws a RangeError.
   final String _clientId =
-      '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
+      '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(0xFFFFFFFF)}';
   late String _source;
   List<ChatMessage> _messages = [];
   List<int>? _before;
