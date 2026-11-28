@@ -112,6 +112,48 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @otaCommands.
+  ///
+  /// In en, this message translates to:
+  /// **'OTA commands'**
+  String get otaCommands;
+
+  /// No description provided for @otaGridCenterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{grid} - grid center (approximate)'**
+  String otaGridCenterTitle(String grid);
+
+  /// No description provided for @otaInfoQsos.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed QSOs: {count}'**
+  String otaInfoQsos(int count);
+
+  /// No description provided for @otaInfoWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting QSL: {count}'**
+  String otaInfoWaiting(int count);
+
+  /// No description provided for @otaInfoPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Points: {count}'**
+  String otaInfoPoints(int count);
+
+  /// No description provided for @otaStartPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Position that started the op (not live)'**
+  String get otaStartPosition;
+
+  /// No description provided for @otaNoPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'No position reported'**
+  String get otaNoPosition;
+
   /// No description provided for @otaTitle.
   ///
   /// In en, this message translates to:

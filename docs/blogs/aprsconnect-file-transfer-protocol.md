@@ -895,8 +895,8 @@ over hardware or software AFSK 1200. Broadcast sending, other modem encodings,
 and browser-based transfer controls are not enabled. Offers heard on the
 APRS channel can be displayed, but transmission/acceptance on that channel is
 blocked; move both stations to their agreed packet channel and re-offer.
-The new UI strings use the localization catalog, with English fallback where
-translations have not yet been supplied.
+The new UI strings use the localization catalog and are translated into all
+supported languages.
 
 Focused [tests](../../src/test/file_transfer_test.dart) cover independent wire
 fixtures, gzip and UTF-8 metadata, byte-hole repair, partial-state restoration,

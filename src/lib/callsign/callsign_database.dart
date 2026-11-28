@@ -4,6 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -133,6 +134,7 @@ class CallsignDatabase {
 
   /// Header flag bits (see [flagCanada]). 0 for US (FCC) databases.
   final int flags;
+  Future<void> _readTail = Future<void>.value();
 
   CallsignDatabase._({
     required this._raf,
@@ -615,8 +617,17 @@ class CallsignDatabase {
       return Uint8List.sublistView(bytes, offset, end);
     }
     final raf = _raf!;
-    await raf.setPosition(offset);
-    return raf.read(length);
+    // Concurrent station lookups share this file's seek position.
+    final previous = _readTail;
+    final completed = Completer<void>();
+    _readTail = completed.future;
+    await previous;
+    try {
+      await raf.setPosition(offset);
+      return await raf.read(length);
+    } finally {
+      completed.complete();
+    }
   }
 
   /// Closes the underlying file handle, if any.

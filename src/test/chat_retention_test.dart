@@ -38,6 +38,54 @@ void main() {
   List<ChatMessage> messages(WidgetTester tester) =>
       tester.widget<ChatWidget>(find.byType(ChatWidget).first).messages;
 
+  for (final historical in [false, true]) {
+    testWidgets('APRS repeated sends keep distinct wire IDs (${historical ? 'history' : 'live'})',
+        (tester) async {
+      DataBroker.dispatch(deviceId: 0, name: 'CallSign', data: 'N0CALL');
+      DataBroker.dispatch(deviceId: 0, name: 'StationId', data: 7);
+      final start = DateTime(2026);
+      AprsPacket sent(String id, int seconds, {bool internet = false}) {
+        final ax = Tnc2Codec.decode('N0CALL-7>APRS::W1AW     :Hello{$id')!
+          ..incoming = false
+          ..time = start.add(Duration(seconds: seconds));
+        return AprsPacket.parse(ax)!..fromAprsIs = internet;
+      }
+      final rf = [sent('1', 1), sent('2', 2), sent('2', 6), sent('3', 5)];
+      final internet = [sent('1', 3, internet: true), sent('3', 4, internet: true)];
+      await tester.pumpWidget(app(const AprsTab()));
+      await tester.tap(find.text('All APRS Messages').first);
+      await tester.pump();
+      if (historical) {
+        DataBroker.dispatch(deviceId: 1, name: 'AprsPacketList',
+            data: rf, store: false);
+        DataBroker.dispatch(deviceId: 1, name: 'AprsIsPacketList',
+            data: internet, store: false);
+      } else {
+        for (final packet in [rf[0], rf[1], ...internet, rf[3], rf[2]]) {
+          DataBroker.dispatch(deviceId: 1, name: 'AprsFrame',
+              data: AprsFrameEventArgs(packet, packet.packet!, null), store: false);
+        }
+      }
+      await tester.pump();
+      expect(messages(tester).map((message) => message.message),
+          ['Hello', 'Hello', 'Hello']);
+      expect(messages(tester).every((message) => message.isSender), isTrue);
+      expect(messages(tester).map((message) => message.time),
+          [start.add(const Duration(seconds: 1)),
+           start.add(const Duration(seconds: 2)),
+           start.add(const Duration(seconds: 5))]);
+      final ack = Tnc2Codec.decode('W1AW>APRS::N0CALL-7 :ack1')!;
+      DataBroker.dispatch(deviceId: 1, name: 'AprsFrame',
+          data: AprsFrameEventArgs(AprsPacket.parse(ack)!, ack, null), store: false);
+      await tester.pump();
+      expect(messages(tester).first.icon, Icons.check);
+      expect(messages(tester).skip(1).every((message) => message.icon != Icons.check),
+          isTrue);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
   testWidgets('APRS draft waits for acceptance and preserves subsequent edits', (tester) async {
     final bus = DataBrokerClient();
     addTearDown(bus.dispose);

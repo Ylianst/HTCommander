@@ -66,6 +66,40 @@ void main() {
 
     if (locale.languageCode == 'en') continue;
 
+    test('${locale.languageCode} translates OTA and file transfer', () async {
+      final arb = readArb(locale.languageCode);
+      for (final key in messageKeys.where(
+        (key) =>
+            (key.startsWith('ota') && key != 'otaTitle') ||
+            key.startsWith('fileTransfer') ||
+            key == 'commsTransferFile',
+      )) {
+        expect(arb[key], isNotEmpty, reason: key);
+        // Spanish uses "bytes", so this placeholder-only label is unchanged.
+        if (locale.languageCode == 'es' && key == 'fileTransferSelectedFile') {
+          continue;
+        }
+        expect(arb[key], isNot(englishArb[key]), reason: key);
+      }
+
+      final l10n = await AppLocalizations.delegate.load(locale);
+      expect(l10n.otaWaitingPosition('TEST-1'), contains('TEST-1'));
+      expect(l10n.otaTimer(17, 42), allOf(contains('17'), contains('42')));
+      expect(
+        l10n.otaPages(2, 3, 7, 11),
+        allOf(contains('2'), contains('3'), contains('7'), contains('11')),
+      );
+      expect(
+        l10n.fileTransferSize(1234, 567),
+        allOf(contains('1234'), contains('567')),
+      );
+      expect(
+        l10n.fileTransferSelectedFile('test.txt', 123),
+        allOf(contains('test.txt'), contains('123')),
+      );
+      expect(l10n.fileTransferError('test error'), contains('test error'));
+    });
+
     test(
       '${locale.languageCode} translates automation and XARA messages',
       () async {

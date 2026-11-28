@@ -7,10 +7,11 @@ import 'package:flutter/material.dart';
 import 'tab_visibility.dart';
 import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'chat_widget.dart';
 import 'callsign_license_line.dart';
 import 'contact_avatar.dart';
-import 'ota_conversation_panel.dart';
+import 'ota_message_body.dart';
 import '../aprs/ota.dart';
 import '../dialogs/aprs_configuration_dialog.dart';
 import '../dialogs/aprs_outbox_dialog.dart';
@@ -2187,6 +2188,7 @@ class _AprsTabState extends State<AprsTab>
       final duplicatesToRemove = <_AprsEntry>[];
       for (final n in _entries) {
         if (n.aprsPacket.dataType != PacketDataType.message ||
+            n.messageId != entry.messageId ||
             n.senderCallsign != entry.senderCallsign ||
             n.aprsPacket.messageData.addressee.toUpperCase() !=
                 entry.aprsPacket.messageData.addressee.toUpperCase() ||
@@ -3712,30 +3714,9 @@ class _AprsTabState extends State<AprsTab>
   /// its optional missing-route banner, avatar overlay and input panel.
   Widget _buildConversationContent(BuildContext context) {
     if (_inMeshView) return _buildMeshContent(context);
-    return LayoutBuilder(builder: (context, constraints) => Column(
+    return Column(
       children: [
         if (_selectedContactRouteMissing) _buildMissingRouteBanner(),
-        if (_inOtaConversation)
-          ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: min(260, constraints.maxHeight * 0.45)),
-            child: OtaConversationPanel(
-              key: ValueKey('OTA:$_callsign-$_stationId'),
-              messages: _messages.where((message) {
-                final entry = message.tag;
-                if (entry is! _AprsEntry || message.isSender) return false;
-                final recipient = aprsPeerKey(entry.aprsPacket.messageData.addressee);
-                final local = _stationId.isEmpty ? _callsign :
-                    '$_callsign-$_stationId';
-                return recipient == aprsPeerKey(_callsign) ||
-                    recipient == aprsPeerKey(local);
-              }).toList(),
-              localStation: _stationId.isEmpty ? _callsign.toUpperCase() :
-                  '${_callsign.toUpperCase()}-$_stationId',
-              canCompose: _allowTransmit && _pendingCompose == null,
-              onCompose: _prepareOtaCommand,
-              onBeaconSettings: () => showEditBeaconSettingsDialog(context),
-            ),
-          ),
         Expanded(
           child: DragTarget<radio.RadioChannelInfo>(
             onWillAcceptWithDetails: (_) => true,
@@ -3748,6 +3729,8 @@ class _AprsTabState extends State<AprsTab>
                     child: ChatWidget(
                       key: ValueKey(_selectedContact),
                       messages: _messages,
+                      messageBodyBuilder: _inOtaConversation ? _buildOtaMessageBody : null,
+                      messagePrefixBuilder: _inOtaConversation ? _buildOtaMessagePrefix : null,
                       historyHeader: _buildHistoryHeader(),
                       onMessageDoubleTap: _onMessageDoubleTap,
                       onMessageContextMenu: _onMessageContextMenu,
@@ -3767,7 +3750,7 @@ class _AprsTabState extends State<AprsTab>
         ),
         if (_allowTransmit) _buildInputPanel(),
       ],
-    ));
+    );
   }
 
   Future<void> _prepareOtaCommand(String command) async {
@@ -3803,8 +3786,166 @@ class _AprsTabState extends State<AprsTab>
       ),
     );
     if (!mounted || !_inOtaConversation || result == null) return;
+    _fillOtaDraft(result);
+  }
+
+  bool _isLocalOtaReply(ChatMessage message) {
+    final entry = message.tag;
+    if (entry is! _AprsEntry || message.isSender ||
+        !isOtaPeer(message.senderCallsign)) {
+      return false;
+    }
+    final recipient = aprsPeerKey(entry.aprsPacket.messageData.addressee);
+    final local = _stationId.isEmpty ? _callsign : '$_callsign-$_stationId';
+    return recipient == aprsPeerKey(_callsign) || recipient == aprsPeerKey(local);
+  }
+
+  Widget? _buildOtaMessagePrefix(BuildContext context, ChatMessage message) {
+    if (_isLocalOtaReply(message) &&
+        message.authState != ChatAuthState.failed &&
+        message.message.trimLeft().startsWith('You earned')) {
+      return const Icon(Icons.celebration, size: 20, color: Colors.black);
+    }
+    return null;
+  }
+
+  Widget? _buildOtaMessageBody(BuildContext context, ChatMessage message) {
+    if (!_isLocalOtaReply(message) || message.authState == ChatAuthState.failed) {
+      return null;
+    }
+    final reply = decodeOtaReply(message.message);
+    if (reply == null) return null;
+    final ValueChanged<String>? onChase = _allowTransmit && _pendingCompose == null
+        ? (station) => _fillOtaDraft('CHASE $station') : null;
+    if (message.message.trim().startsWith('CQ!') &&
+        reply.kind == OtaReplyKind.ops && reply.ops.isNotEmpty) {
+      return OtaCqMessageBody(
+        reply: reply, onChase: onChase,
+        onInfo: _allowTransmit && _pendingCompose == null
+            ? (station) => _fillOtaDraft('INFO! $station') : null,
+      );
+    }
+    if (message.message.trim().startsWith('INFO!') &&
+        const {OtaReplyKind.info, OtaReplyKind.description, OtaReplyKind.missing}
+            .contains(reply.kind)) {
+      return OtaInfoMessageBody(reply: reply, onChase: onChase);
+    }
+    if (const {
+      OtaReplyKind.beaconHost, OtaReplyKind.beaconChase, OtaReplyKind.chasing,
+      OtaReplyKind.pendingQsl, OtaReplyKind.confirmed, OtaReplyKind.hosting,
+      OtaReplyKind.complete, OtaReplyKind.time, OtaReplyKind.chasers,
+    }.contains(reply.kind)) {
+      return OtaActivityMessageBody(
+        reply: reply,
+        localStation: _stationId.isEmpty ? _callsign : '$_callsign-$_stationId',
+        onCommand: _allowTransmit && _pendingCompose == null ? _fillOtaDraft : null,
+        onBeaconSettings: () => showEditBeaconSettingsDialog(context),
+        onOpenLink: _openOtaWebsite,
+      );
+    }
+    return null;
+  }
+
+  bool get _otaHosting {
+    DateTime? started;
+    final local = aprsPeerKey(_stationId.isEmpty ? _callsign : '$_callsign-$_stationId');
+    for (final message in _messages.where(_isLocalOtaReply)) {
+      if (message.authState == ChatAuthState.failed) continue;
+      final reply = decodeOtaReply(message.message);
+      if (reply?.kind == OtaReplyKind.hosting &&
+          aprsPeerKey(reply!.station!) == local) {
+        started = message.time;
+      }
+      if (reply?.kind == OtaReplyKind.complete) started = null;
+    }
+    final age = started == null ? null : DateTime.now().difference(started);
+    return age != null && age >= Duration.zero && age < const Duration(hours: 2);
+  }
+
+  Future<void> _openOtaWebsite(Uri uri) async {
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppLocalizations.of(context).otaOpenFailed),
+      ));
+    }
+  }
+
+  Future<void> _selectOtaCommand(String command) async {
+    if (!_inOtaConversation) return;
+    switch (command) {
+      case 'beacon':
+        await showEditBeaconSettingsDialog(context);
+      case 'handbook':
+        await _openOtaWebsite(Uri.https('aprsota.org', '/handbook'));
+      case 'activity':
+        await _openOtaWebsite(Uri.https('aprsota.org', '/${_callsign.toUpperCase()}'));
+      default:
+        if (!_allowTransmit || _pendingCompose != null) return;
+        if (_messageController.text.isNotEmpty ||
+            const {'HOST', 'CHASE', 'QSL', 'BLAST', 'DONE'}
+                .contains(otaCommandFamily(command))) {
+          await _prepareOtaCommand(command);
+        } else {
+          _fillOtaDraft(command);
+        }
+    }
+  }
+
+  Widget _buildOtaCommandsMenu() {
+    final l10n = AppLocalizations.of(context);
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      elevation: 1,
+      child: PopupMenuButton<String>(
+        tooltip: l10n.otaCommands,
+        icon: const Icon(Icons.more_horiz, size: 22),
+        onSelected: _selectOtaCommand,
+        itemBuilder: (_) {
+          final hosting = _otaHosting;
+          final commands = <(String, String, IconData)>[
+            (l10n.otaCheckSetup, 'PING', Icons.network_check),
+            (l10n.otaFindOps, 'CQ!', Icons.search),
+            (l10n.otaHost, 'HOST', Icons.cell_tower),
+            (l10n.otaDetails, hosting ? 'INFO!' : 'INFO! ', Icons.info_outline),
+            (l10n.otaChase, 'CHASE ', Icons.flag_outlined),
+            if (hosting) ...[
+              ('TIME', 'TIME!', Icons.timer_outlined),
+              ('CHASERS', 'CHASERS!', Icons.people_outline),
+              ('QSL', 'QSL ', Icons.reply),
+              ('STAY', 'STAY', Icons.more_time),
+              ('BLAST', 'BLAST ', Icons.campaign_outlined),
+              (l10n.otaEndOp, 'DONE', Icons.stop_circle_outlined),
+            ],
+          ];
+          return [
+            for (final (label, command, icon) in commands)
+              PopupMenuItem(
+                value: command, enabled: _allowTransmit && _pendingCompose == null,
+                child: Row(children: [
+                  Icon(icon, size: 18), const SizedBox(width: 12), Text(label),
+                ]),
+              ),
+            const PopupMenuDivider(),
+            for (final (label, command, icon) in [
+              (l10n.otaBeaconSettings, 'beacon', Icons.location_on_outlined),
+              (l10n.otaHandbook, 'handbook', Icons.help_outline),
+              (l10n.otaMyActivity, 'activity', Icons.open_in_new),
+            ])
+              PopupMenuItem(value: command, child: Row(children: [
+                Icon(icon, size: 18), const SizedBox(width: 12), Text(label),
+              ])),
+          ];
+        },
+      ),
+    );
+  }
+
+  void _fillOtaDraft(String command) {
+    if (!_inOtaConversation) return;
     _messageController.value = TextEditingValue(
-      text: result, selection: TextSelection.collapsed(offset: result.length),
+      text: command, selection: TextSelection.collapsed(offset: command.length),
     );
     _messageFocusNode.requestFocus();
   }
@@ -3825,17 +3966,23 @@ class _AprsTabState extends State<AprsTab>
       top: 0,
       right: 0,
       child: SizedBox(
-        width: corner,
+        width: _inOtaConversation ? 152 : corner,
         height: corner,
         child: Stack(
           children: [
-            Positioned.fill(
+            Positioned(
+              top: 0, right: 0, width: corner, height: corner,
               child: IgnorePointer(
                 child: CustomPaint(
                   painter: _CornerTrianglePainter(scheme.surfaceContainerHigh),
                 ),
               ),
             ),
+            if (_inOtaConversation)
+              Positioned(
+                top: 20, right: 84, width: 40, height: 40,
+                child: _buildOtaCommandsMenu(),
+              ),
             Positioned(
               top: 8,
               right: 8,

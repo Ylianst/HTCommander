@@ -111,6 +111,7 @@ class OtaReply {
   final OtaReplyKind kind;
   final String raw;
   final String? station;
+  final String? grid;
   final String? text;
   final List<OtaOp> ops;
   final List<String> stations;
@@ -125,6 +126,7 @@ class OtaReply {
     this.kind,
     this.raw, {
     this.station,
+    this.grid,
     this.text,
     this.ops = const [],
     this.stations = const [],
@@ -262,7 +264,8 @@ OtaReply? decodeOtaReply(String raw) {
     r'^DE (\S+) ([A-Ra-r]{2}[0-9]{2}[A-Xa-x]{2}|_)(?: (.*))?$',
   ).firstMatch(text);
   if (m != null && _station(m[1]!)) {
-    return OtaReply(OtaReplyKind.pendingQsl, raw, station: m[1], text: m[3]);
+    return OtaReply(OtaReplyKind.pendingQsl, raw, station: m[1],
+        grid: m[2] == '_' ? null : m[2], text: m[3]);
   }
   m = RegExp(r'^Now chasing (\S+)(?: .*)?$').firstMatch(text);
   if (m != null && _station(m[1]!)) {

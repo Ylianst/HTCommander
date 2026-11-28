@@ -9,6 +9,35 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get otaCommands => 'OTA commands';
+
+  @override
+  String otaGridCenterTitle(String grid) {
+    return '$grid - grid center (approximate)';
+  }
+
+  @override
+  String otaInfoQsos(int count) {
+    return 'Confirmed QSOs: $count';
+  }
+
+  @override
+  String otaInfoWaiting(int count) {
+    return 'Awaiting QSL: $count';
+  }
+
+  @override
+  String otaInfoPoints(int count) {
+    return 'Points: $count';
+  }
+
+  @override
+  String get otaStartPosition => 'Position that started the op (not live)';
+
+  @override
+  String get otaNoPosition => 'No position reported';
+
+  @override
   String get otaTitle => 'APRS OTA';
 
   @override

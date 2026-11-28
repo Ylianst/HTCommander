@@ -7,9 +7,10 @@ available from what is proposed.*
 
 ## Implementation update
 
-HTCommander now has an OTA-only conversation panel: an automatic radio avatar,
-editable command preparation, machine-readable discovery/details, reported
-activity and host QSL controls, raw-chat fallback, single-message validation,
+HTCommander now enhances the OTA conversation itself, with no separate top
+panel: the official APRS OTA avatar (bundled for offline use), a compact circular command menu beside it,
+editable command preparation, decoded message bubbles with callsign/grid/map
+links, activity explanations and host QSL links, raw-chat fallback, single-message validation,
 local cooldowns, and explicit RF-only HOST/QSL requests through the existing
 outbox. Other conversations and All APRS Messages have no OTA controls.
 

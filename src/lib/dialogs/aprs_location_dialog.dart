@@ -29,6 +29,7 @@ Future<void> showAprsLocationDialog(
   Widget? centerMarker,
   double centerMarkerWidth = 30,
   double centerMarkerHeight = 30,
+  LatLngBounds? areaBounds,
 }) {
   return showDialog<void>(
     context: context,
@@ -42,6 +43,7 @@ Future<void> showAprsLocationDialog(
       centerMarker: centerMarker,
       centerMarkerWidth: centerMarkerWidth,
       centerMarkerHeight: centerMarkerHeight,
+      areaBounds: areaBounds,
     ),
   );
 }
@@ -61,6 +63,7 @@ class AprsLocationDialog extends StatefulWidget {
     this.centerMarker,
     this.centerMarkerWidth = 30,
     this.centerMarkerHeight = 30,
+    this.areaBounds,
   });
 
   final double latitude;
@@ -84,6 +87,9 @@ class AprsLocationDialog extends StatefulWidget {
   final Widget? centerMarker;
   final double centerMarkerWidth;
   final double centerMarkerHeight;
+
+  /// Optional geographic area outlined beneath the location marker.
+  final LatLngBounds? areaBounds;
 
   @override
   State<AprsLocationDialog> createState() => _AprsLocationDialogState();
@@ -234,6 +240,22 @@ class _AprsLocationDialogState extends State<AprsLocationDialog> {
                         userAgentPackageName: 'HTCommander/1.0 (amateur-radio-app; github.com/Ylianst/HTCommander)',
                         tileProvider: _tileProvider,
                       ),
+                      if (widget.areaBounds case final bounds?)
+                        PolygonLayer(
+                          polygons: [
+                            Polygon(
+                              points: [
+                                LatLng(bounds.north, bounds.west),
+                                LatLng(bounds.north, bounds.east),
+                                LatLng(bounds.south, bounds.east),
+                                LatLng(bounds.south, bounds.west),
+                              ],
+                              color: scheme.primary.withValues(alpha: 0.12),
+                              borderColor: scheme.primary,
+                              borderStrokeWidth: 2,
+                            ),
+                          ],
+                        ),
                       MarkerLayer(
                         markers: [
                           Marker(

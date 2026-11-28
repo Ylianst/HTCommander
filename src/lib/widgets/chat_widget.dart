@@ -109,6 +109,12 @@ class ChatWidget extends StatefulWidget {
   /// Invoked when the message's leading icon is tapped. Used to open the
   /// location map when a message carries a position marker.
   final ValueChanged<ChatMessage>? onMessageIconTap;
+
+  /// Optional view-specific message body; null keeps the normal text/URL body.
+  final Widget? Function(BuildContext context, ChatMessage message)?
+  messageBodyBuilder;
+  final Widget? Function(BuildContext context, ChatMessage message)?
+  messagePrefixBuilder;
   final Color bubbleColor;
   final Color bubbleAuthColor;
   final Color bubbleFailedColor;
@@ -133,6 +139,8 @@ class ChatWidget extends StatefulWidget {
     this.onMessageLongPress,
     this.onMessageContextMenu,
     this.onMessageIconTap,
+    this.messageBodyBuilder,
+    this.messagePrefixBuilder,
     this.bubbleColor = const Color(0xFF8AC0DB), // Darkened light blue
     this.bubbleAuthColor = const Color(0xFF6ECD6E), // Darkened light green
     this.bubbleFailedColor = const Color(0xFFEB96A2), // Darkened light pink
@@ -310,7 +318,9 @@ class _ChatWidgetState extends State<ChatWidget> {
     // symbol (symbol-only position beacons carry no comment text). Only an
     // entry with none of these has no bubble at all.
     final hasBubble =
-        hasText || message.imagePath != null || message.bubbleSymbol != null ||
+        hasText ||
+        message.imagePath != null ||
+        message.bubbleSymbol != null ||
         message.bubbleContent != null;
     // When there is no bubble, the header is the only content, so always show
     // it. A header with an icon (e.g. a recording) is tappable. Show the icon
@@ -437,6 +447,7 @@ class _ChatWidgetState extends State<ChatWidget> {
   }
 
   Widget _buildBubble(ChatMessage message) {
+    final prefix = widget.messagePrefixBuilder?.call(context, message);
     return GestureDetector(
       onTap: widget.onMessageTap != null
           ? () => widget.onMessageTap!(message)
@@ -531,6 +542,11 @@ class _ChatWidgetState extends State<ChatWidget> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
+                        if (prefix != null)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6, bottom: 1),
+                            child: prefix,
+                          ),
                         // Mapped APRS symbol icon drawn inside the bubble.
                         if (message.bubbleSymbol != null) ...[
                           Padding(
@@ -539,7 +555,14 @@ class _ChatWidgetState extends State<ChatWidget> {
                           ),
                         ],
                         if (message.message.trim().isNotEmpty)
-                          Flexible(child: _MessageBody(message: message)),
+                          Flexible(
+                            child:
+                                widget.messageBodyBuilder?.call(
+                                  context,
+                                  message,
+                                ) ??
+                                _MessageBody(message: message),
+                          ),
                         // Authentication indicator (lock = verified, broken =
                         // failed). Surfaces AX25 auth state on the bubble itself,
                         // complementing the bubble color coding.
@@ -673,11 +696,12 @@ class _MessageBody extends StatelessWidget {
   const _MessageBody({required this.message});
 
   /// Matches an `http`/`https` URL, or a bare `www.` host that looks like a
-  /// DNS name (at least two dot-separated labels, e.g. `www.example.com`).
+  /// DNS name (at least two dot-separated labels, e.g. `www.example.com`),
+  /// or a bare `aprsota.org/` link from an APRS OTA reply.
   /// Trailing punctuation is trimmed separately so a URL at the end of a
   /// sentence doesn't swallow the period, etc.
   static final RegExp _urlPattern = RegExp(
-    r'https?://\S+|www\.[\w-]+(?:\.[\w-]+)+\S*',
+    r'https?://\S+|www\.[\w-]+(?:\.[\w-]+)+\S*|(?<![\w./@-])aprsota\.org/\S+',
     caseSensitive: false,
   );
 
@@ -724,9 +748,12 @@ class _MessageBody extends StatelessWidget {
       if (m.start > cursor) {
         spans.add(TextSpan(text: text.substring(cursor, m.start)));
       }
-      // Bare `www.` hosts have no scheme; assume http:// when launching, but
-      // keep the displayed text exactly as written.
-      final href = url.toLowerCase().startsWith('http') ? url : 'http://$url';
+      final String href;
+      if (url.toLowerCase().startsWith('aprsota.org/')) {
+        href = 'https://$url';
+      } else {
+        href = url.toLowerCase().startsWith('http') ? url : 'http://$url';
+      }
       final recognizer = TapGestureRecognizer()..onTap = () => _launch(href);
       recognizers.add(recognizer);
       spans.add(TextSpan(text: url, style: _linkStyle, recognizer: recognizer));

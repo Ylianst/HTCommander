@@ -9,158 +9,190 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get otaCommands => 'OTA-Befehle';
+
+  @override
+  String otaGridCenterTitle(String grid) {
+    return '$grid - Feldmitte (ungefähr)';
+  }
+
+  @override
+  String otaInfoQsos(int count) {
+    return 'Bestätigte QSOs: $count';
+  }
+
+  @override
+  String otaInfoWaiting(int count) {
+    return 'Warten auf QSL: $count';
+  }
+
+  @override
+  String otaInfoPoints(int count) {
+    return 'Punkte: $count';
+  }
+
+  @override
+  String get otaStartPosition =>
+      'Position zu Beginn der Aktivierung (nicht live)';
+
+  @override
+  String get otaNoPosition => 'Keine Position gemeldet';
+
+  @override
   String get otaTitle => 'APRS OTA';
 
   @override
-  String get otaCollapse => 'Collapse OTA tools';
+  String get otaCollapse => 'OTA-Werkzeuge einklappen';
 
   @override
-  String get otaExpand => 'Expand OTA tools';
+  String get otaExpand => 'OTA-Werkzeuge ausklappen';
 
   @override
-  String get otaCheckSetup => 'Check setup';
+  String get otaCheckSetup => 'Einrichtung prüfen';
 
   @override
-  String get otaFindOps => 'Find ops';
+  String get otaFindOps => 'Aktivierungen suchen';
 
   @override
-  String get otaHost => 'Host an op';
+  String get otaHost => 'Aktivierung starten';
 
   @override
-  String get otaChase => 'Chase';
+  String get otaChase => 'Kontakt suchen';
 
   @override
-  String get otaDetails => 'Details';
+  String get otaDetails => 'Einzelheiten';
 
   @override
-  String get otaBeaconSettings => 'Beacon settings';
+  String get otaBeaconSettings => 'Bakeneinstellungen';
 
   @override
-  String get otaHandbook => 'Handbook';
+  String get otaHandbook => 'Handbuch';
 
   @override
-  String get otaMyActivity => 'My activity';
+  String get otaMyActivity => 'Meine Aktivität';
 
   @override
-  String get otaEndOp => 'End op';
+  String get otaEndOp => 'Aktivierung beenden';
 
   @override
-  String get otaViewOp => 'View op';
+  String get otaViewOp => 'Aktivierung anzeigen';
 
   @override
-  String get otaOnAir => 'Ops reported on the air';
+  String get otaOnAir => 'Über Funk gemeldete Aktivierungen';
 
   @override
   String get otaGuide =>
-      'Commands stay in this OTA thread. CHASE needs a position report; the host\'s QSL completes the contact. An APRS ACK confirms delivery, not a QSO. Queries are manual and share the bot\'s rate limits.';
+      'Befehle bleiben in diesem OTA-Chat. CHASE benötigt eine Positionsmeldung; das QSL des Aktivierers schließt den Kontakt ab. Ein APRS-ACK bestätigt die Zustellung, kein QSO. Abfragen erfolgen manuell und unterliegen den gemeinsamen Ratenlimits des Bots.';
 
   @override
   String get otaPositionHelp =>
-      'Send a native APRS position report within 5 minutes, from the same callsign and SSID. A typed grid does not count. Hosting requires both the command and beacon to reach OTA over RF. Check the beacon path separately; your location will be public.';
+      'Senden Sie innerhalb von 5 Minuten eine native APRS-Positionsmeldung mit demselben Rufzeichen und derselben SSID. Ein eingegebener Locator zählt nicht. Zum Aktivieren müssen sowohl der Befehl als auch die Bake OTA über Funk erreichen. Prüfen Sie den Bakenpfad separat; Ihr Standort wird öffentlich.';
 
   @override
   String otaWaitingPosition(String station) {
-    return 'Waiting for position from $station (5-minute window; delivery may be delayed)';
+    return 'Warte auf Position von $station (5-Minuten-Fenster; Zustellung kann verzögert sein)';
   }
 
   @override
   String otaWaitingQsl(String station) {
-    return 'Chasing $station: waiting for host QSL';
+    return 'Kontaktsuche mit $station: warte auf QSL des Aktivierers';
   }
 
   @override
   String otaPendingQsl(String station) {
-    return 'Relayed from $station: waiting for your QSL';
+    return 'Weitergeleitet von $station: warte auf Ihr QSL';
   }
 
   @override
   String otaConfirmed(String station) {
-    return 'QSO confirmed by $station';
+    return 'QSO von $station bestätigt';
   }
 
   @override
   String otaHosting(String station) {
-    return 'Hosting: $station';
+    return 'Aktivierung: $station';
   }
 
   @override
   String otaNotHosting(String station) {
-    return '$station has no active op';
+    return '$station hat keine aktive Aktivierung';
   }
 
   @override
   String otaMinutes(int minutes) {
-    return 'Approximately $minutes min left';
+    return 'Noch ungefähr $minutes Min.';
   }
 
   @override
   String otaTimer(int minutes, int cap) {
-    return 'OTA reported $minutes min left, $cap min to the 2-hour cap';
+    return 'OTA meldet noch $minutes Min., $cap Min. bis zur 2-Stunden-Grenze';
   }
 
   @override
   String otaStats(int qsos, int waiting, int points) {
-    return '$qsos QSOs, $waiting awaiting QSL, $points points';
+    return '$qsos QSOs, $waiting warten auf QSL, $points Punkte';
   }
 
   @override
   String otaPages(int received, int pages, int shown, int total) {
-    return '$received/$pages pages received; showing $shown/$total stations';
+    return '$received/$pages Seiten empfangen; $shown/$total Stationen angezeigt';
   }
 
   @override
-  String get otaNoneReported => 'No stations reported in this response';
+  String get otaNoneReported => 'Keine Stationen in dieser Antwort gemeldet';
 
   @override
   String get otaUncertain =>
-      'Conflicting response pages. Refresh before using this list.';
+      'Widersprüchliche Antwortseiten. Vor Verwendung dieser Liste aktualisieren.';
 
   @override
-  String get otaStale => 'Status may be stale; request an update';
+  String get otaStale =>
+      'Status möglicherweise veraltet; Aktualisierung anfordern';
 
   @override
-  String get otaOpenFailed => 'Unable to open the APRS OTA website.';
+  String get otaOpenFailed =>
+      'Die APRS-OTA-Website konnte nicht geöffnet werden.';
 
   @override
-  String get otaPrepareCommand => 'Prepare OTA command';
+  String get otaPrepareCommand => 'OTA-Befehl vorbereiten';
 
   @override
-  String get otaCommand => 'Message to OTA';
+  String get otaCommand => 'Nachricht an OTA';
 
   @override
   String get otaCommandHelp =>
-      'Edit the command or add a greeting. Use command puts it in the composer; press Send when ready.';
+      'Bearbeiten Sie den Befehl oder fügen Sie einen Gruß hinzu. „Befehl verwenden“ übernimmt ihn in das Eingabefeld; drücken Sie anschließend Senden.';
 
   @override
-  String get otaUseCommand => 'Use command';
+  String get otaUseCommand => 'Befehl verwenden';
 
   @override
   String get otaReplaceDraft =>
-      'Using this command will replace your current draft.';
+      'Dieser Befehl ersetzt Ihren aktuellen Entwurf.';
 
   @override
   String get otaBlastWarning =>
-      'BLAST sends many messages over a shared RF channel. Add your text and use sparingly.';
+      'BLAST sendet viele Nachrichten über einen gemeinsam genutzten Funkkanal. Fügen Sie Ihren Text hinzu und verwenden Sie es sparsam.';
 
   @override
   String get otaDoneWarning =>
-      'While hosting, every DONE ends your own op, even if you add another host\'s callsign. The sign-off is saved, not sent to chasers.';
+      'Während einer Aktivierung beendet jeder DONE-Befehl Ihre eigene Aktivierung, auch wenn Sie das Rufzeichen eines anderen Aktivierers hinzufügen. Der Abschiedsgruß wird gespeichert, nicht an Kontaktsuchende gesendet.';
 
   @override
   String get otaRfRequired =>
-      'HOST and host QSL use RF only. A connected, available APRS radio is required; there is no internet fallback. Beacon routing is independent.';
+      'HOST und das QSL des Aktivierers verwenden ausschließlich Funk. Ein verbundenes, verfügbares APRS-Funkgerät ist erforderlich; es gibt keinen Internet-Ersatzweg. Die Bakenroute ist unabhängig.';
 
   @override
   String get otaUnavailable =>
-      'OTA transmission is not available. Check your callsign, radio, transmit permission, and selected link.';
+      'OTA-Übertragung nicht verfügbar. Prüfen Sie Rufzeichen, Funkgerät, Sendeberechtigung und ausgewählten Verbindungsweg.';
 
   @override
   String get otaSingleMessage =>
-      'OTA commands must fit in one APRS message. Shorten the text; commands cannot be split into parts.';
+      'OTA-Befehle müssen in eine APRS-Nachricht passen. Kürzen Sie den Text; Befehle können nicht aufgeteilt werden.';
 
   @override
   String otaCooldown(int seconds) {
-    return 'OTA query/command cooldown: wait approximately $seconds seconds. Other clients may also use your bot budget.';
+    return 'Wartezeit für OTA-Abfragen/Befehle: ungefähr $seconds Sekunden. Andere Clients können ebenfalls Ihr Bot-Kontingent nutzen.';
   }
 
   @override
@@ -204,101 +236,102 @@ class AppLocalizationsDe extends AppLocalizations {
       'Legende der NEXRAD-Basisreflektivität in dBZ';
 
   @override
-  String get commsTransferFile => 'Transfer File...';
+  String get commsTransferFile => 'Datei übertragen...';
 
   @override
-  String get fileTransferChoose => 'Choose file';
+  String get fileTransferChoose => 'Datei auswählen';
 
   @override
-  String get fileTransferCallsign => 'Destination callsign (including SSID)';
+  String get fileTransferCallsign => 'Zielrufzeichen (einschließlich SSID)';
 
   @override
-  String get fileTransferTransmit => 'Transmit';
+  String get fileTransferTransmit => 'Senden';
 
   @override
-  String get fileTransferAccept => 'Accept';
+  String get fileTransferAccept => 'Annehmen';
 
   @override
-  String get fileTransferReject => 'Reject';
+  String get fileTransferReject => 'Ablehnen';
 
   @override
-  String get fileTransferResume => 'Resume';
+  String get fileTransferResume => 'Fortsetzen';
 
   @override
-  String get fileTransferSave => 'Save file...';
+  String get fileTransferSave => 'Datei speichern...';
 
   @override
   String get fileTransferWarning =>
-      'Agree a dedicated packet frequency with the other station first. Do not transfer files on the shared APRS channel. Only transmit content permitted by your license. Maximum transmitted body: 1,474,560 bytes; gzip is used when beneficial.';
+      'Vereinbaren Sie zuerst eine separate Packet-Frequenz mit der anderen Station. Übertragen Sie keine Dateien auf dem gemeinsamen APRS-Kanal. Senden Sie nur Inhalte, die Ihre Lizenz erlaubt. Maximale übertragene Nutzdaten: 1.474.560 Bytes; gzip wird verwendet, wenn es vorteilhaft ist.';
 
   @override
-  String get fileTransferQueued => 'Queued';
+  String get fileTransferQueued => 'In Warteschlange';
 
   @override
-  String get fileTransferOutgoingOffer => 'Waiting for acceptance';
+  String get fileTransferOutgoingOffer => 'Warte auf Annahme';
 
   @override
-  String get fileTransferIncomingOffer => 'File offer';
+  String get fileTransferIncomingOffer => 'Dateiangebot';
 
   @override
-  String get fileTransferReceiving => 'Receiving';
+  String get fileTransferReceiving => 'Empfang läuft';
 
   @override
-  String get fileTransferSending => 'Transmitting';
+  String get fileTransferSending => 'Übertragung läuft';
 
   @override
-  String get fileTransferVerifying => 'Verifying and saving';
+  String get fileTransferVerifying => 'Prüfen und speichern';
 
   @override
-  String get fileTransferCompleted => 'Completed';
+  String get fileTransferCompleted => 'Abgeschlossen';
 
   @override
-  String get fileTransferRejected => 'Rejected';
+  String get fileTransferRejected => 'Abgelehnt';
 
   @override
-  String get fileTransferCanceled => 'Canceled';
+  String get fileTransferCanceled => 'Abgebrochen';
 
   @override
   String get fileTransferCancelNote =>
-      'A packet already submitted to the radio may still transmit.';
+      'Ein bereits an das Funkgerät übergebenes Paket kann noch gesendet werden.';
 
   @override
-  String get fileTransferNoResponse => 'No response';
+  String get fileTransferNoResponse => 'Keine Antwort';
 
   @override
-  String get fileTransferPaused => 'Paused';
+  String get fileTransferPaused => 'Pausiert';
 
   @override
-  String get fileTransferExpired => 'Offer expired';
+  String get fileTransferExpired => 'Angebot abgelaufen';
 
   @override
-  String get fileTransferFailed => 'Failed';
+  String get fileTransferFailed => 'Fehlgeschlagen';
 
   @override
   String fileTransferSize(int original, int sent) {
-    return '$original bytes original / $sent bytes over radio';
+    return '$original Bytes ursprünglich / $sent Bytes über Funk';
   }
 
   @override
   String fileTransferProgress(int done, int total) {
-    return '$done / $total bytes confirmed';
+    return '$done / $total Bytes bestätigt';
   }
 
   @override
   String fileTransferError(String detail) {
-    return 'File transfer: $detail';
+    return 'Dateiübertragung: $detail';
   }
 
   @override
-  String get fileTransferTooLarge => 'File exceeds 50 MB before compression';
+  String get fileTransferTooLarge =>
+      'Datei überschreitet 50 MB vor der Komprimierung';
 
   @override
   String get fileTransferUnconfirmed =>
-      'No queue confirmation. Check the chat before transmitting again.';
+      'Keine Warteschlangenbestätigung. Prüfen Sie den Chat, bevor Sie erneut senden.';
 
   @override
   String fileTransferSelectedFile(String name, int size) {
-    return '$name ($size bytes)';
+    return '$name ($size Bytes)';
   }
 
   @override

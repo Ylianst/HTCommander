@@ -50,6 +50,42 @@ class AprsUtil {
   static String latLonToGridSquareSet(CoordinateSet set) =>
       latLonToGridSquare(set.latitude.value, set.longitude.value);
 
+  /// Center of a six-character Maidenhead subsquare, not an exact station fix.
+  static ({double latitude, double longitude}) gridSquareToLatLon(String grid) {
+    final bounds = gridSquareBounds(grid);
+    return (
+      latitude: (bounds.south + bounds.north) / 2,
+      longitude: (bounds.west + bounds.east) / 2,
+    );
+  }
+
+  /// Geographic edges of a six-character Maidenhead subsquare.
+  static ({double south, double west, double north, double east})
+      gridSquareBounds(String grid) {
+    final value = grid.toUpperCase();
+    if (!RegExp(r'^[A-R]{2}[0-9]{2}[A-X]{2}$').hasMatch(value)) {
+      throw FormatException('Invalid six-character Maidenhead grid', grid);
+    }
+    final a = 'A'.codeUnitAt(0);
+    final zero = '0'.codeUnitAt(0);
+    final south =
+          -90 +
+          (value.codeUnitAt(1) - a) * 10 +
+          (value.codeUnitAt(3) - zero) +
+          (value.codeUnitAt(5) - a) / 24;
+    final west =
+          -180 +
+          (value.codeUnitAt(0) - a) * 20 +
+          (value.codeUnitAt(2) - zero) * 2 +
+          (value.codeUnitAt(4) - a) / 12;
+    return (
+      south: south,
+      west: west,
+      north: south + 1 / 24,
+      east: west + 1 / 12,
+    );
+  }
+
   /// Convert to NMEA format: DDMM.MMN/S or DDDMM.MME/W.
   static String _convertToNmea(double d, String direction, bool isLat) {
     final double l = d.abs();

@@ -1,20 +1,61 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/aprs/aprs_events.dart';
 import 'package:htcommander/aprs/aprs_link_policy.dart';
 import 'package:htcommander/aprs/aprs_outbox.dart';
 import 'package:htcommander/aprs/aprs_packet.dart';
+import 'package:htcommander/aprs/aprs_util.dart';
 import 'package:htcommander/aprs/ota.dart';
+import 'package:htcommander/callsign/callsign_database.dart';
+import 'package:htcommander/callsign/callsign_record.dart';
 import 'package:htcommander/aprsis/tnc2_codec.dart';
 import 'package:htcommander/l10n/app_localizations.dart';
+import 'package:htcommander/dialogs/aprs_location_dialog.dart';
 import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/services/data_broker_client.dart';
+import 'package:htcommander/services/callsign_lookup_service.dart';
 import 'package:htcommander/widgets/aprs_tab.dart';
 import 'package:htcommander/widgets/chat_widget.dart';
 import 'package:htcommander/widgets/contact_avatar.dart';
-import 'package:htcommander/widgets/ota_conversation_panel.dart';
+import 'package:htcommander/widgets/ota_message_body.dart';
 
 void main() {
+  test('Maidenhead maps use the subsquare center in both hemispheres', () {
+    final center = AprsUtil.gridSquareToLatLon('QF44oo');
+    final bounds = AprsUtil.gridSquareBounds('QF44oo');
+    expect(bounds.south, closeTo(-35.4166666667, 1e-9));
+    expect(bounds.north, closeTo(-35.375, 1e-9));
+    expect(bounds.west, closeTo(149.1666666667, 1e-9));
+    expect(bounds.east, closeTo(149.25, 1e-9));
+    final first = AprsUtil.gridSquareBounds('AA00aa');
+    final last = AprsUtil.gridSquareBounds('RR99xx');
+    expect(first.south, -90);
+    expect(first.west, -180);
+    expect(last.north, closeTo(90, 1e-9));
+    expect(last.east, closeTo(180, 1e-9));
+    expect(center.latitude, closeTo(-35.3958333333, 1e-9));
+    expect(center.longitude, closeTo(149.2083333333, 1e-9));
+    expect(
+      AprsUtil.latLonToGridSquare(center.latitude, center.longitude),
+      'QF44OO',
+    );
+    for (final grid in ['DN40fb', 'AA00aa', 'RR99xx']) {
+      final point = AprsUtil.gridSquareToLatLon(grid);
+      expect(
+        AprsUtil.latLonToGridSquare(point.latitude, point.longitude),
+        grid.toUpperCase(),
+      );
+    }
+    for (final grid in ['ZZ44oo', 'QF44yy', 'QF44', '_']) {
+      expect(() => AprsUtil.gridSquareToLatLon(grid), throwsFormatException);
+    }
+  });
+
   test(
     'machine replies preserve nulls, records, descriptions and extensions',
     () {
@@ -64,6 +105,8 @@ void main() {
   );
 
   test('chase relays and confirmations cannot be confused by free text', () {
+    expect(decodeOtaReply('DE W1XYZ-5 DN40fb QSL please')!.grid, 'DN40fb');
+    expect(decodeOtaReply('DE W1XYZ-5 _ QSL please')!.grid, isNull);
     expect(
       decodeOtaReply('DE W1XYZ-5 DN40fb QSL please')!.kind,
       OtaReplyKind.pendingQsl,
@@ -127,10 +170,55 @@ void main() {
     expect(otaCommandRequiresRf('CHASE K7ABC'), isFalse);
     expect(isOtaPeer(' ota-0 '), isTrue);
     expect(isOtaPeer('OTA-7'), isFalse);
-    expect(autoContactLogo('OTA'), 'radio');
+    expect(autoContactLogo('OTA'), isNull);
     expect(contactLogoIcon('OTA', 'star'), kContactLogos['star']);
     expect(autoContactLogo('OTA-7'), isNull);
   });
+
+  testWidgets(
+    'OTA defaults to the bundled official avatar, preserving overrides',
+    (tester) async {
+      final image = base64Encode(
+        (await rootBundle.load(
+          'assets/images/aprs_ota.png',
+        )).buffer.asUint8List(),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Row(
+              children: [
+                const ContactAvatar(callsign: 'OTA'),
+                const ContactAvatar(callsign: ' ota-0 '),
+                const ContactAvatar(callsign: 'OTA', avatarIcon: 'star'),
+                ContactAvatar(callsign: 'OTA', avatarImage: image),
+                const ContactAvatar(callsign: 'OTA-7'),
+                const ContactAvatar(callsign: 'WXBOT'),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final avatars = tester
+          .widgetList<CircleAvatar>(find.byType(CircleAvatar))
+          .toList();
+      for (final avatar in avatars.take(2)) {
+        expect(avatar.backgroundImage, isA<AssetImage>());
+        expect(
+          (avatar.backgroundImage! as AssetImage).assetName,
+          'assets/images/aprs_ota.png',
+        );
+      }
+      expect(avatars[2].backgroundImage, isNull);
+      expect(find.byIcon(Icons.star), findsOneWidget);
+      expect(avatars[3].backgroundImage, isA<MemoryImage>());
+      expect(avatars[4].backgroundImage, isNull);
+      expect(avatars[5].backgroundImage, isNull);
+      expect(find.byIcon(Icons.wb_cloudy), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   test('human and machine commands share an operator-wide local cooldown', () {
     final now = DateTime(2026);
@@ -187,6 +275,511 @@ void main() {
     );
 
     testWidgets(
+      'OTA awards get celebration icons without changing text or URL links',
+      (tester) async {
+        setting('CallSign', 'N0CALL');
+        setting('StationId', 7);
+        const award = 'You earned Bronze Envoy, 2026! aprsota.org/KK7VZT';
+        await tester.pumpWidget(app());
+        packet('OTA', award);
+        packet('OTA', 'You earned another award!');
+        packet('OTA', award, addressee: 'OTHER');
+        packet('OTA', 'A notice: You earned an award');
+        open('OTA');
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.celebration), findsNWidgets(2));
+        final messages = tester
+            .widget<ChatWidget>(find.byType(ChatWidget))
+            .messages;
+        final message = messages.firstWhere(
+          (message) => message.message == award,
+        );
+        expect(message.message, award);
+        expect(message.bodySpans, isNotNull);
+        expect(
+          message.bodySpans!.whereType<TextSpan>().any(
+            (span) =>
+                span.text == 'aprsota.org/KK7VZT' && span.recognizer != null,
+          ),
+          isTrue,
+        );
+        open('W1AW');
+        packet('W1AW', award);
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.celebration), findsNothing);
+        open('OTA-7');
+        packet('OTA-7', award);
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.celebration), findsNothing);
+        DataBroker.dispatch(
+          deviceId: 1,
+          name: 'AprsShowContactList',
+          data: null,
+          store: false,
+        );
+        await tester.pump();
+        await tester.tap(find.text('All APRS Messages').first);
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.celebration), findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+
+    testWidgets(
+      'CQ station icons fill CHASE and INFO without sending and stay scoped',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 760);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        setting('CallSign', 'N0CALL');
+        setting('StationId', 7);
+        setting('AprsIsEnabled', 1);
+        final bus = DataBrokerClient();
+        addTearDown(bus.dispose);
+        final requests = <AprsSendMessageData>[];
+        bus.subscribe(
+          deviceId: 1,
+          name: 'SendAprsMessage',
+          callback: (_, _, data) {
+            if (data is AprsSendMessageData) requests.add(data);
+          },
+        );
+        const reply =
+            'CQ! 1/1 3 VK2JKB-7 QF44oo 24 9W3FAB-9 OJ51co 41 DL7PJ-9 JN39jv 48';
+        await tester.pumpWidget(app());
+        packet('OTA', reply);
+        open('OTA-0');
+        await tester.pump();
+        final body = find.byType(OtaCqMessageBody);
+        expect(body, findsOneWidget);
+        expect(
+          find.descendant(of: body, matching: find.text('CQ! 1/1')),
+          findsOneWidget,
+        );
+        expect(find.text('CQ! 1/1 3'), findsNothing);
+        for (final minutes in [24, 41, 48]) {
+          expect(
+            find.descendant(
+              of: body,
+              matching: find.text('Approximately $minutes min left'),
+            ),
+            findsOneWidget,
+          );
+        }
+        for (final icon in [
+          Icons.flag_outlined,
+          Icons.info_outline,
+          Icons.location_on_outlined,
+        ]) {
+          expect(
+            find.descendant(
+              of: body,
+              matching: find.widgetWithIcon(IconButton, icon),
+            ),
+            findsNWidgets(3),
+          );
+        }
+        expect(
+          find.descendant(of: body, matching: find.text('QF44oo')),
+          findsNothing,
+        );
+        double? actionLeft;
+        expect(
+          find.descendant(of: body, matching: find.byType(TextButton)),
+          findsNothing,
+        );
+        for (final station in ['VK2JKB-7', '9W3FAB-9', 'DL7PJ-9']) {
+          final link = find.descendant(of: body, matching: find.text(station));
+          await tester.ensureVisible(link);
+          await tester.pumpAndSettle();
+          final input = tester.widget<TextField>(find.byType(TextField).last);
+          final draft = input.controller!.text;
+          await tester.tap(link);
+          await tester.pump(const Duration(milliseconds: 350));
+          await tester.pumpAndSettle();
+          expect(input.controller!.text, draft);
+          expect(find.byType(AlertDialog), findsNothing);
+          expect(requests, isEmpty);
+          for (final (tooltip, command) in [
+            ('Chase: $station', 'CHASE $station'),
+            ('INFO! $station', 'INFO! $station'),
+          ]) {
+            final action = find.descendant(
+              of: body,
+              matching: find.byTooltip(tooltip),
+            );
+            await tester.ensureVisible(action);
+            await tester.pumpAndSettle();
+            expect(
+              tester.getRect(action).right,
+              lessThan(tester.getRect(link).left),
+            );
+            if (tooltip.startsWith('Chase:')) {
+              actionLeft ??= tester.getRect(action).left;
+              expect(tester.getRect(action).left, closeTo(actionLeft, 1));
+            }
+            await tester.tap(action);
+            await tester.pump(const Duration(milliseconds: 350));
+            await tester.pumpAndSettle();
+            expect(input.controller!.text, command);
+            expect(input.controller!.selection.baseOffset, command.length);
+            expect(input.focusNode!.hasFocus, isTrue);
+            expect(find.byType(AlertDialog), findsNothing);
+            expect(requests, isEmpty);
+          }
+          final minutes = {
+            'VK2JKB-7': 24,
+            '9W3FAB-9': 41,
+            'DL7PJ-9': 48,
+          }[station]!;
+          final time = find.descendant(
+            of: body,
+            matching: find.text('Approximately $minutes min left'),
+          );
+          expect(
+            tester.getRect(time).left,
+            closeTo(tester.getRect(link).left, 1),
+          );
+          expect(
+            tester.getRect(time).top,
+            greaterThan(tester.getRect(link).bottom),
+          );
+        }
+        expect(
+          tester
+              .widget<ChatWidget>(find.byType(ChatWidget))
+              .messages
+              .single
+              .message,
+          reply,
+        );
+        packet('OTA', 'CQ! 1/1 1 K7ABC-6 DN40fb');
+        await tester.pump();
+        expect(body, findsOneWidget);
+        open('W1AW');
+        packet('W1AW', reply);
+        await tester.pump();
+        expect(body, findsNothing);
+        DataBroker.dispatch(
+          deviceId: 1,
+          name: 'AprsShowContactList',
+          data: null,
+          store: false,
+        );
+        await tester.pump();
+        await tester.tap(find.text('All APRS Messages').first);
+        await tester.pump();
+        expect(body, findsNothing);
+        expect(
+          tester.widget<ChatWidget>(find.byType(ChatWidget)).messageBodyBuilder,
+          isNull,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+
+    testWidgets(
+      'CQ unknown grids disable location and large text fits narrow rows',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('de'),
+            home: Scaffold(
+              body: MediaQuery(
+                data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+                child: SizedBox(
+                  width: 220,
+                  child: OtaCqMessageBody(
+                    reply: decodeOtaReply('CQ! 1/1 1 K7ABC-6 _ _')!,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        final icons = tester.widgetList<IconButton>(find.byType(IconButton));
+        expect(icons, hasLength(3));
+        expect(icons.every((button) => button.onPressed == null), isTrue);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'CQ adds installed US and Canadian records inline, ignoring SSIDs',
+      (tester) async {
+        final root = (await tester.runAsync(
+          () => Directory.systemTemp.createTemp('htcommander-ota-license-'),
+        ))!;
+        const channel = MethodChannel('plugins.flutter.io/path_provider');
+        final messenger =
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          if (call.method == 'getApplicationSupportDirectory') return root.path;
+          throw MissingPluginException();
+        });
+        final service = CallsignLookupService.instance;
+        addTearDown(() async {
+          for (final source in CallsignDbSource.values) {
+            await service.delete(source);
+          }
+          messenger.setMockMethodCallHandler(channel, null);
+          await root.delete(recursive: true);
+        });
+        await tester.runAsync(() async {
+          await File(
+            '${root.path}\\${CallsignDbSource.us.fileName}',
+          ).writeAsBytes(
+            CallsignDatabase.build(const [
+              CallsignRecord(
+                callsign: 'K7ABC',
+                name: 'Test US Operator',
+                operatorClass: 'G',
+                city: 'Seattle',
+                state: 'WA',
+              ),
+              CallsignRecord(
+                callsign: 'W1AW',
+                name: 'Test US Club',
+                city: 'Newington',
+                state: 'CT',
+              ),
+            ]),
+          );
+          await File(
+            '${root.path}\\${CallsignDbSource.canada.fileName}',
+          ).writeAsBytes(
+            CallsignDatabase.build(const [
+              CallsignRecord(
+                callsign: 'VE3ABC',
+                name: 'Test Canadian Operator',
+                qualifications: 'D',
+                city: 'Ottawa',
+                state: 'ON',
+              ),
+            ], flags: CallsignDatabase.flagCanada),
+          );
+          await service.init();
+        });
+        Widget body(double width) => MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(
+              width: width,
+              child: OtaCqMessageBody(
+                reply: decodeOtaReply(
+                  'CQ! 1/1 4 K7ABC-6 DN40fb 22 '
+                  'W1AW FN31pr 30 VE3ABC-9 FN25dj 40 VK2JKB-7 QF44oo 24',
+                )!,
+              ),
+            ),
+          ),
+        );
+        await tester.runAsync(() async {
+          await tester.pumpWidget(body(780));
+          // This read queues behind the CQ rows' asynchronous database reads.
+          await service.lookup('W1AW');
+        });
+        await tester.pumpAndSettle();
+        for (final (station, summary) in [
+          ('K7ABC-6', 'Test US Operator / Seattle, WA / General'),
+          ('W1AW', 'Test US Club / Newington, CT'),
+          ('VE3ABC-9', 'Test Canadian Operator / Ottawa, ON / Advanced'),
+        ]) {
+          expect(find.text(summary), findsOneWidget);
+          expect(
+            tester.getRect(find.text(summary)).left,
+            greaterThan(tester.getRect(find.text(station)).right),
+          );
+        }
+        expect(find.text('VK2JKB-7'), findsOneWidget);
+        expect(find.byType(TextButton), findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(body(220));
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Test Canadian Operator / Ottawa, ON / Advanced'),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+
+    testWidgets(
+      'CQ grids and INFO coordinates open maps with distinct positions',
+      (tester) async {
+        final root = (await tester.runAsync(
+          () => Directory.systemTemp.createTemp('htcommander-ota-map-'),
+        ))!;
+        const channel = MethodChannel('plugins.flutter.io/path_provider');
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+              if (call.method == 'getApplicationSupportDirectory') {
+                return root.path;
+              }
+              throw MissingPluginException();
+            });
+        addTearDown(() async {
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(channel, null);
+          await root.delete(recursive: true);
+        });
+        setting('CallSign', 'N0CALL');
+        setting('StationId', 7);
+        await tester.pumpWidget(app());
+        packet('OTA', 'CQ! 1/1 1 VK2JKB-7 QF44oo 24');
+        open('OTA');
+        await tester.pump();
+        Future<void> checkMap(
+          Finder link,
+          double latitude,
+          double longitude, {
+          bool gridArea = false,
+        }) async {
+          await tester.ensureVisible(link);
+          await tester.pumpAndSettle();
+          await tester.tap(link);
+          await tester.pump(const Duration(milliseconds: 350));
+          await tester.pumpAndSettle();
+          final dialog = tester.widget<AprsLocationDialog>(
+            find.byType(AprsLocationDialog),
+          );
+          expect(dialog.latitude, closeTo(latitude, 1e-9));
+          expect(dialog.longitude, closeTo(longitude, 1e-9));
+          if (gridArea) {
+            final polygon = tester
+                .widget<PolygonLayer>(find.byType(PolygonLayer))
+                .polygons
+                .single;
+            expect(polygon.points, hasLength(4));
+            for (final (index, lat, lon) in [
+              (0, -35.375, 149.16666666666666),
+              (1, -35.375, 149.25),
+              (2, -35.416666666666664, 149.25),
+              (3, -35.416666666666664, 149.16666666666666),
+            ]) {
+              expect(polygon.points[index].latitude, closeTo(lat, 1e-9));
+              expect(polygon.points[index].longitude, closeTo(lon, 1e-9));
+            }
+            expect(polygon.borderStrokeWidth, greaterThan(0));
+          } else {
+            expect(dialog.areaBounds, isNull);
+            expect(find.byType(PolygonLayer), findsNothing);
+          }
+          final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
+          expect(map.options.initialCenter.latitude, closeTo(latitude, 1e-9));
+          expect(map.options.initialCenter.longitude, closeTo(longitude, 1e-9));
+          final markers = tester.widget<MarkerLayer>(find.byType(MarkerLayer));
+          expect(
+            markers.markers.single.point.latitude,
+            closeTo(latitude, 1e-9),
+          );
+          await tester.tap(
+            find.descendant(
+              of: find.byType(AprsLocationDialog),
+              matching: find.widgetWithIcon(IconButton, Icons.close),
+            ),
+          );
+          await tester.pumpAndSettle();
+        }
+
+        await checkMap(
+          find.descendant(
+            of: find.byType(OtaCqMessageBody),
+            matching: find.widgetWithIcon(
+              IconButton,
+              Icons.location_on_outlined,
+            ),
+          ),
+          -35.39583333333333,
+          149.20833333333334,
+          gridArea: true,
+        );
+        const info = 'INFO! VK2JKB-7 QF44oo 12 7 0 21 -35.3848 149.1985';
+        packet('OTA', info);
+        await tester.pumpAndSettle();
+        final body = find.byType(OtaInfoMessageBody);
+        expect(body, findsOneWidget);
+        for (final label in [
+          'Approximately 12 min left',
+          'Confirmed QSOs: 7',
+          'Awaiting QSL: 0',
+          'Points: 21',
+          'Position that started the op (not live)',
+        ]) {
+          expect(
+            find.descendant(of: body, matching: find.text(label)),
+            findsOneWidget,
+          );
+        }
+        final coordinates = find.descendant(
+          of: body,
+          matching: find.widgetWithText(
+            TextButton,
+            'Latitude: -35.3848\nLongitude: 149.1985',
+          ),
+        );
+        await checkMap(coordinates, -35.3848, 149.1985);
+        expect(
+          tester
+              .widget<ChatWidget>(find.byType(ChatWidget))
+              .messages
+              .last
+              .message,
+          info,
+        );
+        packet('OTA', 'DE VK2JKB-7 QF44oo QSL please');
+        await tester.pumpAndSettle();
+        await checkMap(
+          find.descendant(
+            of: find.byType(OtaActivityMessageBody),
+            matching: find.widgetWithText(TextButton, 'QF44oo'),
+          ),
+          -35.39583333333333,
+          149.20833333333334,
+          gridArea: true,
+        );
+        open('W1AW');
+        packet('W1AW', info);
+        await tester.pump();
+        expect(find.byType(OtaInfoMessageBody), findsNothing);
+        expect(find.byType(OtaActivityMessageBody), findsNothing);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+
+    testWidgets('INFO handles null positions, descriptions and missing ops', (
+      tester,
+    ) async {
+      setting('CallSign', 'N0CALL');
+      setting('StationId', 7);
+      await tester.pumpWidget(app());
+      packet('OTA', 'INFO! VK2JKB-7 _ _ 7 0 21 _ _');
+      packet('OTA', 'INFO! VK2JKB-7 DESC Test op');
+      packet('OTA', 'INFO! W1AW NIL');
+      open('OTA');
+      await tester.pump();
+      expect(find.byType(OtaInfoMessageBody), findsNWidgets(3));
+      expect(find.text('No position reported'), findsOneWidget);
+      expect(find.text('Details: Test op'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(OtaInfoMessageBody),
+          matching: find.text('W1AW has no active op'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(TextButton, '_'), findsNothing);
+      expect(find.widgetWithText(TextButton, 'Latitude:'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+    testWidgets(
       'tools exist only in OTA, keep raw chat and prepare without sending',
       (tester) async {
         tester.view.physicalSize = const Size(360, 760);
@@ -206,12 +799,19 @@ void main() {
           },
         );
         await tester.pumpWidget(app());
-        expect(find.byType(OtaConversationPanel), findsNothing);
+        expect(find.byTooltip('OTA commands'), findsNothing);
         packet('OTA', 'CQ! 1/1 1 K7ABC-6 DN40fb 22');
         packet('OTA', 'CQ! 1/1 1 W1AW DN40fb 22', addressee: 'OTHER');
         open('OTA-0');
         await tester.pump();
-        expect(find.byType(OtaConversationPanel), findsOneWidget);
+        expect(find.byTooltip('OTA commands'), findsOneWidget);
+        expect(find.text('APRS OTA'), findsNothing);
+        final menuBounds = tester.getRect(find.byTooltip('OTA commands'));
+        expect(menuBounds.size, const Size(40, 40));
+        expect(
+          menuBounds.right,
+          lessThan(tester.getRect(find.byType(ChatWidget)).right - 72),
+        );
         expect(
           tester
               .widget<ChatWidget>(find.byType(ChatWidget))
@@ -220,13 +820,26 @@ void main() {
               .message,
           'CQ! 1/1 1 K7ABC-6 DN40fb 22',
         );
+        await tester.tap(find.byTooltip('OTA commands'));
+        await tester.pumpAndSettle();
+        expect(find.text('Check setup'), findsOneWidget);
         await tester.tap(find.text('Find ops'));
         await tester.pumpAndSettle();
         expect(requests, isEmpty);
-        await tester.tap(find.text('Use command'));
+        expect(find.byType(AlertDialog), findsNothing);
+        final composerController = tester
+            .widget<TextField>(find.byType(TextField).last)
+            .controller!;
+        expect(composerController.text, 'CQ!');
+        await tester.tap(find.byTooltip('OTA commands'));
         await tester.pumpAndSettle();
-        final composer = find.byType(TextField).last;
-        expect(tester.widget<TextField>(composer).controller!.text, 'CQ!');
+        await tester.tap(find.text('Check setup'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(find.text('PING'), findsOneWidget);
+        expect(composerController.text, 'CQ!');
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
         await tester.tap(find.widgetWithIcon(ElevatedButton, Icons.send));
         await tester.pump();
         expect(requests.single.destination, 'OTA');
@@ -239,10 +852,10 @@ void main() {
         );
         open('W1AW');
         await tester.pump();
-        expect(find.byType(OtaConversationPanel), findsNothing);
+        expect(find.byTooltip('OTA commands'), findsNothing);
         open('OTA-7');
         await tester.pump();
-        expect(find.byType(OtaConversationPanel), findsNothing);
+        expect(find.byTooltip('OTA commands'), findsNothing);
         DataBroker.dispatch(
           deviceId: 1,
           name: 'AprsShowContactList',
@@ -252,7 +865,7 @@ void main() {
         await tester.pump();
         await tester.tap(find.text('All APRS Messages').first);
         await tester.pump();
-        expect(find.byType(OtaConversationPanel), findsNothing);
+        expect(find.byTooltip('OTA commands'), findsNothing);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox());
       },
@@ -354,11 +967,11 @@ void main() {
         packet('OTA', 'DE K7ABC-6 QSL thanks');
         open('OTA');
         await tester.pump();
-        expect(find.text('5 QSOs, 3 awaiting QSL, 5 points'), findsOneWidget);
-        expect(find.text('Lakeshore op'), findsOneWidget);
+        expect(find.text('Confirmed QSOs: 5'), findsOneWidget);
+        expect(find.text('Details: Lakeshore op'), findsOneWidget);
         expect(find.text('QSO confirmed by K7ABC-6'), findsOneWidget);
-        expect(find.textContaining('waiting for host QSL'), findsNothing);
-        expect(find.textContaining('Waiting for position'), findsNothing);
+        expect(find.textContaining('waiting for host QSL'), findsOneWidget);
+        expect(find.textContaining('Waiting for position'), findsOneWidget);
         expect(
           tester.widget<ChatWidget>(find.byType(ChatWidget)).messages,
           hasLength(5),
@@ -383,14 +996,26 @@ void main() {
       packet('OTA', 'CHASERS! 1/2 2 K7ABC-6');
       open('OTA');
       await tester.pump();
-      expect(find.text('Hosting: N0CALL-7'), findsNWidgets(2));
-      expect(
-        find.text('2/2 pages received; showing 2/2 stations'),
-        findsOneWidget,
-      );
+      expect(find.text('Hosting: N0CALL-7'), findsOneWidget);
+      expect(find.text('CHASERS! 2/2 2'), findsOneWidget);
       expect(find.text('K7ABC-6'), findsOneWidget);
       expect(find.text('W1XYZ-5'), findsOneWidget);
-      expect(find.widgetWithText(TextButton, 'QSL'), findsNWidgets(2));
+      final chaser = find.descendant(
+        of: find.byType(OtaActivityMessageBody),
+        matching: find.widgetWithText(TextButton, 'K7ABC-6'),
+      );
+      await tester.ensureVisible(chaser);
+      await tester.pumpAndSettle();
+      await tester.tap(chaser);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(find.byType(TextField).last).controller!.text,
+        'QSL K7ABC-6',
+      );
+      await tester.enterText(find.byType(TextField).last, '');
+      await tester.tap(find.byTooltip('OTA commands'));
+      await tester.pumpAndSettle();
       final end = find.text('End op');
       await tester.ensureVisible(end);
       await tester.tap(end);
@@ -407,6 +1032,8 @@ void main() {
       );
       packet('OTA', 'Op complete: 2 QSOs, 3 pts. aprsota.org/N0CALL');
       await tester.pump();
+      await tester.tap(find.byTooltip('OTA commands'));
+      await tester.pumpAndSettle();
       expect(find.text('End op'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

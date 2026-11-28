@@ -6,25 +6,62 @@ The main tab in Handi-Talky Commander is the APRS tab. You can use this tab to s
 
 On the upper right, you can click on the 3 bars to opt to not see telemetry messages. You can also send SMS message to normal phones which is great if you need to send a text message and don't have cell phone access.
 
+APRS chat keeps identical message text as separate transmissions when the
+APRS message IDs differ, including restored history. Retries and RF/internet
+echoes with the same sender, addressee, text, and message ID remain collapsed;
+the local RF copy takes precedence.
+
 ## APRS OTA conversation
 
 Open or create an APRS conversation with **OTA** to use
-[APRS OTA](https://aprsota.org/). Its automatic radio avatar respects your
+[APRS OTA](https://aprsota.org/). Its default avatar uses the official
+[APRS OTA application icon](https://aprsota.org/icon-512.png), bundled for
+offline use, and respects your
 custom image/icon. OTA tools appear **only inside that conversation**
 (`OTA-0` is the same peer), not in All APRS Messages, other conversations,
 MeshCore, or Comms. No new global setting or background service is required.
 
-The collapsible panel offers **Check setup**, **Find ops**, **Host an op**,
-beacon settings, and handbook/activity links. Actions open an editable command
-preview; **Use command** places it in the ordinary composer, and **Send**
+The circular **OTA commands** button beside the top-right avatar offers
+**Check setup**, **Find ops**, **Host an op**, beacon settings, and
+handbook/activity links. There is no separate top panel. Simple queries fill
+the composer directly; commands needing arguments or warnings, and actions
+that would replace a draft, open an editable preview. **Use command** places
+the preview in the ordinary composer, and **Send**
 submits it through the existing outbox. Nothing transmits just because you
 open the thread. Existing drafts are replaced only after the preview warns
 you and you choose Use command.
 
-`CQ!`, `INFO!`, `TIME!`, and `CHASERS!` replies become discovery/details cards,
-reported timers, and a host QSL queue. Missing/conflicting pages and stale
-reports are identified. Recognized position prompts, chase receipts,
-QSL relays, blasts, and errors remain visible alongside the original chat.
+`CQ!`, `INFO!`, `TIME!`, and `CHASERS!` replies are decoded in their chat
+bubbles, with page numbers retained rather than merging separate snapshots.
+CHASERS callsigns and pending-chaser QSL links fill `QSL <callsign>`.
+Position prompts offer beacon settings, and receipts offer operation links.
+Recognized chase receipts and QSL relays have explanatory labels/icons.
+Unknown replies, blasts, and errors retain the ordinary chat rendering.
+Award messages from OTA starting with "You earned" show a celebration icon;
+the original message and its activity-page link remain intact.
+Inside the OTA thread, received `CQ!` messages show compact station rows with
+aligned **Chase**, **Info**, and **Location** icons on the left and two lines
+on the right: a plain callsign above the minutes remaining. The header shows
+the page/total pages, without a station count; grids are available through
+the Location icon only.
+When a callsign matches an installed US or Canadian offline database, its
+name, location, and license class/qualifications appear beside it (long
+summaries have a tooltip). APRS SSIDs are ignored for this lookup; no database is
+downloaded automatically.
+Clicking the Chase icon fills `CHASE <callsign>`; Info fills
+`INFO! <callsign>`, and Location maps the grid center. Neither command sends
+or opens a command preview. You can
+add a greeting before pressing Send. The original packet remains available
+in message details and copying. These CQ actions do not appear in the
+all-messages view or other threads.
+Location icons in CQ messages and grid links in INFO messages open a map dialog at the
+approximate center of that six-character Maidenhead square.
+Grid maps also outline all four geographic edges with a lightly shaded
+rectangle, showing the area covered rather than just its center.
+INFO records also show confirmed QSOs, contacts awaiting QSL, points, and the reported
+latitude/longitude. Clicking the coordinates maps that exact reported
+position, which is where the op started, not the host's live location.
+Unknown grids or coordinates have no map link.
 An APRS ACK means command delivery, **not** beacon acceptance or a completed
 QSO. QSO confirmation is shown only from the bot's QSL relay; the app does
 not calculate scores or manufacture QSL cards.
@@ -42,15 +79,18 @@ HOST and CHASE still require a **native position report within five minutes**
 from the same callsign and SSID. Review beacon settings and its separate
 RF/internet path; the app does not automatically beacon or promise an
 RF-only software beacon. Hosting requires the beacon to reach OTA via RF.
-Position reports make your location public. Host controls appear after a
-matching on-air confirmation, with manual QSL, INFO, TIME, CHASERS, STAY,
+Position reports make your location public. Host commands appear in the menu
+after a matching on-air confirmation, with manual QSL, INFO, TIME, CHASERS, STAY,
 BLAST, and DONE preparation. While hosting, **every DONE ends your own op**;
 BLAST can produce substantial shared-channel traffic.
+
+Bare APRS OTA addresses in messages, such as `aprsota.org/KK7VZT` in a
+"You earned First PING!" reply, are clickable and open using HTTPS.
 
 Website links require internet on this device; RF participation still relies
 on suitable iGate infrastructure. There is no automatic polling, auto-chasing,
 auto-QSL, or history-triggered transmission. History-derived reports are
-timestamped; estimates are not proof that an old op remains on air.
+timestamped by the chat; reports are not proof that an old op remains on air.
 
 See [the service explanation and design](blogs/aprs-ota-chat-plan.md).
 

@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 /// Shared contact avatar rendering used by the Contacts dialog and the APRS
 /// messaging conversation list.
 ///
-/// Display precedence: a custom base64 image, then a chosen/automatic logo
-/// icon, then the last three letters of the callsign on a coloured circle.
+/// Display precedence: a custom base64 image, then a chosen logo, then an
+/// automatic service image/icon, then callsign initials on a coloured circle.
 
 /// Built-in avatar logos, keyed by a stable name persisted in [StationInfo].
 /// The order here is the order shown in the logo picker.
@@ -103,7 +103,6 @@ Color contactColorForCallsign(String callsign) {
 /// The automatic logo name for a known APRS service callsign, or null.
 String? autoContactLogo(String callsign) {
   final upper = callsign.toUpperCase();
-  if (upper == 'OTA' || upper == 'OTA-0') return 'radio';
   return _botLogos[upper] ?? _botLogos[contactCallsignBase(upper)];
 }
 
@@ -116,8 +115,7 @@ IconData? contactLogoIcon(String callsign, String? avatarIcon) {
   return name == null ? null : kContactLogos[name];
 }
 
-/// A round contact avatar. Renders [avatarImage] (base64 PNG) if present, else a
-/// chosen/automatic logo icon, else [initials] or the callsign initials.
+/// A round contact avatar with custom image/logo and service defaults.
 class ContactAvatar extends StatelessWidget {
   final String callsign;
   final String? avatarIcon;
@@ -149,6 +147,14 @@ class ContactAvatar extends StatelessWidget {
       } catch (_) {
         // Fall through to icon/initials on a malformed image.
       }
+    }
+    final peer = callsign.trim().toUpperCase();
+    if ((peer == 'OTA' || peer == 'OTA-0') &&
+        !kContactLogos.containsKey(avatarIcon)) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundImage: const AssetImage('assets/images/aprs_ota.png'),
+      );
     }
     final icon = contactLogoIcon(callsign, avatarIcon);
     return CircleAvatar(

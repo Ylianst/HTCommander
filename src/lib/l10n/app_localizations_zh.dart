@@ -9,158 +9,181 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get otaCommands => 'OTA命令';
+
+  @override
+  String otaGridCenterTitle(String grid) {
+    return '$grid - 网格中心（近似位置）';
+  }
+
+  @override
+  String otaInfoQsos(int count) {
+    return '已确认的QSO：$count';
+  }
+
+  @override
+  String otaInfoWaiting(int count) {
+    return '等待QSL：$count';
+  }
+
+  @override
+  String otaInfoPoints(int count) {
+    return '积分：$count';
+  }
+
+  @override
+  String get otaStartPosition => '操作开始时的位置（非实时）';
+
+  @override
+  String get otaNoPosition => '未报告位置';
+
+  @override
   String get otaTitle => 'APRS OTA';
 
   @override
-  String get otaCollapse => 'Collapse OTA tools';
+  String get otaCollapse => '收起OTA工具';
 
   @override
-  String get otaExpand => 'Expand OTA tools';
+  String get otaExpand => '展开OTA工具';
 
   @override
-  String get otaCheckSetup => 'Check setup';
+  String get otaCheckSetup => '检查设置';
 
   @override
-  String get otaFindOps => 'Find ops';
+  String get otaFindOps => '查找活动';
 
   @override
-  String get otaHost => 'Host an op';
+  String get otaHost => '发起活动';
 
   @override
-  String get otaChase => 'Chase';
+  String get otaChase => '追逐通联';
 
   @override
-  String get otaDetails => 'Details';
+  String get otaDetails => '详情';
 
   @override
-  String get otaBeaconSettings => 'Beacon settings';
+  String get otaBeaconSettings => '信标设置';
 
   @override
-  String get otaHandbook => 'Handbook';
+  String get otaHandbook => '手册';
 
   @override
-  String get otaMyActivity => 'My activity';
+  String get otaMyActivity => '我的活动';
 
   @override
-  String get otaEndOp => 'End op';
+  String get otaEndOp => '结束活动';
 
   @override
-  String get otaViewOp => 'View op';
+  String get otaViewOp => '查看活动';
 
   @override
-  String get otaOnAir => 'Ops reported on the air';
+  String get otaOnAir => '通过无线电报告的活动';
 
   @override
   String get otaGuide =>
-      'Commands stay in this OTA thread. CHASE needs a position report; the host\'s QSL completes the contact. An APRS ACK confirms delivery, not a QSO. Queries are manual and share the bot\'s rate limits.';
+      '命令保留在此OTA会话中。CHASE需要位置报告；发起者的QSL完成通联。APRS ACK仅确认送达，并不确认QSO。查询需手动发起，并共享机器人的速率限制。';
 
   @override
   String get otaPositionHelp =>
-      'Send a native APRS position report within 5 minutes, from the same callsign and SSID. A typed grid does not count. Hosting requires both the command and beacon to reach OTA over RF. Check the beacon path separately; your location will be public.';
+      '请在5分钟内使用相同呼号和SSID发送原生APRS位置报告。手动输入的网格定位无效。发起活动时，命令和信标都必须通过射频到达OTA。请单独检查信标路径；您的位置将公开。';
 
   @override
   String otaWaitingPosition(String station) {
-    return 'Waiting for position from $station (5-minute window; delivery may be delayed)';
+    return '等待$station的位置（有效窗口为5分钟；送达可能延迟）';
   }
 
   @override
   String otaWaitingQsl(String station) {
-    return 'Chasing $station: waiting for host QSL';
+    return '正在追逐$station：等待发起者的QSL';
   }
 
   @override
   String otaPendingQsl(String station) {
-    return 'Relayed from $station: waiting for your QSL';
+    return '从$station转发：等待您的QSL';
   }
 
   @override
   String otaConfirmed(String station) {
-    return 'QSO confirmed by $station';
+    return '$station已确认QSO';
   }
 
   @override
   String otaHosting(String station) {
-    return 'Hosting: $station';
+    return '活动发起者：$station';
   }
 
   @override
   String otaNotHosting(String station) {
-    return '$station has no active op';
+    return '$station没有正在进行的活动';
   }
 
   @override
   String otaMinutes(int minutes) {
-    return 'Approximately $minutes min left';
+    return '大约剩余$minutes分钟';
   }
 
   @override
   String otaTimer(int minutes, int cap) {
-    return 'OTA reported $minutes min left, $cap min to the 2-hour cap';
+    return 'OTA报告剩余$minutes分钟，距离2小时上限还有$cap分钟';
   }
 
   @override
   String otaStats(int qsos, int waiting, int points) {
-    return '$qsos QSOs, $waiting awaiting QSL, $points points';
+    return '$qsos次QSO，$waiting次等待QSL，$points分';
   }
 
   @override
   String otaPages(int received, int pages, int shown, int total) {
-    return '$received/$pages pages received; showing $shown/$total stations';
+    return '已收到$received/$pages页；显示$shown/$total个电台';
   }
 
   @override
-  String get otaNoneReported => 'No stations reported in this response';
+  String get otaNoneReported => '此回复中没有报告任何电台';
 
   @override
-  String get otaUncertain =>
-      'Conflicting response pages. Refresh before using this list.';
+  String get otaUncertain => '回复页面内容冲突。使用此列表前请刷新。';
 
   @override
-  String get otaStale => 'Status may be stale; request an update';
+  String get otaStale => '状态可能已过时；请请求更新';
 
   @override
-  String get otaOpenFailed => 'Unable to open the APRS OTA website.';
+  String get otaOpenFailed => '无法打开APRS OTA网站。';
 
   @override
-  String get otaPrepareCommand => 'Prepare OTA command';
+  String get otaPrepareCommand => '准备OTA命令';
 
   @override
-  String get otaCommand => 'Message to OTA';
+  String get otaCommand => '发给OTA的消息';
 
   @override
-  String get otaCommandHelp =>
-      'Edit the command or add a greeting. Use command puts it in the composer; press Send when ready.';
+  String get otaCommandHelp => '编辑命令或添加问候语。点击“使用命令”将其放入消息编辑框；准备好后点击“发送”。';
 
   @override
-  String get otaUseCommand => 'Use command';
+  String get otaUseCommand => '使用命令';
 
   @override
-  String get otaReplaceDraft =>
-      'Using this command will replace your current draft.';
+  String get otaReplaceDraft => '使用此命令将替换当前草稿。';
 
   @override
-  String get otaBlastWarning =>
-      'BLAST sends many messages over a shared RF channel. Add your text and use sparingly.';
+  String get otaBlastWarning => 'BLAST会在共享射频信道上发送大量消息。请添加文本并谨慎使用。';
 
   @override
   String get otaDoneWarning =>
-      'While hosting, every DONE ends your own op, even if you add another host\'s callsign. The sign-off is saved, not sent to chasers.';
+      '发起活动期间，每个DONE都会结束您自己的活动，即使添加了其他发起者的呼号。结束语只会保存，不会发送给追逐者。';
 
   @override
   String get otaRfRequired =>
-      'HOST and host QSL use RF only. A connected, available APRS radio is required; there is no internet fallback. Beacon routing is independent.';
+      'HOST和发起者的QSL仅使用射频。需要已连接且可用的APRS无线电；不会回退到互联网。信标路由相互独立。';
 
   @override
-  String get otaUnavailable =>
-      'OTA transmission is not available. Check your callsign, radio, transmit permission, and selected link.';
+  String get otaUnavailable => 'OTA发送不可用。请检查呼号、无线电、发送权限和所选链路。';
 
   @override
-  String get otaSingleMessage =>
-      'OTA commands must fit in one APRS message. Shorten the text; commands cannot be split into parts.';
+  String get otaSingleMessage => 'OTA命令必须容纳在一条APRS消息中。请缩短文本；命令不能拆分。';
 
   @override
   String otaCooldown(int seconds) {
-    return 'OTA query/command cooldown: wait approximately $seconds seconds. Other clients may also use your bot budget.';
+    return 'OTA查询/命令冷却时间：请等待约$seconds秒。其他客户端也可能使用您的机器人配额。';
   }
 
   @override
@@ -199,101 +222,99 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mapWeatherRadarLegend => 'NEXRAD基本反射率图例（dBZ）';
 
   @override
-  String get commsTransferFile => 'Transfer File...';
+  String get commsTransferFile => '传输文件...';
 
   @override
-  String get fileTransferChoose => 'Choose file';
+  String get fileTransferChoose => '选择文件';
 
   @override
-  String get fileTransferCallsign => 'Destination callsign (including SSID)';
+  String get fileTransferCallsign => '目标呼号（含SSID）';
 
   @override
-  String get fileTransferTransmit => 'Transmit';
+  String get fileTransferTransmit => '发射';
 
   @override
-  String get fileTransferAccept => 'Accept';
+  String get fileTransferAccept => '接受';
 
   @override
-  String get fileTransferReject => 'Reject';
+  String get fileTransferReject => '拒绝';
 
   @override
-  String get fileTransferResume => 'Resume';
+  String get fileTransferResume => '继续';
 
   @override
-  String get fileTransferSave => 'Save file...';
+  String get fileTransferSave => '保存文件...';
 
   @override
   String get fileTransferWarning =>
-      'Agree a dedicated packet frequency with the other station first. Do not transfer files on the shared APRS channel. Only transmit content permitted by your license. Maximum transmitted body: 1,474,560 bytes; gzip is used when beneficial.';
+      '请先与对方电台约定专用的分组通信频率。不要在共享APRS信道上传输文件。仅发送执照允许的内容。最大发送数据体：1,474,560字节；有利于减小体积时使用gzip。';
 
   @override
-  String get fileTransferQueued => 'Queued';
+  String get fileTransferQueued => '已排队';
 
   @override
-  String get fileTransferOutgoingOffer => 'Waiting for acceptance';
+  String get fileTransferOutgoingOffer => '等待接受';
 
   @override
-  String get fileTransferIncomingOffer => 'File offer';
+  String get fileTransferIncomingOffer => '文件传输邀请';
 
   @override
-  String get fileTransferReceiving => 'Receiving';
+  String get fileTransferReceiving => '正在接收';
 
   @override
-  String get fileTransferSending => 'Transmitting';
+  String get fileTransferSending => '正在发射';
 
   @override
-  String get fileTransferVerifying => 'Verifying and saving';
+  String get fileTransferVerifying => '正在验证并保存';
 
   @override
-  String get fileTransferCompleted => 'Completed';
+  String get fileTransferCompleted => '已完成';
 
   @override
-  String get fileTransferRejected => 'Rejected';
+  String get fileTransferRejected => '已拒绝';
 
   @override
-  String get fileTransferCanceled => 'Canceled';
+  String get fileTransferCanceled => '已取消';
 
   @override
-  String get fileTransferCancelNote =>
-      'A packet already submitted to the radio may still transmit.';
+  String get fileTransferCancelNote => '已经提交给无线电的数据包仍可能发射。';
 
   @override
-  String get fileTransferNoResponse => 'No response';
+  String get fileTransferNoResponse => '无响应';
 
   @override
-  String get fileTransferPaused => 'Paused';
+  String get fileTransferPaused => '已暂停';
 
   @override
-  String get fileTransferExpired => 'Offer expired';
+  String get fileTransferExpired => '邀请已过期';
 
   @override
-  String get fileTransferFailed => 'Failed';
+  String get fileTransferFailed => '失败';
 
   @override
   String fileTransferSize(int original, int sent) {
-    return '$original bytes original / $sent bytes over radio';
+    return '原始$original字节 / 无线电发送$sent字节';
   }
 
   @override
   String fileTransferProgress(int done, int total) {
-    return '$done / $total bytes confirmed';
+    return '已确认$done / $total字节';
   }
 
   @override
   String fileTransferError(String detail) {
-    return 'File transfer: $detail';
+    return '文件传输：$detail';
   }
 
   @override
-  String get fileTransferTooLarge => 'File exceeds 50 MB before compression';
+  String get fileTransferTooLarge => '文件在压缩前超过50 MB';
 
   @override
-  String get fileTransferUnconfirmed =>
-      'No queue confirmation. Check the chat before transmitting again.';
+  String get fileTransferUnconfirmed => '未收到队列确认。再次发射前请检查聊天记录。';
 
   @override
   String fileTransferSelectedFile(String name, int size) {
-    return '$name ($size bytes)';
+    return '$name（$size字节）';
   }
 
   @override
