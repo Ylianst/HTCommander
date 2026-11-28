@@ -37,6 +37,7 @@ import 'dart:math' as math;
 
 import '../aprs/aprs_conversation.dart';
 import '../aprs/aprs_auth.dart';
+import '../aprs/aprs_outbox.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../aprs/aprs_util.dart';
@@ -502,7 +503,7 @@ class AprsIsManager {
     _broker.dispatch(
       deviceId: 1,
       name: 'AprsFrame',
-      data: AprsFrameEventArgs(aprs, ax25, null),
+      data: AprsFrameEventArgs(aprs, ax25, null, historical: true),
       store: false,
     );
     return true;
@@ -549,7 +550,7 @@ class AprsIsManager {
     _broker.dispatch(
       deviceId: 1,
       name: 'AprsFrame',
-      data: AprsFrameEventArgs(aprs, ax25, null),
+      data: AprsFrameEventArgs(aprs, ax25, null, historical: true),
       store: false,
     );
 
@@ -943,6 +944,10 @@ class AprsIsManager {
 
   void _maybeGateToRf(AprsPacket aprs) {
     if (!_readGateToRf()) return;
+    if (_outboxEcho(aprs) != null) {
+      _broker.logInfo('[APRS-IS] Outbox owns the RF copy; not down-gating its internet echo');
+      return;
+    }
     _pruneHeard();
     if (!AprsIsClient.shouldGateToRf(aprs, _heardStations.keys.toSet())) {
       return;
@@ -1000,6 +1005,7 @@ class AprsIsManager {
 
   void _onAprsFrame(int deviceId, String name, Object? data) {
     if (data is! AprsFrameEventArgs) return;
+    if (data.historical) return;
     if (data.ax25Packet.tag?.startsWith('aprs-outbox:') == true) return;
     final aprs = data.aprsPacket;
     // Ignore the internet packets we ourselves re-dispatched.
@@ -1017,6 +1023,13 @@ class AprsIsManager {
       // Our own transmission of someone else's packet (e.g. an internet
       // message gated to RF). It was never heard on RF, so it must neither
       // mark its source as locally heard nor be gated back to the internet.
+      return;
+    }
+    final tracked = _outboxEcho(aprs);
+    if (tracked != null) {
+      _broker.logInfo(tracked.linkPolicy.permitsInternet
+        ? '[APRS-IS] Outbox owns the internet copy; not up-gating its RF echo'
+        : '[APRS-IS] Keeping an RF-only outbox message off APRS-IS');
       return;
     }
 
@@ -1049,6 +1062,31 @@ class AprsIsManager {
     final line = AprsIsClient.buildGateUpLine(aprs, igateCall);
     if (line == null) return;
     client.sendPacketLine(line);
+  }
+
+  AprsOutgoingMessage? _outboxEcho(AprsPacket aprs) {
+    if (aprs.dataType != PacketDataType.message || aprs.rawPacket.length < 11) return null;
+    final md = aprs.messageData;
+    // Compare the transmitted body, not parser-normalized ACK/auth fields.
+    final body = aprs.rawPacket.substring(11);
+    final saved = _broker.getValueDynamic(1, 'AprsOutbox', []);
+    if (saved is! List) return null;
+    for (final json in saved) {
+      final message = AprsOutgoingMessage.fromJson(Map<String, dynamic>.from(json as Map));
+      if (message.source == aprsPeerKey(aprs.sourceCallsignWithId) &&
+          message.destination == aprsPeerKey(md.addressee) &&
+          message.parts.any((p) {
+            final sequence = '{${p.wireId}';
+            if (body == '${p.text}$sequence') return true;
+            return message.authenticated &&
+                body.startsWith('${p.text}}') &&
+                body.length == p.text.length + 7 + sequence.length &&
+                body.endsWith(sequence);
+          })) {
+        return message;
+      }
+    }
+    return null;
   }
 
   void _recordHeard(AprsPacket aprs) {

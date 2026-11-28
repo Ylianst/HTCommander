@@ -70,7 +70,7 @@ class AppDatabase {
 
   /// Current schema version. Bump and add an [onUpgrade] branch when the schema
   /// changes.
-  static const int _schemaVersion = 7;
+  static const int _schemaVersion = 8;
 
   static const String _dbFileName = 'htcommander.db';
 
@@ -134,6 +134,7 @@ class AppDatabase {
           if (oldVersion < 5) await MailDao.createSchema(db);
           if (oldVersion < 6) await CommsDao.addOriginalTextColumn(db);
           if (oldVersion < 7) await _createAprsOutbox(db);
+          if (oldVersion < 8) await _createAprsObservations(db);
         },
       ),
     );
@@ -200,6 +201,7 @@ class AppDatabase {
     await BbsDao.createSchema(db);
     await MailDao.createSchema(db);
     await _createAprsOutbox(db);
+    await _createAprsObservations(db);
   }
 
   static Future<void> _createAprsOutbox(Database db) => db.execute('''
@@ -207,6 +209,14 @@ class AppDatabase {
       id TEXT PRIMARY KEY,
       created_ms INTEGER NOT NULL,
       active INTEGER NOT NULL,
+      payload TEXT NOT NULL
+    )
+  ''');
+
+  static Future<void> _createAprsObservations(Database db) => db.execute('''
+    CREATE TABLE aprs_observations (
+      sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+      id TEXT UNIQUE NOT NULL,
       payload TEXT NOT NULL
     )
   ''');
@@ -267,6 +277,18 @@ class AppDatabase {
       ),
     );
     final instance = AppDatabase._(db);
+    _instance = instance;
+    return instance;
+  }
+
+  /// Opens a file-backed database for migration/restart tests, without platform
+  /// path lookup or legacy imports.
+  @visibleForTesting
+  static Future<AppDatabase> openFileForTesting(String path) async {
+    await close();
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    final instance = AppDatabase._(await _openAt(path));
     _instance = instance;
     return instance;
   }

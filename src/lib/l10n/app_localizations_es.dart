@@ -12,6 +12,61 @@ class AppLocalizationsEs extends AppLocalizations {
   String get aprsOutbox => 'Bandeja de salida APRS';
 
   @override
+  String get aprsLinkAutomatic => 'Automático';
+
+  @override
+  String get aprsLinkRfOnly => 'Solo RF';
+
+  @override
+  String get aprsLinkInternetOnly => 'Solo internet';
+
+  @override
+  String get aprsLinkBoth => 'RF + internet';
+
+  @override
+  String get aprsObservations => 'Observaciones de recepción';
+
+  @override
+  String get aprsObservationsHelp =>
+      'Últimas 1.000 observaciones de decodificadores. El historial nunca demuestra alcance RF actual.';
+
+  @override
+  String get aprsObservationDirect => 'RF directa';
+
+  @override
+  String get aprsObservationDigipeated => 'RF repetida';
+
+  @override
+  String get aprsObservationThirdParty => 'Paquete de terceros';
+
+  @override
+  String get aprsObservationLoopback => 'Bucle local';
+
+  @override
+  String get aprsObservationInvalid => 'APRS no válido';
+
+  @override
+  String get aprsObservationLive => 'En vivo';
+
+  @override
+  String get aprsObservationHistory => 'Histórico';
+
+  @override
+  String get aprsObservationPending => 'Aún no archivado';
+
+  @override
+  String get aprsObservationSameDecoder =>
+      'Decodificación repetida en este enlace';
+
+  @override
+  String get aprsObservationOtherDecoder => 'Otro decodificador en este enlace';
+
+  @override
+  String aprsObservationStorageError(String detail) {
+    return 'Error del archivo de observaciones: $detail';
+  }
+
+  @override
   String get aprsQueueUnconfirmed =>
       'No se recibió confirmación. El borrador se conserva; revise la bandeja de salida antes de reenviarlo.';
 

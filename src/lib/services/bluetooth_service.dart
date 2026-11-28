@@ -263,6 +263,8 @@ class BluetoothService {
       transport.onHistory = _onHostHistory;
       transport.onStoredHistory = _onHostStoredHistory;
       transport.onAprsOutbox = (json) => _onHostAprs('AprsOutbox', json);
+      transport.onAprsObservations = (json) => _onHostAprs('AprsObservations', json);
+      transport.onAprsObservationError = (json) => _onHostAprs('AprsObservationError', json);
       transport.onAprsAuthentication = (json) => _onHostAprs('AprsAuthenticatedDestinations', json);
       transport.onAprsError = (json) => _onHostAprs('AprsSendError', json);
       transport.onAprsQueued = (json) => _onHostAprs('AprsMessageQueued', json);
@@ -507,15 +509,16 @@ class BluetoothService {
     if (_mailSyncSubscribed) return;
     _mailSyncSubscribed = true;
     _broker.subscribeMultiple(deviceId: 1,
-      names: const ['SendAprsMessage', 'RetryAprsMessage', 'StopAprsMessage'],
+      names: const ['SendAprsMessage', 'RetryAprsMessage', 'StopAprsMessage', 'RequestAprsObservations'],
       callback: (_, name, data) {
         final op = data is AprsSendMessageData
             ? <String, Object?>{'op': name, 'message': data.toJson()}
             : <String, Object?>{'op': name, 'id': data};
         if (_hostTransport?.sendAprs(op) != true) {
           _broker.logError('[BT] Host disconnected during APRS request');
-          _broker.dispatch(deviceId: 1, name: 'AprsSendError',
-            data: {'reason': 'host', 'detail': 'Host disconnected'}, store: false);
+          final observation = name == 'RequestAprsObservations';
+          _broker.dispatch(deviceId: 1, name: observation ? 'AprsObservationError' : 'AprsSendError',
+            data: {'reason': 'host', 'detail': 'Host disconnected'}, store: observation);
         }
       });
     _broker.subscribe(
@@ -585,11 +588,13 @@ class BluetoothService {
   void _onHostAprs(String event, String json) {
     try {
       _broker.dispatch(deviceId: 1, name: event, data: jsonDecode(json),
-        store: event == 'AprsOutbox' || event == 'AprsAuthenticatedDestinations');
+        store: event == 'AprsOutbox' || event == 'AprsAuthenticatedDestinations' ||
+          event == 'AprsObservations' || event == 'AprsObservationError');
     } catch (error) {
       _broker.logError('[BT] Invalid host APRS response: $error');
-      _broker.dispatch(deviceId: 1, name: 'AprsSendError',
-        data: {'reason': 'host', 'detail': '$error'}, store: false);
+      final observation = event == 'AprsObservations' || event == 'AprsObservationError';
+      _broker.dispatch(deviceId: 1, name: observation ? 'AprsObservationError' : 'AprsSendError',
+        data: {'reason': 'host', 'detail': '$error'}, store: observation);
     }
   }
 

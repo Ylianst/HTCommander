@@ -12,6 +12,60 @@ class AppLocalizationsFr extends AppLocalizations {
   String get aprsOutbox => 'Boîte d\'envoi APRS';
 
   @override
+  String get aprsLinkAutomatic => 'Automatique';
+
+  @override
+  String get aprsLinkRfOnly => 'RF uniquement';
+
+  @override
+  String get aprsLinkInternetOnly => 'Internet uniquement';
+
+  @override
+  String get aprsLinkBoth => 'RF + internet';
+
+  @override
+  String get aprsObservations => 'Observations de réception';
+
+  @override
+  String get aprsObservationsHelp =>
+      'Les 1 000 dernières observations des décodeurs. L\'historique ne prouve jamais une joignabilité RF actuelle.';
+
+  @override
+  String get aprsObservationDirect => 'RF directe';
+
+  @override
+  String get aprsObservationDigipeated => 'RF répétée';
+
+  @override
+  String get aprsObservationThirdParty => 'Paquet tiers';
+
+  @override
+  String get aprsObservationLoopback => 'Bouclage';
+
+  @override
+  String get aprsObservationInvalid => 'APRS invalide';
+
+  @override
+  String get aprsObservationLive => 'En direct';
+
+  @override
+  String get aprsObservationHistory => 'Historique';
+
+  @override
+  String get aprsObservationPending => 'Pas encore archivé';
+
+  @override
+  String get aprsObservationSameDecoder => 'Décodage répété sur ce lien';
+
+  @override
+  String get aprsObservationOtherDecoder => 'Autre décodeur sur ce lien';
+
+  @override
+  String aprsObservationStorageError(String detail) {
+    return 'Erreur d\'archivage des observations : $detail';
+  }
+
+  @override
   String get aprsQueueUnconfirmed =>
       'Aucune confirmation reçue. Le brouillon est conservé ; vérifiez la boîte d\'envoi avant de renvoyer.';
 

@@ -45,6 +45,7 @@ class FrameDeduplicator {
   void _onDataFrame(int deviceId, String name, Object? data) {
     if (_disposed) return;
     if (data is! TncDataFragment) return;
+    if (data.historical) return;
 
     // Create a unique key for this frame based on its data content.
     final frameKey = data.toHex();

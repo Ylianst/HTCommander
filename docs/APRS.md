@@ -33,6 +33,26 @@ HTCommander, unfinished messages are **paused**: select **Retry / resume** in th
 outbox to continue. Hosted browsers and detached windows use the desktop host's
 outbox; only the host transmits and retries.
 
+The link selector beside the composer offers **Automatic**, **RF only**,
+**Internet only**, and **RF + internet**. It applies to ordinary messages,
+SMS and weather-service requests. Automatic preserves the existing behavior:
+without a selected radio it uses the internet; with a radio it also permits
+internet submission when APRS-IS is enabled at queue time. The resolved policy
+is saved with each message and displayed in the outbox. Changing settings,
+restarting, reconnecting or resuming never broadens that saved policy.
+The composer starts in Automatic in each window.
+Update/restart the native owner together with hosted web assets; older native
+hosts cannot enforce the new explicit policies.
+
+Explicit RF-only/both requests require an original radio identity. Internet-only
+ignores a preferred radio and can wait queued until APRS-IS is enabled and
+verified. Only available, permitted links are used; there is no implicit failover
+or radio substitution. Both links share a part's ID and logical attempt budget,
+not separate retry budgets. HTCommander does not up-gate its own tracked RF
+echoes or down-gate its own tracked internet echoes: the outbox owns those
+copies and their attempt budget. **RF only constrains this
+application, not other independent IGates which may relay received RF traffic.**
+
 - **Queued**: waiting for the original radio or an eligible APRS-IS connection.
 - **Submitted**: handed to the radio/network, not proof of RF emission or delivery.
 - **Heard via digipeater**: a matching RF copy was heard with a used digipeater path.
@@ -67,6 +87,36 @@ If queue confirmation is lost, the draft remains and a warning asks you to
 check the outbox before resending. Changing the local callsign or disabling
 transmit blocks automatic retries. Verified authenticated messages receive
 signed ACKs over both RF and APRS-IS.
+
+## Receive observations
+
+Select **Receive observations** from the APRS header menu to inspect the latest
+**1,000 observations**, including decoder duplicates. Incoming APRS frames are
+observed before the existing global three-second payload deduplication, so two
+receiving radios retain separate observations while chat and notifications still
+receive a single deduplicated packet.
+
+Records include UTC capture/receive times, radio ID/MAC, channel/region, decoder,
+frame type/corrections, original sender and AX.25 frame source, packet content,
+path and used-hop bits. A requested WIDE path alone is not a used hop.
+Third-party senders, internet copies and loopback observations never count as
+direct RF reception. TCPIP/TCPXX and APRS-IS q-construct paths also identify
+internet-origin copies received over RF, not direct-heard station evidence.
+Outgoing and explicitly historical raw frames do not enter
+the live receive journal. Repeated results on the same radio/channel within three
+seconds identify the first observation and whether the decoder differs; they do
+not claim distinct physical transmissions.
+
+Native observations use the shared SQLite database (schema v8); standalone
+browsers use awaited preferences. Hosted browsers mirror the native owner's
+journal and never archive locally decoded host traffic. Detached windows use the
+same broker-owned journal. Restored archive records are **historical**, not live
+events, and are never replayed through message acknowledgements or RF forwarding.
+Internet backfill is historical too. Unsaved records and archive errors remain
+visible rather than being reported as successfully persisted.
+
+This is the observation foundation, not yet a new direct-heard IGate policy,
+station explorer or delayed/cancelable fill-in digipeater.
 
 ## Message History
 

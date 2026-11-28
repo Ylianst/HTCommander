@@ -5,6 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/aprs/aprs_conversation.dart';
 import 'package:htcommander/aprs/aprs_events.dart';
 import 'package:htcommander/aprs/aprs_outbox.dart';
+import 'package:htcommander/aprs/aprs_link_policy.dart';
+import 'package:htcommander/aprsis/tnc2_codec.dart';
+import 'package:htcommander/handlers/aprs_observation_handler.dart';
+import 'package:htcommander/radio/tnc_data_fragment.dart';
+import 'package:htcommander/services/aprs_observation_store.dart';
 import 'package:htcommander/handlers/aprs_handler.dart';
 import 'package:htcommander/radio/radio.dart';
 import 'package:htcommander/handlers/web_server_handler.dart';
@@ -99,6 +104,72 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 100));
 
     expect(received.map((e) => e.$1), ['ClearVoiceText']);
+  });
+
+  test('host preserves policies and only requires a shared radio for RF requests', () async {
+    listener.dispatch(deviceId: 1, name: 'ConnectedRadios', data: []);
+    addTearDown(() {
+      DataBroker.clearDevice(42);
+      listener.dispatch(deviceId: 1, name: 'ConnectedRadios', data: []);
+    });
+    final requests = <AprsSendMessageData>[];
+    listener.subscribe(deviceId: 1, name: 'SendAprsMessage', callback: (_, _, data) {
+      if (data is AprsSendMessageData) requests.add(data);
+    });
+    void send(AprsLinkPolicy policy, int radio) => socket.add('aprsop:${jsonEncode({
+      'op': 'SendAprsMessage', 'message': AprsSendMessageData(destination: 'W1AW',
+        message: 'policy', radioDeviceId: radio, policy: policy).toJson(),
+    })}');
+    send(AprsLinkPolicy.internetOnly, 1);
+    for (var i = 0; i < 100 && requests.isEmpty; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(requests.single.radioDeviceId, -1);
+    expect(requests.single.policy, AprsLinkPolicy.internetOnly);
+    send(AprsLinkPolicy.rfOnly, 1);
+    for (var i = 0; i < 100 && !messages.any((m) => m.startsWith('aprserror:')); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(messages.any((m) => m.contains('No shared radio available')), isTrue);
+    expect(requests, hasLength(1));
+    listener.dispatch(deviceId: 1, name: 'ConnectedRadios', data: [{'DeviceId': 42}]);
+    send(AprsLinkPolicy.both, 1);
+    for (var i = 0; i < 100 && requests.length < 2; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(requests.last.radioDeviceId, 42);
+    expect(requests.last.policy, AprsLinkPolicy.both);
+  });
+
+  test('host broadcasts its bounded observation journal without another archive owner', () async {
+    await AppDatabase.openInMemory();
+    final observations = AprsObservationHandler()..init();
+    addTearDown(() async {
+      observations.dispose();
+      await observations.ready;
+      await AppDatabase.close();
+    });
+    await observations.ready;
+    for (final radio in [42, 43]) {
+      listener.dispatch(deviceId: radio, name: 'DataFrame', data: TncDataFragment(
+        finalFragment: true, fragmentId: 0, data: Tnc2Codec.decode('W1AW>APRS:>hello')!.toByteArray(),
+        channelId: 7, regionId: 0, channelName: 'APRS', incoming: true,
+        radioMac: 'radio-$radio', radioDeviceId: radio), store: false);
+    }
+    await observations.ready;
+    socket.add('aprsop:{"op":"RequestAprsObservations"}');
+    for (var i = 0; i < 100; i++) {
+      if (messages.where((m) => m.startsWith('aprsobservations:')).any((m) =>
+          (jsonDecode(m.substring('aprsobservations:'.length)) as List).length == 2)) {
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    final saved = jsonDecode(messages.lastWhere((m) => m.startsWith('aprsobservations:'))
+      .substring('aprsobservations:'.length)) as List;
+    expect(saved, hasLength(2));
+    expect(saved.map((o) => o['radioMac']), ['radio-42', 'radio-43']);
+    expect(await AprsObservationStore().load(), hasLength(2));
   });
 
   test('host owns browser APRS submissions, outbox snapshots and stop actions', () async {

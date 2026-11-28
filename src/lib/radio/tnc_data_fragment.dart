@@ -42,6 +42,7 @@ class TncDataFragment {
   String? transmitTag;
   DateTime? transmitDeadline;
   bool? transmitAccepted;
+  bool historical;
 
   /// DART payload mode/level (0–5 for OFDM modes, 6 for Mode F), or -1 when the
   /// fragment was not carried by the DART modem.
@@ -67,6 +68,7 @@ class TncDataFragment {
     this.radioDeviceId,
     this.usage,
     this.dartMode = -1,
+    this.historical = false,
   }) : time = time ?? DateTime.now() {
     if (channelName.isEmpty) {
       channelName = channelId == -1 ? '' : (channelId + 1).toString();
@@ -193,6 +195,7 @@ class TncDataFragment {
     'corrections': corrections,
     'dartMode': dartMode,
     'dataHex': RadioUtils.bytesToHex(data),
+    if (historical) 'historical': true,
     if (radioMac != null) 'radioMac': radioMac,
     if (radioDeviceId != null) 'radioDeviceId': radioDeviceId,
     if (usage != null) 'usage': usage,
@@ -239,6 +242,7 @@ class TncDataFragment {
       radioDeviceId: json['radioDeviceId'] as int?,
       usage: json['usage'] as String?,
       dartMode: json['dartMode'] as int? ?? -1,
+      historical: json['historical'] == true,
     )
       ..transmitTag = json['transmitTag'] as String?
       ..transmitDeadline = json['transmitDeadline'] == null ? null

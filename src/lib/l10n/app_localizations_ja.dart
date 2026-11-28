@@ -12,6 +12,59 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aprsOutbox => 'APRS送信トレイ';
 
   @override
+  String get aprsLinkAutomatic => '自動';
+
+  @override
+  String get aprsLinkRfOnly => 'RFのみ';
+
+  @override
+  String get aprsLinkInternetOnly => 'インターネットのみ';
+
+  @override
+  String get aprsLinkBoth => 'RF + インターネット';
+
+  @override
+  String get aprsObservations => '受信観測';
+
+  @override
+  String get aprsObservationsHelp => '最新1,000件のデコーダー観測。履歴は現在のRF到達性の根拠にはなりません。';
+
+  @override
+  String get aprsObservationDirect => '直接RF受信';
+
+  @override
+  String get aprsObservationDigipeated => 'デジピーター経由';
+
+  @override
+  String get aprsObservationThirdParty => '第三者パケット';
+
+  @override
+  String get aprsObservationLoopback => 'ループバック';
+
+  @override
+  String get aprsObservationInvalid => '無効なAPRS';
+
+  @override
+  String get aprsObservationLive => 'リアルタイム';
+
+  @override
+  String get aprsObservationHistory => '履歴';
+
+  @override
+  String get aprsObservationPending => '未保存';
+
+  @override
+  String get aprsObservationSameDecoder => '同一リンクでの再デコード';
+
+  @override
+  String get aprsObservationOtherDecoder => '同一リンクの別デコーダー';
+
+  @override
+  String aprsObservationStorageError(String detail) {
+    return '観測アーカイブエラー: $detail';
+  }
+
+  @override
   String get aprsQueueUnconfirmed =>
       '登録確認を受信できませんでした。下書きは保存されています。再送前に送信トレイを確認してください。';
 

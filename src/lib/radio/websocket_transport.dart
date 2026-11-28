@@ -102,6 +102,8 @@ class WebSocketRadioTransport implements RadioTransport {
   void Function(String json)? onHistory;
   void Function(String json)? onStoredHistory;
   void Function(String json)? onAprsOutbox;
+  void Function(String json)? onAprsObservations;
+  void Function(String json)? onAprsObservationError;
   void Function(String json)? onAprsAuthentication;
   void Function(String json)? onAprsError;
   void Function(String json)? onAprsQueued;
@@ -284,6 +286,14 @@ class WebSocketRadioTransport implements RadioTransport {
     }
     if (message.startsWith('aprsoutbox:')) {
       onAprsOutbox?.call(message.substring('aprsoutbox:'.length));
+      return;
+    }
+    if (message.startsWith('aprsobservations:')) {
+      onAprsObservations?.call(message.substring('aprsobservations:'.length));
+      return;
+    }
+    if (message.startsWith('aprsobservationerror:')) {
+      onAprsObservationError?.call(message.substring('aprsobservationerror:'.length));
       return;
     }
     if (message.startsWith('aprserror:')) {

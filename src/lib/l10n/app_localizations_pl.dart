@@ -12,6 +12,60 @@ class AppLocalizationsPl extends AppLocalizations {
   String get aprsOutbox => 'Skrzynka nadawcza APRS';
 
   @override
+  String get aprsLinkAutomatic => 'Automatycznie';
+
+  @override
+  String get aprsLinkRfOnly => 'Tylko RF';
+
+  @override
+  String get aprsLinkInternetOnly => 'Tylko internet';
+
+  @override
+  String get aprsLinkBoth => 'RF + internet';
+
+  @override
+  String get aprsObservations => 'Obserwacje odbioru';
+
+  @override
+  String get aprsObservationsHelp =>
+      'Ostatnie 1000 obserwacji dekoderów. Dane historyczne nigdy nie potwierdzają bieżącej osiągalności RF.';
+
+  @override
+  String get aprsObservationDirect => 'Bezpośredni RF';
+
+  @override
+  String get aprsObservationDigipeated => 'RF przez digipeater';
+
+  @override
+  String get aprsObservationThirdParty => 'Pakiet strony trzeciej';
+
+  @override
+  String get aprsObservationLoopback => 'Pętla zwrotna';
+
+  @override
+  String get aprsObservationInvalid => 'Nieprawidłowy APRS';
+
+  @override
+  String get aprsObservationLive => 'Bieżące';
+
+  @override
+  String get aprsObservationHistory => 'Historyczne';
+
+  @override
+  String get aprsObservationPending => 'Jeszcze niezarchiwizowane';
+
+  @override
+  String get aprsObservationSameDecoder => 'Powtórne dekodowanie na tym łączu';
+
+  @override
+  String get aprsObservationOtherDecoder => 'Inny dekoder na tym łączu';
+
+  @override
+  String aprsObservationStorageError(String detail) {
+    return 'Błąd archiwum obserwacji: $detail';
+  }
+
+  @override
   String get aprsQueueUnconfirmed =>
       'Nie otrzymano potwierdzenia. Zachowano szkic; przed ponownym wysłaniem sprawdź skrzynkę nadawczą.';
 

@@ -4,9 +4,11 @@ Licensed under the Apache License, Version 2.0 (the "License");
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import 'aprs_link_policy.dart';
+
 enum AprsDelivery { queued, sent, digipeated, delivered, rejected, failed, paused, stopped }
 
-enum AprsComposeError { empty, ascii, reserved, tooLong, address }
+enum AprsComposeError { empty, ascii, reserved, tooLong, address, radio }
 
 class AprsComposeException implements Exception {
   final AprsComposeError reason;
@@ -107,7 +109,8 @@ class AprsOutgoingMessage {
   final DateTime created;
   final int radioDeviceId;
   final String? radioMac;
-  final bool internet;
+  final AprsLinkPolicy linkPolicy;
+  bool get internet => linkPolicy.permitsInternet;
   final bool authenticated;
   final List<String>? route;
   final int maxAttempts;
@@ -117,7 +120,7 @@ class AprsOutgoingMessage {
   const AprsOutgoingMessage({
     required this.id, required this.source, required this.destination,
     required this.text, required this.created, required this.radioDeviceId,
-    required this.internet, required this.authenticated, required this.parts,
+    required this.linkPolicy, required this.authenticated, required this.parts,
     this.radioMac, this.route, this.maxAttempts = 6, this.retrySeconds = 30,
   });
 
@@ -134,7 +137,7 @@ class AprsOutgoingMessage {
 
   AprsOutgoingMessage withParts(List<AprsOutboxPart> parts) => AprsOutgoingMessage(
     id: id, source: source, destination: destination, text: text, created: created,
-    radioDeviceId: radioDeviceId, radioMac: radioMac, internet: internet,
+    radioDeviceId: radioDeviceId,     radioMac: radioMac, linkPolicy: linkPolicy,
     authenticated: authenticated, route: route, maxAttempts: maxAttempts,
     retrySeconds: retrySeconds, parts: parts,
   );
@@ -143,18 +146,32 @@ class AprsOutgoingMessage {
     'id': id, 'source': source, 'destination': destination, 'text': text,
     'created': created.millisecondsSinceEpoch, 'radioDeviceId': radioDeviceId,
     'radioMac': radioMac, 'internet': internet, 'authenticated': authenticated,
+    'linkPolicy': linkPolicy.name,
     'route': route, 'maxAttempts': maxAttempts, 'retrySeconds': retrySeconds,
     'parts': parts.map((p) => p.toJson()).toList(),
   };
 
-  factory AprsOutgoingMessage.fromJson(Map<String, dynamic> json) => AprsOutgoingMessage(
+  factory AprsOutgoingMessage.fromJson(Map<String, dynamic> json) {
+    if (json['linkPolicy'] == null && (json['radioDeviceId'] as int) < 0 &&
+        json['internet'] == false) {
+      throw const FormatException('Legacy APRS message has no permitted link');
+    }
+    final policy = json['linkPolicy'] == null
+        ? AprsLinkPolicy.automatic.resolve(radioDeviceId: json['radioDeviceId'] as int,
+            internetEnabled: json['internet'] as bool)
+        : AprsLinkPolicy.values.byName(json['linkPolicy'] as String);
+    if (policy == AprsLinkPolicy.automatic) {
+      throw const FormatException('Stored APRS link policy must be resolved');
+    }
+    return AprsOutgoingMessage(
     id: json['id'] as String, source: json['source'] as String,
     destination: json['destination'] as String, text: json['text'] as String,
     created: DateTime.fromMillisecondsSinceEpoch(json['created'] as int),
     radioDeviceId: json['radioDeviceId'] as int, radioMac: json['radioMac'] as String?,
-    internet: json['internet'] as bool, authenticated: json['authenticated'] as bool,
+    linkPolicy: policy, authenticated: json['authenticated'] as bool,
     route: (json['route'] as List?)?.cast<String>(),
     maxAttempts: json['maxAttempts'] as int, retrySeconds: json['retrySeconds'] as int,
     parts: (json['parts'] as List).map((p) => AprsOutboxPart.fromJson(Map<String, dynamic>.from(p as Map))).toList(),
   );
+  }
 }

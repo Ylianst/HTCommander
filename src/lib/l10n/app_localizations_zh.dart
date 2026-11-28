@@ -12,6 +12,59 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aprsOutbox => 'APRS发件箱';
 
   @override
+  String get aprsLinkAutomatic => '自动';
+
+  @override
+  String get aprsLinkRfOnly => '仅RF';
+
+  @override
+  String get aprsLinkInternetOnly => '仅互联网';
+
+  @override
+  String get aprsLinkBoth => 'RF + 互联网';
+
+  @override
+  String get aprsObservations => '接收观测';
+
+  @override
+  String get aprsObservationsHelp => '最近1,000条解码器观测。历史记录不能证明当前RF可达性。';
+
+  @override
+  String get aprsObservationDirect => '直接RF接收';
+
+  @override
+  String get aprsObservationDigipeated => '经数字中继';
+
+  @override
+  String get aprsObservationThirdParty => '第三方数据包';
+
+  @override
+  String get aprsObservationLoopback => '环回';
+
+  @override
+  String get aprsObservationInvalid => '无效APRS';
+
+  @override
+  String get aprsObservationLive => '实时';
+
+  @override
+  String get aprsObservationHistory => '历史';
+
+  @override
+  String get aprsObservationPending => '尚未存档';
+
+  @override
+  String get aprsObservationSameDecoder => '此链路重复解码';
+
+  @override
+  String get aprsObservationOtherDecoder => '此链路的其他解码器';
+
+  @override
+  String aprsObservationStorageError(String detail) {
+    return '观测存档错误：$detail';
+  }
+
+  @override
   String get aprsQueueUnconfirmed => '未收到排队确认。草稿已保留；再次发送前请检查发件箱。';
 
   @override

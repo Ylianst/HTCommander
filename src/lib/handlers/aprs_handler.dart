@@ -275,6 +275,12 @@ class AprsHandler {
     if (HostBridge.isHosted) return; // The bridge forwards the command to its host.
     _run(() async {
       if (!_outboxReady) throw StateError('APRS outbox is unavailable');
+      final policy = data.policy.resolve(radioDeviceId: data.radioDeviceId,
+        internetEnabled: (_broker.getValue<int>(0, 'AprsIsEnabled', 0) ?? 0) != 0);
+      if (policy.permitsRf && data.radioDeviceId <= 0) {
+        throw const AprsComposeException(AprsComposeError.radio);
+      }
+      final radioDeviceId = policy.permitsRf ? data.radioDeviceId : -1;
       final destination = aprsPeerKey(data.destination);
       final source = aprsPeerKey(_localCallsignWithId ?? '');
       if (!RegExp(r'^[A-Z0-9]{1,6}(?:-(?:[0-9]|1[0-5]))?$').hasMatch(source) ||
@@ -294,10 +300,9 @@ class AprsHandler {
       final message = AprsOutgoingMessage(
         id: '${now.microsecondsSinceEpoch}-${Random.secure().nextInt(0xFFFFFFFF)}',
         source: source, destination: destination, text: data.message, created: now,
-        radioDeviceId: data.radioDeviceId,
-        radioMac: _broker.getValue<String>(data.radioDeviceId, 'MacAddress'),
-        internet: data.radioDeviceId < 0 ||
-          (_broker.getValue<int>(0, 'AprsIsEnabled', 0) ?? 0) != 0,
+        radioDeviceId: radioDeviceId,
+        radioMac: _broker.getValue<String>(radioDeviceId, 'MacAddress'),
+        linkPolicy: policy,
         authenticated: authenticated, parts: parts, route: data.route,
         maxAttempts: (_broker.getValue<int>(0, 'AprsRetryAttempts', 6) ?? 6).clamp(1, 10),
         retrySeconds: (_broker.getValue<int>(0, 'AprsRetrySeconds', 30) ?? 30).clamp(10, 300),
@@ -355,7 +360,7 @@ class AprsHandler {
       (_broker.getValue<bool>(aprsIsDeviceId, 'AprsIsVerified', false) ?? false);
 
   int? _outboxRadio(AprsOutgoingMessage message) {
-    if (message.radioDeviceId < 0) return null;
+    if (!message.linkPolicy.permitsRf || message.radioDeviceId < 0) return null;
     final radios = _broker.getValueDynamic(1, 'ConnectedRadios', null);
     if (radios is! List) return null;
     for (final radio in radios) {
@@ -505,7 +510,7 @@ class AprsHandler {
   }
 
   void _observeDelivery(int deviceId, String name, Object? data) {
-    if (data is! AprsFrameEventArgs || !data.ax25Packet.incoming ||
+    if (data is! AprsFrameEventArgs || data.historical || !data.ax25Packet.incoming ||
         data.aprsPacket.dataType != PacketDataType.message) {
       return;
     }

@@ -29,6 +29,7 @@ import 'dialogs/settings_dialog.dart';
 import 'dialogs/tips_dialog.dart';
 import 'dialogs/xara_settings_dialog.dart';
 import 'handlers/frame_deduplicator.dart';
+import 'handlers/aprs_observation_handler.dart';
 import 'handlers/packet_store.dart';
 import 'handlers/aprs_handler.dart';
 import 'handlers/digipeater_handler.dart';
@@ -415,6 +416,12 @@ Future<void> _startApp(List<String> args) async {
   // legacy flat-file history into it before the stores below load. No-op on web
   // and on detached sub-windows (they returned above as broker clients).
   await AppDatabase.open();
+
+  if (!HostBridge.isHosted) {
+    final observations = AprsObservationHandler()..init();
+    await observations.ready;
+    DataBroker.addDataHandler('AprsObservationHandler', observations);
+  }
 
   // Register the frame deduplicator so that duplicate DataFrame events received
   // by multiple radios are collapsed into single UniqueDataFrame events.

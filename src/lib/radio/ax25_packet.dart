@@ -275,15 +275,12 @@ class AX25Packet {
     int i = 0;
     for (int j = 0; j < addresses.length; j++) {
       final a = addresses[j];
-      a.crBit1 = false;
-      a.crBit2 = true;
-      a.crBit3 = true;
-      if (j == 0) a.crBit1 = command;
-      if (j == 1) {
-        a.crBit1 = !command;
-        a.crBit2 = !modulo128;
-      }
       final ab = a.toByteArray(j == addresses.length - 1);
+      // C/R bits belong to the first two addresses; preserve repeater H bits
+      // and do not mutate decoded addresses when serializing a received frame.
+      final highBit = j == 0 ? command : j == 1 ? !command : a.crBit1;
+      final reserved = j == 1 && modulo128 ? 0x20 : 0x60;
+      ab[6] = (ab[6] & 0x1F) | reserved | (highBit ? 0x80 : 0);
       for (int k = 0; k < 7; k++) {
         rdata[i + k] = ab[k];
       }

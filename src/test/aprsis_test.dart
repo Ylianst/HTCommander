@@ -20,6 +20,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/aprs/aprs_events.dart';
+import 'package:htcommander/aprs/aprs_link_policy.dart';
 import 'package:htcommander/aprs/aprs_auth.dart';
 import 'package:htcommander/aprs/aprs_packet.dart';
 import 'package:htcommander/aprsis/aprsfi_client.dart';
@@ -407,14 +408,15 @@ void main() {
       fail('APRS-IS socket closed before the filter command');
     }
 
-    Future<void> send(int deviceId) async {
+    Future<void> send(int deviceId, {AprsLinkPolicy policy = AprsLinkPolicy.automatic, String message = 'Hello'}) async {
       bus.dispatch(
         deviceId: 1,
         name: 'SendAprsMessage',
         data: AprsSendMessageData(
           destination: 'W1AW',
-          message: 'Hello',
+          message: message,
           radioDeviceId: deviceId,
+          policy: policy,
           route: const ['Local', 'APRS', 'WIDE1-1', 'WIDE2-1'],
         ),
         store: false,
@@ -442,6 +444,51 @@ void main() {
         },
       );
     }
+
+    for (final policy in [AprsLinkPolicy.rfOnly, AprsLinkPolicy.both]) {
+      test('${policy.name} RF echoes do not create internet copies outside the outbox budget', () async {
+        await connect();
+        var attempts = 0;
+        for (final authenticated in [false, true]) {
+          bus.dispatch(deviceId: 0, name: 'Stations', data: authenticated ? [
+            {'Callsign': 'W1AW', 'StationType': 'APRS', 'AuthPassword': 'dummy-test-key'},
+          ] : <Map<String, dynamic>>[]);
+          for (final text in ['Hello', 'ack1', 'rej1', 'ACKnowledge this']) {
+            await send(radioId, policy: policy, message: text);
+            expect(rf, hasLength(++attempts));
+            final packet = rf.last.packet!;
+            expect(await sentLines(), policy == AprsLinkPolicy.rfOnly
+              ? <String>[] : ['N0CALL-7>APRS,TCPIP*:${packet.dataStr}']);
+            final echoed = _parseTnc2(Tnc2Codec.encode(packet)!);
+            bus.dispatch(deviceId: 1, name: 'AprsFrame',
+              data: AprsFrameEventArgs(echoed, echoed.packet!, null), store: false);
+            expect(await sentLines(), isEmpty, reason: '$authenticated: $text');
+            expect(rf, hasLength(attempts));
+          }
+        }
+      });
+    }
+
+    test('internet-only never emits RF or down-gates its own internet echo', () async {
+      await connect();
+      await send(radioId, policy: AprsLinkPolicy.internetOnly);
+      final outgoing = await sentLines();
+      expect(outgoing, ['N0CALL-7>APRS,TCPIP*::W1AW     :Hello{1']);
+      expect(rf, isEmpty);
+      bus.dispatch(deviceId: 0, name: 'AprsIsGateToRf', data: 1);
+      final heard = _parseTnc2('W1AW>APRS:>heard');
+      bus.dispatch(deviceId: 1, name: 'AprsFrame', data: AprsFrameEventArgs(heard, heard.packet!, null), store: false);
+      await sentLines();
+      final echo = Completer<AprsFrameEventArgs>();
+      bus.subscribe(deviceId: 1, name: 'AprsFrame', callback: (_, _, data) {
+        if (data is AprsFrameEventArgs && data.aprsPacket.fromAprsIs && !echo.isCompleted) echo.complete(data);
+      });
+      socket!.write('${outgoing.single}\r\n');
+      final received = await echo.future.timeout(const Duration(seconds: 5));
+      final own = handler.outgoingMessages.single;
+      expect('${own.parts.single.wireId}', received.aprsPacket.messageData.seqId);
+      expect(rf.map((f) => Tnc2Codec.encode(f.packet!)).toList(), isEmpty);
+    });
 
     test('an unverified connection does not prevent RF transmission', () async {
       await connect(verified: false);
@@ -567,19 +614,25 @@ void main() {
       expect(line, startsWith('K7VZT-5>APRS,WIDE1-1,qAR,N0CALL-10:'));
     });
 
-    test('does not gate packets with TCPIP/NOGATE in the path', () {
-      expect(
-        AprsIsClient.shouldGateToInternet(
-          _parseTnc2('K7VZT>APRS,TCPIP*:!4737.14N/12220.09W>Hi'),
-        ),
-        isFalse,
-      );
-      expect(
-        AprsIsClient.shouldGateToInternet(
-          _parseTnc2('K7VZT>APRS,WIDE1-1,NOGATE:!4737.14N/12220.09W>Hi'),
-        ),
-        isFalse,
-      );
+    test('does not gate internet or no-gate path markers', () {
+      for (final path in [
+        'TCPIP*',
+        'TCPXX',
+        'qAC',
+        'qAR',
+        'qAI',
+        'qAU',
+        'WIDE1-1,NOGATE',
+        'WIDE1-1,RFONLY',
+      ]) {
+        expect(
+          AprsIsClient.shouldGateToInternet(
+            _parseTnc2('K7VZT>APRS,$path:!4737.14N/12220.09W>Hi'),
+          ),
+          isFalse,
+          reason: path,
+        );
+      }
     });
 
     test('does not gate a packet already from APRS-IS', () {

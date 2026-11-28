@@ -28,6 +28,7 @@ import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 
 import '../aprs/aprs_packet.dart';
 import '../aprs/aprs_events.dart';
+import '../aprs/aprs_link_policy.dart';
 import '../models/aircraft.dart';
 import '../models/station_info.dart';
 import '../radio/pcm_player.dart';
@@ -97,12 +98,15 @@ class WebServerHandler {
 
     _refreshConnectedRadios();
     _broker.subscribeMultiple(deviceId: 1,
-      names: const ['AprsOutbox', 'AprsSendError', 'AprsMessageQueued', 'AprsAuthenticatedDestinations'],
+      names: const ['AprsOutbox', 'AprsSendError', 'AprsMessageQueued', 'AprsAuthenticatedDestinations',
+        'AprsObservations', 'AprsObservationError'],
       callback: (_, name, data) {
         final prefix = switch (name) {
           'AprsOutbox' => 'aprsoutbox',
           'AprsAuthenticatedDestinations' => 'aprsauth',
           'AprsMessageQueued' => 'aprsqueued',
+          'AprsObservations' => 'aprsobservations',
+          'AprsObservationError' => 'aprsobservationerror',
           _ => 'aprserror',
         };
         _server?.broadcastText('$prefix:${jsonEncode(data)}');
@@ -344,6 +348,8 @@ class WebServerHandler {
     // Seed the browser's Comms/APRS tabs with the host's stored history.
     _sendHistoryTo(client);
     client.sendText('aprsoutbox:${jsonEncode(_broker.getValueDynamic(1, 'AprsOutbox', []))}');
+    client.sendText('aprsobservations:${jsonEncode(_broker.getValueDynamic(1, 'AprsObservations', []))}');
+    client.sendText('aprsobservationerror:${jsonEncode(_broker.getValueDynamic(1, 'AprsObservationError'))}');
     client.sendText('aprsauth:${jsonEncode(_broker.getValueDynamic(1, 'AprsAuthenticatedDestinations', []))}');
     final aprsError = _broker.getValueDynamic(1, 'AprsSendError');
     if (aprsError is Map) client.sendText('aprserror:${jsonEncode(aprsError)}');
@@ -734,11 +740,18 @@ class WebServerHandler {
         final name = op['op'];
         if (name == 'SendAprsMessage') {
           final request = AprsSendMessageData.fromJson(Map<String, dynamic>.from(op['message'] as Map));
-          final radioId = request.radioDeviceId < 0 ? -1 : _targetRadioDeviceId;
-          if (request.radioDeviceId >= 0 && radioId < 0) throw StateError('No shared radio available');
+          if (request.policy.permitsRf && request.radioDeviceId <= 0) {
+            throw StateError('RF policy requires a selected shared radio');
+          }
+          final needsRadio = request.policy.permitsRf ||
+            (request.policy == AprsLinkPolicy.automatic && request.radioDeviceId >= 0);
+          final radioId = needsRadio ? _targetRadioDeviceId : -1;
+          if (needsRadio && radioId < 0) throw StateError('No shared radio available');
           _broker.dispatch(deviceId: 1, name: 'SendAprsMessage',
             data: AprsSendMessageData(destination: request.destination, message: request.message,
-              radioDeviceId: radioId, route: request.route), store: false);
+              radioDeviceId: radioId, route: request.route, policy: request.policy), store: false);
+        } else if (name == 'RequestAprsObservations') {
+          _broker.dispatch(deviceId: 1, name: 'RequestAprsObservations', data: null, store: false);
         } else if ((name == 'RetryAprsMessage' || name == 'StopAprsMessage') && op['id'] is String) {
           _broker.dispatch(deviceId: 1, name: name as String, data: op['id'], store: false);
         } else {

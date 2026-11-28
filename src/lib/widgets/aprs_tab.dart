@@ -12,7 +12,9 @@ import 'callsign_license_line.dart';
 import 'contact_avatar.dart';
 import '../dialogs/aprs_configuration_dialog.dart';
 import '../dialogs/aprs_outbox_dialog.dart';
+import '../dialogs/aprs_observations_dialog.dart';
 import '../aprs/aprs_outbox.dart';
+import '../aprs/aprs_link_policy.dart';
 import '../dialogs/aprs_details_dialog.dart';
 import '../dialogs/aprs_sms_dialog.dart';
 import '../dialogs/aprs_weather_dialog.dart';
@@ -195,6 +197,7 @@ class _AprsTabState extends State<AprsTab>
   String? _pendingDraft;
   Timer? _pendingComposeTimer;
   AppLocalizations? _deliveryL10n;
+  AprsLinkPolicy _messageLinkPolicy = AprsLinkPolicy.automatic;
   final TextEditingController _destinationController = TextEditingController(
     text: 'APRS',
   );
@@ -343,7 +346,8 @@ class _AprsTabState extends State<AprsTab>
     });
     _broker.subscribe(deviceId: 1, name: 'AprsMessageQueued', callback: (_, _, data) {
       if (!mounted || data is! Map || _pendingCompose == null) return;
-      if (data['message'] == _pendingCompose!.message && data['destination'] == _pendingCompose!.destination) {
+      if (data['message'] == _pendingCompose!.message && data['destination'] == _pendingCompose!.destination &&
+          data['policy'] == _pendingCompose!.policy.name) {
         _pendingComposeTimer?.cancel();
         if (_messageController.text == _pendingDraft) _messageController.clear();
         setState(() {
@@ -1722,8 +1726,12 @@ class _AprsTabState extends State<AprsTab>
   /// is allowed even without an APRS channel (the radio's APRS-satellite lock).
   bool get _canSend =>
       _pendingCompose == null &&
-      (_hasAprsChannel || _aprsIsTransmitAvailable || _isAprsSatActive) &&
-      (!_isRadioLockedForOtherUsage || _isAprsSatActive) &&
+      _allowTransmit &&
+      (_messageLinkPolicy == AprsLinkPolicy.internetOnly
+        ? _callsign.trim().isNotEmpty
+        : ((_hasAprsChannel || _isAprsSatActive ||
+            (_messageLinkPolicy == AprsLinkPolicy.automatic && _aprsIsTransmitAvailable)) &&
+          (!_isRadioLockedForOtherUsage || _isAprsSatActive))) &&
       ((_selectedContact != null) ||
           _destinationController.text.trim().isNotEmpty) &&
       _messageController.text.trim().isNotEmpty;
@@ -2406,6 +2414,16 @@ class _AprsTabState extends State<AprsTab>
     _messageFocusNode.requestFocus();
   }
 
+  int? _radioForMessage() {
+    if (_messageLinkPolicy == AprsLinkPolicy.internetOnly) return -1;
+    final id = _getPreferredAprsRadioDeviceId();
+    if (id > 0 || (_messageLinkPolicy == AprsLinkPolicy.automatic && _aprsIsTransmitAvailable)) return id;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(AppLocalizations.of(context).aprsNoChannel),
+      duration: const Duration(seconds: 2)));
+    return null;
+  }
+
   void _sendMessage() {
     if (_pendingCompose != null) return;
     final inConversation = _selectedContact != null;
@@ -2430,19 +2448,11 @@ class _AprsTabState extends State<AprsTab>
     }
     if (destination.isEmpty) return;
 
-    final radioDeviceId = _getPreferredAprsRadioDeviceId();
-    if (radioDeviceId == -1 && !_aprsIsTransmitAvailable) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context).aprsNoChannel),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
+    final radioDeviceId = _radioForMessage();
+    if (radioDeviceId == null) return;
 
     final request = AprsSendMessageData(destination: destination, message: outgoing,
-      radioDeviceId: radioDeviceId, route: _routeForSending());
+      radioDeviceId: radioDeviceId, route: _routeForSending(), policy: _messageLinkPolicy);
     setState(() {
       _pendingCompose = request;
       _pendingDraft = text;
@@ -2469,20 +2479,11 @@ class _AprsTabState extends State<AprsTab>
   /// Opens the SMS dialog and, on confirmation, sends a specially crafted APRS
   /// message to the "SMS" gateway (mirrors the C# `aprsSmsButton_Click`).
   Future<void> _sendSmsMessage() async {
-    final messenger = ScaffoldMessenger.of(context);
     final result = await showAprsSmsDialog(context);
     if (result == null || !mounted) return;
 
-    final radioDeviceId = _getPreferredAprsRadioDeviceId();
-    if (radioDeviceId == -1 && !_aprsIsTransmitAvailable) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context).aprsNoChannel),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
+    final radioDeviceId = _radioForMessage();
+    if (radioDeviceId == null) return;
 
     _broker.dispatch(
       deviceId: _aprsDeviceId,
@@ -2492,6 +2493,7 @@ class _AprsTabState extends State<AprsTab>
         message: result.gatewayMessage,
         radioDeviceId: radioDeviceId,
         route: _getSelectedRoute(),
+        policy: _messageLinkPolicy,
       ),
       store: false,
     );
@@ -2500,20 +2502,11 @@ class _AprsTabState extends State<AprsTab>
   /// Opens the weather dialog and, on confirmation, sends a weather request to
   /// the "WXBOT" APRS gateway (mirrors the C# `weatherReportToolStripMenuItem_Click`).
   Future<void> _sendWeatherReport() async {
-    final messenger = ScaffoldMessenger.of(context);
     final weatherMessage = await showAprsWeatherDialog(context);
     if (weatherMessage == null || !mounted) return;
 
-    final radioDeviceId = _getPreferredAprsRadioDeviceId();
-    if (radioDeviceId == -1 && !_aprsIsTransmitAvailable) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context).aprsNoChannel),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
+    final radioDeviceId = _radioForMessage();
+    if (radioDeviceId == null) return;
 
     _broker.dispatch(
       deviceId: _aprsDeviceId,
@@ -2523,6 +2516,7 @@ class _AprsTabState extends State<AprsTab>
         message: weatherMessage,
         radioDeviceId: radioDeviceId,
         route: _getSelectedRoute(),
+        policy: _messageLinkPolicy,
       ),
       store: false,
     );
@@ -3293,6 +3287,10 @@ class _AprsTabState extends State<AprsTab>
         offset.dy,
       ),
       items: [
+        PopupMenuItem<String>(value: 'observations', height: menuItemHeight,
+          padding: menuItemPadding, child: Row(children: [
+            const SizedBox(width: 20), Expanded(child: Text(l10n.aprsObservations)),
+          ])),
         PopupMenuItem<String>(
           value: 'showAll',
           height: menuItemHeight,
@@ -3458,6 +3456,9 @@ class _AprsTabState extends State<AprsTab>
     ).then((value) {
       if (value == null || !mounted) return;
       switch (value) {
+        case 'observations':
+          if (context.mounted) showAprsObservationsDialog(context);
+          break;
         case 'showAll':
           _toggleShowAll();
           break;
@@ -4619,6 +4620,21 @@ class _AprsTabState extends State<AprsTab>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          SizedBox(width: 36, height: 34, child: PopupMenuButton<AprsLinkPolicy>(
+            tooltip: aprsLinkPolicyLabel(AppLocalizations.of(context), _messageLinkPolicy),
+            icon: Icon(switch (_messageLinkPolicy) {
+              AprsLinkPolicy.automatic => Icons.route,
+              AprsLinkPolicy.rfOnly => Icons.cell_tower,
+              AprsLinkPolicy.internetOnly => Icons.cloud_outlined,
+              AprsLinkPolicy.both => Icons.compare_arrows,
+            }, size: 18),
+            onSelected: (policy) => setState(() => _messageLinkPolicy = policy),
+            itemBuilder: (_) => [
+              for (final policy in AprsLinkPolicy.values)
+                CheckedPopupMenuItem(value: policy, checked: policy == _messageLinkPolicy,
+                  child: Text(aprsLinkPolicyLabel(AppLocalizations.of(context), policy))),
+            ],
+          )),
           // Destination combo box (text input with dropdown)
           if (!inConversation) ...[
             SizedBox(

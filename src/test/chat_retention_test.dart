@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/aprs/aprs_events.dart';
 import 'package:htcommander/aprs/aprs_outbox.dart';
+import 'package:htcommander/aprs/aprs_link_policy.dart';
 import 'package:htcommander/aprs/aprs_packet.dart';
 import 'package:htcommander/aprsis/tnc2_codec.dart';
 import 'package:htcommander/l10n/app_localizations.dart';
@@ -78,6 +79,43 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('narrow composer offers explicit internet-only without an RF radio', (tester) async {
+    tester.view.physicalSize = const Size(360, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final bus = DataBrokerClient();
+    addTearDown(bus.dispose);
+    bus.dispatch(deviceId: 0, name: 'CallSign', data: 'N0CALL');
+    bus.dispatch(deviceId: 0, name: 'AprsDestination', data: 'W1AW');
+    final sent = <AprsSendMessageData>[];
+    bus.subscribe(deviceId: 1, name: 'SendAprsMessage', callback: (_, _, data) {
+      if (data is AprsSendMessageData) sent.add(data);
+    });
+    await tester.pumpWidget(app(const AprsTab()));
+    await tester.tap(find.text('All APRS Messages').first);
+    await tester.pump();
+    await tester.tap(find.byTooltip('Automatic'));
+    await tester.pumpAndSettle();
+    for (final label in ['RF only', 'Internet only', 'RF + internet']) {
+      expect(find.text(label), findsOneWidget);
+    }
+    await tester.tap(find.widgetWithText(CheckedPopupMenuItem<AprsLinkPolicy>, 'Internet only'));
+    await tester.pumpAndSettle();
+    final input = find.byType(TextField).last;
+    await tester.enterText(input, 'Hello');
+    await tester.pump();
+    await tester.tap(find.widgetWithIcon(ElevatedButton, Icons.send));
+    await tester.pump();
+    expect(sent.single.policy, AprsLinkPolicy.internetOnly);
+    expect(sent.single.radioDeviceId, -1);
+    expect(tester.takeException(), isNull);
+    bus.dispatch(deviceId: 1, name: 'AprsMessageQueued', data: sent.single.toJson(), store: false);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('unconfirmed APRS queue requests keep the draft and permit recovery', (tester) async {
     DataBroker.dispatch(deviceId: 0, name: 'CallSign', data: 'N0CALL');
     DataBroker.dispatch(deviceId: 0, name: 'AprsIsEnabled', data: 1);
@@ -103,7 +141,7 @@ void main() {
     DataBroker.dispatch(deviceId: 0, name: 'CallSign', data: 'N0CALL');
     DataBroker.dispatch(deviceId: 0, name: 'StationId', data: 7);
     final outgoing = AprsOutgoingMessage(id: 'tracked', source: 'N0CALL-7', destination: 'W1AW',
-      text: 'Hello', created: DateTime(2026), radioDeviceId: -1, internet: true, authenticated: false,
+      text: 'Hello', created: DateTime(2026), radioDeviceId: -1, linkPolicy: AprsLinkPolicy.internetOnly, authenticated: false,
       parts: const [AprsOutboxPart(wireId: 1, text: 'Hello', state: AprsDelivery.sent, attempts: 1)]);
     DataBroker.dispatch(deviceId: 1, name: 'AprsOutbox', data: [outgoing.toJson()]);
     await tester.pumpWidget(app(const AprsTab()));

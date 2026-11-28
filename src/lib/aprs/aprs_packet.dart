@@ -51,6 +51,21 @@ class AprsPacket {
   /// the user filter it out.
   bool fromAprsIs = false;
 
+  static final _internetQConstruct = RegExp(r'^QA[A-Z]$');
+
+  static bool isInternetPathMarker(String address) {
+    final call = address.toUpperCase();
+    return call == 'TCPIP' ||
+        call == 'TCPXX' ||
+        _internetQConstruct.hasMatch(call);
+  }
+
+  bool get hasInternetPath =>
+      packet?.addresses
+          .skip(2)
+          .any((address) => isInternetPathMarker(address.address)) ??
+      false;
+
   AprsPacket._();
 
   String get dataTypeChar =>

@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 import '../aprs/aprs_events.dart';
+import '../aprs/aprs_observation.dart';
 import '../aprs/aprs_packet.dart';
 import '../handlers/bbs_handler.dart';
 import '../models/aircraft.dart';
@@ -108,6 +109,11 @@ void registerBrokerSerializers() {
     'aprsSend',
     (value) => value.toJson(),
     (json) => AprsSendMessageData.fromJson(json),
+  );
+  DataBroker.registerSerializer<AprsObservation>(
+    'aprsObservation',
+    (value) => value.toJson(),
+    (json) => AprsObservation.fromJson(json),
   );
 
   // BBS statistics are dispatched as `List<MergedStationStats>` and the BBS tab

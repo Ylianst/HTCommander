@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../aprs/aprs_outbox.dart';
+import '../aprs/aprs_link_policy.dart';
 import '../l10n/app_localizations.dart';
 import '../services/data_broker_client.dart';
 import 'dialog_utils.dart';
@@ -22,6 +23,14 @@ String aprsComposeErrorLabel(AppLocalizations l10n, AprsComposeError error) => s
   AprsComposeError.reserved => l10n.aprsReservedText,
   AprsComposeError.tooLong => l10n.aprsTooLong,
   AprsComposeError.address => l10n.aprsInvalidAddress,
+  AprsComposeError.radio => l10n.aprsNoChannel,
+};
+
+String aprsLinkPolicyLabel(AppLocalizations l10n, AprsLinkPolicy policy) => switch (policy) {
+  AprsLinkPolicy.automatic => l10n.aprsLinkAutomatic,
+  AprsLinkPolicy.rfOnly => l10n.aprsLinkRfOnly,
+  AprsLinkPolicy.internetOnly => l10n.aprsLinkInternetOnly,
+  AprsLinkPolicy.both => l10n.aprsLinkBoth,
 };
 
 List<AprsOutgoingMessage> aprsOutboxSnapshot(Object? data) {
@@ -108,6 +117,7 @@ class _AprsOutboxDialogState extends State<_AprsOutboxDialog> {
               return Card(child: Padding(padding: const EdgeInsets.all(8), child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('${message.source} > ${message.destination} - ${aprsDeliveryLabel(l10n, message.state)}'),
+                  Text(aprsLinkPolicyLabel(l10n, message.linkPolicy), style: Theme.of(context).textTheme.bodySmall),
                   Text(message.text, maxLines: 3, overflow: TextOverflow.ellipsis),
                   for (var i = 0; i < message.parts.length; i++)
                     Text('${i + 1}/${message.parts.length}: ${aprsDeliveryLabel(l10n, message.parts[i].state)}'

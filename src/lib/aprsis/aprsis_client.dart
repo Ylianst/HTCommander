@@ -191,15 +191,8 @@ class AprsIsClient {
 
   /// Path elements that mark a packet as "do not gate to the internet".
   static const List<String> _noGateMarkers = [
-    'TCPIP',
-    'TCPXX',
     'NOGATE',
     'RFONLY',
-    'QAX',
-    'QAC',
-    'QAS',
-    'QAR',
-    'QAO',
   ];
 
   /// Decides whether a packet heard on RF should be gated up to APRS-IS.
@@ -233,6 +226,7 @@ class AprsIsClient {
     // Reject if any address in the path carries a no-gate marker.
     for (final addr in packet.addresses) {
       final call = addr.address.toUpperCase();
+      if (AprsPacket.isInternetPathMarker(call)) return false;
       for (final marker in _noGateMarkers) {
         if (call == marker) return false;
       }

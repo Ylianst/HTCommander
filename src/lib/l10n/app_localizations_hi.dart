@@ -12,6 +12,60 @@ class AppLocalizationsHi extends AppLocalizations {
   String get aprsOutbox => 'APRS आउटबॉक्स';
 
   @override
+  String get aprsLinkAutomatic => 'स्वचालित';
+
+  @override
+  String get aprsLinkRfOnly => 'केवल RF';
+
+  @override
+  String get aprsLinkInternetOnly => 'केवल इंटरनेट';
+
+  @override
+  String get aprsLinkBoth => 'RF + इंटरनेट';
+
+  @override
+  String get aprsObservations => 'प्राप्ति अवलोकन';
+
+  @override
+  String get aprsObservationsHelp =>
+      'डिकोडर के पिछले 1,000 अवलोकन। ऐतिहासिक रिकॉर्ड कभी वर्तमान RF पहुंच का प्रमाण नहीं हैं।';
+
+  @override
+  String get aprsObservationDirect => 'सीधा RF';
+
+  @override
+  String get aprsObservationDigipeated => 'डिजिपीटर से RF';
+
+  @override
+  String get aprsObservationThirdParty => 'तृतीय-पक्ष पैकेट';
+
+  @override
+  String get aprsObservationLoopback => 'लूपबैक';
+
+  @override
+  String get aprsObservationInvalid => 'अमान्य APRS';
+
+  @override
+  String get aprsObservationLive => 'वर्तमान';
+
+  @override
+  String get aprsObservationHistory => 'ऐतिहासिक';
+
+  @override
+  String get aprsObservationPending => 'अभी संग्रहीत नहीं';
+
+  @override
+  String get aprsObservationSameDecoder => 'इस लिंक पर दोबारा डिकोड';
+
+  @override
+  String get aprsObservationOtherDecoder => 'इस लिंक पर दूसरा डिकोडर';
+
+  @override
+  String aprsObservationStorageError(String detail) {
+    return 'अवलोकन संग्रह त्रुटि: $detail';
+  }
+
+  @override
   String get aprsQueueUnconfirmed =>
       'कतार की पुष्टि नहीं मिली। ड्राफ्ट रखा गया है; दोबारा भेजने से पहले आउटबॉक्स देखें।';
 

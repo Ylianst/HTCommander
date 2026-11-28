@@ -12,6 +12,61 @@ class AppLocalizationsDe extends AppLocalizations {
   String get aprsOutbox => 'APRS-Postausgang';
 
   @override
+  String get aprsLinkAutomatic => 'Automatisch';
+
+  @override
+  String get aprsLinkRfOnly => 'Nur Funk';
+
+  @override
+  String get aprsLinkInternetOnly => 'Nur Internet';
+
+  @override
+  String get aprsLinkBoth => 'Funk + Internet';
+
+  @override
+  String get aprsObservations => 'Empfangsbeobachtungen';
+
+  @override
+  String get aprsObservationsHelp =>
+      'Die letzten 1.000 Decoderbeobachtungen. Historische Einträge belegen nie aktuelle Funkerreichbarkeit.';
+
+  @override
+  String get aprsObservationDirect => 'Direkter Funkempfang';
+
+  @override
+  String get aprsObservationDigipeated => 'Über Digipeater empfangen';
+
+  @override
+  String get aprsObservationThirdParty => 'Drittanbieterpaket';
+
+  @override
+  String get aprsObservationLoopback => 'Loopback';
+
+  @override
+  String get aprsObservationInvalid => 'Ungültiges APRS';
+
+  @override
+  String get aprsObservationLive => 'Aktuell';
+
+  @override
+  String get aprsObservationHistory => 'Historisch';
+
+  @override
+  String get aprsObservationPending => 'Noch nicht archiviert';
+
+  @override
+  String get aprsObservationSameDecoder =>
+      'Wiederholte Decodierung auf diesem Link';
+
+  @override
+  String get aprsObservationOtherDecoder => 'Anderer Decoder auf diesem Link';
+
+  @override
+  String aprsObservationStorageError(String detail) {
+    return 'Fehler im Beobachtungsarchiv: $detail';
+  }
+
+  @override
   String get aprsQueueUnconfirmed =>
       'Keine Warteschlangenbestätigung erhalten. Der Entwurf bleibt erhalten; vor erneutem Senden den Postausgang prüfen.';
 

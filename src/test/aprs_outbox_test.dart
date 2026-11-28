@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/aprs/aprs_auth.dart';
 import 'package:htcommander/aprs/aprs_events.dart';
 import 'package:htcommander/aprs/aprs_outbox.dart';
+import 'package:htcommander/aprs/aprs_link_policy.dart';
+import 'package:htcommander/aprsis/aprsis_client.dart';
 import 'package:htcommander/aprs/aprs_packet.dart';
 import 'package:htcommander/aprsis/tnc2_codec.dart';
 import 'package:htcommander/handlers/aprs_handler.dart';
@@ -116,7 +118,7 @@ void main() {
 
     setUp(() async {
       await AppDatabase.openInMemory();
-      for (final id in [0, 1, radioId]) {
+      for (final id in [0, 1, radioId, aprsIsDeviceId]) {
         DataBroker.clearDevice(id);
       }
       now = DateTime(2026, 1, 1, 12);
@@ -168,12 +170,12 @@ void main() {
       await handler.ready;
       bus.dispose();
       await AppDatabase.close();
-      for (final id in [0, 1, radioId]) {
+      for (final id in [0, 1, radioId, aprsIsDeviceId]) {
         DataBroker.clearDevice(id);
       }
     });
 
-    Future<void> send([String text = 'Hello']) async {
+    Future<void> send([String text = 'Hello', AprsLinkPolicy policy = AprsLinkPolicy.automatic]) async {
       bus.dispatch(
         deviceId: 1,
         name: 'SendAprsMessage',
@@ -181,6 +183,7 @@ void main() {
           destination: 'W1AW',
           message: text,
           radioDeviceId: radioId,
+          policy: policy,
         ),
         store: false,
       );
@@ -251,6 +254,99 @@ void main() {
         expect(transmissions, hasLength(6));
       },
     );
+
+    test('RF-only survives restart, internet enablement, unavailable RF and manual resume', () async {
+      final internet = <Object?>[];
+      bus.subscribe(deviceId: 1, name: 'SendAprsIsMessage', callback: (_, _, data) => internet.add(data));
+      await send('Hello', AprsLinkPolicy.rfOnly);
+      final id = handler.outgoingMessages.single.id;
+      handler.dispose();
+      await handler.ready;
+      handler = AprsHandler(clock: () => now)..init();
+      await handler.ready;
+      bus.dispatch(deviceId: 0, name: 'AprsIsEnabled', data: 1);
+      bus.dispatch(deviceId: aprsIsDeviceId, name: 'AprsIsVerified', data: true);
+      bus.dispatch(deviceId: 1, name: 'ConnectedRadios', data: []);
+      bus.dispatch(deviceId: 1, name: 'RetryAprsMessage', data: id, store: false);
+      await handler.ready;
+      expect(handler.outgoingMessages.single.parts.single.attempts, 1);
+      bus.dispatch(deviceId: 1, name: 'ConnectedRadios', data: [{'DeviceId': radioId, 'MacAddress': 'original'}]);
+      await handler.processOutbox();
+      expect(transmissions, hasLength(2));
+      expect(internet, isEmpty);
+      expect(handler.outgoingMessages.single.linkPolicy, AprsLinkPolicy.rfOnly);
+      expect(handler.outgoingMessages.single.parts.single.wireId, 1);
+      DataBroker.clearDevice(aprsIsDeviceId);
+    });
+
+    test('internet-only ignores a preferred radio and waits without consuming attempts', () async {
+      final internet = <AprsFrameEventArgs>[];
+      bus.subscribe(deviceId: 1, name: 'SendAprsIsMessage', callback: (_, _, data) {
+        if (data is AprsFrameEventArgs) internet.add(data);
+      });
+      await send('Hello', AprsLinkPolicy.internetOnly);
+      expect(handler.outgoingMessages.single.radioDeviceId, -1);
+      expect(handler.outgoingMessages.single.parts.single.attempts, 0);
+      bus.dispatch(deviceId: 0, name: 'AprsIsEnabled', data: 1);
+      bus.dispatch(deviceId: aprsIsDeviceId, name: 'AprsIsVerified', data: true);
+      await handler.processOutbox();
+      expect(internet, hasLength(1));
+      expect(transmissions, isEmpty);
+      handler.dispose();
+      await handler.ready;
+      handler = AprsHandler(clock: () => now)..init();
+      await handler.ready;
+      bus.dispatch(deviceId: 1, name: 'RetryAprsMessage', data: handler.outgoingMessages.single.id, store: false);
+      await handler.ready;
+      expect(internet, hasLength(2));
+      expect(transmissions, isEmpty);
+      DataBroker.clearDevice(aprsIsDeviceId);
+    });
+
+    test('both links share wire IDs and one logical attempt budget', () async {
+      final internet = <AprsFrameEventArgs>[];
+      bus.dispatch(deviceId: 0, name: 'AprsIsEnabled', data: 1);
+      bus.dispatch(deviceId: aprsIsDeviceId, name: 'AprsIsVerified', data: true);
+      bus.subscribe(deviceId: 1, name: 'SendAprsIsMessage', callback: (_, _, data) {
+        if (data is AprsFrameEventArgs) internet.add(data);
+      });
+      await send('Hello', AprsLinkPolicy.both);
+      now = now.add(const Duration(seconds: 30));
+      await handler.processOutbox();
+      expect(transmissions, hasLength(2));
+      expect(internet, hasLength(2));
+      expect(handler.outgoingMessages.single.parts.single.attempts, 2);
+      expect(internet.map((f) => f.aprsPacket.messageData.seqId), ['1', '1']);
+      expect(transmissions.map((f) => AprsPacket.parse(f.packet!)!.messageData.seqId), ['1', '1']);
+      DataBroker.clearDevice(aprsIsDeviceId);
+    });
+
+    test('legacy outbox JSON and commands preserve automatic link intent', () async {
+      await send();
+      for (final (radio, enabled, expected) in [
+        (radioId, false, AprsLinkPolicy.rfOnly),
+        (radioId, true, AprsLinkPolicy.both),
+        (-1, true, AprsLinkPolicy.internetOnly),
+      ]) {
+        final json = handler.outgoingMessages.single.toJson()..remove('linkPolicy');
+        json['radioDeviceId'] = radio;
+        json['internet'] = enabled;
+        expect(AprsOutgoingMessage.fromJson(json).linkPolicy, expected);
+      }
+      expect(AprsSendMessageData.fromJson({'destination': 'W1AW', 'message': 'Hello', 'radioDeviceId': radioId}).policy,
+        AprsLinkPolicy.automatic);
+      final invalidLegacy = handler.outgoingMessages.single.toJson()..remove('linkPolicy');
+      invalidLegacy['radioDeviceId'] = -1;
+      invalidLegacy['internet'] = false;
+      expect(() => AprsOutgoingMessage.fromJson(invalidLegacy), throwsFormatException);
+      expect(() => AprsSendMessageData.fromJson({'destination': 'W1AW', 'message': 'Hello',
+        'radioDeviceId': radioId, 'policy': 'fallback'}), throwsArgumentError);
+      bus.dispatch(deviceId: 1, name: 'SendAprsMessage', data: const AprsSendMessageData(
+        destination: 'W1AW', message: 'No radio', radioDeviceId: -1, policy: AprsLinkPolicy.both), store: false);
+      await handler.ready;
+      expect(handler.outgoingMessages, hasLength(1));
+      expect((bus.getValueDynamic(1, 'AprsSendError') as Map)['reason'], 'radio');
+    });
 
     test('multipart IDs remain distinct across wrap and initial parts precede retries', () async {
       handler.dispose();

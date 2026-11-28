@@ -12,6 +12,60 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aprsOutbox => 'APRS outbox';
 
   @override
+  String get aprsLinkAutomatic => 'Automatic';
+
+  @override
+  String get aprsLinkRfOnly => 'RF only';
+
+  @override
+  String get aprsLinkInternetOnly => 'Internet only';
+
+  @override
+  String get aprsLinkBoth => 'RF + internet';
+
+  @override
+  String get aprsObservations => 'Receive observations';
+
+  @override
+  String get aprsObservationsHelp =>
+      'Last 1,000 decoder observations. Historical records never establish live RF reachability.';
+
+  @override
+  String get aprsObservationDirect => 'Direct RF';
+
+  @override
+  String get aprsObservationDigipeated => 'Digipeated RF';
+
+  @override
+  String get aprsObservationThirdParty => 'Third-party packet';
+
+  @override
+  String get aprsObservationLoopback => 'Loopback';
+
+  @override
+  String get aprsObservationInvalid => 'Invalid APRS';
+
+  @override
+  String get aprsObservationLive => 'Live';
+
+  @override
+  String get aprsObservationHistory => 'Historical';
+
+  @override
+  String get aprsObservationPending => 'Not archived yet';
+
+  @override
+  String get aprsObservationSameDecoder => 'Repeated decode on this link';
+
+  @override
+  String get aprsObservationOtherDecoder => 'Another decoder on this link';
+
+  @override
+  String aprsObservationStorageError(String detail) {
+    return 'Observation archive error: $detail';
+  }
+
+  @override
   String get aprsQueueUnconfirmed =>
       'No queue confirmation received. Your draft was kept; check the outbox before resending.';
 

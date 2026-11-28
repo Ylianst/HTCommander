@@ -118,6 +118,108 @@ abstract class AppLocalizations {
   /// **'APRS outbox'**
   String get aprsOutbox;
 
+  /// No description provided for @aprsLinkAutomatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get aprsLinkAutomatic;
+
+  /// No description provided for @aprsLinkRfOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'RF only'**
+  String get aprsLinkRfOnly;
+
+  /// No description provided for @aprsLinkInternetOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Internet only'**
+  String get aprsLinkInternetOnly;
+
+  /// No description provided for @aprsLinkBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'RF + internet'**
+  String get aprsLinkBoth;
+
+  /// No description provided for @aprsObservations.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive observations'**
+  String get aprsObservations;
+
+  /// No description provided for @aprsObservationsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 1,000 decoder observations. Historical records never establish live RF reachability.'**
+  String get aprsObservationsHelp;
+
+  /// No description provided for @aprsObservationDirect.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct RF'**
+  String get aprsObservationDirect;
+
+  /// No description provided for @aprsObservationDigipeated.
+  ///
+  /// In en, this message translates to:
+  /// **'Digipeated RF'**
+  String get aprsObservationDigipeated;
+
+  /// No description provided for @aprsObservationThirdParty.
+  ///
+  /// In en, this message translates to:
+  /// **'Third-party packet'**
+  String get aprsObservationThirdParty;
+
+  /// No description provided for @aprsObservationLoopback.
+  ///
+  /// In en, this message translates to:
+  /// **'Loopback'**
+  String get aprsObservationLoopback;
+
+  /// No description provided for @aprsObservationInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid APRS'**
+  String get aprsObservationInvalid;
+
+  /// No description provided for @aprsObservationLive.
+  ///
+  /// In en, this message translates to:
+  /// **'Live'**
+  String get aprsObservationLive;
+
+  /// No description provided for @aprsObservationHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Historical'**
+  String get aprsObservationHistory;
+
+  /// No description provided for @aprsObservationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Not archived yet'**
+  String get aprsObservationPending;
+
+  /// No description provided for @aprsObservationSameDecoder.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeated decode on this link'**
+  String get aprsObservationSameDecoder;
+
+  /// No description provided for @aprsObservationOtherDecoder.
+  ///
+  /// In en, this message translates to:
+  /// **'Another decoder on this link'**
+  String get aprsObservationOtherDecoder;
+
+  /// No description provided for @aprsObservationStorageError.
+  ///
+  /// In en, this message translates to:
+  /// **'Observation archive error: {detail}'**
+  String aprsObservationStorageError(String detail);
+
   /// No description provided for @aprsQueueUnconfirmed.
   ///
   /// In en, this message translates to:
