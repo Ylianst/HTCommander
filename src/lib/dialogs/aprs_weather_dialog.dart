@@ -46,18 +46,29 @@ const List<String> _reportOptions = [
   'CWOP, Nearest CWOP station',
 ];
 
+enum AprsWeatherForecast { today, tonight, tomorrow, full }
+
 /// Shows the "Request Weather Report" dialog. Returns the crafted APRS message
 /// body (e.g. "94089 today brief") or `null` if cancelled.
-Future<String?> showAprsWeatherDialog(BuildContext context) {
+/// A forecast preset prepares a conversation draft instead of sending directly.
+Future<String?> showAprsWeatherDialog(
+  BuildContext context, {
+  AprsWeatherForecast? forecast,
+  bool replaceDraft = false,
+}) {
   return showDialog<String>(
     context: context,
     barrierDismissible: false,
-    builder: (context) => const _AprsWeatherDialog(),
+    builder: (context) =>
+        _AprsWeatherDialog(forecast: forecast, replaceDraft: replaceDraft),
   );
 }
 
 class _AprsWeatherDialog extends StatefulWidget {
-  const _AprsWeatherDialog();
+  const _AprsWeatherDialog({this.forecast, this.replaceDraft = false});
+
+  final AprsWeatherForecast? forecast;
+  final bool replaceDraft;
 
   @override
   State<_AprsWeatherDialog> createState() => _AprsWeatherDialogState();
@@ -87,6 +98,14 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
     if (savedReport >= 0 && savedReport < _reportOptions.length) {
       _reportIndex = savedReport;
     }
+    if (widget.forecast case final forecast?) {
+      _timeIndex = switch (forecast) {
+        AprsWeatherForecast.today || AprsWeatherForecast.full => 0,
+        AprsWeatherForecast.tonight => 1,
+        AprsWeatherForecast.tomorrow => 2,
+      };
+      _reportIndex = forecast == AprsWeatherForecast.full ? 1 : 0;
+    }
   }
 
   @override
@@ -101,35 +120,35 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
   /// Localized display labels for the time options. The order MUST match
   /// [_timeOptions], which is used to build the (English) APRS message.
   List<String> _timeLabels(AppLocalizations l10n) => [
-        l10n.wxToday,
-        l10n.wxTonight,
-        l10n.wxTomorrow,
-        l10n.wxTomorrowNight,
-        l10n.wxMonday,
-        l10n.wxMondayNight,
-        l10n.wxTuesday,
-        l10n.wxTuesdayNight,
-        l10n.wxWednesday,
-        l10n.wxWednesdayNight,
-        l10n.wxThursday,
-        l10n.wxThursdayNight,
-        l10n.wxFriday,
-        l10n.wxFridayNight,
-        l10n.wxSaturday,
-        l10n.wxSaturdayNight,
-        l10n.wxSunday,
-        l10n.wxSundayNight,
-      ];
+    l10n.wxToday,
+    l10n.wxTonight,
+    l10n.wxTomorrow,
+    l10n.wxTomorrowNight,
+    l10n.wxMonday,
+    l10n.wxMondayNight,
+    l10n.wxTuesday,
+    l10n.wxTuesdayNight,
+    l10n.wxWednesday,
+    l10n.wxWednesdayNight,
+    l10n.wxThursday,
+    l10n.wxThursdayNight,
+    l10n.wxFriday,
+    l10n.wxFridayNight,
+    l10n.wxSaturday,
+    l10n.wxSaturdayNight,
+    l10n.wxSunday,
+    l10n.wxSundayNight,
+  ];
 
   /// Localized display labels for the report options. The order MUST match
   /// [_reportOptions], which is used to build the (English) APRS message.
   List<String> _reportLabels(AppLocalizations l10n) => [
-        l10n.wxReportBrief,
-        l10n.wxReportFull,
-        l10n.wxReportCurrent,
-        l10n.wxReportMetar,
-        l10n.wxReportCwop,
-      ];
+    l10n.wxReportBrief,
+    l10n.wxReportFull,
+    l10n.wxReportCurrent,
+    l10n.wxReportMetar,
+    l10n.wxReportCwop,
+  ];
 
   /// Location must be non-empty (matches the C# `UpdateInfo`).
   bool get _isValid => _locationController.text.isNotEmpty;
@@ -174,6 +193,7 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildIntro(),
+              if (widget.replaceDraft) Text(l10n.otaReplaceDraft),
               const SizedBox(height: 16),
               TextField(
                 controller: _locationController,
@@ -190,11 +210,20 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
+                isExpanded: true,
+                itemHeight: null,
                 initialValue: _timeIndex,
                 decoration: _inputDecoration(labelText: l10n.wxTime),
                 items: [
                   for (int i = 0; i < _timeOptions.length; i++)
-                    DropdownMenuItem(value: i, child: Text(timeLabels[i])),
+                    DropdownMenuItem(
+                      value: i,
+                      child: Text(
+                        timeLabels[i],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                 ],
                 onChanged: (value) {
                   if (value != null) setState(() => _timeIndex = value);
@@ -202,11 +231,20 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
+                isExpanded: true,
+                itemHeight: null,
                 initialValue: _reportIndex,
                 decoration: _inputDecoration(labelText: l10n.wxReport),
                 items: [
                   for (int i = 0; i < _reportOptions.length; i++)
-                    DropdownMenuItem(value: i, child: Text(reportLabels[i])),
+                    DropdownMenuItem(
+                      value: i,
+                      child: Text(
+                        reportLabels[i],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                 ],
                 onChanged: (value) {
                   if (value != null) setState(() => _reportIndex = value);
@@ -225,7 +263,9 @@ class _AprsWeatherDialogState extends State<_AprsWeatherDialog> {
         ElevatedButton(
           onPressed: _isValid ? _onOk : null,
           style: DialogStyles.primaryButtonStyle(context),
-          child: Text(l10n.commonOk),
+          child: Text(
+            widget.forecast == null ? l10n.commonOk : l10n.otaUseCommand,
+          ),
         ),
       ],
     );

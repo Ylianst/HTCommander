@@ -58,6 +58,11 @@ Handi-Talky Commander has a lot of features. There are the features available on
 
 - [Channel Programming](https://ylianst.github.io/HTCommanderSite/features/channels.html). Configure, import, export and drag & drop channels to create the perfect configuration for your usages.
 - [APRS support](https://ylianst.github.io/HTCommanderSite/features/aprs.html). You can receive and sent APRS messages, set APRS routes, send [SMS message](https://ylianst.github.io/HTCommanderSite/features/aprs.html#sms) to normal phones, request [weather reports](https://ylianst.github.io/HTCommanderSite/features/aprs.html#weather), send [authenticated messages](https://ylianst.github.io/HTCommanderSite/features/aprs.html#authentication), get details on each APRS message.
+  The APRS outbox uses Settings-style panels with colored status icons beside
+  each message: amber for queued, blue for submitted, teal for digipeated, green
+  for acknowledged, red for rejected or failed, orange for paused, and gray for
+  stopped. Text labels, per-part delivery details, and retry/stop controls remain
+  available.
 - [BSS support](https://ylianst.github.io/HTCommanderSite/features/bss.html). Support for the propriatary short message binary protocol from Baofeng / BTech.
 - [APRS map](https://ylianst.github.io/HTCommanderSite/features/map.html). With Open Street Map support, you can see all the APRS stations at a glance.
   Settings > Map also offers an optional custom raster XYZ tile source. Enable

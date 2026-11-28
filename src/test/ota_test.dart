@@ -16,6 +16,7 @@ import 'package:htcommander/callsign/callsign_record.dart';
 import 'package:htcommander/aprsis/tnc2_codec.dart';
 import 'package:htcommander/l10n/app_localizations.dart';
 import 'package:htcommander/dialogs/aprs_location_dialog.dart';
+import 'package:htcommander/dialogs/aprs_weather_dialog.dart';
 import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/services/data_broker_client.dart';
 import 'package:htcommander/services/callsign_lookup_service.dart';
@@ -273,6 +274,178 @@ void main() {
       data: peer,
       store: false,
     );
+
+    testWidgets(
+      'WXBOT forecasts prepare presets and send only from the composer',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 760);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        setting('CallSign', 'N0CALL');
+        setting('StationId', 7);
+        setting('AprsIsEnabled', 1);
+        setting('WxBotLocation', '94089');
+        setting('WxBotTime', 10);
+        setting('WxBotReport', 4);
+        final requests = <AprsSendMessageData>[];
+        final bus = DataBrokerClient();
+        addTearDown(bus.dispose);
+        bus.subscribe(
+          deviceId: 1,
+          name: 'SendAprsMessage',
+          callback: (_, _, data) {
+            if (data is AprsSendMessageData) requests.add(data);
+          },
+        );
+        await tester.pumpWidget(app());
+        open('WXBOT-0');
+        await tester.pump();
+        final menu = find.byTooltip('Request Weather Report');
+        expect(menu, findsOneWidget);
+        expect(find.byTooltip('OTA commands'), findsNothing);
+        final bounds = tester.getRect(menu);
+        expect(bounds.size, const Size(40, 40));
+        expect(
+          bounds.right,
+          lessThan(tester.getRect(find.byType(ChatWidget)).right - 72),
+        );
+        final composer = tester
+            .widget<TextField>(find.byType(TextField).last)
+            .controller!;
+        await tester.enterText(find.byType(TextField).last, 'keep my draft');
+        await tester.tap(menu);
+        await tester.pumpAndSettle();
+        expect(
+          find.byType(PopupMenuItem<AprsWeatherForecast>),
+          findsNWidgets(4),
+        );
+        await tester.tap(find.text('Today'));
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Using this command will replace your current draft.'),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+        expect(composer.text, 'keep my draft');
+        expect(requests, isEmpty);
+
+        for (final (label, time, report, message) in [
+          ('Today', 0, 0, '94089 today brief'),
+          ('Tonight', 1, 0, '94089 tonight brief'),
+          ('Tomorrow', 2, 0, '94089 tomorrow brief'),
+          ('Full, More complete forecast, US only', 0, 1, '94089 today full'),
+        ]) {
+          await tester.tap(menu);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text(label));
+          await tester.pumpAndSettle();
+          final fields = tester
+              .widgetList<DropdownButtonFormField<int>>(
+                find.byType(DropdownButtonFormField<int>),
+              )
+              .toList();
+          expect(fields[0].initialValue, time);
+          expect(fields[1].initialValue, report);
+          expect(find.text('94089'), findsOneWidget);
+          await tester.tap(find.text('Use command'));
+          await tester.pumpAndSettle();
+          expect(composer.text, message);
+          expect(requests, isEmpty);
+        }
+        await tester.tap(find.widgetWithIcon(ElevatedButton, Icons.send));
+        await tester.pump();
+        expect(requests.single.destination, 'WXBOT');
+        expect(requests.single.message, '94089 today full');
+        await tester.tap(menu);
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .widgetList<PopupMenuItem<AprsWeatherForecast>>(
+                find.byType(PopupMenuItem<AprsWeatherForecast>),
+              )
+              .every((item) => !item.enabled),
+          isTrue,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+
+    testWidgets(
+      'weather tools are scoped to WXBOT and respect transmit settings',
+      (tester) async {
+        await tester.pumpWidget(app());
+        final menu = find.byTooltip('Request Weather Report');
+        expect(menu, findsNothing);
+        for (final peer in ['W1AW', 'OTA', 'WXBOT-7']) {
+          open(peer);
+          await tester.pump();
+          expect(menu, findsNothing);
+        }
+        open('wxbot');
+        await tester.pump();
+        expect(menu, findsOneWidget);
+        setting('AllowTransmit', 0);
+        await tester.pump();
+        await tester.tap(menu);
+        await tester.pumpAndSettle();
+        final items = tester.widgetList<PopupMenuItem<AprsWeatherForecast>>(
+          find.byType(PopupMenuItem<AprsWeatherForecast>),
+        );
+        expect(items, hasLength(4));
+        expect(items.every((item) => !item.enabled), isTrue);
+        await tester.tap(find.text('Today'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsNothing);
+        await tester.tapAt(const Offset(10, 550));
+        await tester.pumpAndSettle();
+        DataBroker.dispatch(
+          deviceId: 1,
+          name: 'AprsShowContactList',
+          data: null,
+          store: false,
+        );
+        await tester.pump();
+        await tester.tap(find.text('All APRS Messages').first);
+        await tester.pump();
+        expect(menu, findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+
+    testWidgets('weather dialog without a preset preserves saved options', (
+      tester,
+    ) async {
+      setting('WxBotLocation', '94089');
+      setting('WxBotTime', 3);
+      setting('WxBotReport', 2);
+      String? result;
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async =>
+                    result = await showAprsWeatherDialog(context),
+                child: const Text('Open weather'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open weather'));
+      await tester.pumpAndSettle();
+      expect(find.text('Use command'), findsNothing);
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      expect(result, '94089 tomorrow night current');
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
 
     testWidgets(
       'OTA awards get celebration icons without changing text or URL links',

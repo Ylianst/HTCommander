@@ -1725,6 +1725,11 @@ class _AprsTabState extends State<AprsTab>
 
   bool get _inOtaConversation => !_inMeshView && isOtaPeer(_selectedContact);
 
+  bool get _inWeatherConversation =>
+      !_inMeshView &&
+      _selectedContact != null &&
+      aprsPeerKey(_selectedContact!) == 'WXBOT';
+
   AprsLinkPolicy get _effectiveMessageLinkPolicy =>
       _inOtaConversation && otaCommandRequiresRf(_messageController.text)
           ? AprsLinkPolicy.rfOnly : _messageLinkPolicy;
@@ -3950,6 +3955,58 @@ class _AprsTabState extends State<AprsTab>
     _messageFocusNode.requestFocus();
   }
 
+  Future<void> _prepareWeatherForecast(AprsWeatherForecast forecast) async {
+    if (!_inWeatherConversation || !_allowTransmit || _pendingCompose != null) {
+      return;
+    }
+    final message = await showAprsWeatherDialog(
+      context,
+      forecast: forecast,
+      replaceDraft: _messageController.text.isNotEmpty,
+    );
+    if (!mounted || !_inWeatherConversation || !_allowTransmit ||
+        _pendingCompose != null || message == null) {
+      return;
+    }
+    _messageController.value = TextEditingValue(
+      text: message,
+      selection: TextSelection.collapsed(offset: message.length),
+    );
+    _messageFocusNode.requestFocus();
+  }
+
+  Widget _buildWeatherCommandsMenu() {
+    final l10n = AppLocalizations.of(context);
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      elevation: 1,
+      child: PopupMenuButton<AprsWeatherForecast>(
+        tooltip: l10n.wxTitle,
+        icon: const Icon(Icons.more_horiz, size: 22),
+        onSelected: _prepareWeatherForecast,
+        itemBuilder: (_) => [
+          for (final (label, forecast, icon) in [
+            (l10n.wxToday, AprsWeatherForecast.today, Icons.wb_sunny_outlined),
+            (l10n.wxTonight, AprsWeatherForecast.tonight, Icons.nightlight_outlined),
+            (l10n.wxTomorrow, AprsWeatherForecast.tomorrow, Icons.event_outlined),
+            (l10n.wxReportFull, AprsWeatherForecast.full, Icons.article_outlined),
+          ])
+            PopupMenuItem(
+              value: forecast,
+              enabled: _allowTransmit && _pendingCompose == null,
+              child: Row(children: [
+                Icon(icon, size: 18),
+                const SizedBox(width: 12),
+                Flexible(child: Text(label)),
+              ]),
+            ),
+        ],
+      ),
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Messenger mode
   // ---------------------------------------------------------------------------
@@ -3966,7 +4023,7 @@ class _AprsTabState extends State<AprsTab>
       top: 0,
       right: 0,
       child: SizedBox(
-        width: _inOtaConversation ? 152 : corner,
+        width: _inOtaConversation || _inWeatherConversation ? 152 : corner,
         height: corner,
         child: Stack(
           children: [
@@ -3978,10 +4035,12 @@ class _AprsTabState extends State<AprsTab>
                 ),
               ),
             ),
-            if (_inOtaConversation)
+            if (_inOtaConversation || _inWeatherConversation)
               Positioned(
                 top: 20, right: 84, width: 40, height: 40,
-                child: _buildOtaCommandsMenu(),
+                child: _inOtaConversation
+                    ? _buildOtaCommandsMenu()
+                    : _buildWeatherCommandsMenu(),
               ),
             Positioned(
               top: 8,
