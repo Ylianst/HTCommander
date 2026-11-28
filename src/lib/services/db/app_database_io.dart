@@ -70,7 +70,7 @@ class AppDatabase {
 
   /// Current schema version. Bump and add an [onUpgrade] branch when the schema
   /// changes.
-  static const int _schemaVersion = 6;
+  static const int _schemaVersion = 7;
 
   static const String _dbFileName = 'htcommander.db';
 
@@ -133,6 +133,7 @@ class AppDatabase {
           if (oldVersion < 4) await BbsDao.createSchema(db);
           if (oldVersion < 5) await MailDao.createSchema(db);
           if (oldVersion < 6) await CommsDao.addOriginalTextColumn(db);
+          if (oldVersion < 7) await _createAprsOutbox(db);
         },
       ),
     );
@@ -198,7 +199,17 @@ class AppDatabase {
     await MeshCoreDao.createSchema(db);
     await BbsDao.createSchema(db);
     await MailDao.createSchema(db);
+    await _createAprsOutbox(db);
   }
+
+  static Future<void> _createAprsOutbox(Database db) => db.execute('''
+    CREATE TABLE aprs_outbox (
+      id TEXT PRIMARY KEY,
+      created_ms INTEGER NOT NULL,
+      active INTEGER NOT NULL,
+      payload TEXT NOT NULL
+    )
+  ''');
 
   /// Runs a quick integrity check so a corrupt database is rebuilt rather than
   /// throwing on every query (mirrors the shared_preferences corruption path).

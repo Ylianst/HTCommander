@@ -21,6 +21,7 @@ import '../radio/radio_audio_stub.dart'
 import '../radio/radio_transport.dart';
 import '../radio/websocket_transport.dart';
 import '../models/aircraft.dart';
+import '../aprs/aprs_events.dart';
 import '../models/station_info.dart';
 import '../winlink/winlink_mail.dart';
 import 'bluetooth_classic_macos.dart';
@@ -261,6 +262,10 @@ class BluetoothService {
       // before connect() so the snapshot the host sends on connect isn't missed.
       transport.onHistory = _onHostHistory;
       transport.onStoredHistory = _onHostStoredHistory;
+      transport.onAprsOutbox = (json) => _onHostAprs('AprsOutbox', json);
+      transport.onAprsAuthentication = (json) => _onHostAprs('AprsAuthenticatedDestinations', json);
+      transport.onAprsError = (json) => _onHostAprs('AprsSendError', json);
+      transport.onAprsQueued = (json) => _onHostAprs('AprsMessageQueued', json);
       // Sync device-0 settings with the host instead of local storage.
       transport.onSettingsSnapshot = _onHostSettingsSnapshot;
       transport.onSetting = _onHostSetting;
@@ -501,6 +506,18 @@ class BluetoothService {
   void _wireMailSyncForwarding() {
     if (_mailSyncSubscribed) return;
     _mailSyncSubscribed = true;
+    _broker.subscribeMultiple(deviceId: 1,
+      names: const ['SendAprsMessage', 'RetryAprsMessage', 'StopAprsMessage'],
+      callback: (_, name, data) {
+        final op = data is AprsSendMessageData
+            ? <String, Object?>{'op': name, 'message': data.toJson()}
+            : <String, Object?>{'op': name, 'id': data};
+        if (_hostTransport?.sendAprs(op) != true) {
+          _broker.logError('[BT] Host disconnected during APRS request');
+          _broker.dispatch(deviceId: 1, name: 'AprsSendError',
+            data: {'reason': 'host', 'detail': 'Host disconnected'}, store: false);
+        }
+      });
     _broker.subscribe(
       deviceId: 1,
       name: 'RequestStoredChatHistory',
@@ -562,6 +579,17 @@ class BluetoothService {
       );
     } catch (error) {
       _broker.logError('[BT] Failed to parse stored history: $error');
+    }
+  }
+
+  void _onHostAprs(String event, String json) {
+    try {
+      _broker.dispatch(deviceId: 1, name: event, data: jsonDecode(json),
+        store: event == 'AprsOutbox' || event == 'AprsAuthenticatedDestinations');
+    } catch (error) {
+      _broker.logError('[BT] Invalid host APRS response: $error');
+      _broker.dispatch(deviceId: 1, name: 'AprsSendError',
+        data: {'reason': 'host', 'detail': '$error'}, store: false);
     }
   }
 

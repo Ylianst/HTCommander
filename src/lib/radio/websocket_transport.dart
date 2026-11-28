@@ -101,6 +101,10 @@ class WebSocketRadioTransport implements RadioTransport {
   /// Wired up by [BluetoothService] to seed the comms/APRS tabs.
   void Function(String json)? onHistory;
   void Function(String json)? onStoredHistory;
+  void Function(String json)? onAprsOutbox;
+  void Function(String json)? onAprsAuthentication;
+  void Function(String json)? onAprsError;
+  void Function(String json)? onAprsQueued;
 
   /// Invoked with the raw JSON payload for a full device-0 settings snapshot
   /// (`settings:`). Wired up by [BluetoothService].
@@ -274,6 +278,22 @@ class WebSocketRadioTransport implements RadioTransport {
   }
 
   void _onControlMessage(String message) {
+    if (message.startsWith('aprsauth:')) {
+      onAprsAuthentication?.call(message.substring('aprsauth:'.length));
+      return;
+    }
+    if (message.startsWith('aprsoutbox:')) {
+      onAprsOutbox?.call(message.substring('aprsoutbox:'.length));
+      return;
+    }
+    if (message.startsWith('aprserror:')) {
+      onAprsError?.call(message.substring('aprserror:'.length));
+      return;
+    }
+    if (message.startsWith('aprsqueued:')) {
+      onAprsQueued?.call(message.substring('aprsqueued:'.length));
+      return;
+    }
     if (message.startsWith('storedhistory:')) {
       onStoredHistory?.call(message.substring('storedhistory:'.length));
       return;
@@ -432,6 +452,7 @@ class WebSocketRadioTransport implements RadioTransport {
   /// also removed from the host's database and does not come back on reload.
   /// Returns false if the socket is not available.
   bool sendClear(Map<String, Object?> data) => _sendText(_kClearPrefix, data);
+  bool sendAprs(Map<String, Object?> data) => _sendText('aprsop:', data);
   bool sendStoredHistory(Map<String, Object?> data) =>
       _sendText('storedhistory:', data);
 

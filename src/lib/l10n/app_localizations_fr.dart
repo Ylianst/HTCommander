@@ -9,6 +9,83 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get aprsOutbox => 'Boîte d\'envoi APRS';
+
+  @override
+  String get aprsQueueUnconfirmed =>
+      'Aucune confirmation reçue. Le brouillon est conservé ; vérifiez la boîte d\'envoi avant de renvoyer.';
+
+  @override
+  String get aprsOutboxEmpty => 'Aucun message APRS sortant';
+
+  @override
+  String get aprsDeliveryQueued => 'En attente';
+
+  @override
+  String get aprsDeliverySent => 'Transmis au transport';
+
+  @override
+  String get aprsDeliveryDigipeated => 'Reçu via un répéteur numérique';
+
+  @override
+  String get aprsDeliveryDelivered => 'Accusé de réception reçu';
+
+  @override
+  String get aprsDeliveryRejected => 'Rejeté';
+
+  @override
+  String get aprsDeliveryFailed => 'Sans accusé de réception';
+
+  @override
+  String get aprsDeliveryPaused => 'En pause';
+
+  @override
+  String get aprsDeliveryStopped => 'Arrêté';
+
+  @override
+  String get aprsRetryResume => 'Réessayer / reprendre';
+
+  @override
+  String get aprsStopRetries => 'Arrêter les tentatives';
+
+  @override
+  String get aprsStopNote =>
+      'La remise au transport ne prouve pas la livraison. L\'arrêt empêche les nouvelles tentatives ; une copie déjà remise peut encore être transmise.';
+
+  @override
+  String get aprsRetrySettings =>
+      'Tentatives par défaut pour les nouveaux messages';
+
+  @override
+  String get aprsRetryAttempts => 'Nombre total de tentatives';
+
+  @override
+  String get aprsRetrySeconds => 'Délai de base (secondes)';
+
+  @override
+  String get aprsEmptyMessage => 'Saisissez un message APRS.';
+
+  @override
+  String get aprsAsciiOnly =>
+      'Les messages APRS exigent des caractères ASCII imprimables.';
+
+  @override
+  String get aprsReservedText =>
+      'Le texte APRS ne peut pas contenir d\'accolades, de barre verticale ou de tilde.';
+
+  @override
+  String get aprsTooLong => 'Le message APRS dépasse la limite de 20 parties.';
+
+  @override
+  String get aprsInvalidAddress =>
+      'Indicatif, destination ou chemin APRS invalide.';
+
+  @override
+  String aprsSendFailed(String detail) {
+    return 'Échec de la demande APRS : $detail';
+  }
+
+  @override
   String get tipsTitle => 'Conseils';
 
   @override

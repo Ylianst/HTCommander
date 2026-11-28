@@ -226,6 +226,7 @@ class AX25Packet {
     packet.channelId = frame.channelId;
     packet.channelName = frame.channelName;
     packet.incoming = frame.incoming;
+    packet.tag = frame.transmitTag;
     packet.frameSize = data.length;
 
     return packet;
@@ -319,6 +320,7 @@ class AX25Packet {
     'authState': authState.index,
     'channelId': channelId,
     'channelName': channelName,
+    if (tag != null) 'tag': tag,
   };
 
   /// Rebuilds a packet produced by [toJson] (used when a detached window
@@ -341,6 +343,7 @@ class AX25Packet {
       );
       final pkt = decode(fragment);
       if (pkt == null) return null;
+      pkt.tag = json['tag'] as String?;
       final authIdx = (json['authState'] as num?)?.toInt() ?? 0;
       if (authIdx >= 0 && authIdx < AuthState.values.length) {
         pkt.authState = AuthState.values[authIdx];

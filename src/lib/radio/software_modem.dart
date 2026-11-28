@@ -47,6 +47,7 @@ class _PendingTransmission {
   final Uint8List frameData;
   final FragmentFrameType frameType;
   final DateTime deadline;
+  final String? tag;
 
   /// Which modem instance (general or APRS) should modulate this frame. Frames
   /// are only bundled together when they share the same target instance.
@@ -56,6 +57,7 @@ class _PendingTransmission {
     this.frameType,
     this.deadline,
     this.target,
+    this.tag,
   );
 }
 
@@ -343,6 +345,12 @@ class SoftwareModem {
       name: 'SoftModemTransmitPacket',
       callback: _onTransmitPacketRequested,
     );
+    _broker.subscribe(deviceId: DataBroker.allDevices, name: 'CancelAprsTransmit',
+      callback: (deviceId, _, data) {
+        if (data is String && data.startsWith('aprs-outbox:')) {
+          _radioModems[deviceId]?.transmitQueue.removeWhere((p) => p.tag == data || p.tag?.startsWith('$data:') == true);
+        }
+      });
     _broker.subscribe(
       deviceId: DataBroker.allDevices,
       name: 'CancelDataTransmit',
@@ -1464,17 +1472,17 @@ class SoftwareModem {
     if (!_softwareActiveForDevice(deviceId)) return;
     if (data is! TncDataFragment) return;
 
-    transmitPacket(deviceId, data);
+    data.transmitAccepted = transmitPacket(deviceId, data);
   }
 
   /// Transmits a TNC packet through the software modem.
-  void transmitPacket(int deviceId, TncDataFragment fragment) {
+  bool transmitPacket(int deviceId, TncDataFragment fragment) {
     if (fragment.data.isEmpty) {
       _debug('TransmitPacket: Invalid fragment');
-      return;
+      return false;
     }
 
-    if (!_softwareActiveForDevice(deviceId)) return;
+    if (!_softwareActiveForDevice(deviceId)) return false;
 
     // Get or create modem state for this radio
     _RadioModemState? state = _radioModems[deviceId];
@@ -1482,7 +1490,7 @@ class SoftwareModem {
       state = _createRadioModemState(deviceId);
       if (state == null) {
         _debug('TransmitPacket: Could not create modem state for device $deviceId');
-        return;
+        return false;
       }
       _radioModems[deviceId] = state;
     }
@@ -1505,21 +1513,21 @@ class SoftwareModem {
         'TransmitPacket: no ${isAprs ? "APRS" : "general"} modem instance for '
         'device $deviceId matching ${fragment.encoding.name} - dropping frame',
       );
-      return;
+      return false;
     }
 
     if (target.xara != null) {
       // XARA schedules its own unconnected (record 16) transmissions, waits for
       // a clear channel itself and holds every burst while the radio receives.
       target.xara!.kiss(Uint8List.fromList(fragment.data));
-      return;
+      return true;
     }
 
     if (target.mode != SoftwareModemMode.dart &&
         target.mode != SoftwareModemMode.afsk1200 &&
         target.mode != SoftwareModemMode.psk2400) {
       _debug('TransmitPacket: Transmitter not initialized');
-      return;
+      return false;
     }
 
     // Queue the frame. The audio is generated at flush time so several queued
@@ -1527,8 +1535,9 @@ class SoftwareModem {
     state.transmitQueue.add(_PendingTransmission(
       Uint8List.fromList(fragment.data),
       fragment.frameType,
-      DateTime.now().add(const Duration(seconds: 30)),
+      fragment.transmitDeadline ?? DateTime.now().add(const Duration(seconds: 30)),
       target,
+      fragment.transmitTag,
     ));
     _debug(
       'Queued ${fragment.frameType == FragmentFrameType.fx25 ? "FX.25" : "AX.25"} '
@@ -1537,6 +1546,7 @@ class SoftwareModem {
     );
 
     _beginChannelAccess(state);
+    return true;
   }
 
   void _onChannelClear(int deviceId, String name, Object? data) {

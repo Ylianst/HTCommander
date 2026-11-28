@@ -27,6 +27,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 
 import '../aprs/aprs_packet.dart';
+import '../aprs/aprs_events.dart';
 import '../models/aircraft.dart';
 import '../models/station_info.dart';
 import '../radio/pcm_player.dart';
@@ -95,6 +96,17 @@ class WebServerHandler {
     _port = _broker.getValue<int>(0, 'webServerPort', 8080) ?? 8080;
 
     _refreshConnectedRadios();
+    _broker.subscribeMultiple(deviceId: 1,
+      names: const ['AprsOutbox', 'AprsSendError', 'AprsMessageQueued', 'AprsAuthenticatedDestinations'],
+      callback: (_, name, data) {
+        final prefix = switch (name) {
+          'AprsOutbox' => 'aprsoutbox',
+          'AprsAuthenticatedDestinations' => 'aprsauth',
+          'AprsMessageQueued' => 'aprsqueued',
+          _ => 'aprserror',
+        };
+        _server?.broadcastText('$prefix:${jsonEncode(data)}');
+      });
     _agent.init();
     _selectedRadioDeviceId =
         _broker.getValue<int>(1, 'SelectedRadioDeviceId', -1) ?? -1;
@@ -331,6 +343,10 @@ class WebServerHandler {
     _sendSettingsTo(client);
     // Seed the browser's Comms/APRS tabs with the host's stored history.
     _sendHistoryTo(client);
+    client.sendText('aprsoutbox:${jsonEncode(_broker.getValueDynamic(1, 'AprsOutbox', []))}');
+    client.sendText('aprsauth:${jsonEncode(_broker.getValueDynamic(1, 'AprsAuthenticatedDestinations', []))}');
+    final aprsError = _broker.getValueDynamic(1, 'AprsSendError');
+    if (aprsError is Map) client.sendText('aprserror:${jsonEncode(aprsError)}');
     // Send the host's authoritative Winlink mail so the browser's mail tab
     // mirrors the desktop app rather than keeping its own (empty) store.
     _sendMailTo(client);
@@ -712,6 +728,28 @@ class WebServerHandler {
     if (_disposed) return;
     // Automation clients (test agents) use their own authenticated channel.
     if (_agent.handle(client, message)) return;
+    if (message.startsWith('aprsop:')) {
+      try {
+        final op = jsonDecode(message.substring('aprsop:'.length)) as Map<String, dynamic>;
+        final name = op['op'];
+        if (name == 'SendAprsMessage') {
+          final request = AprsSendMessageData.fromJson(Map<String, dynamic>.from(op['message'] as Map));
+          final radioId = request.radioDeviceId < 0 ? -1 : _targetRadioDeviceId;
+          if (request.radioDeviceId >= 0 && radioId < 0) throw StateError('No shared radio available');
+          _broker.dispatch(deviceId: 1, name: 'SendAprsMessage',
+            data: AprsSendMessageData(destination: request.destination, message: request.message,
+              radioDeviceId: radioId, route: request.route), store: false);
+        } else if ((name == 'RetryAprsMessage' || name == 'StopAprsMessage') && op['id'] is String) {
+          _broker.dispatch(deviceId: 1, name: name as String, data: op['id'], store: false);
+        } else {
+          throw const FormatException('Invalid APRS operation');
+        }
+      } catch (error) {
+        _broker.logError('[WebServer] APRS request failed: $error');
+        client.sendText('aprserror:${jsonEncode({'reason': 'host', 'detail': '$error'})}');
+      }
+      return;
+    }
     if (message.startsWith('storedhistory:')) {
       unawaited(
         _sendStoredHistory(client, message.substring('storedhistory:'.length)),

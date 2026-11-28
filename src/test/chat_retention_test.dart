@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/aprs/aprs_events.dart';
+import 'package:htcommander/aprs/aprs_outbox.dart';
 import 'package:htcommander/aprs/aprs_packet.dart';
 import 'package:htcommander/aprsis/tnc2_codec.dart';
 import 'package:htcommander/l10n/app_localizations.dart';
@@ -35,6 +36,100 @@ void main() {
 
   List<ChatMessage> messages(WidgetTester tester) =>
       tester.widget<ChatWidget>(find.byType(ChatWidget).first).messages;
+
+  testWidgets('APRS draft waits for acceptance and preserves subsequent edits', (tester) async {
+    final bus = DataBrokerClient();
+    addTearDown(bus.dispose);
+    for (final setting in <String, Object>{
+      'CallSign': 'N0CALL', 'StationId': 7, 'AprsIsEnabled': 1, 'AprsDestination': 'W1AW',
+    }.entries) {
+      bus.dispatch(deviceId: 0, name: setting.key, data: setting.value);
+    }
+    final sent = <AprsSendMessageData>[];
+    bus.subscribe(deviceId: 1, name: 'SendAprsMessage', callback: (_, _, data) {
+      if (data is AprsSendMessageData) sent.add(data);
+    });
+    await tester.pumpWidget(app(const AprsTab()));
+    await tester.tap(find.text('All APRS Messages').first);
+    await tester.pump();
+    final input = find.byType(TextField).last;
+    await tester.enterText(input, 'Hello');
+    await tester.pump();
+    await tester.tap(find.widgetWithIcon(ElevatedButton, Icons.send));
+    await tester.pump();
+    expect(sent.single.message, 'Hello');
+    expect(tester.widget<TextField>(input).controller!.text, 'Hello');
+    await tester.enterText(input, 'new draft');
+    bus.dispatch(deviceId: 1, name: 'AprsMessageQueued', data: sent.single.toJson(), store: false);
+    await tester.pump();
+    expect(tester.widget<TextField>(input).controller!.text, 'new draft');
+    await tester.tap(find.widgetWithIcon(ElevatedButton, Icons.send));
+    await tester.pump();
+    bus.dispatch(deviceId: 1, name: 'AprsSendError',
+      data: {'reason': 'ascii', 'detail': 'unsupported'}, store: false);
+    await tester.pump();
+    expect(tester.widget<TextField>(input).controller!.text, 'new draft');
+    expect(find.text('APRS messages require printable ASCII characters.'), findsOneWidget);
+    await tester.tap(find.widgetWithIcon(ElevatedButton, Icons.send));
+    await tester.pump();
+    bus.dispatch(deviceId: 1, name: 'AprsMessageQueued', data: sent.last.toJson(), store: false);
+    await tester.pump();
+    expect(tester.widget<TextField>(input).controller!.text, isEmpty);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('unconfirmed APRS queue requests keep the draft and permit recovery', (tester) async {
+    DataBroker.dispatch(deviceId: 0, name: 'CallSign', data: 'N0CALL');
+    DataBroker.dispatch(deviceId: 0, name: 'AprsIsEnabled', data: 1);
+    DataBroker.dispatch(deviceId: 0, name: 'AprsDestination', data: 'W1AW');
+    await tester.pumpWidget(app(const AprsTab()));
+    await tester.tap(find.text('All APRS Messages').first);
+    await tester.pump();
+    final input = find.byType(TextField).last;
+    await tester.enterText(input, 'keep me');
+    await tester.pump();
+    final button = find.widgetWithIcon(ElevatedButton, Icons.send);
+    await tester.tap(button);
+    await tester.pump();
+    expect(tester.widget<ElevatedButton>(button).onPressed, isNull);
+    await tester.pump(const Duration(seconds: 31));
+    expect(tester.widget<TextField>(input).controller!.text, 'keep me');
+    expect(tester.widget<ElevatedButton>(button).onPressed, isNotNull);
+    expect(find.text('No queue confirmation received. Your draft was kept; check the outbox before resending.'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('outbox updates replace the cached delivery label and expose controls', (tester) async {
+    DataBroker.dispatch(deviceId: 0, name: 'CallSign', data: 'N0CALL');
+    DataBroker.dispatch(deviceId: 0, name: 'StationId', data: 7);
+    final outgoing = AprsOutgoingMessage(id: 'tracked', source: 'N0CALL-7', destination: 'W1AW',
+      text: 'Hello', created: DateTime(2026), radioDeviceId: -1, internet: true, authenticated: false,
+      parts: const [AprsOutboxPart(wireId: 1, text: 'Hello', state: AprsDelivery.sent, attempts: 1)]);
+    DataBroker.dispatch(deviceId: 1, name: 'AprsOutbox', data: [outgoing.toJson()]);
+    await tester.pumpWidget(app(const AprsTab()));
+    await tester.tap(find.text('All APRS Messages').first);
+    await tester.pump();
+    final ax = Tnc2Codec.decode('N0CALL-7>APRS::W1AW     :Hello{1')!..incoming = false;
+    DataBroker.dispatch(deviceId: 1, name: 'AprsFrame',
+      data: AprsFrameEventArgs(AprsPacket.parse(ax)!, ax, null), store: false);
+    await tester.pump();
+    expect(messages(tester).single.route, contains('Submitted'));
+    final answered = outgoing.withParts([outgoing.parts.single.update(state: AprsDelivery.delivered)]);
+    DataBroker.dispatch(deviceId: 1, name: 'AprsOutbox', data: [answered.toJson()]);
+    await tester.pump();
+    expect(messages(tester).single.route, contains('Acknowledged'));
+    expect(messages(tester).single.icon, Icons.done_all);
+    final paused = outgoing.withParts([outgoing.parts.single.update(state: AprsDelivery.paused)]);
+    DataBroker.dispatch(deviceId: 1, name: 'AprsOutbox', data: [paused.toJson()]);
+    await tester.tap(find.byTooltip('APRS outbox'));
+    await tester.pumpAndSettle();
+    expect(find.text('Retry / resume'), findsOneWidget);
+    expect(find.text('Stop retries'), findsOneWidget);
+    expect(find.text('Retry defaults for new messages'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('APRS eviction retains existing message objects and stable IDs', (
     tester,

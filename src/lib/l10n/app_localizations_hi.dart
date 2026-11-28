@@ -9,6 +9,81 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get aprsOutbox => 'APRS आउटबॉक्स';
+
+  @override
+  String get aprsQueueUnconfirmed =>
+      'कतार की पुष्टि नहीं मिली। ड्राफ्ट रखा गया है; दोबारा भेजने से पहले आउटबॉक्स देखें।';
+
+  @override
+  String get aprsOutboxEmpty => 'कोई आउटगोइंग APRS संदेश नहीं';
+
+  @override
+  String get aprsDeliveryQueued => 'कतार में';
+
+  @override
+  String get aprsDeliverySent => 'भेजने के लिए सौंपा गया';
+
+  @override
+  String get aprsDeliveryDigipeated => 'डिजिपीटर से प्राप्त';
+
+  @override
+  String get aprsDeliveryDelivered => 'प्राप्ति की पुष्टि';
+
+  @override
+  String get aprsDeliveryRejected => 'अस्वीकृत';
+
+  @override
+  String get aprsDeliveryFailed => 'प्राप्ति की पुष्टि नहीं';
+
+  @override
+  String get aprsDeliveryPaused => 'रुका हुआ';
+
+  @override
+  String get aprsDeliveryStopped => 'बंद';
+
+  @override
+  String get aprsRetryResume => 'फिर कोशिश / जारी करें';
+
+  @override
+  String get aprsStopRetries => 'पुनः प्रयास बंद करें';
+
+  @override
+  String get aprsStopNote =>
+      'सौंपा जाना डिलीवरी का प्रमाण नहीं है। रोकने से पुनः प्रयास बंद होते हैं; पहले सौंपा गया संदेश अभी भी प्रसारित हो सकता है।';
+
+  @override
+  String get aprsRetrySettings => 'नए संदेशों के लिए पुनः प्रयास सेटिंग';
+
+  @override
+  String get aprsRetryAttempts => 'कुल प्रयास';
+
+  @override
+  String get aprsRetrySeconds => 'मूल अंतराल (सेकंड)';
+
+  @override
+  String get aprsEmptyMessage => 'APRS संदेश दर्ज करें।';
+
+  @override
+  String get aprsAsciiOnly =>
+      'APRS संदेशों के लिए प्रिंट करने योग्य ASCII वर्ण आवश्यक हैं।';
+
+  @override
+  String get aprsReservedText =>
+      'APRS संदेश में घुंघराले कोष्ठक, लंबवत बार या टिल्ड नहीं हो सकते।';
+
+  @override
+  String get aprsTooLong => 'APRS संदेश 20 भागों की सीमा से अधिक है।';
+
+  @override
+  String get aprsInvalidAddress => 'अमान्य APRS कॉलसाइन, गंतव्य या मार्ग।';
+
+  @override
+  String aprsSendFailed(String detail) {
+    return 'APRS अनुरोध विफल: $detail';
+  }
+
+  @override
   String get tipsTitle => 'सुझाव';
 
   @override

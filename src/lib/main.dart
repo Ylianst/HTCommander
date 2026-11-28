@@ -431,6 +431,7 @@ Future<void> _startApp(List<String> args) async {
   // decoded, authenticated, stored and made available to the APRS tab.
   final aprsHandler = AprsHandler();
   aprsHandler.init();
+  await aprsHandler.ready;
   DataBroker.addDataHandler('AprsHandler', aprsHandler);
 
   // Register the digipeater handler so that, when enabled, APRS frames on the

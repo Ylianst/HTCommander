@@ -27,8 +27,7 @@ class Tnc2Codec {
   /// empty information field).
   ///
   /// A trailing CR/LF, if present, is ignored. Used-path markers (`*`) on
-  /// digipeater callsigns are stripped — they are not representable in the
-  /// simple address model and are not needed for display or parsing.
+  /// digipeater callsigns are retained as the AX.25 used-path bit.
   static AX25Packet? decode(String line, {DateTime? time}) {
     if (line.isEmpty) return null;
 
@@ -105,8 +104,11 @@ class Tnc2Codec {
   /// Parses a single callsign hop, stripping a trailing used-path marker (`*`).
   static AX25Address? _parseHop(String hop) {
     var h = hop.trim();
-    if (h.endsWith('*')) h = h.substring(0, h.length - 1);
+    final used = h.endsWith('*');
+    if (used) h = h.substring(0, h.length - 1);
     if (h.isEmpty) return null;
-    return AX25Address.parse(h);
+    final address = AX25Address.parse(h);
+    if (used && address != null) address.crBit1 = true;
+    return address;
   }
 }

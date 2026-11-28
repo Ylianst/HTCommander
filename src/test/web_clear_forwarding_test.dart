@@ -3,6 +3,10 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/aprs/aprs_conversation.dart';
+import 'package:htcommander/aprs/aprs_events.dart';
+import 'package:htcommander/aprs/aprs_outbox.dart';
+import 'package:htcommander/handlers/aprs_handler.dart';
+import 'package:htcommander/radio/radio.dart';
 import 'package:htcommander/handlers/web_server_handler.dart';
 import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/services/data_broker_client.dart';
@@ -95,6 +99,54 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 100));
 
     expect(received.map((e) => e.$1), ['ClearVoiceText']);
+  });
+
+  test('host owns browser APRS submissions, outbox snapshots and stop actions', () async {
+    await AppDatabase.openInMemory();
+    var now = DateTime(2026);
+    final aprs = AprsHandler(clock: () => now);
+    addTearDown(() async {
+      aprs.dispose();
+      await aprs.ready;
+      await AppDatabase.close();
+      DataBroker.clearDevice(42);
+      DataBroker.dispatch(deviceId: 1, name: 'ConnectedRadios', data: []);
+    });
+    listener.dispatch(deviceId: 0, name: 'CallSign', data: 'N0CALL');
+    listener.dispatch(deviceId: 0, name: 'StationId', data: 7);
+    listener.dispatch(deviceId: 1, name: 'ConnectedRadios', data: [{'DeviceId': 42}]);
+    listener.dispatch(deviceId: 42, name: 'Channels', data: [{'channelId': 7, 'name': 'APRS'}]);
+    final requests = <AprsSendMessageData>[];
+    final rf = <TransmitDataFrameData>[];
+    listener.subscribe(deviceId: 1, name: 'SendAprsMessage', callback: (_, _, data) {
+      if (data is AprsSendMessageData) requests.add(data);
+    });
+    listener.subscribe(deviceId: 42, name: 'TransmitDataFrame', callback: (_, _, data) {
+      if (data is TransmitDataFrameData) rf.add(data);
+    });
+    aprs.init();
+    await aprs.ready;
+    socket.add('aprsop:${jsonEncode({'op': 'SendAprsMessage', 'message': {
+      'destination': 'W1AW', 'message': 'Hello', 'radioDeviceId': 1,
+    }})}');
+    for (var i = 0; i < 100 && !messages.any((m) => m.startsWith('aprsqueued:')); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    await aprs.ready;
+    expect(requests.single.radioDeviceId, 42);
+    expect(rf, hasLength(1));
+    expect(aprs.outgoingMessages, hasLength(1));
+    final snapshot = jsonDecode(messages.lastWhere((m) => m.startsWith('aprsoutbox:')).substring('aprsoutbox:'.length)) as List;
+    expect(snapshot.single['id'], aprs.outgoingMessages.single.id);
+    socket.add('aprsop:${jsonEncode({'op': 'StopAprsMessage', 'id': aprs.outgoingMessages.single.id})}');
+    for (var i = 0; i < 100 && aprs.outgoingMessages.single.state != AprsDelivery.stopped; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    await aprs.ready;
+    expect(aprs.outgoingMessages.single.state, AprsDelivery.stopped);
+    now = now.add(const Duration(hours: 1));
+    await aprs.processOutbox();
+    expect(rf, hasLength(1));
   });
 
   test(

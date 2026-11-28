@@ -51,4 +51,16 @@ class AprsSendMessageData {
     required this.radioDeviceId,
     this.route,
   });
+
+  Map<String, Object?> toJson() => {
+    'destination': destination, 'message': message,
+    'radioDeviceId': radioDeviceId, 'route': route,
+  };
+
+  factory AprsSendMessageData.fromJson(Map<String, dynamic> json) => AprsSendMessageData(
+    destination: json['destination'] as String,
+    message: json['message'] as String,
+    radioDeviceId: json['radioDeviceId'] as int,
+    route: (json['route'] as List?)?.cast<String>(),
+  );
 }

@@ -9,6 +9,77 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get aprsOutbox => 'APRS发件箱';
+
+  @override
+  String get aprsQueueUnconfirmed => '未收到排队确认。草稿已保留；再次发送前请检查发件箱。';
+
+  @override
+  String get aprsOutboxEmpty => '没有待发送的APRS消息';
+
+  @override
+  String get aprsDeliveryQueued => '排队中';
+
+  @override
+  String get aprsDeliverySent => '已提交发送';
+
+  @override
+  String get aprsDeliveryDigipeated => '经数字中继收到';
+
+  @override
+  String get aprsDeliveryDelivered => '已收到确认';
+
+  @override
+  String get aprsDeliveryRejected => '已拒绝';
+
+  @override
+  String get aprsDeliveryFailed => '未收到确认';
+
+  @override
+  String get aprsDeliveryPaused => '已暂停';
+
+  @override
+  String get aprsDeliveryStopped => '已停止';
+
+  @override
+  String get aprsRetryResume => '重试 / 恢复';
+
+  @override
+  String get aprsStopRetries => '停止重试';
+
+  @override
+  String get aprsStopNote => '已提交不代表已送达。停止会阻止重试，但已提交的副本仍可能被发送。';
+
+  @override
+  String get aprsRetrySettings => '新消息的默认重试设置';
+
+  @override
+  String get aprsRetryAttempts => '总尝试次数';
+
+  @override
+  String get aprsRetrySeconds => '基本等待时间（秒）';
+
+  @override
+  String get aprsEmptyMessage => '请输入APRS消息。';
+
+  @override
+  String get aprsAsciiOnly => 'APRS消息只能使用可打印的ASCII字符。';
+
+  @override
+  String get aprsReservedText => 'APRS消息不能包含大括号、竖线或波浪号。';
+
+  @override
+  String get aprsTooLong => 'APRS消息超过20段限制。';
+
+  @override
+  String get aprsInvalidAddress => 'APRS呼号、目标或路径无效。';
+
+  @override
+  String aprsSendFailed(String detail) {
+    return 'APRS请求失败：$detail';
+  }
+
+  @override
   String get tipsTitle => '使用提示';
 
   @override

@@ -112,6 +112,144 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @aprsOutbox.
+  ///
+  /// In en, this message translates to:
+  /// **'APRS outbox'**
+  String get aprsOutbox;
+
+  /// No description provided for @aprsQueueUnconfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'No queue confirmation received. Your draft was kept; check the outbox before resending.'**
+  String get aprsQueueUnconfirmed;
+
+  /// No description provided for @aprsOutboxEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No outgoing APRS messages'**
+  String get aprsOutboxEmpty;
+
+  /// No description provided for @aprsDeliveryQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get aprsDeliveryQueued;
+
+  /// No description provided for @aprsDeliverySent.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted'**
+  String get aprsDeliverySent;
+
+  /// No description provided for @aprsDeliveryDigipeated.
+  ///
+  /// In en, this message translates to:
+  /// **'Heard via digipeater'**
+  String get aprsDeliveryDigipeated;
+
+  /// No description provided for @aprsDeliveryDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Acknowledged'**
+  String get aprsDeliveryDelivered;
+
+  /// No description provided for @aprsDeliveryRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get aprsDeliveryRejected;
+
+  /// No description provided for @aprsDeliveryFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'No acknowledgement'**
+  String get aprsDeliveryFailed;
+
+  /// No description provided for @aprsDeliveryPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get aprsDeliveryPaused;
+
+  /// No description provided for @aprsDeliveryStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get aprsDeliveryStopped;
+
+  /// No description provided for @aprsRetryResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry / resume'**
+  String get aprsRetryResume;
+
+  /// No description provided for @aprsStopRetries.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop retries'**
+  String get aprsStopRetries;
+
+  /// No description provided for @aprsStopNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted is not proof of delivery. Stopping prevents retries; a copy already submitted may still transmit.'**
+  String get aprsStopNote;
+
+  /// No description provided for @aprsRetrySettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry defaults for new messages'**
+  String get aprsRetrySettings;
+
+  /// No description provided for @aprsRetryAttempts.
+  ///
+  /// In en, this message translates to:
+  /// **'Total attempts'**
+  String get aprsRetryAttempts;
+
+  /// No description provided for @aprsRetrySeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Base delay (seconds)'**
+  String get aprsRetrySeconds;
+
+  /// No description provided for @aprsEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an APRS message.'**
+  String get aprsEmptyMessage;
+
+  /// No description provided for @aprsAsciiOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'APRS messages require printable ASCII characters.'**
+  String get aprsAsciiOnly;
+
+  /// No description provided for @aprsReservedText.
+  ///
+  /// In en, this message translates to:
+  /// **'APRS message text cannot contain braces, a vertical bar or a tilde.'**
+  String get aprsReservedText;
+
+  /// No description provided for @aprsTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'The APRS message exceeds the 20-part limit.'**
+  String get aprsTooLong;
+
+  /// No description provided for @aprsInvalidAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid APRS callsign, destination or route.'**
+  String get aprsInvalidAddress;
+
+  /// No description provided for @aprsSendFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'APRS request failed: {detail}'**
+  String aprsSendFailed(String detail);
+
   /// No description provided for @tipsTitle.
   ///
   /// In en, this message translates to:

@@ -9,6 +9,82 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get aprsOutbox => 'APRS outbox';
+
+  @override
+  String get aprsQueueUnconfirmed =>
+      'No queue confirmation received. Your draft was kept; check the outbox before resending.';
+
+  @override
+  String get aprsOutboxEmpty => 'No outgoing APRS messages';
+
+  @override
+  String get aprsDeliveryQueued => 'Queued';
+
+  @override
+  String get aprsDeliverySent => 'Submitted';
+
+  @override
+  String get aprsDeliveryDigipeated => 'Heard via digipeater';
+
+  @override
+  String get aprsDeliveryDelivered => 'Acknowledged';
+
+  @override
+  String get aprsDeliveryRejected => 'Rejected';
+
+  @override
+  String get aprsDeliveryFailed => 'No acknowledgement';
+
+  @override
+  String get aprsDeliveryPaused => 'Paused';
+
+  @override
+  String get aprsDeliveryStopped => 'Stopped';
+
+  @override
+  String get aprsRetryResume => 'Retry / resume';
+
+  @override
+  String get aprsStopRetries => 'Stop retries';
+
+  @override
+  String get aprsStopNote =>
+      'Submitted is not proof of delivery. Stopping prevents retries; a copy already submitted may still transmit.';
+
+  @override
+  String get aprsRetrySettings => 'Retry defaults for new messages';
+
+  @override
+  String get aprsRetryAttempts => 'Total attempts';
+
+  @override
+  String get aprsRetrySeconds => 'Base delay (seconds)';
+
+  @override
+  String get aprsEmptyMessage => 'Enter an APRS message.';
+
+  @override
+  String get aprsAsciiOnly =>
+      'APRS messages require printable ASCII characters.';
+
+  @override
+  String get aprsReservedText =>
+      'APRS message text cannot contain braces, a vertical bar or a tilde.';
+
+  @override
+  String get aprsTooLong => 'The APRS message exceeds the 20-part limit.';
+
+  @override
+  String get aprsInvalidAddress =>
+      'Invalid APRS callsign, destination or route.';
+
+  @override
+  String aprsSendFailed(String detail) {
+    return 'APRS request failed: $detail';
+  }
+
+  @override
   String get tipsTitle => 'Tips';
 
   @override

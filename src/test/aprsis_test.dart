@@ -20,6 +20,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:htcommander/aprs/aprs_events.dart';
+import 'package:htcommander/aprs/aprs_auth.dart';
 import 'package:htcommander/aprs/aprs_packet.dart';
 import 'package:htcommander/aprsis/aprsfi_client.dart';
 import 'package:htcommander/aprsis/aprsis_client.dart';
@@ -27,8 +28,10 @@ import 'package:htcommander/aprsis/aprsis_manager.dart';
 import 'package:htcommander/aprsis/tnc2_codec.dart';
 import 'package:htcommander/handlers/aprs_handler.dart';
 import 'package:htcommander/radio/radio.dart' show TransmitDataFrameData;
+import 'package:htcommander/radio/ax25_packet.dart';
 import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/services/data_broker_client.dart';
+import 'package:htcommander/services/db/app_database_io.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
@@ -302,6 +305,7 @@ void main() {
       DataBroker.clearDevice(1);
       DataBroker.clearDevice(radioId);
       rf.clear();
+      await AppDatabase.openInMemory();
       socket = null;
       lines = null;
       server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
@@ -316,9 +320,20 @@ void main() {
       }.entries) {
         bus.dispatch(deviceId: 0, name: entry.key, data: entry.value);
       }
-      bus.dispatch(deviceId: radioId, name: 'Channels', data: [
-        {'channelId': 7, 'name': 'APRS'},
-      ]);
+      bus.dispatch(
+        deviceId: radioId,
+        name: 'Channels',
+        data: [
+          {'channelId': 7, 'name': 'APRS'},
+        ],
+      );
+      bus.dispatch(
+        deviceId: 1,
+        name: 'ConnectedRadios',
+        data: [
+          {'DeviceId': radioId},
+        ],
+      );
       bus.subscribe(
         deviceId: radioId,
         name: 'TransmitDataFrame',
@@ -327,16 +342,19 @@ void main() {
         },
       );
       handler = AprsHandler()..init();
+      await handler.ready;
       manager = AprsIsManager();
     });
 
     tearDown(() async {
       handler.dispose();
+      await handler.ready;
       await manager.dispose();
       await lines?.cancel();
       socket?.destroy();
       await server.close();
       bus.dispose();
+      await AppDatabase.close();
       DataBroker.clearDevice(0);
       DataBroker.clearDevice(1);
       DataBroker.clearDevice(radioId);
@@ -346,20 +364,30 @@ void main() {
       final loggedIn = Completer<void>();
       bus.subscribe(
         deviceId: DataBroker.allDevices,
-        name: 'AprsIsVerified',
+        name: 'AprsIsState',
         callback: (_, _, data) {
-          expect(data, verified);
-          if (!loggedIn.isCompleted) loggedIn.complete();
+          if (data ==
+                  (verified
+                      ? 'Connected (verified)'
+                      : 'Connected (read-only)') &&
+              !loggedIn.isCompleted) {
+            loggedIn.complete();
+          }
         },
       );
       final accepted = server.first;
       manager.init();
       socket = await accepted.timeout(const Duration(seconds: 5));
       lines = StreamIterator(
-        socket!.cast<List<int>>().transform(utf8.decoder)
+        socket!
+            .cast<List<int>>()
+            .transform(utf8.decoder)
             .transform(const LineSplitter()),
       );
-      expect(await lines!.moveNext().timeout(const Duration(seconds: 5)), isTrue);
+      expect(
+        await lines!.moveNext().timeout(const Duration(seconds: 5)),
+        isTrue,
+      );
       expect(lines!.current, startsWith('user N0CALL-7 pass '));
       socket!.write(
         '# logresp N0CALL-7 ${verified ? 'verified' : 'unverified'}, test\r\n',
@@ -379,7 +407,7 @@ void main() {
       fail('APRS-IS socket closed before the filter command');
     }
 
-    void send(int deviceId) {
+    Future<void> send(int deviceId) async {
       bus.dispatch(
         deviceId: 1,
         name: 'SendAprsMessage',
@@ -391,32 +419,107 @@ void main() {
         ),
         store: false,
       );
+      await handler.ready;
     }
 
     for (final deviceId in [radioId, -1]) {
-      test('sends directly to APRS-IS ${deviceId < 0 ? 'without' : 'with'} RF',
-          () async {
-        await connect();
-        send(deviceId);
-        expect(await sentLines(),
-            ['N0CALL-7>APRS,TCPIP*::W1AW     :Hello{1']);
-        expect(rf, hasLength(deviceId < 0 ? 0 : 1));
-        if (deviceId >= 0) {
-          expect(rf.single.channelId, 7);
-          expect(
-            Tnc2Codec.encode(rf.single.packet!),
-            'N0CALL-7>APRS,WIDE1-1,WIDE2-1::W1AW     :Hello{1',
-          );
-        }
-      });
+      test(
+        'sends directly to APRS-IS ${deviceId < 0 ? 'without' : 'with'} RF',
+        () async {
+          await connect();
+          await send(deviceId);
+          expect(await sentLines(), [
+            'N0CALL-7>APRS,TCPIP*::W1AW     :Hello{1',
+          ]);
+          expect(rf, hasLength(deviceId < 0 ? 0 : 1));
+          if (deviceId >= 0) {
+            expect(rf.single.channelId, 7);
+            expect(
+              Tnc2Codec.encode(rf.single.packet!),
+              'N0CALL-7>APRS,WIDE1-1,WIDE2-1::W1AW     :Hello{1',
+            );
+          }
+        },
+      );
     }
 
     test('an unverified connection does not prevent RF transmission', () async {
       await connect(verified: false);
-      send(radioId);
+      await send(radioId);
       expect(await sentLines(), isEmpty);
       expect(rf, hasLength(1));
     });
+
+    test(
+      'queued radio messages retain configured internet intent while disconnected',
+      () async {
+        bus.dispatch(deviceId: 1, name: 'ConnectedRadios', data: []);
+        await send(radioId);
+        expect(rf, isEmpty);
+        expect(handler.outgoingMessages.single.parts.single.attempts, 0);
+        await connect();
+        await handler.processOutbox();
+        expect(await sentLines(), ['N0CALL-7>APRS,TCPIP*::W1AW     :Hello{1']);
+        expect(rf, isEmpty);
+      },
+    );
+
+    test(
+      'APRS-IS auto-ACK preserves authentication for a zero-SSID sender',
+      () async {
+        await connect();
+        bus.dispatch(
+          deviceId: 0,
+          name: 'Stations',
+          data: [
+            const AprsStationInfo(
+              callsign: 'W1AW',
+              isAprs: true,
+              authPassword: 'test-key',
+            ),
+          ],
+        );
+        final peer = AprsAuth()
+          ..stations = [
+            const AprsStationInfo(
+              callsign: 'N0CALL-7',
+              isAprs: true,
+              authPassword: 'test-key',
+            ),
+          ];
+        final received = Completer<void>();
+        bus.subscribe(
+          deviceId: 1,
+          name: 'AprsFrame',
+          callback: (_, _, data) {
+            if (data is AprsFrameEventArgs &&
+                data.aprsPacket.messageData.msgText == 'signed hello' &&
+                !received.isCompleted) {
+              received.complete();
+            }
+          },
+        );
+        final content = peer
+            .addAprsAuth(
+              'W1AW',
+              'N0CALL-7',
+              'signed hello',
+              123,
+              DateTime.now(),
+            )
+            .content;
+        socket!.write('W1AW>APRS,TCPIP*:$content\r\n');
+        await received.future.timeout(const Duration(seconds: 5));
+        final outgoing = await sentLines();
+        expect(outgoing, hasLength(1));
+        final ack = Tnc2Codec.decode(outgoing.single)!;
+        expect(AprsPacket.parse(ack)!.messageData.seqId, '123');
+        expect(
+          peer.checkAprsAuth(false, 'N0CALL-7', ack.dataStr, DateTime.now()),
+          AuthState.success,
+        );
+      },
+    );
 
     test('received RF messages retain IGate routing', () async {
       await connect();
@@ -427,8 +530,9 @@ void main() {
         data: AprsFrameEventArgs(aprs, aprs.packet!, null),
         store: false,
       );
-      expect(await sentLines(),
-          ['W1AW>APRS,WIDE1-1,qAR,N0CALL-7::N0CALL-7 :Hello{2']);
+      expect(await sentLines(), [
+        'W1AW>APRS,WIDE1-1,qAR,N0CALL-7::N0CALL-7 :Hello{2',
+      ]);
       expect(rf, isEmpty);
     });
 
@@ -496,10 +600,7 @@ void main() {
     test('gates a message to a locally-heard station down to RF', () {
       final aprs = _parseTnc2('W1AW>APRS,TCPIP*::K7VZT    :Hello{1');
       expect(aprs.messageData.addressee.trim(), 'K7VZT');
-      expect(
-        AprsIsClient.shouldGateToRf(aprs, {'K7VZT'}),
-        isTrue,
-      );
+      expect(AprsIsClient.shouldGateToRf(aprs, {'K7VZT'}), isTrue);
       // Not heard locally -> not gated.
       expect(AprsIsClient.shouldGateToRf(aprs, {'N0ONE'}), isFalse);
     });

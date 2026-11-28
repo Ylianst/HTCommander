@@ -6,7 +6,11 @@ http://www.apache.org/licenses/LICENSE-2.0
 Ported from the C# `HTCommander.AprsHandler` class.
 */
 
+import 'dart:async';
+import 'dart:math';
+
 import '../aprs/aprs_auth.dart';
+import '../aprs/aprs_outbox.dart';
 import '../aprs/aprs_conversation.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
@@ -22,6 +26,8 @@ import '../services/data_broker_client.dart';
 import '../services/host_bridge.dart';
 import '../services/notification_service.dart';
 import '../services/notification_router.dart';
+import '../services/aprs_outbox_store.dart';
+import '../aprsis/aprsis_client.dart' show aprsIsDeviceId;
 
 /// A data handler that processes APRS packets from the "APRS" channel.
 ///
@@ -31,6 +37,24 @@ import '../services/notification_router.dart';
 /// from the [PacketStore]. Also handles `SendAprsMessage` requests from the UI
 /// and auto-acknowledges addressed messages.
 class AprsHandler {
+  AprsHandler({DateTime Function()? clock}) : _clock = clock ?? DateTime.now;
+
+  final DateTime Function() _clock;
+  final AprsOutboxStore _outboxStore = AprsOutboxStore();
+  final Map<String, AprsOutgoingMessage> _outbox = {};
+  final Set<String> _receivedAnswers = {};
+  Future<void> _work = Future.value();
+  Timer? _retryTimer;
+  bool _outboxReady = false;
+  bool _tickQueued = false;
+  Future<void> get ready async {
+    while (true) {
+      final current = _work;
+      await current;
+      if (identical(current, _work)) return;
+    }
+  }
+  List<AprsOutgoingMessage> get outgoingMessages => _outbox.values.toList();
   /// Maximum number of APRS frames to keep in history.
   static const int _maxFrameHistory = 1000;
 
@@ -128,6 +152,27 @@ class AprsHandler {
     );
     _updateLocalCallsignWithId();
 
+    if (!HostBridge.isHosted) {
+      _broker.subscribe(deviceId: 1, name: 'AprsFrame', callback: _observeDelivery);
+      _broker.subscribe(deviceId: DataBroker.allDevices, name: 'AprsTransmitResult', callback: _onTransmitResult);
+      _broker.subscribeMultiple(deviceId: 1, names: const ['RetryAprsMessage', 'StopAprsMessage'], callback: _onOutboxAction);
+      _run(() async {
+        for (final saved in await _outboxStore.load()) {
+          final restored = saved.withParts([
+            for (final part in saved.parts)
+              part.pending ? part.update(state: AprsDelivery.paused) : part,
+          ]);
+          await _outboxStore.save(restored);
+          if (_disposed) return;
+          _outbox[restored.id] = restored;
+          _echoOutboxMessage(restored);
+        }
+        _outboxReady = true;
+        _publishOutbox();
+      });
+      _retryTimer = Timer.periodic(const Duration(seconds: 1), (_) => processOutbox());
+    }
+
     // If the PacketStore is already ready, request the historical list now.
     if (_broker.hasValue(_aprsDeviceId, 'PacketStoreReady')) {
       _broker.dispatch(
@@ -140,23 +185,17 @@ class AprsHandler {
 
     // Restore the next APRS message id (persisted across restarts).
     _nextAprsMessageId = _broker.getValue<int>(0, 'NextAprsMessageId', 1) ?? 1;
-    if (_nextAprsMessageId < 1 || _nextAprsMessageId > 999) {
+    if (_nextAprsMessageId < 1 || _nextAprsMessageId > 99999) {
       _nextAprsMessageId = 1;
     }
   }
 
   void _loadStations(Object? data) {
-    if (data is List) {
-      final list = <AprsStationInfo>[];
-      for (final item in data) {
-        if (item is Map<String, dynamic>) {
-          final station = AprsStationInfo.fromJson(item);
-          if (station != null) list.add(station);
-        } else if (item is AprsStationInfo) {
-          list.add(item);
-        }
-      }
-      _auth.stations = list;
+    _auth.loadStations(data);
+    if (!HostBridge.isHosted) {
+      _broker.dispatch(deviceId: 1, name: 'AprsAuthenticatedDestinations',
+        data: _auth.stations.where((s) => s.isAprs && s.authPassword.isNotEmpty)
+          .map((s) => aprsPeerKey(s.callsign)).toList(), store: true);
     }
   }
 
@@ -182,10 +221,15 @@ class AprsHandler {
     _updateLocalCallsignWithId();
   }
 
-  /// Returns the next APRS message id (1..999), persisting the successor.
-  int _getNextAprsMessageId() {
+  /// Retained IDs are not reused, so late ACKs cannot answer a newer message.
+  int _getNextAprsMessageId(Set<int> reserved) {
+    final used = {...reserved, for (final m in _outbox.values) for (final p in m.parts) p.wireId};
+    for (var i = 0; used.contains(_nextAprsMessageId); i++) {
+      if (i >= 99999) throw StateError('APRS message IDs exhausted');
+      _nextAprsMessageId = _nextAprsMessageId % 99999 + 1;
+    }
     final msgId = _nextAprsMessageId++;
-    if (_nextAprsMessageId > 999) _nextAprsMessageId = 1;
+    if (_nextAprsMessageId > 99999) _nextAprsMessageId = 1;
     _broker.dispatch(
       deviceId: 0,
       name: 'NextAprsMessageId',
@@ -228,120 +272,327 @@ class AprsHandler {
   void _onSendAprsMessage(int deviceId, String name, Object? data) {
     if (_disposed) return;
     if (data is! AprsSendMessageData) return;
-    final messageData = data;
+    if (HostBridge.isHosted) return; // The bridge forwards the command to its host.
+    _run(() async {
+      if (!_outboxReady) throw StateError('APRS outbox is unavailable');
+      final destination = aprsPeerKey(data.destination);
+      final source = aprsPeerKey(_localCallsignWithId ?? '');
+      if (!RegExp(r'^[A-Z0-9]{1,6}(?:-(?:[0-9]|1[0-5]))?$').hasMatch(source) ||
+          !RegExp(r'^[A-Z0-9]{1,6}(?:-(?:[0-9]|1[0-5]))?$').hasMatch(destination)) {
+        throw const AprsComposeException(AprsComposeError.address);
+      }
+      final authenticated = _auth.authenticates(destination);
+      final texts = splitAprsMessage(data.message, destination, authenticated: authenticated);
+      final reserved = <int>{};
+      final parts = <AprsOutboxPart>[];
+      for (final text in texts) {
+        final id = _getNextAprsMessageId(reserved);
+        reserved.add(id);
+        parts.add(AprsOutboxPart(wireId: id, text: text));
+      }
+      final now = _clock();
+      final message = AprsOutgoingMessage(
+        id: '${now.microsecondsSinceEpoch}-${Random.secure().nextInt(0xFFFFFFFF)}',
+        source: source, destination: destination, text: data.message, created: now,
+        radioDeviceId: data.radioDeviceId,
+        radioMac: _broker.getValue<String>(data.radioDeviceId, 'MacAddress'),
+        internet: data.radioDeviceId < 0 ||
+          (_broker.getValue<int>(0, 'AprsIsEnabled', 0) ?? 0) != 0,
+        authenticated: authenticated, parts: parts, route: data.route,
+        maxAttempts: (_broker.getValue<int>(0, 'AprsRetryAttempts', 6) ?? 6).clamp(1, 10),
+        retrySeconds: (_broker.getValue<int>(0, 'AprsRetrySeconds', 30) ?? 30).clamp(10, 300),
+      );
+      _makeOutboxPacket(message, parts.first); // Validate the complete route before persisting.
+      await _commit(message);
+      if (_disposed) return;
+      _echoOutboxMessage(message);
+      _broker.dispatch(deviceId: 1, name: 'AprsMessageQueued', data: data.toJson(), store: false);
+      _broker.dispatch(deviceId: 1, name: 'AprsSendError', data: null, store: true);
+      await _processOutbox();
+    });
+  }
 
-    final callsign = _broker.getValue<String>(0, 'CallSign', '') ?? '';
-    final stationIdInt = _broker.getValue<int>(0, 'StationId', 0) ?? 0;
-    final stationId = stationIdInt > 0 ? stationIdInt.toString() : '';
+  void _run(Future<void> Function() action) {
+    _work = _work.then((_) async {
+      if (_disposed) return;
+      try {
+        await action();
+      } catch (error) {
+        _broker.logError('APRS outbox: $error');
+        if (!_disposed) {
+          _broker.dispatch(deviceId: 1, name: 'AprsSendError', data: {
+            'reason': error is AprsComposeException ? error.reason.name : 'storage',
+            'detail': '$error',
+          }, store: true);
+        }
+      }
+    });
+  }
 
-    if (callsign.isEmpty) {
-      _broker.logError('Cannot send APRS message: Callsign not configured');
-      return;
+  Future<void> _commit(AprsOutgoingMessage message) async {
+    await _outboxStore.save(message);
+    if (_disposed) return;
+    _outbox[message.id] = message;
+    final finished = _outbox.values.where((m) => !m.active).toList()
+      ..sort((a, b) => a.created.compareTo(b.created));
+    final expired = finished.take((finished.length - _maxFrameHistory).clamp(0, finished.length)).toList();
+    if (expired.isNotEmpty) {
+      await _outboxStore.delete(expired.map((m) => m.id).toList());
+      for (final old in expired) {
+        _outbox.remove(old.id);
+      }
     }
+    _publishOutbox();
+  }
 
-    final srcCallsignWithId = stationId.isEmpty
-        ? callsign
-        : '$callsign-$stationId';
+  void _publishOutbox() => _broker.dispatch(
+    deviceId: 1, name: 'AprsOutbox',
+    data: _outbox.values.map((m) => m.toJson()).toList(), store: true,
+  );
 
-    final msgId = _getNextAprsMessageId();
-    final now = DateTime.now();
-    final authResult = _auth.addAprsAuth(
-      srcCallsignWithId,
-      messageData.destination,
-      messageData.message,
-      msgId,
-      now,
-    );
+  bool get _internetAvailable =>
+      (_broker.getValue<int>(0, 'AprsIsEnabled', 0) ?? 0) != 0 &&
+      (_broker.getValue<bool>(aprsIsDeviceId, 'AprsIsVerified', false) ?? false);
 
-    // Build the AX.25 address list.
+  int? _outboxRadio(AprsOutgoingMessage message) {
+    if (message.radioDeviceId < 0) return null;
+    final radios = _broker.getValueDynamic(1, 'ConnectedRadios', null);
+    if (radios is! List) return null;
+    for (final radio in radios) {
+      if (radio is! Map || radio['DeviceId'] is! int) continue;
+      final id = radio['DeviceId'] as int;
+      if (message.radioMac?.isNotEmpty == true
+          ? radio['MacAddress'] != message.radioMac
+          : id != message.radioDeviceId) {
+        continue;
+      }
+      final lock = _broker.getValueDynamic(id, 'LockState', null);
+      if (lock is Map && (lock['isLocked'] ?? lock['IsLocked']) == true &&
+          !const ['Digipeater', 'APRSSat'].contains(lock['usage'] ?? lock['Usage'])) {
+        continue;
+      }
+      if (_getAprsChannelId(id) >= 0 || _isRadioInAprsSatMode(id)) return id;
+    }
+    return null;
+  }
+
+  String _partTag(AprsOutgoingMessage message, AprsOutboxPart part) =>
+      'aprs-outbox:${message.id}:${part.wireId}';
+
+  AX25Packet _makeOutboxPacket(AprsOutgoingMessage message, AprsOutboxPart part, {bool displayOnly = false}) {
+    final auth = _auth.addAprsAuth(message.source, message.destination, part.text, part.wireId, _clock());
+    if (!displayOnly && auth.applied != message.authenticated) throw StateError('APRS authentication configuration changed');
+    final route = message.route;
+    final names = [route != null && route.length >= 2 ? route[1] : 'APRS', message.source,
+      if (route != null && route.length > 2) ...route.skip(2).where((s) => s.isNotEmpty)];
     final addresses = <AX25Address>[];
-    var destAddress = 'APRS';
-    final route = messageData.route;
-    if (route != null && route.length >= 2) {
-      destAddress = route[1];
+    if (names.length > 10) throw const AprsComposeException(AprsComposeError.address);
+    for (final name in names) {
+      if (!RegExp(r'^[A-Z0-9]{1,6}(?:-(?:[0-9]|1[0-5]))?$', caseSensitive: false).hasMatch(name)) {
+        throw const AprsComposeException(AprsComposeError.address);
+      }
+      final address = AX25Address.parse(name);
+      if (address == null) throw const AprsComposeException(AprsComposeError.address);
+      addresses.add(address);
     }
-    final destAddr = AX25Address.parse(destAddress);
-    final srcAddr = AX25Address.parse(srcCallsignWithId);
-    if (destAddr == null || srcAddr == null) {
-      _broker.logError('Cannot send APRS message: invalid address');
-      return;
+    return AX25Packet(addresses: addresses, dataStr: auth.content, command: true, time: message.created)
+      ..channelName = 'APRS'
+      ..authState = message.authenticated && !auth.applied ? AuthState.unknown :
+        auth.applied ? AuthState.success : AuthState.none
+      ..tag = _partTag(message, part);
+  }
+
+  void _echoOutboxMessage(AprsOutgoingMessage message) {
+    for (final part in message.parts) {
+      final packet = _makeOutboxPacket(message, part, displayOnly: true);
+      final aprs = AprsPacket.parse(packet);
+      if (aprs == null) throw StateError('Unable to parse outgoing APRS message');
+      _aprsFrames.add(aprs);
+      _trimFrames();
+      _broker.dispatch(deviceId: 1, name: 'AprsFrame', data: AprsFrameEventArgs(aprs, packet, null), store: false);
     }
-    addresses.add(destAddr);
-    addresses.add(srcAddr);
-    if (route != null && route.length > 2) {
-      for (int i = 2; i < route.length; i++) {
-        if (route[i].isNotEmpty) {
-          final digi = AX25Address.parse(route[i]);
-          if (digi != null) addresses.add(digi);
+  }
+
+  /// Also used by deterministic retry tests; the timer never overlaps a tick.
+  Future<void> processOutbox() {
+    if (_tickQueued || _disposed || HostBridge.isHosted) return ready;
+    _tickQueued = true;
+    _run(() async {
+      try {
+        if (_outboxReady) await _processOutbox();
+      } finally {
+        _tickQueued = false;
+      }
+    });
+    return ready;
+  }
+
+  Future<void> _processOutbox() async {
+    for (final original in _outbox.values.toList()) {
+      // Initial multipart copies precede every retry of that logical message.
+      final order = List<int>.generate(original.parts.length, (i) => i)
+        ..sort((a, b) => original.parts[a].attempts.compareTo(original.parts[b].attempts));
+      for (final index in order) {
+        if (_disposed) return;
+        var message = _outbox[original.id];
+        if (message == null) break;
+        final part = message.parts[index];
+        if (_receivedAnswers.contains(_partTag(message, part))) continue;
+        if (!part.pending || (part.nextAttempt?.isAfter(_clock()) ?? false)) continue;
+        if (part.attempts >= message.maxAttempts) {
+          final parts = [...message.parts];
+          parts[index] = part.update(state: AprsDelivery.failed);
+          await _commit(message.withParts(parts));
+          continue;
+        }
+        if (message.source != aprsPeerKey(_localCallsignWithId ?? '') ||
+            (_broker.getValue<int>(0, 'AllowTransmit', 1) ?? 1) == 0) {
+          continue;
+        }
+        final radioId = _outboxRadio(message);
+        final internet = message.internet && _internetAvailable;
+        if (radioId == null && !internet) continue;
+        if (_auth.authenticates(message.destination) != message.authenticated) {
+          final parts = [...message.parts];
+          parts[index] = part.update(state: AprsDelivery.paused, error: 'APRS authentication configuration changed');
+          await _commit(message.withParts(parts));
+          _broker.logError('APRS outbox paused: authentication configuration changed');
+          continue;
+        }
+        final attempts = part.attempts + 1;
+        final next = _clock().add(Duration(seconds: (message.retrySeconds * attempts).clamp(10, 300)));
+        final parts = [...message.parts];
+        parts[index] = part.update(state: AprsDelivery.queued, attempts: attempts, nextAttempt: next);
+        message = message.withParts(parts);
+        final packet = _makeOutboxPacket(message, parts[index])
+          ..deadline = next
+          ..tag = '${_partTag(message, part)}:$attempts';
+        await _commit(message); // A crash after dispatch must not reset its retry budget.
+        if (_disposed) return;
+        if (_receivedAnswers.contains(_partTag(message, part))) continue;
+        if (radioId != null) {
+          final channel = _isRadioInAprsSatMode(radioId) ? 0 : _getAprsChannelId(radioId);
+          packet.channelId = channel;
+          _broker.dispatch(deviceId: radioId, name: 'TransmitDataFrame',
+            data: TransmitDataFrameData(packet: packet, channelId: channel, regionId: -1), store: false);
+        }
+        if (internet) {
+          final aprs = AprsPacket.parse(packet)!;
+          _broker.dispatch(deviceId: 1, name: 'SendAprsIsMessage', data: AprsFrameEventArgs(aprs, packet, null), store: false);
         }
       }
     }
+  }
 
-    // A negative radio device id means the message is bound only for the
-    // APRS-IS internet service (no radio connected): skip the RF channel lookup
-    // and transmit, but still echo the packet so the APRS-IS manager up-gates it.
-    final bool aprsIsOnly = messageData.radioDeviceId < 0;
-    int aprsChannelId = -1;
-    if (!aprsIsOnly) {
-      if (_isRadioInAprsSatMode(messageData.radioDeviceId)) {
-        // APRSSat mode: the radio is in frequency mode on VFO A (tracking an
-        // APRS satellite), not on a stored APRS channel, so transmit on VFO A.
-        // NOTE: channel 0 is a placeholder for the frequency-mode transmit
-        // channel; the correct value is not yet confirmed and may change.
-        aprsChannelId = 0;
-      } else {
-        aprsChannelId = _getAprsChannelId(messageData.radioDeviceId);
-        if (aprsChannelId < 0) {
-          _broker.logError(
-            'Cannot send APRS message: No APRS channel found on radio '
-            '${messageData.radioDeviceId}',
-          );
+  void _onTransmitResult(int deviceId, String name, Object? data) {
+    if (data is! Map || data['tag'] is! String) return;
+    _run(() async {
+      for (final message in _outbox.values.toList()) {
+        final parts = [...message.parts];
+        for (var i = 0; i < parts.length; i++) {
+          final part = parts[i];
+          if ('${_partTag(message, part)}:${part.attempts}' != data['tag'] || !part.pending) continue;
+          if (data['accepted'] == true) {
+            parts[i] = part.update(state: part.state == AprsDelivery.digipeated ? part.state : AprsDelivery.sent, nextAttempt: part.nextAttempt);
+          } else {
+            parts[i] = part.update(nextAttempt: part.nextAttempt, error: data['error']?.toString());
+          }
+          await _commit(message.withParts(parts));
           return;
         }
       }
-    }
+    });
+  }
 
-    final ax25Packet = AX25Packet(
-      addresses: addresses,
-      dataStr: authResult.content,
-      type: FrameType.uFrameUi,
-      command: true,
-      time: now,
-    );
-    ax25Packet.pid = 240;
-    ax25Packet.incoming = false;
-    ax25Packet.sent = false;
-    ax25Packet.authState = authResult.applied
-        ? AuthState.success
-        : AuthState.none;
-    ax25Packet.channelId = aprsChannelId;
-    ax25Packet.channelName = 'APRS';
-
-    if (!aprsIsOnly) {
-      _broker.dispatch(
-        deviceId: messageData.radioDeviceId,
-        name: 'TransmitDataFrame',
-        data: TransmitDataFrameData(
-          packet: ax25Packet,
-          channelId: aprsChannelId,
-          regionId: -1,
-        ),
-        store: false,
-      );
+  void _observeDelivery(int deviceId, String name, Object? data) {
+    if (data is! AprsFrameEventArgs || !data.ax25Packet.incoming ||
+        data.aprsPacket.dataType != PacketDataType.message) {
+      return;
     }
-
-    // Echo the outgoing packet to the UI as a sent message.
-    final aprsPacket = AprsPacket.parse(ax25Packet);
-    if (aprsPacket != null) {
-      _aprsFrames.add(aprsPacket);
-      _trimFrames();
-      _broker.dispatch(
-        deviceId: _aprsDeviceId,
-        name: 'AprsFrame',
-        data: AprsFrameEventArgs(aprsPacket, ax25Packet, null),
-        store: false,
-      );
+    final aprs = data.aprsPacket;
+    final md = aprs.messageData;
+    for (final message in _outbox.values) {
+      for (final part in message.parts) {
+        if (_matchingAnswer(message, part, data) != null) {
+          _receivedAnswers.add(_partTag(message, part));
+        }
+      }
     }
+    _run(() async {
+      for (final message in _outbox.values.toList()) {
+        final parts = [...message.parts];
+        for (var i = 0; i < parts.length; i++) {
+          final part = parts[i];
+          if (part.attempts == 0 || md.seqId != '${part.wireId}' || part.answered) continue;
+          final response = md.msgType == MessageType.mtAck || md.msgType == MessageType.mtRej;
+          final answer = _matchingAnswer(message, part, data);
+          if (answer != null) {
+            parts[i] = part.update(state: answer);
+          } else if (!response && part.pending && !aprs.fromAprsIs &&
+              data.fragment?.encoding != FragmentEncodingType.loopback &&
+              aprsPeerKey(aprs.sourceCallsignWithId) == message.source &&
+              aprsPeerKey(md.addressee) == message.destination && md.msgText == part.text &&
+              data.ax25Packet.addresses.skip(2).any((a) => a.crBit1 &&
+                !const ['TCPIP', 'TCPXX'].contains(a.address.toUpperCase()))) {
+            parts[i] = part.update(state: AprsDelivery.digipeated, nextAttempt: part.nextAttempt);
+          } else {
+            continue;
+          }
+          await _commit(message.withParts(parts));
+          _receivedAnswers.remove(_partTag(message, part));
+          return;
+        }
+
+      }
+    });
+  }
+
+  AprsDelivery? _matchingAnswer(AprsOutgoingMessage message, AprsOutboxPart part, AprsFrameEventArgs data) {
+    final aprs = data.aprsPacket;
+    final md = aprs.messageData;
+    if (part.attempts == 0 || part.answered || md.seqId != '${part.wireId}' ||
+        (md.msgType != MessageType.mtAck && md.msgType != MessageType.mtRej) ||
+        aprsPeerKey(aprs.sourceCallsignWithId) != message.destination ||
+        aprsPeerKey(md.addressee) != message.source) {
+      return null;
+    }
+    if (message.authenticated) {
+      var content = data.ax25Packet.dataStr;
+      if (aprs.thirdPartySourceCallsign != null && content != null) {
+        content = content.substring(content.indexOf(':') + 1);
+      }
+      if (_auth.checkAprsAuth(false, message.destination, content, data.ax25Packet.time) != AuthState.success) {
+        return null;
+      }
+    }
+    return md.msgType == MessageType.mtAck ? AprsDelivery.delivered : AprsDelivery.rejected;
+  }
+
+  void _onOutboxAction(int deviceId, String name, Object? data) {
+    if (data is! String) return;
+    _run(() async {
+      final message = _outbox[data];
+      if (message == null) throw StateError('APRS message no longer exists');
+      if (name == 'RetryAprsMessage' && message.parts.any((p) => p.pending)) {
+        throw StateError('An active APRS message cannot be retried manually');
+      }
+      final parts = [
+        for (final part in message.parts)
+          if (part.answered) part
+          else if (name == 'StopAprsMessage') part.update(state: AprsDelivery.stopped, attempts: part.attempts)
+          else part.update(state: AprsDelivery.queued,
+            attempts: part.state == AprsDelivery.paused && part.attempts < message.maxAttempts ? part.attempts : 0),
+      ];
+      await _commit(message.withParts(parts));
+      if (_disposed) return;
+      for (final part in message.parts) {
+        final radioId = _outboxRadio(message);
+        if (radioId != null) {
+          _broker.dispatch(deviceId: radioId, name: 'CancelAprsTransmit', data: _partTag(message, part), store: false);
+        }
+      }
+      await _processOutbox();
+    });
   }
 
   void _onPacketStoreReady(int deviceId, String name, Object? data) {
@@ -447,15 +698,19 @@ class AprsHandler {
     final authCode = aprsPacket.authCode;
     if (authCode != null && authCode.isNotEmpty) {
       if (ax25Packet.addresses.length >= 2) {
-        final srcAddress = ax25Packet.addresses[1].callSignWithId;
+        final srcAddress = aprsPeerKey(aprsPacket.sourceCallsignWithId);
         final isSender =
             localCallsign != null &&
             localCallsign.isNotEmpty &&
-            srcAddress.toLowerCase() == localCallsign.toLowerCase();
+            srcAddress == aprsPeerKey(localCallsign);
+        var content = ax25Packet.dataStr;
+        if (aprsPacket.thirdPartySourceCallsign != null && content != null) {
+          content = content.substring(content.indexOf(':') + 1);
+        }
         ax25Packet.authState = _auth.checkAprsAuth(
           isSender,
           srcAddress,
-          ax25Packet.dataStr,
+          content,
           ax25Packet.time,
         );
       }
@@ -588,6 +843,7 @@ class AprsHandler {
     if (aprsPacket.messageData.msgType == MessageType.mtAck) return;
     if (aprsPacket.messageData.msgType == MessageType.mtRej) return;
     if (aprsPacket.messageData.seqId.isEmpty) return;
+    if (ax25Packet.authState == AuthState.failed) return;
 
     final localCallsign = _localCallsignWithId;
     if (localCallsign == null || localCallsign.isEmpty) return;
@@ -605,7 +861,7 @@ class AprsHandler {
     // Address the ACK to the station that actually sent the message. For an
     // IGate-relayed (third-party) message this is the original internet sender,
     // not the IGate; sending it over RF lets an IGate gate the ACK back to them.
-    final senderCallsign = aprsPacket.sourceCallsignWithId;
+    final senderCallsign = aprsPeerKey(aprsPacket.sourceCallsignWithId);
     if (senderCallsign.isEmpty) return;
 
     // In APRSSat mode ACK through the satellite on VFO A, like outgoing
@@ -688,6 +944,7 @@ class AprsHandler {
   /// markers.
   void _onClearAprsPackets(int deviceId, String name, Object? data) {
     if (_disposed) return;
+    _deleteOutbox((_) => true);
     clearFrames();
     _broker.dispatch(
       deviceId: _aprsDeviceId,
@@ -708,6 +965,10 @@ class AprsHandler {
       _broker.getValue<String>(0, 'CallSign', '') ?? '',
       _broker.getValue<int>(0, 'StationId', 0) ?? 0,
     );
+    _deleteOutbox((m) => aprsConversationPeer(
+      sender: m.source, addressee: m.destination, text: m.text,
+      outgoing: true, local: local,
+    ) == peer);
     _aprsFrames.removeWhere((p) {
       final packet = p.packet;
       if (packet == null) return false;
@@ -721,9 +982,29 @@ class AprsHandler {
   }
 
   /// Disposes the handler, unsubscribing from the broker.
+  void _deleteOutbox(bool Function(AprsOutgoingMessage) matches) {
+    if (HostBridge.isHosted) return;
+    _run(() async {
+      final removed = _outbox.values.where(matches).toList();
+      await _outboxStore.delete(removed.map((m) => m.id).toList());
+      if (_disposed) return;
+      for (final message in removed) {
+        final radioId = _outboxRadio(message);
+        if (radioId != null) {
+          for (final part in message.parts) {
+            _broker.dispatch(deviceId: radioId, name: 'CancelAprsTransmit', data: _partTag(message, part), store: false);
+          }
+        }
+        _outbox.remove(message.id);
+      }
+      _publishOutbox();
+    });
+  }
+
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _retryTimer?.cancel();
     _broker.dispose();
     _aprsFrames.clear();
   }

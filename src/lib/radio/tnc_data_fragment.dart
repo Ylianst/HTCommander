@@ -39,6 +39,9 @@ class TncDataFragment {
   String? radioMac;
   int? radioDeviceId;
   String? usage;
+  String? transmitTag;
+  DateTime? transmitDeadline;
+  bool? transmitAccepted;
 
   /// DART payload mode/level (0–5 for OFDM modes, 6 for Mode F), or -1 when the
   /// fragment was not carried by the DART modem.
@@ -193,6 +196,8 @@ class TncDataFragment {
     if (radioMac != null) 'radioMac': radioMac,
     if (radioDeviceId != null) 'radioDeviceId': radioDeviceId,
     if (usage != null) 'usage': usage,
+    if (transmitTag != null) 'transmitTag': transmitTag,
+    if (transmitDeadline != null) 'transmitDeadline': transmitDeadline!.millisecondsSinceEpoch,
   };
 
   /// Rebuilds a [TncDataFragment] from the map produced by [toJson].
@@ -234,7 +239,10 @@ class TncDataFragment {
       radioDeviceId: json['radioDeviceId'] as int?,
       usage: json['usage'] as String?,
       dartMode: json['dartMode'] as int? ?? -1,
-    );
+    )
+      ..transmitTag = json['transmitTag'] as String?
+      ..transmitDeadline = json['transmitDeadline'] == null ? null
+          : DateTime.fromMillisecondsSinceEpoch(json['transmitDeadline'] as int);
   }
 
   /// Getter for isLast (alias for finalFragment)

@@ -36,6 +36,7 @@ import 'dart:io' show Platform;
 import 'dart:math' as math;
 
 import '../aprs/aprs_conversation.dart';
+import '../aprs/aprs_auth.dart';
 import '../aprs/aprs_events.dart';
 import '../aprs/aprs_packet.dart';
 import '../aprs/aprs_util.dart';
@@ -172,6 +173,11 @@ class AprsIsManager {
     // RF -> internet up-gate. Internet frames we re-dispatch here carry
     // `fromAprsIs` and are ignored by the gating logic.
     _broker.subscribe(deviceId: 1, name: 'AprsFrame', callback: _onAprsFrame);
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'SendAprsIsMessage',
+      callback: _onOutboxSend,
+    );
 
     // Serve persisted internet history to the APRS / Map tabs on request.
     _broker.subscribe(
@@ -375,8 +381,8 @@ class AprsIsManager {
         (_broker.getValue<int>(0, 'AprsCloudNotifications', 0) ?? 0) == 1) {
       return;
     }
-    final apiKey =
-        (_broker.getValue<String>(0, 'AprsFiApiKey', '') ?? '').trim();
+    final apiKey = (_broker.getValue<String>(0, 'AprsFiApiKey', '') ?? '')
+        .trim();
     final self = _readCallsignWithId();
     if (apiKey.isEmpty || self.isEmpty) return;
     final selfUpper = self.toUpperCase();
@@ -469,7 +475,8 @@ class AprsIsManager {
     // as live APRS-IS traffic. The APRS message info field is a 9-character
     // padded addressee followed by ':' and the message text.
     final paddedAddressee = addressee.padRight(9);
-    final tnc2Line = '$src>APRS,TCPIP*,qAC,APRSFI::$paddedAddressee:'
+    final tnc2Line =
+        '$src>APRS,TCPIP*,qAC,APRSFI::$paddedAddressee:'
         '${msg.message}';
     final ax25 = Tnc2Codec.decode(tnc2Line, time: msg.time);
     if (ax25 == null) return false;
@@ -792,7 +799,7 @@ class AprsIsManager {
       deviceId: aprsIsDeviceId,
       name: 'AprsIsVerified',
       data: verified,
-      store: false,
+      store: true,
     );
   }
 
@@ -806,6 +813,20 @@ class AprsIsManager {
     final aprs = AprsPacket.parse(ax25);
     if (aprs == null) return;
     aprs.fromAprsIs = true;
+    if (aprs.authCode != null) {
+      final auth = AprsAuth()
+        ..loadStations(_broker.getValueDynamic(0, 'Stations', []));
+      var content = ax25.dataStr;
+      if (aprs.thirdPartySourceCallsign != null && content != null) {
+        content = content.substring(content.indexOf(':') + 1);
+      }
+      ax25.authState = auth.checkAprsAuth(
+        false,
+        aprsPeerKey(aprs.sourceCallsignWithId),
+        content,
+        ax25.time,
+      );
+    }
 
     final messageData = aprs.messageData;
 
@@ -875,6 +896,7 @@ class AprsIsManager {
     final messageData = aprs.messageData;
     if (messageData.msgType == MessageType.mtAck) return;
     if (messageData.msgType == MessageType.mtRej) return;
+    if (ax25.authState == AuthState.failed) return;
     final seqId = messageData.seqId.trim();
     if (seqId.isEmpty) return;
 
@@ -889,19 +911,32 @@ class AprsIsManager {
     // Only acknowledge messages actually addressed to us (with or without SSID).
     final addressee = messageData.addressee.trim().toUpperCase();
     if (addressee.isEmpty) return;
-    final callsignOnly =
-        (_broker.getValue<String>(0, 'CallSign', '') ?? '').trim().toUpperCase();
-    final isForUs = addressee == localCallsign.toUpperCase() ||
+    final callsignOnly = (_broker.getValue<String>(0, 'CallSign', '') ?? '')
+        .trim()
+        .toUpperCase();
+    final isForUs =
+        addressee == localCallsign.toUpperCase() ||
         (callsignOnly.isNotEmpty && addressee == callsignOnly);
     if (!isForUs) return;
 
     if (ax25.addresses.length < 2) return;
-    final senderCallsign = ax25.addresses[1].callSignWithId;
+    final senderCallsign = aprsPeerKey(aprs.sourceCallsignWithId);
     if (senderCallsign.isEmpty) return;
 
     // APRS message ACK format: ":<addressee padded to 9>:ack<seqId>".
-    final paddedAddr = senderCallsign.padRight(9);
-    final tnc2Line = '$localCallsign>APRS,TCPIP*::$paddedAddr:ack$seqId';
+    final auth = AprsAuth()
+      ..loadStations(_broker.getValueDynamic(0, 'Stations', []));
+    final payload = ax25.authState == AuthState.success
+        ? auth
+              .addAprsAckAuth(
+                localCallsign,
+                senderCallsign,
+                'ack$seqId',
+                DateTime.now(),
+              )
+              .content
+        : ':${senderCallsign.padRight(9)}:ack$seqId';
+    final tnc2Line = '$localCallsign>APRS,TCPIP*:$payload';
     client.sendPacketLine(tnc2Line);
     _broker.logInfo('[APRS-IS] Sent ack$seqId to $senderCallsign');
   }
@@ -965,6 +1000,7 @@ class AprsIsManager {
 
   void _onAprsFrame(int deviceId, String name, Object? data) {
     if (data is! AprsFrameEventArgs) return;
+    if (data.ax25Packet.tag?.startsWith('aprs-outbox:') == true) return;
     final aprs = data.aprsPacket;
     // Ignore the internet packets we ourselves re-dispatched.
     if (aprs.fromAprsIs) return;
@@ -997,7 +1033,9 @@ class AprsIsManager {
         aprs.thirdPartySourceCallsign == null) {
       final payload = packet.dataStr;
       if (packet.addresses.length < 2 || payload == null || payload.isEmpty) {
-        _broker.logError('[APRS-IS] Cannot send outgoing message: invalid packet');
+        _broker.logError(
+          '[APRS-IS] Cannot send outgoing message: invalid packet',
+        );
         return;
       }
       client.sendPacketLine(
@@ -1023,6 +1061,39 @@ class AprsIsManager {
     // station heard as "CALL-7".
     final base = packet.addresses[1].address.toUpperCase();
     if (base.isNotEmpty) _heardStations[base] = DateTime.now();
+  }
+
+  void _onOutboxSend(int deviceId, String name, Object? data) {
+    if (data is! AprsFrameEventArgs) return;
+    final packet = data.ax25Packet;
+    if (packet.tag?.startsWith('aprs-outbox:') != true) return;
+    final client = _client;
+    var accepted = false;
+    String? error;
+    try {
+      if (client == null ||
+          client.state != AprsIsConnectionState.connected ||
+          !client.canTransmit ||
+          !client.isVerified) {
+        throw StateError('APRS-IS transmit connection is unavailable');
+      }
+      if (packet.addresses.length < 2 || packet.dataStr == null) {
+        throw StateError('Invalid outgoing APRS packet');
+      }
+      client.sendPacketLine(
+        '${packet.addresses[1]}>${packet.addresses[0]},TCPIP*:${packet.dataStr}',
+      );
+      accepted = true;
+    } catch (failure) {
+      error = '$failure';
+      _broker.logError('[APRS-IS] Outbox send failed: $failure');
+    }
+    _broker.dispatch(
+      deviceId: 1,
+      name: 'AprsTransmitResult',
+      data: {'tag': packet.tag, 'accepted': accepted, 'error': error},
+      store: false,
+    );
   }
 
   void _pruneHeard() {
@@ -1153,6 +1224,14 @@ class AprsIsManager {
   }
 
   void _publishState(String label) {
+    if (label != 'Connected (verified)') {
+      _broker.dispatch(
+        deviceId: aprsIsDeviceId,
+        name: 'AprsIsVerified',
+        data: false,
+        store: true,
+      );
+    }
     _broker.dispatch(
       deviceId: aprsIsDeviceId,
       name: 'AprsIsState',

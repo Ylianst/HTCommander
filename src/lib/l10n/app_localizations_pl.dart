@@ -9,6 +9,82 @@ class AppLocalizationsPl extends AppLocalizations {
   AppLocalizationsPl([String locale = 'pl']) : super(locale);
 
   @override
+  String get aprsOutbox => 'Skrzynka nadawcza APRS';
+
+  @override
+  String get aprsQueueUnconfirmed =>
+      'Nie otrzymano potwierdzenia. Zachowano szkic; przed ponownym wysłaniem sprawdź skrzynkę nadawczą.';
+
+  @override
+  String get aprsOutboxEmpty => 'Brak wychodzących wiadomości APRS';
+
+  @override
+  String get aprsDeliveryQueued => 'W kolejce';
+
+  @override
+  String get aprsDeliverySent => 'Przekazano do wysłania';
+
+  @override
+  String get aprsDeliveryDigipeated => 'Odebrano przez przemiennik cyfrowy';
+
+  @override
+  String get aprsDeliveryDelivered => 'Potwierdzono odbiór';
+
+  @override
+  String get aprsDeliveryRejected => 'Odrzucono';
+
+  @override
+  String get aprsDeliveryFailed => 'Brak potwierdzenia';
+
+  @override
+  String get aprsDeliveryPaused => 'Wstrzymano';
+
+  @override
+  String get aprsDeliveryStopped => 'Zatrzymano';
+
+  @override
+  String get aprsRetryResume => 'Ponów / wznów';
+
+  @override
+  String get aprsStopRetries => 'Zatrzymaj ponawianie';
+
+  @override
+  String get aprsStopNote =>
+      'Przekazanie nie potwierdza dostarczenia. Zatrzymanie zapobiega ponawianiu; wcześniej przekazana kopia nadal może zostać wysłana.';
+
+  @override
+  String get aprsRetrySettings => 'Domyślne ponawianie nowych wiadomości';
+
+  @override
+  String get aprsRetryAttempts => 'Łączna liczba prób';
+
+  @override
+  String get aprsRetrySeconds => 'Podstawowy odstęp (sekundy)';
+
+  @override
+  String get aprsEmptyMessage => 'Wpisz wiadomość APRS.';
+
+  @override
+  String get aprsAsciiOnly =>
+      'Wiadomości APRS wymagają drukowalnych znaków ASCII.';
+
+  @override
+  String get aprsReservedText =>
+      'Tekst APRS nie może zawierać nawiasów klamrowych, pionowej kreski ani tyldy.';
+
+  @override
+  String get aprsTooLong => 'Wiadomość APRS przekracza limit 20 części.';
+
+  @override
+  String get aprsInvalidAddress =>
+      'Nieprawidłowy znak wywoławczy, cel lub trasa APRS.';
+
+  @override
+  String aprsSendFailed(String detail) {
+    return 'Żądanie APRS nie powiodło się: $detail';
+  }
+
+  @override
   String get tipsTitle => 'Wskazówki';
 
   @override

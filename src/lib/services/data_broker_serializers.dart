@@ -104,6 +104,11 @@ void registerBrokerSerializers() {
     (value) => value.toJson(),
     (json) => AprsFrameEventArgs.fromJson(json),
   );
+  DataBroker.registerSerializer<AprsSendMessageData>(
+    'aprsSend',
+    (value) => value.toJson(),
+    (json) => AprsSendMessageData.fromJson(json),
+  );
 
   // BBS statistics are dispatched as `List<MergedStationStats>` and the BBS tab
   // rebuilds them with `whereType<MergedStationStats>()`.

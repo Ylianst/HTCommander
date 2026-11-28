@@ -420,6 +420,16 @@ class Radio implements FirmwareRadio {
       name: 'TransmitDataFrame',
       callback: _onTransmitDataFrameEvent,
     );
+    _broker.subscribe(deviceId: deviceId, name: 'CancelAprsTransmit',
+      callback: (_, _, data) {
+        if (data is String && data.startsWith('aprs-outbox:')) {
+          deleteTransmitByTag(data);
+          if (!_tncFragmentInFlight) {
+            _clearTransmitQueue();
+            _trySendNextFragment();
+          }
+        }
+      });
     _broker.subscribe(
       deviceId: deviceId,
       name: 'CancelDataTransmit',
@@ -937,7 +947,7 @@ class Radio implements FirmwareRadio {
         packet.channelId = txData.channelId;
       }
       final outboundData = packet.toByteArray();
-      transmitTncData(
+      final submitted = transmitTncData(
         outboundData,
         packet.channelName,
         channelId: txData.channelId,
@@ -946,6 +956,12 @@ class Radio implements FirmwareRadio {
         deadline: packet.deadline,
         encoding: txData.encoding,
       );
+      if (packet.tag?.startsWith('aprs-outbox:') == true) {
+        _dispatch('AprsTransmitResult', {
+          'tag': packet.tag, 'accepted': submitted > 0,
+          'error': submitted > 0 ? null : 'Radio did not accept the packet',
+        }, store: false);
+      }
     } else if (txData.bssPacket != null) {
       // BSS packets carry no channel name; an empty name plus channelId -1
       // makes transmitTncData fall back to the current VFO channel (VFO B when
@@ -2633,6 +2649,8 @@ class Radio implements FirmwareRadio {
       t,
       fragmentChannelName,
     );
+    fragment.transmitTag = tag;
+    fragment.transmitDeadline = deadline;
     fragment.encoding = encoding;
 
     final String softwareMode = _activeSoftwareModemModeFor(fragment);
@@ -2658,7 +2676,10 @@ class Radio implements FirmwareRadio {
       // The audio channel is enabled and a software modem mode applies to this
       // frame's channel, so encode the frame with the software modem and send
       // it as PCM audio rather than handing it to the radio's hardware TNC.
-      _transmitSoftwareModem(fragment, softwareMode);
+      if (!_transmitSoftwareModem(fragment, softwareMode)) {
+        _broker.logError('[Radio $deviceId] Software modem did not accept the packet');
+        return 0;
+      }
       _armTxStallWatchdog();
     } else if (hardwareModemEnabled) {
       // In dual-channel (dual-watch) mode with VFO B selected, send on VFO B via
@@ -2688,6 +2709,9 @@ class Radio implements FirmwareRadio {
         tag,
         deadline ?? DateTime(9999),
       );
+    } else {
+      _broker.logError('[Radio $deviceId] Cannot transmit: no modem enabled');
+      return 0;
     }
 
     return outboundData.length;
@@ -2796,7 +2820,7 @@ class Radio implements FirmwareRadio {
   /// with the software encoding and handed to the SoftwareModem handler, which
   /// encodes it to PCM and transmits it over the audio channel (using the
   /// p-persistent CSMA channel-access logic).
-  void _transmitSoftwareModem(TncDataFragment fragment, String mode) {
+  bool _transmitSoftwareModem(TncDataFragment fragment, String mode) {
     fragment.encoding = _softwareEncodingFor(mode);
     // DART carries its own LDPC FEC and CRC; the AFSK/PSK modems apply FX.25
     // (falling back to plain AX.25 for frames too large for any FX.25 block).
@@ -2824,6 +2848,7 @@ class Radio implements FirmwareRadio {
       data: fragment,
       store: false,
     );
+    return fragment.transmitAccepted == true;
   }
 
   String _getFragmentChannelName(int channelId, String fallback) {
@@ -2984,7 +3009,7 @@ class Radio implements FirmwareRadio {
 
   void deleteTransmitByTag(String tag) {
     for (final f in _tncFragmentQueue) {
-      if (f.tag == tag) f.deleted = true;
+      if (f.tag == tag || (tag.startsWith('aprs-outbox:') && f.tag?.startsWith('$tag:') == true)) f.deleted = true;
     }
   }
 

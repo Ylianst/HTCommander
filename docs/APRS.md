@@ -25,6 +25,49 @@ In the "File" -> "Settings" -> "APRS" dialog box, you can add more APRS routes. 
 
 APRS telemetry messages will show up on the [map tab](https://github.com/Ylianst/HTCommander/blob/main/docs/Map.md), and you can right click on any APRS message to get extra details or to show a mini-map of the location of the station.
 
+## Reliable outgoing messages
+
+The **APRS outbox** button in the messaging header lists outgoing messages and
+their individual parts. Messages are saved before transmission. After restarting
+HTCommander, unfinished messages are **paused**: select **Retry / resume** in the
+outbox to continue. Hosted browsers and detached windows use the desktop host's
+outbox; only the host transmits and retries.
+
+- **Queued**: waiting for the original radio or an eligible APRS-IS connection.
+- **Submitted**: handed to the radio/network, not proof of RF emission or delivery.
+- **Heard via digipeater**: a matching RF copy was heard with a used digipeater path.
+- **Acknowledged** / **Rejected**: a matching ACK/REJ from the intended recipient.
+  Authenticated messages require an authenticated reply.
+- **No acknowledgement**: the retry budget was exhausted; a late ACK can still
+  update this state.
+- **Paused** / **Stopped**: no automatic retry. Stopping or clearing prevents
+  future retries and removes cancellable queued radio copies, but a copy already
+  handed to a modem or network can still transmit.
+
+Defaults are **six total attempts**, with waits of **30, 60, 90, 120 and 150
+seconds** between them. After the final attempt, a further 180-second reply
+window precedes the no-acknowledgement state. The outbox's settings change the
+attempt limit and base delay for **new messages**; each wait is capped at five
+minutes. An unavailable link does not consume attempts. Automatic RF retries
+never switch to a different radio. Retry/resume resets an exhausted or stopped
+budget, but keeps the remaining budget of a paused message. Active messages
+cannot be retried manually. Up to 1,000 completed logical messages are retained
+in the outbox; unfinished messages are not evicted.
+
+The composer shows the ASCII byte count and, when needed, the number of parts.
+APRS text has a **67-byte limit**, reduced to **60 bytes** with HTCommander's
+seven-byte authentication suffix. Longer messages are split into numbered parts
+with distinct message IDs (up to 20 parts); SMS gateway recipient prefixes are
+repeated on each part. Only printable ASCII is accepted; braces, vertical bars
+and tildes are reserved by APRS. Unsupported text is rejected visibly rather
+than silently changed. The draft clears only after the host accepts and saves
+the message. Changing authentication requirements pauses retries rather than
+silently downgrading authentication.
+If queue confirmation is lost, the draft remains and a warning asks you to
+check the outbox before resending. Changing the local callsign or disabling
+transmit blocks automatic retries. Verified authenticated messages receive
+signed ACKs over both RF and APRS-IS.
+
 ## Message History
 
 The live tab keeps up to 1,000 RF entries and 1,000 APRS-IS entries independently.

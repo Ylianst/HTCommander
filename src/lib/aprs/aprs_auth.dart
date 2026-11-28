@@ -8,6 +8,7 @@ See docs/Aprs-Auth-Specification.md for the protocol details.
 */
 
 import 'dart:convert';
+import 'aprs_conversation.dart' show aprsPeerKey;
 import 'package:crypto/crypto.dart';
 
 import '../radio/ax25_packet.dart';
@@ -59,7 +60,20 @@ class AprsAuth {
   /// DataBroker `Stations` value.
   List<AprsStationInfo> stations = const [];
 
+  void loadStations(Object? data) {
+    if (data is! List) return;
+    stations = [
+      for (final item in data)
+        if (item is AprsStationInfo) item
+        else if (item is Map<String, dynamic> && AprsStationInfo.fromJson(item) != null)
+          AprsStationInfo.fromJson(item)!,
+    ];
+  }
+
   static List<int> _sha256(List<int> data) => sha256.convert(data).bytes;
+
+  bool authenticates(String destination) =>
+      (_findAuthPassword(destination)?.isNotEmpty ?? false);
 
   static List<int> _hmacSha256(List<int> key, List<int> data) =>
       Hmac(sha256, key).convert(data).bytes;
@@ -71,7 +85,7 @@ class AprsAuth {
   String? _findAuthPassword(String callsign) {
     for (final station in stations) {
       if (station.isAprs &&
-          station.callsign.toLowerCase() == callsign.toLowerCase() &&
+          aprsPeerKey(station.callsign) == aprsPeerKey(callsign) &&
           station.authPassword.isNotEmpty) {
         return station.authPassword;
       }

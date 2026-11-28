@@ -9,6 +9,83 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
+  String get aprsOutbox => 'Bandeja de salida APRS';
+
+  @override
+  String get aprsQueueUnconfirmed =>
+      'No se recibió confirmación. El borrador se conserva; revise la bandeja de salida antes de reenviarlo.';
+
+  @override
+  String get aprsOutboxEmpty => 'No hay mensajes APRS salientes';
+
+  @override
+  String get aprsDeliveryQueued => 'En cola';
+
+  @override
+  String get aprsDeliverySent => 'Enviado al transporte';
+
+  @override
+  String get aprsDeliveryDigipeated => 'Recibido mediante repetidor digital';
+
+  @override
+  String get aprsDeliveryDelivered => 'Confirmado';
+
+  @override
+  String get aprsDeliveryRejected => 'Rechazado';
+
+  @override
+  String get aprsDeliveryFailed => 'Sin confirmación';
+
+  @override
+  String get aprsDeliveryPaused => 'En pausa';
+
+  @override
+  String get aprsDeliveryStopped => 'Detenido';
+
+  @override
+  String get aprsRetryResume => 'Reintentar / reanudar';
+
+  @override
+  String get aprsStopRetries => 'Detener reintentos';
+
+  @override
+  String get aprsStopNote =>
+      'El envío al transporte no confirma la entrega. Detener evita reintentos; una copia ya enviada puede transmitirse todavía.';
+
+  @override
+  String get aprsRetrySettings =>
+      'Reintentos predeterminados para mensajes nuevos';
+
+  @override
+  String get aprsRetryAttempts => 'Intentos totales';
+
+  @override
+  String get aprsRetrySeconds => 'Espera base (segundos)';
+
+  @override
+  String get aprsEmptyMessage => 'Introduzca un mensaje APRS.';
+
+  @override
+  String get aprsAsciiOnly =>
+      'Los mensajes APRS requieren caracteres ASCII imprimibles.';
+
+  @override
+  String get aprsReservedText =>
+      'El texto APRS no puede contener llaves, barras verticales ni tildes (~).';
+
+  @override
+  String get aprsTooLong => 'El mensaje APRS supera el límite de 20 partes.';
+
+  @override
+  String get aprsInvalidAddress =>
+      'Indicativo, destino o ruta APRS no válidos.';
+
+  @override
+  String aprsSendFailed(String detail) {
+    return 'Error en la solicitud APRS: $detail';
+  }
+
+  @override
   String get tipsTitle => 'Consejos';
 
   @override

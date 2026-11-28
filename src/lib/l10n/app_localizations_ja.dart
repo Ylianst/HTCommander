@@ -9,6 +9,79 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get aprsOutbox => 'APRS送信トレイ';
+
+  @override
+  String get aprsQueueUnconfirmed =>
+      '登録確認を受信できませんでした。下書きは保存されています。再送前に送信トレイを確認してください。';
+
+  @override
+  String get aprsOutboxEmpty => '送信APRSメッセージはありません';
+
+  @override
+  String get aprsDeliveryQueued => '待機中';
+
+  @override
+  String get aprsDeliverySent => '送信処理に渡しました';
+
+  @override
+  String get aprsDeliveryDigipeated => 'デジピーター経由で受信';
+
+  @override
+  String get aprsDeliveryDelivered => '受信確認済み';
+
+  @override
+  String get aprsDeliveryRejected => '拒否されました';
+
+  @override
+  String get aprsDeliveryFailed => '受信確認なし';
+
+  @override
+  String get aprsDeliveryPaused => '一時停止中';
+
+  @override
+  String get aprsDeliveryStopped => '停止';
+
+  @override
+  String get aprsRetryResume => '再試行 / 再開';
+
+  @override
+  String get aprsStopRetries => '再試行を停止';
+
+  @override
+  String get aprsStopNote =>
+      '送信処理への引き渡しは配信の証明ではありません。停止すると再試行を防ぎますが、引き渡し済みのコピーは送信される場合があります。';
+
+  @override
+  String get aprsRetrySettings => '新しいメッセージの再試行設定';
+
+  @override
+  String get aprsRetryAttempts => '合計試行回数';
+
+  @override
+  String get aprsRetrySeconds => '基本待機時間（秒）';
+
+  @override
+  String get aprsEmptyMessage => 'APRSメッセージを入力してください。';
+
+  @override
+  String get aprsAsciiOnly => 'APRSメッセージには印刷可能なASCII文字が必要です。';
+
+  @override
+  String get aprsReservedText => 'APRSの本文に波括弧、縦棒、チルダは使えません。';
+
+  @override
+  String get aprsTooLong => 'APRSメッセージは20分割までです。';
+
+  @override
+  String get aprsInvalidAddress => 'APRSのコールサイン、宛先、経路が無効です。';
+
+  @override
+  String aprsSendFailed(String detail) {
+    return 'APRS要求に失敗しました: $detail';
+  }
+
+  @override
   String get tipsTitle => 'ヒント';
 
   @override

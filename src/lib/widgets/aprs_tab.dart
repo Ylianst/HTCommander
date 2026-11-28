@@ -11,6 +11,8 @@ import 'chat_widget.dart';
 import 'callsign_license_line.dart';
 import 'contact_avatar.dart';
 import '../dialogs/aprs_configuration_dialog.dart';
+import '../dialogs/aprs_outbox_dialog.dart';
+import '../aprs/aprs_outbox.dart';
 import '../dialogs/aprs_details_dialog.dart';
 import '../dialogs/aprs_sms_dialog.dart';
 import '../dialogs/aprs_weather_dialog.dart';
@@ -188,6 +190,11 @@ class _AprsTabState extends State<AprsTab>
   int _rfEntryCount = 0;
 
   final TextEditingController _messageController = TextEditingController();
+  List<AprsOutgoingMessage> _outbox = [];
+  AprsSendMessageData? _pendingCompose;
+  String? _pendingDraft;
+  Timer? _pendingComposeTimer;
+  AppLocalizations? _deliveryL10n;
   final TextEditingController _destinationController = TextEditingController(
     text: 'APRS',
   );
@@ -323,6 +330,35 @@ class _AprsTabState extends State<AprsTab>
     // Re-evaluate the send button enabled state as the user edits the fields.
     _destinationController.addListener(_onInputChanged);
     _messageController.addListener(_onInputChanged);
+    _outbox = aprsOutboxSnapshot(_broker.getValueDynamic(1, 'AprsOutbox', []));
+    _broker.subscribe(deviceId: 1, name: 'AprsOutbox', callback: (_, _, data) {
+      if (!mounted) return;
+      setState(() {
+        _outbox = aprsOutboxSnapshot(data);
+        for (final entry in _entries) {
+          entry.message = null;
+        }
+        _rebuildMessages();
+      });
+    });
+    _broker.subscribe(deviceId: 1, name: 'AprsMessageQueued', callback: (_, _, data) {
+      if (!mounted || data is! Map || _pendingCompose == null) return;
+      if (data['message'] == _pendingCompose!.message && data['destination'] == _pendingCompose!.destination) {
+        _pendingComposeTimer?.cancel();
+        if (_messageController.text == _pendingDraft) _messageController.clear();
+        setState(() {
+          _pendingCompose = null;
+          _pendingDraft = null;
+        });
+      }
+    });
+    _broker.subscribe(deviceId: 1, name: 'AprsSendError', callback: _onAprsSendError);
+    final lastError = _broker.getValueDynamic(1, 'AprsSendError');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _onAprsSendError(1, 'AprsSendError', lastError);
+    });
+    _broker.subscribe(deviceId: 1, name: 'AprsAuthenticatedDestinations',
+      callback: (_, _, _) { if (mounted) setState(() {}); });
 
     // Subscribe to live APRS events.
     _broker.subscribe(
@@ -523,6 +559,7 @@ class _AprsTabState extends State<AprsTab>
   @override
   void dispose() {
     _historyTimeout?.cancel();
+    _pendingComposeTimer?.cancel();
     _broker.dispose();
     _messageController.dispose();
     _destinationController.dispose();
@@ -1684,6 +1721,7 @@ class _AprsTabState extends State<AprsTab>
   /// the destination and message fields are non-empty. In APRSSat mode transmit
   /// is allowed even without an APRS channel (the radio's APRS-satellite lock).
   bool get _canSend =>
+      _pendingCompose == null &&
       (_hasAprsChannel || _aprsIsTransmitAvailable || _isAprsSatActive) &&
       (!_isRadioLockedForOtherUsage || _isAprsSatActive) &&
       ((_selectedContact != null) ||
@@ -1769,6 +1807,20 @@ class _AprsTabState extends State<AprsTab>
     return a.id.compareTo(b.id);
   }
 
+  void _onAprsSendError(int deviceId, String name, Object? data) {
+    if (!mounted || data is! Map) return;
+    _pendingComposeTimer?.cancel();
+    setState(() {
+      _pendingCompose = null;
+      _pendingDraft = null;
+    });
+    final l10n = AppLocalizations.of(context);
+    final reason = AprsComposeError.values.where((e) => e.name == data['reason']).firstOrNull;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+      reason == null ? l10n.aprsSendFailed('${data['detail'] ?? ''}') : aprsComposeErrorLabel(l10n, reason),
+    )));
+  }
+
   void _onAprsFrame(int deviceId, String name, Object? data) {
     if (data is! AprsFrameEventArgs) return;
     final args = data;
@@ -1790,6 +1842,18 @@ class _AprsTabState extends State<AprsTab>
   }
 
   IconData? _iconFor(_AprsEntry e) {
+    final tracked = _trackedPart(e);
+    if (tracked != null) {
+      return switch (tracked.part.state) {
+        AprsDelivery.delivered => Icons.done_all,
+        AprsDelivery.digipeated => Icons.cell_tower,
+        AprsDelivery.sent => Icons.check,
+        AprsDelivery.paused => Icons.pause,
+        AprsDelivery.failed || AprsDelivery.rejected => Icons.error_outline,
+        AprsDelivery.stopped => Icons.stop_circle_outlined,
+        AprsDelivery.queued => Icons.schedule,
+      };
+    }
     if (e.sender) {
       if (e.imageIndex == 0) return Icons.check;
       if (e.imageIndex == 1) return Icons.close;
@@ -1803,9 +1867,12 @@ class _AprsTabState extends State<AprsTab>
     final cached = e.message;
     if (cached != null) return cached;
     final trimmed = e.messageText.trim();
+    final tracked = _trackedPart(e);
+    final delivery = tracked == null || _deliveryL10n == null ? '' : ' - ${aprsDeliveryLabel(_deliveryL10n!, tracked.part.state)}'
+      ' (${tracked.part.attempts}/${tracked.message.maxAttempts})';
     return e.message = ChatMessage(
       id: '${e.id}',
-      route: e.routingString,
+      route: '${e.routingString}$delivery',
       senderCallsign: e.senderCallsign,
       // Symbol-only packets carry no comment; render a single space so the
       // chat bubble (with its symbol) still draws instead of collapsing.
@@ -2226,7 +2293,10 @@ class _AprsTabState extends State<AprsTab>
   ) {
     bool updated = false;
     for (final n in _entries) {
-      if (n.sender && n.messageId == aprsPacket.messageData.seqId) {
+      if (_trackedPart(n) != null) continue;
+      if (n.sender && n.messageId == aprsPacket.messageData.seqId &&
+          aprsPeerKey(n.senderCallsign) == aprsPeerKey(aprsPacket.messageData.addressee) &&
+          aprsPeerKey(n.aprsPacket.messageData.addressee) == aprsPeerKey(aprsPacket.sourceCallsignWithId)) {
         if (n.authState == AuthState.unknown ||
             (n.authState == AuthState.success &&
                 packet.authState == AuthState.success) ||
@@ -2337,6 +2407,7 @@ class _AprsTabState extends State<AprsTab>
   }
 
   void _sendMessage() {
+    if (_pendingCompose != null) return;
     final inConversation = _selectedContact != null;
     // Messages to an SMS/phone contact are relayed through the "SMS" gateway,
     // exactly like the "Send SMS Message..." menu (@<number> <text>).
@@ -2370,18 +2441,27 @@ class _AprsTabState extends State<AprsTab>
       return;
     }
 
+    final request = AprsSendMessageData(destination: destination, message: outgoing,
+      radioDeviceId: radioDeviceId, route: _routeForSending());
+    setState(() {
+      _pendingCompose = request;
+      _pendingDraft = text;
+    });
+    _pendingComposeTimer = Timer(const Duration(seconds: 30), () {
+      if (!mounted || _pendingCompose == null) return;
+      setState(() {
+        _pendingCompose = null;
+        _pendingDraft = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppLocalizations.of(context).aprsQueueUnconfirmed)));
+    });
     _broker.dispatch(
       deviceId: _aprsDeviceId,
       name: 'SendAprsMessage',
-      data: AprsSendMessageData(
-        destination: destination,
-        message: outgoing,
-        radioDeviceId: radioDeviceId,
-        route: _routeForSending(),
-      ),
+      data: request,
       store: false,
     );
-    _messageController.clear();
     // Return focus to the input so the user can keep typing.
     _messageFocusNode.requestFocus();
   }
@@ -2644,6 +2724,8 @@ class _AprsTabState extends State<AprsTab>
   }
 
   void _onMessageContextMenu(ChatMessage message, Offset globalPosition) async {
+    final entry = message.tag;
+    final tracked = entry is _AprsEntry ? _trackedPart(entry) : null;
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final hasLocation =
         message.latitude != null &&
@@ -2658,6 +2740,8 @@ class _AprsTabState extends State<AprsTab>
         Offset.zero & overlay.size,
       ),
       items: [
+        if (tracked != null)
+          PopupMenuItem<String>(value: 'outbox', child: Text(AppLocalizations.of(context).aprsOutbox)),
         PopupMenuItem<String>(
           value: 'details',
           child: Text(AppLocalizations.of(context).aprsDetails),
@@ -2694,6 +2778,9 @@ class _AprsTabState extends State<AprsTab>
 
     if (selected == null || !mounted) return;
     switch (selected) {
+      case 'outbox':
+        await showAprsOutboxDialog(context);
+        break;
       case 'details':
         _onMessageDoubleTap(message);
         break;
@@ -4443,6 +4530,8 @@ class _AprsTabState extends State<AprsTab>
                   (_meshConfigured || _meshState != MeshCoreState.disconnected))
                 _buildMeshStatusIcon(),
               // Beacon active indicator - opens beacon settings on tap.
+              IconButton(tooltip: l10n.aprsOutbox, icon: const Icon(Icons.outbox_outlined, size: 20),
+                onPressed: () => showAprsOutboxDialog(context)),
               if (_beaconInterval > 0) _buildBeaconIcon(),
               if (_beaconInterval > 0) const SizedBox(width: 4),
               // Software beacon indicator (periodic or manual) - tap for
@@ -4616,6 +4705,7 @@ class _AprsTabState extends State<AprsTab>
                 style: const TextStyle(fontSize: 14),
                 decoration: InputDecoration(
                   hintText: AppLocalizations.of(context).aprsTypeMessage,
+                  suffixText: _composeCounter(),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                   border: InputBorder.none,
                   isCollapsed: true,
@@ -4639,6 +4729,44 @@ class _AprsTabState extends State<AprsTab>
         ],
       ),
     );
+  }
+
+  ({AprsOutgoingMessage message, AprsOutboxPart part})? _trackedPart(_AprsEntry entry) {
+    if (!entry.sender || entry.messageId == null) return null;
+    for (final message in _outbox) {
+      if (message.source != aprsPeerKey(entry.senderCallsign) ||
+          message.destination != aprsPeerKey(entry.aprsPacket.messageData.addressee)) {
+        continue;
+      }
+      for (final part in message.parts) {
+        if ('${part.wireId}' == entry.messageId) return (message: message, part: part);
+      }
+    }
+    return null;
+  }
+
+  String _composeCounter() {
+    final destination = _selectedContact ?? _destinationController.text.trim().toUpperCase();
+    final sms = _smsContacts.contains(destination);
+    final text = sms ? '@${destination.replaceAll(RegExp(r'[^0-9]'), '')} ${_messageController.text.trim()}' : _messageController.text;
+    final destinations = _broker.getValueDynamic(1, 'AprsAuthenticatedDestinations', []);
+    final authenticated = destinations is List && destinations.contains(aprsPeerKey(sms ? 'SMS' : destination));
+    try {
+      final parts = splitAprsMessage(text, sms ? 'SMS' : destination, authenticated: authenticated);
+      return '${text.length}/${authenticated ? 60 : 67} B${parts.length > 1 ? ' (${parts.length})' : ''}';
+    } on AprsComposeException {
+      return '${text.length}/${authenticated ? 60 : 67} B';
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _deliveryL10n = AppLocalizations.of(context);
+    for (final entry in _entries) {
+      entry.message = null;
+    }
+    _rebuildMessages();
   }
 }
 
