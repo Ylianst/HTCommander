@@ -175,9 +175,9 @@ would have thrown away.
 
 2. **[APRS OTA: Turning a Bot Conversation Into a Little On-Air Adventure](aprs-ota-chat-plan.md)**
    How the OTA bot connects hosts and chasers, checks beacons, and logs and
-   scores contacts. A documentation-only proposal for an OTA avatar,
-   machine-readable discovery cards, guided chasing, and a host QSL queue,
-   with RF-path safeguards, rate limits, and a staged validation plan.
+   scores contacts. The design and implementation status of OTA-only chat
+   tools: a default avatar, machine-readable discovery cards, guided command
+   preparation, and host QSL controls, with RF-path safeguards and rate limits.
 
 ---
 

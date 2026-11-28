@@ -10,6 +10,8 @@ import 'package:pasteboard/pasteboard.dart';
 import 'chat_widget.dart';
 import 'callsign_license_line.dart';
 import 'contact_avatar.dart';
+import 'ota_conversation_panel.dart';
+import '../aprs/ota.dart';
 import '../dialogs/aprs_configuration_dialog.dart';
 import '../dialogs/aprs_outbox_dialog.dart';
 import '../dialogs/aprs_observations_dialog.dart';
@@ -1720,6 +1722,12 @@ class _AprsTabState extends State<AprsTab>
   bool get _aprsIsTransmitAvailable =>
       _aprsIsEnabled && _allowTransmit && _callsign.trim().isNotEmpty;
 
+  bool get _inOtaConversation => !_inMeshView && isOtaPeer(_selectedContact);
+
+  AprsLinkPolicy get _effectiveMessageLinkPolicy =>
+      _inOtaConversation && otaCommandRequiresRf(_messageController.text)
+          ? AprsLinkPolicy.rfOnly : _messageLinkPolicy;
+
   /// True when a message can be transmitted: either an APRS channel is
   /// available on a connected radio or APRS-IS can carry the message, and both
   /// the destination and message fields are non-empty. In APRSSat mode transmit
@@ -1727,10 +1735,10 @@ class _AprsTabState extends State<AprsTab>
   bool get _canSend =>
       _pendingCompose == null &&
       _allowTransmit &&
-      (_messageLinkPolicy == AprsLinkPolicy.internetOnly
+      (_effectiveMessageLinkPolicy == AprsLinkPolicy.internetOnly
         ? _callsign.trim().isNotEmpty
         : ((_hasAprsChannel || _isAprsSatActive ||
-            (_messageLinkPolicy == AprsLinkPolicy.automatic && _aprsIsTransmitAvailable)) &&
+            (_effectiveMessageLinkPolicy == AprsLinkPolicy.automatic && _aprsIsTransmitAvailable)) &&
           (!_isRadioLockedForOtherUsage || _isAprsSatActive))) &&
       ((_selectedContact != null) ||
           _destinationController.text.trim().isNotEmpty) &&
@@ -2414,10 +2422,11 @@ class _AprsTabState extends State<AprsTab>
     _messageFocusNode.requestFocus();
   }
 
-  int? _radioForMessage() {
-    if (_messageLinkPolicy == AprsLinkPolicy.internetOnly) return -1;
+  int? _radioForMessage({AprsLinkPolicy? policy}) {
+    final selectedPolicy = policy ?? _messageLinkPolicy;
+    if (selectedPolicy == AprsLinkPolicy.internetOnly) return -1;
     final id = _getPreferredAprsRadioDeviceId();
-    if (id > 0 || (_messageLinkPolicy == AprsLinkPolicy.automatic && _aprsIsTransmitAvailable)) return id;
+    if (id > 0 || (selectedPolicy == AprsLinkPolicy.automatic && _aprsIsTransmitAvailable)) return id;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(AppLocalizations.of(context).aprsNoChannel),
       duration: const Duration(seconds: 2)));
@@ -2448,11 +2457,39 @@ class _AprsTabState extends State<AprsTab>
     }
     if (destination.isEmpty) return;
 
-    final radioDeviceId = _radioForMessage();
+    if (_inOtaConversation) {
+      final l10n = AppLocalizations.of(context);
+      final destinations = _broker.getValueDynamic(1, 'AprsAuthenticatedDestinations', []);
+      try {
+        validateOtaCommand(outgoing,
+            authenticated: destinations is List && destinations.contains('OTA'));
+      } on AprsComposeException catch (error) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+          error.reason == AprsComposeError.tooLong
+              ? l10n.otaSingleMessage : aprsComposeErrorLabel(l10n, error.reason),
+        )));
+        return;
+      }
+      if (!_canSend) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(otaCommandRequiresRf(outgoing) ? l10n.otaRfRequired : l10n.otaUnavailable),
+        ));
+        return;
+      }
+      final cooldown = otaCommandCooldown(outgoing, _outbox, _callsign, DateTime.now());
+      if (cooldown > Duration.zero) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.otaCooldown(cooldown.inSeconds)),
+        ));
+        return;
+      }
+    }
+
+    final radioDeviceId = _radioForMessage(policy: _effectiveMessageLinkPolicy);
     if (radioDeviceId == null) return;
 
     final request = AprsSendMessageData(destination: destination, message: outgoing,
-      radioDeviceId: radioDeviceId, route: _routeForSending(), policy: _messageLinkPolicy);
+      radioDeviceId: radioDeviceId, route: _routeForSending(), policy: _effectiveMessageLinkPolicy);
     setState(() {
       _pendingCompose = request;
       _pendingDraft = text;
@@ -3675,9 +3712,30 @@ class _AprsTabState extends State<AprsTab>
   /// its optional missing-route banner, avatar overlay and input panel.
   Widget _buildConversationContent(BuildContext context) {
     if (_inMeshView) return _buildMeshContent(context);
-    return Column(
+    return LayoutBuilder(builder: (context, constraints) => Column(
       children: [
         if (_selectedContactRouteMissing) _buildMissingRouteBanner(),
+        if (_inOtaConversation)
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: min(260, constraints.maxHeight * 0.45)),
+            child: OtaConversationPanel(
+              key: ValueKey('OTA:$_callsign-$_stationId'),
+              messages: _messages.where((message) {
+                final entry = message.tag;
+                if (entry is! _AprsEntry || message.isSender) return false;
+                final recipient = aprsPeerKey(entry.aprsPacket.messageData.addressee);
+                final local = _stationId.isEmpty ? _callsign :
+                    '$_callsign-$_stationId';
+                return recipient == aprsPeerKey(_callsign) ||
+                    recipient == aprsPeerKey(local);
+              }).toList(),
+              localStation: _stationId.isEmpty ? _callsign.toUpperCase() :
+                  '${_callsign.toUpperCase()}-$_stationId',
+              canCompose: _allowTransmit && _pendingCompose == null,
+              onCompose: _prepareOtaCommand,
+              onBeaconSettings: () => showEditBeaconSettingsDialog(context),
+            ),
+          ),
         Expanded(
           child: DragTarget<radio.RadioChannelInfo>(
             onWillAcceptWithDetails: (_) => true,
@@ -3709,7 +3767,46 @@ class _AprsTabState extends State<AprsTab>
         ),
         if (_allowTransmit) _buildInputPanel(),
       ],
+    ));
+  }
+
+  Future<void> _prepareOtaCommand(String command) async {
+    final l10n = AppLocalizations.of(context);
+    var edited = command;
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.otaPrepareCommand),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(l10n.otaCommandHelp),
+            if (otaCommandRequiresRf(command)) Text(l10n.otaRfRequired),
+            if (otaCommandFamily(command) == 'HOST') Text(l10n.otaPositionHelp),
+            if (otaCommandFamily(command) == 'BLAST') Text(l10n.otaBlastWarning),
+            if (otaCommandFamily(command) == 'DONE') Text(l10n.otaDoneWarning),
+            if (_messageController.text.isNotEmpty) Text(l10n.otaReplaceDraft),
+            const SizedBox(height: 12),
+            TextFormField(
+              initialValue: command,
+              onChanged: (value) => edited = value,
+              autofocus: true,
+              decoration: InputDecoration(labelText: l10n.otaCommand),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.commonCancel)),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, edited),
+              child: Text(l10n.otaUseCommand)),
+        ],
+      ),
     );
+    if (!mounted || !_inOtaConversation || result == null) return;
+    _messageController.value = TextEditingValue(
+      text: result, selection: TextSelection.collapsed(offset: result.length),
+    );
+    _messageFocusNode.requestFocus();
   }
 
   // ---------------------------------------------------------------------------
@@ -4621,8 +4718,8 @@ class _AprsTabState extends State<AprsTab>
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(width: 36, height: 34, child: PopupMenuButton<AprsLinkPolicy>(
-            tooltip: aprsLinkPolicyLabel(AppLocalizations.of(context), _messageLinkPolicy),
-            icon: Icon(switch (_messageLinkPolicy) {
+            tooltip: aprsLinkPolicyLabel(AppLocalizations.of(context), _effectiveMessageLinkPolicy),
+            icon: Icon(switch (_effectiveMessageLinkPolicy) {
               AprsLinkPolicy.automatic => Icons.route,
               AprsLinkPolicy.rfOnly => Icons.cell_tower,
               AprsLinkPolicy.internetOnly => Icons.cloud_outlined,

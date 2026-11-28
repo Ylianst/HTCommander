@@ -9,6 +9,161 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get otaTitle => 'APRS OTA';
+
+  @override
+  String get otaCollapse => 'Collapse OTA tools';
+
+  @override
+  String get otaExpand => 'Expand OTA tools';
+
+  @override
+  String get otaCheckSetup => 'Check setup';
+
+  @override
+  String get otaFindOps => 'Find ops';
+
+  @override
+  String get otaHost => 'Host an op';
+
+  @override
+  String get otaChase => 'Chase';
+
+  @override
+  String get otaDetails => 'Details';
+
+  @override
+  String get otaBeaconSettings => 'Beacon settings';
+
+  @override
+  String get otaHandbook => 'Handbook';
+
+  @override
+  String get otaMyActivity => 'My activity';
+
+  @override
+  String get otaEndOp => 'End op';
+
+  @override
+  String get otaViewOp => 'View op';
+
+  @override
+  String get otaOnAir => 'Ops reported on the air';
+
+  @override
+  String get otaGuide =>
+      'Commands stay in this OTA thread. CHASE needs a position report; the host\'s QSL completes the contact. An APRS ACK confirms delivery, not a QSO. Queries are manual and share the bot\'s rate limits.';
+
+  @override
+  String get otaPositionHelp =>
+      'Send a native APRS position report within 5 minutes, from the same callsign and SSID. A typed grid does not count. Hosting requires both the command and beacon to reach OTA over RF. Check the beacon path separately; your location will be public.';
+
+  @override
+  String otaWaitingPosition(String station) {
+    return 'Waiting for position from $station (5-minute window; delivery may be delayed)';
+  }
+
+  @override
+  String otaWaitingQsl(String station) {
+    return 'Chasing $station: waiting for host QSL';
+  }
+
+  @override
+  String otaPendingQsl(String station) {
+    return 'Relayed from $station: waiting for your QSL';
+  }
+
+  @override
+  String otaConfirmed(String station) {
+    return 'QSO confirmed by $station';
+  }
+
+  @override
+  String otaHosting(String station) {
+    return 'Hosting: $station';
+  }
+
+  @override
+  String otaNotHosting(String station) {
+    return '$station has no active op';
+  }
+
+  @override
+  String otaMinutes(int minutes) {
+    return 'Approximately $minutes min left';
+  }
+
+  @override
+  String otaTimer(int minutes, int cap) {
+    return 'OTA reported $minutes min left, $cap min to the 2-hour cap';
+  }
+
+  @override
+  String otaStats(int qsos, int waiting, int points) {
+    return '$qsos QSOs, $waiting awaiting QSL, $points points';
+  }
+
+  @override
+  String otaPages(int received, int pages, int shown, int total) {
+    return '$received/$pages pages received; showing $shown/$total stations';
+  }
+
+  @override
+  String get otaNoneReported => 'No stations reported in this response';
+
+  @override
+  String get otaUncertain =>
+      'Conflicting response pages. Refresh before using this list.';
+
+  @override
+  String get otaStale => 'Status may be stale; request an update';
+
+  @override
+  String get otaOpenFailed => 'Unable to open the APRS OTA website.';
+
+  @override
+  String get otaPrepareCommand => 'Prepare OTA command';
+
+  @override
+  String get otaCommand => 'Message to OTA';
+
+  @override
+  String get otaCommandHelp =>
+      'Edit the command or add a greeting. Use command puts it in the composer; press Send when ready.';
+
+  @override
+  String get otaUseCommand => 'Use command';
+
+  @override
+  String get otaReplaceDraft =>
+      'Using this command will replace your current draft.';
+
+  @override
+  String get otaBlastWarning =>
+      'BLAST sends many messages over a shared RF channel. Add your text and use sparingly.';
+
+  @override
+  String get otaDoneWarning =>
+      'While hosting, every DONE ends your own op, even if you add another host\'s callsign. The sign-off is saved, not sent to chasers.';
+
+  @override
+  String get otaRfRequired =>
+      'HOST and host QSL use RF only. A connected, available APRS radio is required; there is no internet fallback. Beacon routing is independent.';
+
+  @override
+  String get otaUnavailable =>
+      'OTA transmission is not available. Check your callsign, radio, transmit permission, and selected link.';
+
+  @override
+  String get otaSingleMessage =>
+      'OTA commands must fit in one APRS message. Shorten the text; commands cannot be split into parts.';
+
+  @override
+  String otaCooldown(int seconds) {
+    return 'OTA query/command cooldown: wait approximately $seconds seconds. Other clients may also use your bot budget.';
+  }
+
+  @override
   String get mapWeatherRadar => '天气雷达（美国）';
 
   @override

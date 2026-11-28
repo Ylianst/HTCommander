@@ -1,8 +1,23 @@
 # APRS OTA: Turning a Bot Conversation Into a Little On-Air Adventure
 
-*Research and design proposal, November 28, 2026. Based on the live
-[APRS OTA website](https://aprsota.org/) and its handbook. Nothing in this
-post announces implemented OTA-specific support in HTCommander.*
+*Originally a research and design proposal, November 28, 2026, based on the
+live [APRS OTA website](https://aprsota.org/) and its handbook. The design
+below remains a roadmap; the implementation update distinguishes what is
+available from what is proposed.*
+
+## Implementation update
+
+HTCommander now has an OTA-only conversation panel: an automatic radio avatar,
+editable command preparation, machine-readable discovery/details, reported
+activity and host QSL controls, raw-chat fallback, single-message validation,
+local cooldowns, and explicit RF-only HOST/QSL requests through the existing
+outbox. Other conversations and All APRS Messages have no OTA controls.
+
+There is no automatic beaconing, polling, chasing, QSL transmission, score
+calculation, or downloaded card/achievement enrichment. Beacon settings and
+the independent beacon path must still be checked by the operator.
+Confirmations are displayed without replay-triggered animation. See
+[the operating instructions](../APRS.md#aprs-ota-conversation).
 
 APRS already lets us send short messages through a radio. [APRS
 OTA](https://aprsota.org/) gives those messages a purpose: go on the air,

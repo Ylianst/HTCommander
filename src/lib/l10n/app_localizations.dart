@@ -112,6 +112,252 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @otaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'APRS OTA'**
+  String get otaTitle;
+
+  /// No description provided for @otaCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse OTA tools'**
+  String get otaCollapse;
+
+  /// No description provided for @otaExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand OTA tools'**
+  String get otaExpand;
+
+  /// No description provided for @otaCheckSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Check setup'**
+  String get otaCheckSetup;
+
+  /// No description provided for @otaFindOps.
+  ///
+  /// In en, this message translates to:
+  /// **'Find ops'**
+  String get otaFindOps;
+
+  /// No description provided for @otaHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Host an op'**
+  String get otaHost;
+
+  /// No description provided for @otaChase.
+  ///
+  /// In en, this message translates to:
+  /// **'Chase'**
+  String get otaChase;
+
+  /// No description provided for @otaDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get otaDetails;
+
+  /// No description provided for @otaBeaconSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Beacon settings'**
+  String get otaBeaconSettings;
+
+  /// No description provided for @otaHandbook.
+  ///
+  /// In en, this message translates to:
+  /// **'Handbook'**
+  String get otaHandbook;
+
+  /// No description provided for @otaMyActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'My activity'**
+  String get otaMyActivity;
+
+  /// No description provided for @otaEndOp.
+  ///
+  /// In en, this message translates to:
+  /// **'End op'**
+  String get otaEndOp;
+
+  /// No description provided for @otaViewOp.
+  ///
+  /// In en, this message translates to:
+  /// **'View op'**
+  String get otaViewOp;
+
+  /// No description provided for @otaOnAir.
+  ///
+  /// In en, this message translates to:
+  /// **'Ops reported on the air'**
+  String get otaOnAir;
+
+  /// No description provided for @otaGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Commands stay in this OTA thread. CHASE needs a position report; the host\'s QSL completes the contact. An APRS ACK confirms delivery, not a QSO. Queries are manual and share the bot\'s rate limits.'**
+  String get otaGuide;
+
+  /// No description provided for @otaPositionHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Send a native APRS position report within 5 minutes, from the same callsign and SSID. A typed grid does not count. Hosting requires both the command and beacon to reach OTA over RF. Check the beacon path separately; your location will be public.'**
+  String get otaPositionHelp;
+
+  /// No description provided for @otaWaitingPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for position from {station} (5-minute window; delivery may be delayed)'**
+  String otaWaitingPosition(String station);
+
+  /// No description provided for @otaWaitingQsl.
+  ///
+  /// In en, this message translates to:
+  /// **'Chasing {station}: waiting for host QSL'**
+  String otaWaitingQsl(String station);
+
+  /// No description provided for @otaPendingQsl.
+  ///
+  /// In en, this message translates to:
+  /// **'Relayed from {station}: waiting for your QSL'**
+  String otaPendingQsl(String station);
+
+  /// No description provided for @otaConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'QSO confirmed by {station}'**
+  String otaConfirmed(String station);
+
+  /// No description provided for @otaHosting.
+  ///
+  /// In en, this message translates to:
+  /// **'Hosting: {station}'**
+  String otaHosting(String station);
+
+  /// No description provided for @otaNotHosting.
+  ///
+  /// In en, this message translates to:
+  /// **'{station} has no active op'**
+  String otaNotHosting(String station);
+
+  /// No description provided for @otaMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Approximately {minutes} min left'**
+  String otaMinutes(int minutes);
+
+  /// No description provided for @otaTimer.
+  ///
+  /// In en, this message translates to:
+  /// **'OTA reported {minutes} min left, {cap} min to the 2-hour cap'**
+  String otaTimer(int minutes, int cap);
+
+  /// No description provided for @otaStats.
+  ///
+  /// In en, this message translates to:
+  /// **'{qsos} QSOs, {waiting} awaiting QSL, {points} points'**
+  String otaStats(int qsos, int waiting, int points);
+
+  /// No description provided for @otaPages.
+  ///
+  /// In en, this message translates to:
+  /// **'{received}/{pages} pages received; showing {shown}/{total} stations'**
+  String otaPages(int received, int pages, int shown, int total);
+
+  /// No description provided for @otaNoneReported.
+  ///
+  /// In en, this message translates to:
+  /// **'No stations reported in this response'**
+  String get otaNoneReported;
+
+  /// No description provided for @otaUncertain.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflicting response pages. Refresh before using this list.'**
+  String get otaUncertain;
+
+  /// No description provided for @otaStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Status may be stale; request an update'**
+  String get otaStale;
+
+  /// No description provided for @otaOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open the APRS OTA website.'**
+  String get otaOpenFailed;
+
+  /// No description provided for @otaPrepareCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Prepare OTA command'**
+  String get otaPrepareCommand;
+
+  /// No description provided for @otaCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Message to OTA'**
+  String get otaCommand;
+
+  /// No description provided for @otaCommandHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit the command or add a greeting. Use command puts it in the composer; press Send when ready.'**
+  String get otaCommandHelp;
+
+  /// No description provided for @otaUseCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Use command'**
+  String get otaUseCommand;
+
+  /// No description provided for @otaReplaceDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Using this command will replace your current draft.'**
+  String get otaReplaceDraft;
+
+  /// No description provided for @otaBlastWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'BLAST sends many messages over a shared RF channel. Add your text and use sparingly.'**
+  String get otaBlastWarning;
+
+  /// No description provided for @otaDoneWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'While hosting, every DONE ends your own op, even if you add another host\'s callsign. The sign-off is saved, not sent to chasers.'**
+  String get otaDoneWarning;
+
+  /// No description provided for @otaRfRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'HOST and host QSL use RF only. A connected, available APRS radio is required; there is no internet fallback. Beacon routing is independent.'**
+  String get otaRfRequired;
+
+  /// No description provided for @otaUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'OTA transmission is not available. Check your callsign, radio, transmit permission, and selected link.'**
+  String get otaUnavailable;
+
+  /// No description provided for @otaSingleMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'OTA commands must fit in one APRS message. Shorten the text; commands cannot be split into parts.'**
+  String get otaSingleMessage;
+
+  /// No description provided for @otaCooldown.
+  ///
+  /// In en, this message translates to:
+  /// **'OTA query/command cooldown: wait approximately {seconds} seconds. Other clients may also use your bot budget.'**
+  String otaCooldown(int seconds);
+
   /// No description provided for @mapWeatherRadar.
   ///
   /// In en, this message translates to:

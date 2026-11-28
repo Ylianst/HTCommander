@@ -6,6 +6,54 @@ The main tab in Handi-Talky Commander is the APRS tab. You can use this tab to s
 
 On the upper right, you can click on the 3 bars to opt to not see telemetry messages. You can also send SMS message to normal phones which is great if you need to send a text message and don't have cell phone access.
 
+## APRS OTA conversation
+
+Open or create an APRS conversation with **OTA** to use
+[APRS OTA](https://aprsota.org/). Its automatic radio avatar respects your
+custom image/icon. OTA tools appear **only inside that conversation**
+(`OTA-0` is the same peer), not in All APRS Messages, other conversations,
+MeshCore, or Comms. No new global setting or background service is required.
+
+The collapsible panel offers **Check setup**, **Find ops**, **Host an op**,
+beacon settings, and handbook/activity links. Actions open an editable command
+preview; **Use command** places it in the ordinary composer, and **Send**
+submits it through the existing outbox. Nothing transmits just because you
+open the thread. Existing drafts are replaced only after the preview warns
+you and you choose Use command.
+
+`CQ!`, `INFO!`, `TIME!`, and `CHASERS!` replies become discovery/details cards,
+reported timers, and a host QSL queue. Missing/conflicting pages and stale
+reports are identified. Recognized position prompts, chase receipts,
+QSL relays, blasts, and errors remain visible alongside the original chat.
+An APRS ACK means command delivery, **not** beacon acceptance or a completed
+QSO. QSO confirmation is shown only from the bot's QSL relay; the app does
+not calculate scores or manufacture QSL cards.
+
+Inside this thread, HOST/QRV and QSL (including `@call QSL`) use **RF only**,
+without changing the link preference for other messages. A suitable available
+radio is required; internet is not a fallback for these commands. OTA commands
+must fit in one APRS message (67 ASCII bytes, or 60 with the existing
+authentication overhead), and oversized commands keep their draft instead
+of being split. Local command-family cooldowns share the human/machine
+budget; OTA may impose further limits because another client/SSID also
+uses your operator's budget. The bot's replies and raw chat remain authoritative.
+
+HOST and CHASE still require a **native position report within five minutes**
+from the same callsign and SSID. Review beacon settings and its separate
+RF/internet path; the app does not automatically beacon or promise an
+RF-only software beacon. Hosting requires the beacon to reach OTA via RF.
+Position reports make your location public. Host controls appear after a
+matching on-air confirmation, with manual QSL, INFO, TIME, CHASERS, STAY,
+BLAST, and DONE preparation. While hosting, **every DONE ends your own op**;
+BLAST can produce substantial shared-channel traffic.
+
+Website links require internet on this device; RF participation still relies
+on suitable iGate infrastructure. There is no automatic polling, auto-chasing,
+auto-QSL, or history-triggered transmission. History-derived reports are
+timestamped; estimates are not proof that an old op remains on air.
+
+See [the service explanation and design](blogs/aprs-ota-chat-plan.md).
+
 ## Radio Beacon Channel
 
 In **Radio Settings > Beacon**, select a dedicated channel instead of **Current

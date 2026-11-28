@@ -103,6 +103,7 @@ Color contactColorForCallsign(String callsign) {
 /// The automatic logo name for a known APRS service callsign, or null.
 String? autoContactLogo(String callsign) {
   final upper = callsign.toUpperCase();
+  if (upper == 'OTA' || upper == 'OTA-0') return 'radio';
   return _botLogos[upper] ?? _botLogos[contactCallsignBase(upper)];
 }
 
