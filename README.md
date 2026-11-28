@@ -71,6 +71,17 @@ Handi-Talky Commander has a lot of features. There are the features available on
   of the host, use browser-managed caching only, and require a CORS-enabled tile
   server (HTTPS tiles on HTTPS pages). URLs containing API keys are not shared
   with connected browsers or agents.
+  The Map menu also offers **Weather radar (US)**, off by default. It overlays
+  NWS NEXRAD base reflectivity from the Iowa Environmental Mesonet, with an
+  opacity slider, color legend and UTC observation time. It covers the
+  contiguous US, uses internet data, and refreshes every five minutes only while
+  the map and app are visible. Offline mode hides radar and stops requests;
+  imagery at least 15 minutes old is marked stale and hidden. Radar is separate
+  from APRS weather-station reports and the offline basemap cache. Host and
+  browser radar preferences are independent. This community service is
+  best-effort, not a source of emergency warnings; IEM advises against thousands
+  of simultaneous users. See [IEM documentation](https://mesonet.agron.iastate.edu/docs/nexrad_mosaic/)
+  and [usage terms](https://mesonet.agron.iastate.edu/disclaimer.php).
 - [Winlink mail support](https://ylianst.github.io/HTCommanderSite/features/winlink.html). Send and receive email on the [Winlink network](https://winlink.org/), this includes support to attachments.
 - [Address book](https://ylianst.github.io/HTCommanderSite/features/address-book.html). Store your APRS, Winlink and Terminal contacts in the address book to quick access.
 - [Terminal support](https://ylianst.github.io/HTCommanderSite/features/terminal.html). Communicate in packet mode with other stations, users or BBS'es.

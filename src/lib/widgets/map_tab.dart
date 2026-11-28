@@ -50,6 +50,7 @@ import '../utils/map_tile_source.dart';
 import '../utils/num_parsing.dart';
 import 'radiosonde_marker.dart';
 import 'sarsat_marker.dart';
+import 'weather_radar_layer.dart';
 
 /// A pickable map entity: an APRS/voice [_StationMarkerData], a
 /// [WinlinkGateway] or a [_MeshStation]. Lets the overlap picker and
@@ -240,6 +241,7 @@ class _MapTabState extends State<MapTab>
   // Map settings (loaded from DataBroker)
   bool _isOfflineMode = false;
   bool _showTracks = true;
+  bool _showWeatherRadar = false;
   bool _showAirplanes = false;
   bool _showContactsOnly = false;
   bool _largeMarkers = true;
@@ -488,6 +490,13 @@ class _MapTabState extends State<MapTab>
   void initState() {
     super.initState();
     _loadSettings();
+    _broker.subscribe(
+      deviceId: 0,
+      name: weatherRadarEnabledKey,
+      callback: (_, _, data) {
+        if (mounted) setState(() => _showWeatherRadar = data == 1);
+      },
+    );
     _broker.subscribeMultiple(
       deviceId: 0,
       names: [customMapEnabledKey, customMapUrlKey, customMapAttributionKey],
@@ -1321,6 +1330,8 @@ class _MapTabState extends State<MapTab>
         ? null
         : mapTileProvider(offline: _isOfflineMode, source: source);
     _showTracks = (DataBroker.getValue<int>(0, 'MapShowTracks', 1) ?? 1) == 1;
+    _showWeatherRadar =
+        (DataBroker.getValue<int>(0, weatherRadarEnabledKey, 0) ?? 0) == 1;
     _largeMarkers =
         (DataBroker.getValue<int>(0, 'MapLargeMarkers', 1) ?? 1) == 1;
     _showAprsSymbols =
@@ -1556,6 +1567,22 @@ class _MapTabState extends State<MapTab>
               ],
             ),
           ),
+        PopupMenuItem<String>(
+          value: 'weatherRadar',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                child: _showWeatherRadar
+                    ? const Text('✓', style: TextStyle(fontSize: 14))
+                    : null,
+              ),
+              Expanded(child: Text(l10n.mapWeatherRadar)),
+            ],
+          ),
+        ),
         if (_satelliteSupport)
           PopupMenuItem<String>(
             value: 'satellites',
@@ -1697,6 +1724,13 @@ class _MapTabState extends State<MapTab>
             deviceId: 0,
             name: 'MapShowTracks',
             data: _showTracks ? 1 : 0,
+          );
+          break;
+        case 'weatherRadar':
+          _broker.dispatch(
+            deviceId: 0,
+            name: weatherRadarEnabledKey,
+            data: _showWeatherRadar ? 0 : 1,
           );
           break;
         case 'markers':
@@ -4243,146 +4277,156 @@ class _MapTabState extends State<MapTab>
                         ),
                       ),
                     ),
-                  if (tracks.isNotEmpty)
-                    PolylineLayer(
-                      key: const ValueKey('mapStationTracks'),
-                      polylines: tracks,
-                    ),
-                  // Winlink gateways and station markers share one layer,
-                  // ordered north to south so southern markers draw on top.
-                  if (_showWinlinkGateways ||
-                      stationMarkers.isNotEmpty ||
-                      meshMarkers.isNotEmpty)
-                    Builder(
-                      builder: (context) {
-                        final gateways = _showWinlinkGateways
-                            ? _gatewayMarkersCache.get((
-                                MapCamera.of(context),
-                                _gatewayRevision,
-                                _radioBands,
-                                Theme.of(context).brightness,
-                              ), _buildWinlinkGatewayMarkers)
-                            : const <Marker>[];
-                        return MarkerLayer(
-                          key: const ValueKey('mapStationMarkers'),
-                          markers: _orderedMarkersCache.get(
-                            (gateways, stationMarkers, meshMarkers),
-                            () => _sortNorthToSouth([
-                              ...gateways,
-                              ...stationMarkers,
-                              ...meshMarkers,
-                            ]),
+                  WeatherRadarLayer(
+                    enabled: _showWeatherRadar,
+                    offline: _isOfflineMode,
+                    foregroundLayers: [
+                      if (tracks.isNotEmpty)
+                        PolylineLayer(
+                          key: const ValueKey('mapStationTracks'),
+                          polylines: tracks,
+                        ),
+                      // Winlink gateways and station markers share one layer,
+                      // ordered north to south so southern markers draw on top.
+                      if (_showWinlinkGateways ||
+                          stationMarkers.isNotEmpty ||
+                          meshMarkers.isNotEmpty)
+                        Builder(
+                          builder: (context) {
+                            final gateways = _showWinlinkGateways
+                                ? _gatewayMarkersCache.get((
+                                    MapCamera.of(context),
+                                    _gatewayRevision,
+                                    _radioBands,
+                                    Theme.of(context).brightness,
+                                  ), _buildWinlinkGatewayMarkers)
+                                : const <Marker>[];
+                            return MarkerLayer(
+                              key: const ValueKey('mapStationMarkers'),
+                              markers: _orderedMarkersCache.get(
+                                (gateways, stationMarkers, meshMarkers),
+                                () => _sortNorthToSouth([
+                                  ...gateways,
+                                  ...stationMarkers,
+                                  ...meshMarkers,
+                                ]),
+                              ),
+                            );
+                          },
+                        ),
+                      if (_showAirplanes && isTabVisible)
+                        ValueListenableBuilder<int>(
+                          valueListenable: _airplaneUpdates,
+                          builder: (context, revision, child) => MarkerLayer(
+                            key: const ValueKey('mapAirplaneMarkers'),
+                            markers: _airplaneMarkersCache.get((
+                              revision,
+                              _airplanes,
+                              locale,
+                            ), _buildAirplaneMarkers),
                           ),
-                        );
-                      },
-                    ),
-                  if (_showAirplanes && isTabVisible)
-                    ValueListenableBuilder<int>(
-                      valueListenable: _airplaneUpdates,
-                      builder: (context, revision, child) => MarkerLayer(
-                        key: const ValueKey('mapAirplaneMarkers'),
-                        markers: _airplaneMarkersCache.get((
-                          revision,
-                          _airplanes,
-                          locale,
-                        ), _buildAirplaneMarkers),
-                      ),
-                    ),
-                  if (_showSatellites && _satelliteSupport && isTabVisible) ...[
-                    ValueListenableBuilder<int>(
-                      valueListenable: _satelliteUpdates,
-                      builder: (context, revision, child) => CircleLayer(
-                        key: const ValueKey('mapSatelliteFootprints'),
-                        circles: _satelliteFootprintsCache.get((
-                          _satellites,
-                          _selectedSatId,
-                        ), _buildSatelliteFootprints),
-                      ),
-                    ),
-                    ValueListenableBuilder<int>(
-                      valueListenable: _satelliteTrackUpdates,
-                      builder: (context, revision, child) => PolylineLayer(
-                        key: const ValueKey('mapSatelliteTrack'),
-                        polylines: _satelliteTrackCache.get((
-                          _satGroundTrack,
-                        ), _buildSatelliteTrack),
-                      ),
-                    ),
-                    ValueListenableBuilder<int>(
-                      valueListenable: _satelliteUpdates,
-                      builder: (context, revision, child) => MarkerLayer(
-                        key: const ValueKey('mapSatelliteMarkers'),
-                        markers: _satelliteMarkersCache.get((
-                          _satellites,
-                          _selectedSatId,
-                        ), _buildSatelliteMarkers),
-                      ),
-                    ),
-                  ],
-                  // Distance measuring overlay: a dashed line and two draggable
-                  // markers. Drawn above the station markers so it stays visible.
-                  if (_isMeasuring &&
-                      _measureStart != null &&
-                      _measureEnd != null) ...[
-                    PolylineLayer(
-                      polylines: [
-                        Polyline(
-                          points: [_measureStart!, _measureEnd!],
-                          color: Colors.orangeAccent,
-                          strokeWidth: 3,
-                          borderColor: Colors.black54,
-                          borderStrokeWidth: 1,
+                        ),
+                      if (_showSatellites &&
+                          _satelliteSupport &&
+                          isTabVisible) ...[
+                        ValueListenableBuilder<int>(
+                          valueListenable: _satelliteUpdates,
+                          builder: (context, revision, child) => CircleLayer(
+                            key: const ValueKey('mapSatelliteFootprints'),
+                            circles: _satelliteFootprintsCache.get((
+                              _satellites,
+                              _selectedSatId,
+                            ), _buildSatelliteFootprints),
+                          ),
+                        ),
+                        ValueListenableBuilder<int>(
+                          valueListenable: _satelliteTrackUpdates,
+                          builder: (context, revision, child) => PolylineLayer(
+                            key: const ValueKey('mapSatelliteTrack'),
+                            polylines: _satelliteTrackCache.get((
+                              _satGroundTrack,
+                            ), _buildSatelliteTrack),
+                          ),
+                        ),
+                        ValueListenableBuilder<int>(
+                          valueListenable: _satelliteUpdates,
+                          builder: (context, revision, child) => MarkerLayer(
+                            key: const ValueKey('mapSatelliteMarkers'),
+                            markers: _satelliteMarkersCache.get((
+                              _satellites,
+                              _selectedSatId,
+                            ), _buildSatelliteMarkers),
+                          ),
                         ),
                       ],
-                    ),
-                    MarkerLayer(markers: _buildMeasureMarkers()),
-                  ],
-                  // Keep source attribution visible, with OSM's copyright link
-                  // only for the built-in map.
-                  if (source != null)
-                    Align(
-                      alignment: Alignment.bottomRight,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: MouseRegion(
-                          cursor: source.isCustom
-                              ? MouseCursor.defer
-                              : SystemMouseCursors.click,
-                          child: GestureDetector(
-                            onTap: source.isCustom
-                                ? null
-                                : () => launchUrl(
-                                    Uri.parse(
-                                      'https://www.openstreetmap.org/copyright',
-                                    ),
-                                    mode: LaunchMode.externalApplication,
-                                  ),
-                            child: Builder(
-                              builder: (context) {
-                                final dark =
-                                    Theme.of(context).brightness ==
-                                    Brightness.dark;
-                                return Text(
-                                  source.attributionText,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: dark ? Colors.white : Colors.black87,
-                                    shadows: [
-                                      Shadow(
-                                        blurRadius: 2,
-                                        color: dark
-                                            ? Colors.black
-                                            : Colors.white,
+                      // Distance measuring overlay: a dashed line and two draggable
+                      // markers. Drawn above the station markers so it stays visible.
+                      if (_isMeasuring &&
+                          _measureStart != null &&
+                          _measureEnd != null) ...[
+                        PolylineLayer(
+                          polylines: [
+                            Polyline(
+                              points: [_measureStart!, _measureEnd!],
+                              color: Colors.orangeAccent,
+                              strokeWidth: 3,
+                              borderColor: Colors.black54,
+                              borderStrokeWidth: 1,
+                            ),
+                          ],
+                        ),
+                        MarkerLayer(markers: _buildMeasureMarkers()),
+                      ],
+                      // Keep source attribution visible, with OSM's copyright link
+                      // only for the built-in map.
+                      if (source != null)
+                        Align(
+                          alignment: Alignment.bottomRight,
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: MouseRegion(
+                              cursor: source.isCustom
+                                  ? MouseCursor.defer
+                                  : SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: source.isCustom
+                                    ? null
+                                    : () => launchUrl(
+                                        Uri.parse(
+                                          'https://www.openstreetmap.org/copyright',
+                                        ),
+                                        mode: LaunchMode.externalApplication,
                                       ),
-                                    ],
-                                  ),
-                                );
-                              },
+                                child: Builder(
+                                  builder: (context) {
+                                    final dark =
+                                        Theme.of(context).brightness ==
+                                        Brightness.dark;
+                                    return Text(
+                                      source.attributionText,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: dark
+                                            ? Colors.white
+                                            : Colors.black87,
+                                        shadows: [
+                                          Shadow(
+                                            blurRadius: 2,
+                                            color: dark
+                                                ? Colors.black
+                                                : Colors.white,
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
+                    ],
+                  ),
                 ],
               ),
               // Measuring tool gesture layer. Placed above the map but below

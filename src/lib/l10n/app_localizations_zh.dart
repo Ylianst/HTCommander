@@ -9,6 +9,41 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get mapWeatherRadar => '天气雷达（美国）';
+
+  @override
+  String get mapWeatherRadarLoading => '正在加载雷达...';
+
+  @override
+  String get mapWeatherRadarOffline => '离线模式下隐藏雷达';
+
+  @override
+  String get mapWeatherRadarPaused => '雷达已暂停';
+
+  @override
+  String get mapWeatherRadarUnavailable => '雷达不可用；每5分钟重试';
+
+  @override
+  String get mapWeatherRadarStale => '雷达数据已超过15分钟；已隐藏';
+
+  @override
+  String get mapWeatherRadarTilesUnavailable => '部分雷达图块不可用';
+
+  @override
+  String get mapWeatherRadarRefreshFailed => '刷新失败；显示上次雷达数据';
+
+  @override
+  String mapWeatherRadarTime(String time) {
+    return '观测时间：$time UTC';
+  }
+
+  @override
+  String get mapWeatherRadarOpacity => '不透明度';
+
+  @override
+  String get mapWeatherRadarLegend => 'NEXRAD基本反射率图例（dBZ）';
+
+  @override
   String get commsTransferFile => 'Transfer File...';
 
   @override

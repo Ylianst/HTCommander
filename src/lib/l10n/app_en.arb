@@ -1,4 +1,18 @@
 {
+  "mapWeatherRadar": "Weather radar (US)",
+  "mapWeatherRadarLoading": "Loading radar...",
+  "mapWeatherRadarOffline": "Radar hidden in offline mode",
+  "mapWeatherRadarPaused": "Radar paused",
+  "mapWeatherRadarUnavailable": "Radar unavailable; retrying every 5 minutes",
+  "mapWeatherRadarStale": "Radar is 15+ minutes old; hidden",
+  "mapWeatherRadarTilesUnavailable": "Some radar tiles are unavailable",
+  "mapWeatherRadarRefreshFailed": "Refresh failed; showing previous radar",
+  "mapWeatherRadarTime": "Observed: {time} UTC",
+  "@mapWeatherRadarTime": {
+    "placeholders": { "time": { "type": "String" } }
+  },
+  "mapWeatherRadarOpacity": "Opacity",
+  "mapWeatherRadarLegend": "NEXRAD base reflectivity legend in dBZ",
   "commsTransferFile": "Transfer File...",
   "fileTransferChoose": "Choose file",
   "fileTransferCallsign": "Destination callsign (including SSID)",

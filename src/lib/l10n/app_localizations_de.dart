@@ -9,6 +9,46 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get mapWeatherRadar => 'Wetterradar (USA)';
+
+  @override
+  String get mapWeatherRadarLoading => 'Radar wird geladen...';
+
+  @override
+  String get mapWeatherRadarOffline => 'Radar im Offline-Modus ausgeblendet';
+
+  @override
+  String get mapWeatherRadarPaused => 'Radar pausiert';
+
+  @override
+  String get mapWeatherRadarUnavailable =>
+      'Radar nicht verfügbar; neuer Versuch alle 5 Minuten';
+
+  @override
+  String get mapWeatherRadarStale =>
+      'Radar mindestens 15 Minuten alt; ausgeblendet';
+
+  @override
+  String get mapWeatherRadarTilesUnavailable =>
+      'Einige Radarkacheln sind nicht verfügbar';
+
+  @override
+  String get mapWeatherRadarRefreshFailed =>
+      'Aktualisierung fehlgeschlagen; vorheriges Radar';
+
+  @override
+  String mapWeatherRadarTime(String time) {
+    return 'Beobachtet: $time UTC';
+  }
+
+  @override
+  String get mapWeatherRadarOpacity => 'Deckkraft';
+
+  @override
+  String get mapWeatherRadarLegend =>
+      'Legende der NEXRAD-Basisreflektivität in dBZ';
+
+  @override
   String get commsTransferFile => 'Transfer File...';
 
   @override

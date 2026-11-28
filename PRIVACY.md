@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last updated:** September 9, 2026
+**Last updated:** November 27, 2026
 
 ## Overview
 
@@ -37,6 +37,7 @@ The following integrations require you to enable, configure, or actively use the
 - **APRS.fi:** When you provide an API key and use message backfill or testing, the App sends the API key and requested call sign or query information to APRS.fi.
 - **RepeaterBook:** When you provide an API token and perform a search, the App sends the token and search parameters, which may include a location or region, to RepeaterBook.
 - **Online maps:** When you view or download online maps, the App requests map tiles from OpenStreetMap infrastructure. Tile coordinates reveal the geographic area being viewed, and the provider receives normal network metadata such as your IP address.
+- **Weather radar:** When you enable Weather radar on the map, the App requests NEXRAD timestamps and radar tiles from the Iowa Environmental Mesonet at `mesonet.agron.iastate.edu`. Tile coordinates reveal the geographic area being viewed, and the provider receives normal network metadata such as your IP address. Radar is off by default. Requests pause when the map or app is hidden or map offline mode is enabled.
 - **Winlink, EchoLink, AllStarLink, and proxy services:** When you configure and use these services, the App sends the identifiers, credentials, messages, attachments, audio, and connection information required by the selected service or gateway.
 - **Home Assistant and MQTT:** When enabled, the App connects to the server you configure and exchanges the radio state, events, credentials, and commands needed for that integration.
 - **Local web and AGWPE servers:** When enabled, the App listens for network connections on your device. Connected clients may access radio controls, audio, packets, and other information exposed by those protocols. These servers are disabled by default and should be enabled only on trusted networks. The optional HTTP BBS server is different: it is meant to be reachable by anyone, requires no password, and records the callsigns, IP addresses, and messages of connecting visitors in the BBS tab and logs.

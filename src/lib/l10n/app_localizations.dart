@@ -112,6 +112,72 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @mapWeatherRadar.
+  ///
+  /// In en, this message translates to:
+  /// **'Weather radar (US)'**
+  String get mapWeatherRadar;
+
+  /// No description provided for @mapWeatherRadarLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading radar...'**
+  String get mapWeatherRadarLoading;
+
+  /// No description provided for @mapWeatherRadarOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Radar hidden in offline mode'**
+  String get mapWeatherRadarOffline;
+
+  /// No description provided for @mapWeatherRadarPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Radar paused'**
+  String get mapWeatherRadarPaused;
+
+  /// No description provided for @mapWeatherRadarUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Radar unavailable; retrying every 5 minutes'**
+  String get mapWeatherRadarUnavailable;
+
+  /// No description provided for @mapWeatherRadarStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Radar is 15+ minutes old; hidden'**
+  String get mapWeatherRadarStale;
+
+  /// No description provided for @mapWeatherRadarTilesUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Some radar tiles are unavailable'**
+  String get mapWeatherRadarTilesUnavailable;
+
+  /// No description provided for @mapWeatherRadarRefreshFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh failed; showing previous radar'**
+  String get mapWeatherRadarRefreshFailed;
+
+  /// No description provided for @mapWeatherRadarTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Observed: {time} UTC'**
+  String mapWeatherRadarTime(String time);
+
+  /// No description provided for @mapWeatherRadarOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Opacity'**
+  String get mapWeatherRadarOpacity;
+
+  /// No description provided for @mapWeatherRadarLegend.
+  ///
+  /// In en, this message translates to:
+  /// **'NEXRAD base reflectivity legend in dBZ'**
+  String get mapWeatherRadarLegend;
+
   /// No description provided for @commsTransferFile.
   ///
   /// In en, this message translates to:

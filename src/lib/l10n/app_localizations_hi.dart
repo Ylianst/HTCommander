@@ -9,6 +9,44 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get mapWeatherRadar => 'मौसम रडार (अमेरिका)';
+
+  @override
+  String get mapWeatherRadarLoading => 'रडार लोड हो रहा है...';
+
+  @override
+  String get mapWeatherRadarOffline => 'ऑफ़लाइन मोड में रडार छिपा है';
+
+  @override
+  String get mapWeatherRadarPaused => 'रडार रुका हुआ है';
+
+  @override
+  String get mapWeatherRadarUnavailable =>
+      'रडार उपलब्ध नहीं; हर 5 मिनट में पुनः प्रयास';
+
+  @override
+  String get mapWeatherRadarStale => 'रडार 15 मिनट या अधिक पुराना है; छिपा है';
+
+  @override
+  String get mapWeatherRadarTilesUnavailable => 'कुछ रडार टाइल उपलब्ध नहीं हैं';
+
+  @override
+  String get mapWeatherRadarRefreshFailed =>
+      'अपडेट विफल; पिछला रडार दिखाया जा रहा है';
+
+  @override
+  String mapWeatherRadarTime(String time) {
+    return 'अवलोकन: $time UTC';
+  }
+
+  @override
+  String get mapWeatherRadarOpacity => 'अपारदर्शिता';
+
+  @override
+  String get mapWeatherRadarLegend =>
+      'dBZ में NEXRAD बेस रिफ्लेक्टिविटी रंग संकेत';
+
+  @override
   String get commsTransferFile => 'Transfer File...';
 
   @override

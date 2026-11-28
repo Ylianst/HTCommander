@@ -18,6 +18,7 @@ import 'package:htcommander/services/data_broker.dart';
 import 'package:htcommander/utils/map_tile_source.dart';
 import 'package:htcommander/widgets/map_tab.dart';
 import 'package:htcommander/widgets/tab_visibility.dart';
+import 'package:htcommander/widgets/weather_radar_layer.dart';
 import 'package:latlong2/latlong.dart';
 
 void _send(int deviceId, String name, Object? data) =>
@@ -44,14 +45,24 @@ SatellitePosition _satellite(double latitude) => SatellitePosition(
   utc: DateTime.now().toUtc(),
 );
 
-Widget _app({bool visible = true, bool dark = false}) => MaterialApp(
-  theme: dark ? ThemeData.dark() : ThemeData.light(),
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-  home: Scaffold(
-    body: TabVisibility(visible: visible, child: const MapTab()),
-  ),
-);
+Widget _app({bool visible = true, bool dark = false, bool smallText = false}) =>
+    MaterialApp(
+      theme: smallText
+          ? ThemeData(
+              textTheme: const TextTheme(bodyMedium: TextStyle(fontSize: 10)),
+              popupMenuTheme: const PopupMenuThemeData(
+                labelTextStyle: WidgetStatePropertyAll(TextStyle(fontSize: 10)),
+              ),
+            )
+          : dark
+          ? ThemeData.dark()
+          : ThemeData.light(),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(
+        body: TabVisibility(visible: visible, child: const MapTab()),
+      ),
+    );
 
 List<Marker> _markers(WidgetTester tester, String key) =>
     tester.widget<MarkerLayer>(find.byKey(ValueKey(key))).markers;
@@ -85,6 +96,47 @@ void main() {
       DataBroker.clearDevice(id);
     }
   });
+
+  testWidgets(
+    'map menu enables and persists weather radar without online tiles',
+    (tester) async {
+      _send(0, 'MapOfflineMode', 1);
+      await tester.pumpWidget(_app(smallText: true));
+      await tester.pump();
+      expect(
+        tester
+            .widget<WeatherRadarLayer>(find.byType(WeatherRadarLayer))
+            .enabled,
+        isFalse,
+      );
+      await tester.tap(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Image &&
+              widget.image is AssetImage &&
+              (widget.image as AssetImage).assetName ==
+                  'assets/images/MenuIcon.png',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Weather radar (US)'));
+      await tester.pumpAndSettle();
+      expect(DataBroker.getValue<int>(0, weatherRadarEnabledKey, 0), 1);
+      expect(find.text('Radar hidden in offline mode'), findsOneWidget);
+      expect(find.byType(TileLayer), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(_app(smallText: true));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<WeatherRadarLayer>(find.byType(WeatherRadarLayer))
+            .enabled,
+        isTrue,
+      );
+      expect(find.text('Radar hidden in offline mode'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets('live layers update without rebuilding unrelated collections', (
     tester,

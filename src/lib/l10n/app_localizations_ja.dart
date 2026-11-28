@@ -9,6 +9,41 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get mapWeatherRadar => '気象レーダー（米国）';
+
+  @override
+  String get mapWeatherRadarLoading => 'レーダーを読み込み中...';
+
+  @override
+  String get mapWeatherRadarOffline => 'オフラインモードではレーダーを非表示';
+
+  @override
+  String get mapWeatherRadarPaused => 'レーダーは一時停止中';
+
+  @override
+  String get mapWeatherRadarUnavailable => 'レーダーを取得できません。5分ごとに再試行';
+
+  @override
+  String get mapWeatherRadarStale => '15分以上前のレーダーのため非表示';
+
+  @override
+  String get mapWeatherRadarTilesUnavailable => '一部のレーダータイルを取得できません';
+
+  @override
+  String get mapWeatherRadarRefreshFailed => '更新失敗。前回のレーダーを表示中';
+
+  @override
+  String mapWeatherRadarTime(String time) {
+    return '観測：$time UTC';
+  }
+
+  @override
+  String get mapWeatherRadarOpacity => '不透明度';
+
+  @override
+  String get mapWeatherRadarLegend => 'NEXRAD基本反射強度の凡例（dBZ）';
+
+  @override
   String get commsTransferFile => 'Transfer File...';
 
   @override

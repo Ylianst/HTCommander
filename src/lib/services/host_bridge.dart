@@ -61,7 +61,9 @@ class HostBridge {
       name == 'OutputVolume' ||
       name == 'MapCustomSourceEnabled' ||
       name == 'MapCustomSourceUrl' ||
-      name == 'MapCustomSourceAttribution';
+      name == 'MapCustomSourceAttribution' ||
+      name == 'MapWeatherRadarEnabled' ||
+      name == 'MapWeatherRadarOpacity';
 
   static final RegExp _secretName = RegExp(
     'password|token|passcode|apikey|secret',
