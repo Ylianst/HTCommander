@@ -139,6 +139,13 @@ The low-level language HTCommander and the radio speak to each other.
    self-contained board snapshots, and adds a separate, replay-safe UTF-8 chat
    stream for each game.
 
+4. **[Files Over Radio: APRSConnect's PACSAT Protocol and a Path Into Comms](aprsconnect-file-transfer-protocol.md)**
+   A source-backed guide to APRSConnect's binary AX.25 file transfers: PACSAT
+   header fields, data/directory/request layouts, gzip and integrity checks,
+   acceptance, hole repair, half-duplex timing, broadcast and resume behavior.
+   Includes worked byte vectors, HTCommander Comms integration points, and
+   the capture-based checks still needed to establish interoperability.
+
 ---
 
 ## Sharing & Interop
@@ -165,6 +172,12 @@ would have thrown away.
    that merges both sources without doubles, how to turn it on from the Audio
    menu, and how the single- vs. double-arrow marks in the Packets tab show which
    modem caught each packet.
+
+2. **[APRS OTA: Turning a Bot Conversation Into a Little On-Air Adventure](aprs-ota-chat-plan.md)**
+   How the OTA bot connects hosts and chasers, checks beacons, and logs and
+   scores contacts. A documentation-only proposal for an OTA avatar,
+   machine-readable discovery cards, guided chasing, and a host QSL queue,
+   with RF-path safeguards, rate limits, and a staged validation plan.
 
 ---
 

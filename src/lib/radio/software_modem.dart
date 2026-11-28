@@ -356,6 +356,12 @@ class SoftwareModem {
       name: 'CancelDataTransmit',
       callback: _onCancelDataTransmit,
     );
+    _broker.subscribe(deviceId: DataBroker.allDevices, name: 'CancelFileTransmit',
+      callback: (deviceId, _, data) {
+        if (data is String && data.startsWith('file-transfer:')) {
+          _radioModems[deviceId]?.transmitQueue.removeWhere((p) => p.tag == data);
+        }
+      });
     _broker.subscribe(
       deviceId: DataBroker.allDevices,
       name: 'BbsEnabled',

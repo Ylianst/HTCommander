@@ -9,6 +9,104 @@ class AppLocalizationsPl extends AppLocalizations {
   AppLocalizationsPl([String locale = 'pl']) : super(locale);
 
   @override
+  String get commsTransferFile => 'Transfer File...';
+
+  @override
+  String get fileTransferChoose => 'Choose file';
+
+  @override
+  String get fileTransferCallsign => 'Destination callsign (including SSID)';
+
+  @override
+  String get fileTransferTransmit => 'Transmit';
+
+  @override
+  String get fileTransferAccept => 'Accept';
+
+  @override
+  String get fileTransferReject => 'Reject';
+
+  @override
+  String get fileTransferResume => 'Resume';
+
+  @override
+  String get fileTransferSave => 'Save file...';
+
+  @override
+  String get fileTransferWarning =>
+      'Agree a dedicated packet frequency with the other station first. Do not transfer files on the shared APRS channel. Only transmit content permitted by your license. Maximum transmitted body: 1,474,560 bytes; gzip is used when beneficial.';
+
+  @override
+  String get fileTransferQueued => 'Queued';
+
+  @override
+  String get fileTransferOutgoingOffer => 'Waiting for acceptance';
+
+  @override
+  String get fileTransferIncomingOffer => 'File offer';
+
+  @override
+  String get fileTransferReceiving => 'Receiving';
+
+  @override
+  String get fileTransferSending => 'Transmitting';
+
+  @override
+  String get fileTransferVerifying => 'Verifying and saving';
+
+  @override
+  String get fileTransferCompleted => 'Completed';
+
+  @override
+  String get fileTransferRejected => 'Rejected';
+
+  @override
+  String get fileTransferCanceled => 'Canceled';
+
+  @override
+  String get fileTransferCancelNote =>
+      'A packet already submitted to the radio may still transmit.';
+
+  @override
+  String get fileTransferNoResponse => 'No response';
+
+  @override
+  String get fileTransferPaused => 'Paused';
+
+  @override
+  String get fileTransferExpired => 'Offer expired';
+
+  @override
+  String get fileTransferFailed => 'Failed';
+
+  @override
+  String fileTransferSize(int original, int sent) {
+    return '$original bytes original / $sent bytes over radio';
+  }
+
+  @override
+  String fileTransferProgress(int done, int total) {
+    return '$done / $total bytes confirmed';
+  }
+
+  @override
+  String fileTransferError(String detail) {
+    return 'File transfer: $detail';
+  }
+
+  @override
+  String get fileTransferTooLarge => 'File exceeds 50 MB before compression';
+
+  @override
+  String get fileTransferUnconfirmed =>
+      'No queue confirmation. Check the chat before transmitting again.';
+
+  @override
+  String fileTransferSelectedFile(String name, int size) {
+    return '$name ($size bytes)';
+  }
+
+  @override
   String get aprsOutbox => 'Skrzynka nadawcza APRS';
 
   @override

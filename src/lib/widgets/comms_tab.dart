@@ -25,6 +25,9 @@ import '../dialogs/morse_speed_dialog.dart';
 import '../dialogs/radio_channel_dialog.dart';
 import '../dialogs/recording_playback_dialog.dart';
 import '../dialogs/sstv_send_dialog.dart';
+import '../dialogs/file_transfer_dialog.dart';
+import '../file_transfer/file_transfer_engine.dart';
+import 'file_transfer_card.dart';
 import '../l10n/app_localizations.dart';
 import '../sstv/encoder.dart';
 import '../radio/dtmf_engine.dart';
@@ -63,6 +66,7 @@ class CommsTab extends StatefulWidget {
 class _CommsTabState extends State<CommsTab>
     with AutomaticKeepAliveClientMixin, TabVisibilityStateMixin {
   final List<ChatMessage> _messages = [];
+  List<FileTransfer> _fileTransfers = [];
   static const int _maxMessages = 1000;
   int _nextMessageId = 0;
   final String _historyClientId =
@@ -241,6 +245,27 @@ class _CommsTabState extends State<CommsTab>
   @override
   void initState() {
     super.initState();
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'FileTransfers',
+      callback: _onFileTransfers,
+    );
+    _broker.subscribe(
+      deviceId: 1,
+      name: 'FileTransferError',
+      callback: (_, _, data) {
+        if (mounted && data is String) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context).fileTransferError(data),
+              ),
+            ),
+          );
+        }
+      },
+    );
+    _readFileTransfers(DataBroker.getValueDynamic(1, 'FileTransfers'));
     _broker.subscribe(
       deviceId: 1,
       name: 'StoredChatHistoryAvailable',
@@ -1368,10 +1393,115 @@ class _CommsTabState extends State<CommsTab>
   // Decoded text history
   // ---------------------------------------------------------------------------
 
+  void _readFileTransfers(Object? data) {
+    if (data is! List) return;
+    _fileTransfers = [
+      for (final row in data)
+        if (row is Map)
+          FileTransfer.restore(
+            Map<String, dynamic>.from(row),
+            recovering: false,
+          ),
+    ];
+  }
+
+  void _onFileTransfers(int deviceId, String name, Object? data) {
+    if (!mounted) return;
+    setState(() {
+      _readFileTransfers(data);
+      _mergeTransferMessages();
+    });
+  }
+
+  void _mergeTransferMessages() {
+    final ids = _fileTransfers.map((t) => 'file_transfer_${t.id}').toSet();
+    _messages.removeWhere(
+      (m) => m.id.startsWith('file_transfer_') && !ids.contains(m.id),
+    );
+    for (final t in _fileTransfers) {
+      final id = 'file_transfer_${t.id}';
+      final message = ChatMessage(
+        id: id,
+        route: '[${t.link.channel}] FILE ${t.source} -> ${t.file.destination}',
+        senderCallsign: t.source,
+        message: '',
+        time: t.created,
+        isSender: t.outgoing,
+        icon: Icons.attach_file,
+        tag: t,
+        bubbleContent: FileTransferCard(
+          transfer: t,
+          enabled: !kIsWeb,
+          onAction: (action) => _broker.dispatch(
+            deviceId: 1,
+            name: 'FileTransferAction',
+            data: {'id': t.id, 'action': action},
+            store: false,
+          ),
+          onSave: kIsWeb || t.savedPath == null ? null : () => _saveTransfer(t),
+        ),
+      );
+      final index = _messages.indexWhere((m) => m.id == id);
+      if (index >= 0) {
+        _messages[index] = message;
+      } else {
+        final at = _messages.indexWhere((m) => m.time.isAfter(t.created));
+        if (at < 0) {
+          _messages.add(message);
+        } else {
+          _messages.insert(at, message);
+        }
+      }
+    }
+  }
+
+  Future<void> _saveTransfer(FileTransfer transfer) async {
+    try {
+      final bytes = await File(transfer.savedPath!).readAsBytes();
+      if (!mounted) return;
+      final output = await FilePicker.saveFile(
+        dialogTitle: AppLocalizations.of(context).fileTransferSave,
+        fileName: transfer.file.name.replaceAll(
+          RegExp(r'[<>:"/\\|?*\x00-\x1f]'),
+          '_',
+        ),
+        bytes: bytes,
+      );
+      if (output != null && !Platform.isAndroid && !Platform.isIOS) {
+        await File(output).writeAsBytes(bytes, flush: true);
+      }
+    } on FileSystemException catch (e) {
+      _showFileTransferError(e.message);
+    } on PlatformException catch (e) {
+      _showFileTransferError(e.message ?? e.code);
+    }
+  }
+
+  void _showFileTransferError(String detail) {
+    _broker.logError('[File transfer] $detail');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context).fileTransferError(detail)),
+        ),
+      );
+    }
+  }
+
+  bool get _canTransferFile =>
+      !kIsWeb &&
+      _isPhysicalRadioSelected &&
+      _currentRadioDeviceId >= 100 &&
+      _allowTransmit &&
+      !_isVfoAAprs &&
+      !_isTransmitting &&
+      !(_lockStates[_currentRadioDeviceId]?.isLocked ?? false);
+
   void _onVoiceTextCleared(int deviceId, String name, Object? data) {
     _historyTimeout?.cancel();
     setState(() {
       _messages.clear();
+      _mergeTransferMessages();
       _historyRequestId = null;
       _historyBefore = null;
       _historyOverlap = {};
@@ -1556,6 +1686,7 @@ class _CommsTabState extends State<CommsTab>
       _messages
         ..clear()
         ..addAll(loaded);
+      _mergeTransferMessages();
     });
   }
 
@@ -2569,6 +2700,7 @@ class _CommsTabState extends State<CommsTab>
   }
 
   void _onMessageContextMenu(ChatMessage message, Offset globalPosition) async {
+    if (message.tag is FileTransfer) return;
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final hasLocation =
         message.latitude != null &&
@@ -3139,6 +3271,18 @@ class _CommsTabState extends State<CommsTab>
           ),
         ],
         const PopupMenuDivider(height: 8),
+        PopupMenuItem<String>(
+          value: 'transferFile',
+          height: menuItemHeight,
+          padding: menuItemPadding,
+          enabled: _canTransferFile,
+          child: Row(
+            children: [
+              const SizedBox(width: 20),
+              Text(AppLocalizations.of(context).commsTransferFile),
+            ],
+          ),
+        ),
         if (_isPhysicalRadioSelected)
           PopupMenuItem<String>(
             value: 'audioRelay',
@@ -3269,6 +3413,15 @@ class _CommsTabState extends State<CommsTab>
           break;
         case 'sendAudio':
           _pickAndSendAudio();
+          break;
+        case 'transferFile':
+          if (context.mounted && _canTransferFile) {
+            showDialog<void>(
+              context: context,
+              builder: (_) =>
+                  FileTransferDialog(deviceId: _currentRadioDeviceId),
+            );
+          }
           break;
         case 'audioRelay':
           _toggleAudioRelay();

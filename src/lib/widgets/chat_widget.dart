@@ -46,6 +46,7 @@ class ChatMessage {
   /// Absolute path to an inline image to display in the bubble (e.g. a decoded
   /// SSTV picture), if any.
   final String? imagePath;
+  final Widget? bubbleContent;
 
   ChatMessage({
     required this.id,
@@ -64,6 +65,7 @@ class ChatMessage {
     this.bubbleColorOverride,
     this.filename,
     this.imagePath,
+    this.bubbleContent,
   });
 
   bool get hasLocation => latitude != null && longitude != null;
@@ -308,7 +310,8 @@ class _ChatWidgetState extends State<ChatWidget> {
     // symbol (symbol-only position beacons carry no comment text). Only an
     // entry with none of these has no bubble at all.
     final hasBubble =
-        hasText || message.imagePath != null || message.bubbleSymbol != null;
+        hasText || message.imagePath != null || message.bubbleSymbol != null ||
+        message.bubbleContent != null;
     // When there is no bubble, the header is the only content, so always show
     // it. A header with an icon (e.g. a recording) is tappable. Show the icon
     // in the header when there is no bubble at all, or when the bubble contains
@@ -509,6 +512,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Inline image (e.g. a decoded SSTV picture).
+                  if (message.bubbleContent != null) message.bubbleContent!,
                   if (message.imagePath != null)
                     Padding(
                       padding: EdgeInsets.only(

@@ -37,6 +37,7 @@ import 'handlers/software_beacon_handler.dart';
 import 'handlers/airplane_handler.dart';
 import 'handlers/satellite_handler.dart';
 import 'handlers/comms_handler.dart';
+import 'handlers/file_transfer_handler.dart';
 import 'handlers/morse_key_handler.dart';
 import 'handlers/bbs_files.dart';
 import 'handlers/bbs_handler.dart';
@@ -507,6 +508,10 @@ Future<void> _startApp(List<String> args) async {
   final commsHandler = CommsHandler();
   commsHandler.init();
   DataBroker.addDataHandler('CommsHandler', commsHandler);
+
+  final fileTransfers = FileTransferHandler();
+  await fileTransfers.init();
+  DataBroker.addDataHandler('FileTransfers', fileTransfers);
 
   // Register the morse-key handler so a USB morse key (straight or paddle) can
   // be keyed in real time, rendered to a 700 Hz tone, and sent locally (test)

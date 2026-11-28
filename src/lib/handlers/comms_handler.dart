@@ -2823,6 +2823,8 @@ class CommsHandler {
     // Decode the frame as AX.25.
     final ax25Packet = AX25Packet.decode(frame);
     if (ax25Packet == null) return;
+    // PACSAT pieces belong to the transfer card, not one binary chat per piece.
+    if (ax25Packet.pid == 0xbb || ax25Packet.pid == 0xbd) return;
 
     // Only process U_FRAME_UI or U_FRAME (unnumbered information frames).
     if (ax25Packet.type != FrameType.uFrameUi &&

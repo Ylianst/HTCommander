@@ -435,6 +435,16 @@ class Radio implements FirmwareRadio {
       name: 'CancelDataTransmit',
       callback: _onCancelDataTransmit,
     );
+    _broker.subscribe(deviceId: deviceId, name: 'CancelFileTransmit',
+      callback: (_, _, data) {
+        if (data is String && data.startsWith('file-transfer:')) {
+          deleteTransmitByTag(data);
+          if (!_tncFragmentInFlight) {
+            _clearTransmitQueue();
+            _trySendNextFragment();
+          }
+        }
+      });
 
     // PCM sent to this radio for transmission (e.g. the software modem after
     // winning channel access) means the radio is keying up.
@@ -960,6 +970,11 @@ class Radio implements FirmwareRadio {
         _dispatch('AprsTransmitResult', {
           'tag': packet.tag, 'accepted': submitted > 0,
           'error': submitted > 0 ? null : 'Radio did not accept the packet',
+        }, store: false);
+      }
+      if (packet.tag?.startsWith('file-transfer:') == true) {
+        _dispatch('FileTransmitResult', {
+          'tag': packet.tag, 'accepted': submitted > 0,
         }, store: false);
       }
     } else if (txData.bssPacket != null) {

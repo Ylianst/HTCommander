@@ -112,6 +112,180 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @commsTransferFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer File...'**
+  String get commsTransferFile;
+
+  /// No description provided for @fileTransferChoose.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose file'**
+  String get fileTransferChoose;
+
+  /// No description provided for @fileTransferCallsign.
+  ///
+  /// In en, this message translates to:
+  /// **'Destination callsign (including SSID)'**
+  String get fileTransferCallsign;
+
+  /// No description provided for @fileTransferTransmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Transmit'**
+  String get fileTransferTransmit;
+
+  /// No description provided for @fileTransferAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get fileTransferAccept;
+
+  /// No description provided for @fileTransferReject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get fileTransferReject;
+
+  /// No description provided for @fileTransferResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get fileTransferResume;
+
+  /// No description provided for @fileTransferSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save file...'**
+  String get fileTransferSave;
+
+  /// No description provided for @fileTransferWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Agree a dedicated packet frequency with the other station first. Do not transfer files on the shared APRS channel. Only transmit content permitted by your license. Maximum transmitted body: 1,474,560 bytes; gzip is used when beneficial.'**
+  String get fileTransferWarning;
+
+  /// No description provided for @fileTransferQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get fileTransferQueued;
+
+  /// No description provided for @fileTransferOutgoingOffer.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for acceptance'**
+  String get fileTransferOutgoingOffer;
+
+  /// No description provided for @fileTransferIncomingOffer.
+  ///
+  /// In en, this message translates to:
+  /// **'File offer'**
+  String get fileTransferIncomingOffer;
+
+  /// No description provided for @fileTransferReceiving.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving'**
+  String get fileTransferReceiving;
+
+  /// No description provided for @fileTransferSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Transmitting'**
+  String get fileTransferSending;
+
+  /// No description provided for @fileTransferVerifying.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying and saving'**
+  String get fileTransferVerifying;
+
+  /// No description provided for @fileTransferCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get fileTransferCompleted;
+
+  /// No description provided for @fileTransferRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get fileTransferRejected;
+
+  /// No description provided for @fileTransferCanceled.
+  ///
+  /// In en, this message translates to:
+  /// **'Canceled'**
+  String get fileTransferCanceled;
+
+  /// No description provided for @fileTransferCancelNote.
+  ///
+  /// In en, this message translates to:
+  /// **'A packet already submitted to the radio may still transmit.'**
+  String get fileTransferCancelNote;
+
+  /// No description provided for @fileTransferNoResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'No response'**
+  String get fileTransferNoResponse;
+
+  /// No description provided for @fileTransferPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get fileTransferPaused;
+
+  /// No description provided for @fileTransferExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Offer expired'**
+  String get fileTransferExpired;
+
+  /// No description provided for @fileTransferFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get fileTransferFailed;
+
+  /// No description provided for @fileTransferSize.
+  ///
+  /// In en, this message translates to:
+  /// **'{original} bytes original / {sent} bytes over radio'**
+  String fileTransferSize(int original, int sent);
+
+  /// No description provided for @fileTransferProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} / {total} bytes confirmed'**
+  String fileTransferProgress(int done, int total);
+
+  /// No description provided for @fileTransferError.
+  ///
+  /// In en, this message translates to:
+  /// **'File transfer: {detail}'**
+  String fileTransferError(String detail);
+
+  /// No description provided for @fileTransferTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'File exceeds 50 MB before compression'**
+  String get fileTransferTooLarge;
+
+  /// No description provided for @fileTransferUnconfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'No queue confirmation. Check the chat before transmitting again.'**
+  String get fileTransferUnconfirmed;
+
+  /// No description provided for @fileTransferSelectedFile.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} ({size} bytes)'**
+  String fileTransferSelectedFile(String name, int size);
+
   /// No description provided for @aprsOutbox.
   ///
   /// In en, this message translates to:
